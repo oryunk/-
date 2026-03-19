@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>모의 투자 - 주린닷컴</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+<style>
+  .simulation-container {
+    min-height: 100vh;
+    padding-top: 80px;
+  }
+
+  .simulation-header {
+    background: linear-gradient(135deg, var(--blue-dark), var(--navy));
+    padding: 40px 0;
+    border-bottom: 1px solid rgba(79, 158, 255, 0.15);
+  }
+
+  .simulation-header-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 40px;
+  }
+
+  .simulation-title {
+    font-size: 32px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    color: var(--white);
+  }
+
+  .simulation-sub {
+    font-size: 16px;
+    color: var(--gray-400);
+  }
+
+  .simulation-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 40px;
+  }
+
+  .portfolio-section {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(79, 158, 255, 0.15);
+    border-radius: 16px;
+    padding: 32px;
+    margin-bottom: 40px;
+  }
+
+  .portfolio-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+  }
+
+  .portfolio-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--white);
+  }
+
+  .portfolio-balance {
+    text-align: right;
+  }
+
+  .balance-label {
+    font-size: 14px;
+    color: var(--gray-400);
+    margin-bottom: 4px;
+  }
+
+  .balance-amount {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--accent);
+  }
+
+  .portfolio-stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+    margin-bottom: 32px;
+  }
+
+  .stat-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(79, 158, 255, 0.1);
+    border-radius: 12px;
+    padding: 20px;
+    text-align: center;
+  }
+
+  .stat-label {
+    font-size: 14px;
+    color: var(--gray-400);
+    margin-bottom: 8px;
+  }
+
+  .stat-value {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--white);
+  }
+
+  .stat-value.up {
+    color: var(--up);
+  }
+
+  .stat-value.down {
+    color: var(--down);
+  }
+
+  .holdings-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 24px;
+  }
+
+  .holdings-table th,
+  .holdings-table td {
+    padding: 16px 12px;
+    text-align: left;
+    border-bottom: 1px solid rgba(79, 158, 255, 0.1);
+  }
+
+  .holdings-table th {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--gray-400);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .holdings-table td {
+    font-size: 15px;
+    color: var(--white);
+  }
+
+  .holding-name {
+    font-weight: 600;
+    color: var(--white);
+  }
+
+  .holding-price {
+    font-weight: 700;
+    color: var(--accent);
+  }
+
+  .holding-change {
+    font-weight: 600;
+  }
+
+  .holding-change.up {
+    color: var(--up);
+  }
+
+  .holding-change.down {
+    color: var(--down);
+  }
+
+  .trading-section {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(79, 158, 255, 0.15);
+    border-radius: 16px;
+    padding: 32px;
+    margin-bottom: 40px;
+  }
+
+  .trading-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--white);
+    margin-bottom: 24px;
+  }
+
+  .trading-form {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr auto;
+    gap: 16px;
+    align-items: end;
+    margin-bottom: 24px;
+  }
+
+  .form-group {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .form-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--white);
+    margin-bottom: 8px;
+  }
+
+  .form-input {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(79, 158, 255, 0.25);
+    border-radius: 8px;
+    padding: 12px 16px;
+    color: var(--white);
+    font-size: 15px;
+    font-family: inherit;
+    transition: border-color 0.2s;
+  }
+
+  .form-input:focus {
+    outline: none;
+    border-color: var(--accent);
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  .form-input::placeholder {
+    color: var(--gray-400);
+  }
+
+  .btn-trade {
+    background: linear-gradient(135deg, var(--blue-bright), var(--accent));
+    border: none;
+    color: white;
+    padding: 12px 24px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    border-radius: 8px;
+    transition: opacity 0.2s;
+  }
+
+  .btn-trade:hover {
+    opacity: 0.9;
+  }
+
+  .btn-trade.sell {
+    background: linear-gradient(135deg, var(--up), #ff6b6b);
+  }
+
+  .trading-history {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(79, 158, 255, 0.1);
+    border-radius: 12px;
+    padding: 24px;
+  }
+
+  .history-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--white);
+    margin-bottom: 16px;
+  }
+
+  .history-list {
+    max-height: 300px;
+    overflow-y: auto;
+  }
+
+  .history-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid rgba(79, 158, 255, 0.05);
+  }
+
+  .history-item:last-child {
+    border-bottom: none;
+  }
+
+  .history-info {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .history-stock {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--white);
+    margin-bottom: 4px;
+  }
+
+  .history-details {
+    font-size: 13px;
+    color: var(--gray-400);
+  }
+
+  .history-amount {
+    text-align: right;
+  }
+
+  .history-price {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--accent);
+    margin-bottom: 4px;
+  }
+
+  .history-time {
+    font-size: 12px;
+    color: var(--gray-500);
+  }
+
+  .btn-back {
+    background: rgba(79, 158, 255, 0.2);
+    border: 1px solid rgba(79, 158, 255, 0.4);
+    color: var(--accent);
+    padding: 10px 20px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    border-radius: 8px;
+    transition: all 0.2s;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 24px;
+  }
+
+  .btn-back:hover {
+    background: rgba(79, 158, 255, 0.3);
+    border-color: rgba(79, 158, 255, 0.6);
+  }
+
+  @media (max-width: 768px) {
+    .trading-form {
+      grid-template-columns: 1fr;
+      gap: 16px;
+    }
+
+    .portfolio-stats {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    .holdings-table {
+      font-size: 14px;
+    }
+
+    .holdings-table th,
+    .holdings-table td {
+      padding: 12px 8px;
+    }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="주린닷컴홈피.html" class="nav-logo">
+    <div class="logo-icon">주</div>
+    <div class="logo-text">주린<span>닷컴</span></div>
+  </a>
+  <ul class="nav-menu">
+    <li><a href="주린닷컴홈피.html">홈</a></li>
+    <li><a href="analysis.html">AI 분석</a></li>
+    <li><a href="glossary.html">용어 사전</a></li>
+    <li><a href="#" class="active">모의 투자 <span class="nav-badge">NEW</span></a></li>
+    <li><a href="market.html">시장</a></li>
+  </ul>
+  <div class="nav-right">
+    <button class="btn-ghost">로그인</button>
+    <button class="btn-primary">무료 시작하기</button>
+  </div>
+</nav>
+
+<div class="simulation-container">
+  <div class="simulation-header">
+    <div class="simulation-header-content">
+      <a href="주린닷컴홈피.html" class="btn-back">← 돌아가기</a>
+      <div class="simulation-title">🎯 모의 투자</div>
+      <div class="simulation-sub">실제 투자처럼 매매를 연습해보세요</div>
+    </div>
+  </div>
+
+  <div class="simulation-content">
+    <div class="portfolio-section">
+      <div class="portfolio-header">
+        <div class="portfolio-title">📊 내 포트폴리오</div>
+        <div class="portfolio-balance">
+          <div class="balance-label">총 자산</div>
+          <div class="balance-amount" id="totalBalance">₩10,000,000</div>
+        </div>
+      </div>
+
+      <div class="portfolio-stats">
+        <div class="stat-card">
+          <div class="stat-label">총 수익률</div>
+          <div class="stat-value up" id="totalReturn">+12.5%</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">총 수익금</div>
+          <div class="stat-value up" id="totalProfit">₩1,250,000</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">보유 종목</div>
+          <div class="stat-value" id="holdingCount">3개</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">평가 손익</div>
+          <div class="stat-value up" id="unrealizedProfit">₩850,000</div>
+        </div>
+      </div>
+
+      <table class="holdings-table" id="holdingsTable">
+        <thead>
+          <tr>
+            <th>종목명</th>
+            <th>보유수량</th>
+            <th>평균단가</th>
+            <th>현재가</th>
+            <th>평가손익</th>
+            <th>수익률</th>
+          </tr>
+        </thead>
+        <tbody id="holdingsTableBody">
+          <!-- 동적으로 보유 종목 표시 -->
+        </tbody>
+      </table>
+    </div>
+
+    <div class="trading-section">
+      <div class="trading-title">💼 매매하기</div>
+      <div class="trading-form">
+        <div class="form-group">
+          <label class="form-label">종목명</label>
+          <input type="text" class="form-input" id="tradeStock" placeholder="삼성전자, 005930">
+        </div>
+        <div class="form-group">
+          <label class="form-label">주문수량</label>
+          <input type="number" class="form-input" id="tradeQuantity" placeholder="10" min="1">
+        </div>
+        <div class="form-group">
+          <label class="form-label">주문가격</label>
+          <input type="number" class="form-input" id="tradePrice" placeholder="75000">
+        </div>
+        <div class="form-group">
+          <button class="btn-trade" onclick="executeTrade('buy')">매수</button>
+          <button class="btn-trade sell" onclick="executeTrade('sell')">매도</button>
+        </div>
+      </div>
+
+      <div class="trading-history">
+        <div class="history-title">📝 최근 거래 내역</div>
+        <div class="history-list" id="tradingHistory">
+          <!-- 동적으로 거래 내역 표시 -->
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // 초기 데이터
+  let portfolio = {
+    balance: 10000000, // 1천만원
+    holdings: {
+      '삼성전자': {
+        quantity: 50,
+        avgPrice: 74000,
+        currentPrice: 75200
+      },
+      'SK하이닉스': {
+        quantity: 20,
+        avgPrice: 175000,
+        currentPrice: 182500
+      },
+      'NAVER': {
+        quantity: 30,
+        avgPrice: 195000,
+        currentPrice: 201000
+      }
+    },
+    history: []
+  };
+
+  // 페이지 로드 시 초기화
+  document.addEventListener('DOMContentLoaded', function() {
+    updatePortfolio();
+    renderHoldings();
+    renderHistory();
+  });
+
+  // 포트폴리오 업데이트
+  function updatePortfolio() {
+    let totalValue = portfolio.balance;
+    let totalCost = 0;
+
+    Object.values(portfolio.holdings).forEach(holding => {
+      totalValue += holding.quantity * holding.currentPrice;
+      totalCost += holding.quantity * holding.avgPrice;
+    });
+
+    const totalReturn = ((totalValue - 10000000) / 10000000 * 100);
+    const totalProfit = totalValue - 10000000;
+    const holdingCount = Object.keys(portfolio.holdings).length;
+    const unrealizedProfit = totalValue - portfolio.balance - totalCost + Object.values(portfolio.holdings).reduce((sum, h) => sum + (h.quantity * h.avgPrice), 0);
+
+    document.getElementById('totalBalance').textContent = formatCurrency(totalValue);
+    document.getElementById('totalReturn').textContent = (totalReturn >= 0 ? '+' : '') + totalReturn.toFixed(2) + '%';
+    document.getElementById('totalReturn').className = 'stat-value ' + (totalReturn >= 0 ? 'up' : 'down');
+    document.getElementById('totalProfit').textContent = formatCurrency(totalProfit);
+    document.getElementById('totalProfit').className = 'stat-value ' + (totalProfit >= 0 ? 'up' : 'down');
+    document.getElementById('holdingCount').textContent = holdingCount + '개';
+    document.getElementById('unrealizedProfit').textContent = formatCurrency(unrealizedProfit);
+    document.getElementById('unrealizedProfit').className = 'stat-value ' + (unrealizedProfit >= 0 ? 'up' : 'down');
+  }
+
+  // 보유 종목 렌더링
+  function renderHoldings() {
+    const holdingsTableBody = document.getElementById('holdingsTableBody');
+
+    const holdingsHtml = Object.entries(portfolio.holdings).map(([stock, data]) => {
+      const profit = (data.currentPrice - data.avgPrice) * data.quantity;
+      const profitRate = ((data.currentPrice - data.avgPrice) / data.avgPrice * 100);
+
+      return `
+        <tr>
+          <td class="holding-name">${stock}</td>
+          <td>${data.quantity.toLocaleString()}주</td>
+          <td>${formatCurrency(data.avgPrice)}</td>
+          <td class="holding-price">${formatCurrency(data.currentPrice)}</td>
+          <td class="holding-change ${profit >= 0 ? 'up' : 'down'}">
+            ${profit >= 0 ? '+' : ''}${formatCurrency(profit)}
+          </td>
+          <td class="holding-change ${profitRate >= 0 ? 'up' : 'down'}">
+            ${profitRate >= 0 ? '+' : ''}${profitRate.toFixed(2)}%
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    holdingsTableBody.innerHTML = holdingsHtml;
+  }
+
+  // 거래 내역 렌더링
+  function renderHistory() {
+    const tradingHistory = document.getElementById('tradingHistory');
+
+    if (portfolio.history.length === 0) {
+      tradingHistory.innerHTML = '<div style="text-align: center; color: var(--gray-400); padding: 40px;">아직 거래 내역이 없습니다.</div>';
+      return;
+    }
+
+    const historyHtml = portfolio.history.slice(-10).reverse().map(trade => `
+      <div class="history-item">
+        <div class="history-info">
+          <div class="history-stock">${trade.stock} ${trade.type === 'buy' ? '매수' : '매도'}</div>
+          <div class="history-details">${trade.quantity}주 × ${formatCurrency(trade.price)}</div>
+        </div>
+        <div class="history-amount">
+          <div class="history-price">${formatCurrency(trade.total)}</div>
+          <div class="history-time">${trade.time}</div>
+        </div>
+      </div>
+    `).join('');
+
+    tradingHistory.innerHTML = historyHtml;
+  }
+
+  // 매매 실행
+  function executeTrade(type) {
+    const stock = document.getElementById('tradeStock').value.trim();
+    const quantity = parseInt(document.getElementById('tradeQuantity').value);
+    const price = parseInt(document.getElementById('tradePrice').value);
+
+    if (!stock || !quantity || !price) {
+      alert('모든 필드를 입력해주세요.');
+      return;
+    }
+
+    if (quantity <= 0 || price <= 0) {
+      alert('올바른 수량과 가격을 입력해주세요.');
+      return;
+    }
+
+    const total = quantity * price;
+
+    if (type === 'buy') {
+      if (total > portfolio.balance) {
+        alert('잔액이 부족합니다.');
+        return;
+      }
+      portfolio.balance -= total;
+
+      if (portfolio.holdings[stock]) {
+        const currentTotal = portfolio.holdings[stock].quantity * portfolio.holdings[stock].avgPrice;
+        const newTotal = currentTotal + total;
+        portfolio.holdings[stock].quantity += quantity;
+        portfolio.holdings[stock].avgPrice = newTotal / portfolio.holdings[stock].quantity;
+      } else {
+        portfolio.holdings[stock] = {
+          quantity: quantity,
+          avgPrice: price,
+          currentPrice: price
+        };
+      }
+    } else { // sell
+      if (!portfolio.holdings[stock] || portfolio.holdings[stock].quantity < quantity) {
+        alert('보유 수량이 부족합니다.');
+        return;
+      }
+      portfolio.balance += total;
+      portfolio.holdings[stock].quantity -= quantity;
+
+      if (portfolio.holdings[stock].quantity === 0) {
+        delete portfolio.holdings[stock];
+      }
+    }
+
+    // 거래 내역 추가
+    const now = new Date();
+    portfolio.history.push({
+      stock: stock,
+      type: type,
+      quantity: quantity,
+      price: price,
+      total: total,
+      time: now.toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+    });
+
+    // UI 업데이트
+    updatePortfolio();
+    renderHoldings();
+    renderHistory();
+
+    // 입력 필드 초기화
+    document.getElementById('tradeStock').value = '';
+    document.getElementById('tradeQuantity').value = '';
+    document.getElementById('tradePrice').value = '';
+
+    alert(`${stock} ${type === 'buy' ? '매수' : '매도'}가 완료되었습니다.`);
+  }
+
+  // 통화 포맷팅
+  function formatCurrency(amount) {
+    return '₩' + amount.toLocaleString();
+  }
+</script>
+
+</body>
+</html>

@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>종목 분석 - 주린닷컴</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+<style>
+  .analysis-container {
+    min-height: 100vh;
+    padding-top: 80px;
+  }
+
+  .analysis-header {
+    background: linear-gradient(135deg, var(--blue-dark), var(--navy));
+    padding: 40px 0;
+    border-bottom: 1px solid rgba(79, 158, 255, 0.15);
+  }
+
+  .analysis-header-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 40px;
+  }
+
+  .analysis-title {
+    font-size: 32px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    color: var(--white);
+  }
+
+  .analysis-sub {
+    font-size: 16px;
+    color: var(--gray-400);
+  }
+
+  .analysis-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 40px;
+  }
+
+  .stock-input-section {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(79, 158, 255, 0.15);
+    border-radius: 16px;
+    padding: 32px;
+    margin-bottom: 40px;
+  }
+
+  .input-label {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 12px;
+    color: var(--white);
+  }
+
+  .input-group {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+
+  .stock-input-field {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(79, 158, 255, 0.25);
+    border-radius: 10px;
+    padding: 14px 18px;
+    color: var(--white);
+    font-size: 15px;
+    font-family: inherit;
+    transition: border-color 0.2s;
+  }
+
+  .stock-input-field:focus {
+    outline: none;
+    border-color: var(--accent);
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  .stock-input-field::placeholder {
+    color: var(--gray-400);
+  }
+
+  .btn-analyze {
+    background: linear-gradient(135deg, var(--blue-bright), var(--accent));
+    border: none;
+    color: white;
+    padding: 14px 28px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    border-radius: 10px;
+    transition: opacity 0.2s;
+    white-space: nowrap;
+  }
+
+  .btn-analyze:hover {
+    opacity: 0.9;
+  }
+
+  .btn-back {
+    background: rgba(79, 158, 255, 0.2);
+    border: 1px solid rgba(79, 158, 255, 0.4);
+    color: var(--accent);
+    padding: 10px 20px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    border-radius: 8px;
+    transition: all 0.2s;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 24px;
+  }
+
+  .btn-back:hover {
+    background: rgba(79, 158, 255, 0.3);
+    border-color: rgba(79, 158, 255, 0.6);
+  }
+
+  .analysis-result {
+    margin-top: 40px;
+    min-height: 300px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(79, 158, 255, 0.1);
+    border-radius: 16px;
+    padding: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--gray-400);
+  }
+
+  .analysis-result.loading {
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% {
+      opacity: 0.6;
+    }
+    50% {
+      opacity: 1;
+    }
+  }
+
+  .result-placeholder {
+    text-align: center;
+  }
+
+  .result-placeholder-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+    opacity: 0.5;
+  }
+
+  .result-placeholder-text {
+    font-size: 15px;
+    color: var(--gray-400);
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="주린닷컴홈피.html" class="nav-logo">
+    <div class="logo-icon">주</div>
+    <div class="logo-text">주린<span>닷컴</span></div>
+  </a>
+  <ul class="nav-menu">
+    <li><a href="주린닷컴홈피.html">홈</a></li>
+    <li><a href="analysis.html" class="active">AI 분석 <span class="nav-badge">AI</span></a></li>
+    <li><a href="glossary.html">용어 사전</a></li>
+    <li><a href="simulation.html">모의 투자 <span class="nav-badge">NEW</span></a></li>
+    <li><a href="market.html">시장</a></li>
+  </ul>
+  <div class="nav-right">
+    <button class="btn-ghost">로그인</button>
+    <button class="btn-primary">무료 시작하기</button>
+  </div>
+</nav>
+
+<div class="analysis-container">
+  <div class="analysis-header">
+    <div class="analysis-header-content">
+      <a href="주린닷컴홈피.html" class="btn-back">← 돌아가기</a>
+      <div class="analysis-title">📊 종목 분석</div>
+      <div class="analysis-sub">AI를 활용하여 종목을 분석해보세요</div>
+    </div>
+  </div>
+
+  <div class="analysis-content">
+    <div class="stock-input-section">
+      <div class="input-label">분석할 종목을 입력하세요</div>
+      <div class="input-group">
+        <input 
+          type="text" 
+          id="analysisStockInput" 
+          class="stock-input-field" 
+          placeholder="종목명을 입력하세요 (예: 삼성전자, AAPL, TSLA...)" 
+        />
+        <button class="btn-analyze" onclick="performAnalysis()">분석하기</button>
+      </div>
+    </div>
+
+    <div class="analysis-result" id="resultContainer">
+      <div class="result-placeholder">
+        <div class="result-placeholder-icon">🔍</div>
+        <div class="result-placeholder-text">종목을 입력하고 분석하기를 눌러주세요</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // AI 분석 함수
+  async function performAnalysis() {
+    const stockName = document.getElementById('analysisStockInput').value.trim();
+    
+    if (!stockName) {
+      alert('종목명을 입력해주세요.');
+      return;
+    }
+    
+    const resultContainer = document.getElementById('resultContainer');
+    resultContainer.classList.add('loading');
+    resultContainer.innerHTML = `
+      <div class="result-placeholder">
+        <div class="result-placeholder-icon">⏳</div>
+        <div class="result-placeholder-text">분석 중입니다...</div>
+      </div>
+    `;
+    
+    try {
+      // TODO: AI API 호출 코드를 여기에 추가할 예정
+      // const response = await fetch('/api/analyze', {
+      //   method: 'POST',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify({ stock: stockName })
+      // });
+      // const data = await response.json();
+      
+      // 임시 데이터로 테스트 (나중에 실제 API 결과로 대체)
+      setTimeout(() => {
+        resultContainer.classList.remove('loading');
+        resultContainer.innerHTML = `
+          <div style="width: 100%; color: var(--white);">
+            <h3 style="margin-bottom: 20px; font-size: 20px;">📈 ${stockName} 분석 결과</h3>
+            <div style="background: rgba(79, 158, 255, 0.05); border: 1px solid rgba(79, 158, 255, 0.15); border-radius: 12px; padding: 24px; font-size: 14px; line-height: 1.8; color: var(--gray-200);">
+              <p><strong style="color: var(--white);">⏱️ 상태:</strong> AI 분석 기능이 준비 중입니다.</p>
+              <p><strong style="color: var(--white);">📝 설명:</strong> 이 페이지는 나중에 AI 분석 API가 추가될 예정입니다.</p>
+              <p style="margin-top: 20px; padding-top: 20px; border-top: 1px solid rgba(79, 158, 255, 0.15);">
+                <strong style="color: var(--accent);">💬 안내:</strong> 곧 다양한 분석 데이터와 투자 추천을 제공할 예정입니다.
+              </p>
+            </div>
+          </div>
+        `;
+      }, 1500);
+      
+    } catch (error) {
+      resultContainer.classList.remove('loading');
+      resultContainer.innerHTML = `
+        <div class="result-placeholder">
+          <div class="result-placeholder-icon">❌</div>
+          <div class="result-placeholder-text">분석 중 오류가 발생했습니다. 다시 시도해주세요.</div>
+        </div>
+      `;
+    }
+  }
+  
+  // 엔터 키로도 분석 실행 가능
+  document.getElementById('analysisStockInput').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+      performAnalysis();
+    }
+  });
+</script>
+
+</body>
+</html>
