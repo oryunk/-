@@ -53,3 +53,47 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.error('[초기화] loadNewsFromRSS 함수를 찾을 수 없습니다.');
   }
 });
+
+function openLoginModal() {
+  const loginModal = document.getElementById('loginModal');
+  if (!loginModal) return;
+
+  loginModal.classList.add('is-open');
+  loginModal.setAttribute('aria-hidden', 'false');
+  document.body.style.overflow = 'hidden';
+
+  const loginIdInput = document.getElementById('loginId');
+  if (loginIdInput) {
+    setTimeout(() => loginIdInput.focus(), 50);
+  }
+}
+
+function closeLoginModal() {
+  const loginModal = document.getElementById('loginModal');
+  if (!loginModal) return;
+
+  loginModal.classList.remove('is-open');
+  loginModal.setAttribute('aria-hidden', 'true');
+  document.body.style.overflow = '';
+}
+
+function submitLogin(event) {
+  event.preventDefault();
+
+  const loginId = document.getElementById('loginId')?.value.trim();
+  const loginPassword = document.getElementById('loginPassword')?.value.trim();
+
+  if (!loginId || !loginPassword) {
+    alert('아이디와 비밀번호를 모두 입력해주세요.');
+    return;
+  }
+
+  alert('로그인 기능은 현재 준비 중입니다.');
+  closeLoginModal();
+}
+
+document.addEventListener('keydown', event => {
+  if (event.key === 'Escape') {
+    closeLoginModal();
+  }
+});

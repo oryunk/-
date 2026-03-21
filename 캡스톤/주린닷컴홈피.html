@@ -17,12 +17,13 @@
   <ul class="nav-menu">
     <li><a href="주린닷컴홈피.html" class="active">홈</a></li>
     <li><a href="analysis.html">AI 분석 <span class="nav-badge">AI</span></a></li>
+    <li><a href="ai-chart-prediction.html">AI 차트 예측 <span class="nav-badge">AI</span></a></li>
     <li><a href="glossary.html">용어 검색</a></li>
-    <li><a href="simulation.html">모의 투자 <span class="nav-badge">NEW</span></a></li>
+    <li><a href="simulation.html">모의 투자</a></li>
     <li><a href="market.html">시장</a></li>
   </ul>
   <div class="nav-right">
-    <button class="btn-ghost">로그인</button>
+    <button class="btn-ghost" onclick="openLoginModal()">로그인</button>
     <button class="btn-primary">무료 시작하기</button>
   </div>
 </nav>
@@ -88,42 +89,7 @@
     <a class="section-more">전체 보기 →</a>
   </div>
   <div class="news-grid">
-    <div class="news-card">
-      <div class="news-card-cat">🏭 산업·종목</div>
-      <div class="news-card-title">반도체 슈퍼사이클 재개? 2025년 하반기 전망 분석</div>
-      <div class="news-card-desc">메모리 업황 회복세와 AI 수요 증가로 반도체 섹터에 대한 긍정 전망이 확산되고 있습니다.</div>
-      <div class="news-card-footer"><div class="news-card-time">1시간 전</div><div class="news-tag">반도체</div></div>
-    </div>
-    <div class="news-card">
-      <div class="news-card-cat">🌐 글로벌</div>
-      <div class="news-card-title">나스닥 사상 최고치 경신, 국내 증시 연동 여부는</div>
-      <div class="news-card-desc">나스닥이 연일 고점을 갈신하는 가운데 KOSPI와의 상관관계 분석이 주목받고 있습니다.</div>
-      <div class="news-card-footer"><div class="news-card-time">2시간 전</div><div class="news-tag">글로벌</div></div>
-    </div>
-    <div class="news-card">
-      <div class="news-card-cat">💰 ETF</div>
-      <div class="news-card-title">초보 투자자를 위한 ETF 포트폴리오 구성 전략</div>
-      <div class="news-card-desc">분산 투자의 기본인 ETF, 어떻게 골라야 할지 핵심만 정리했습니다.</div>
-      <div class="news-card-footer"><div class="news-card-time">4시간 전</div><div class="news-tag">ETF</div></div>
-    </div>
-    <div class="news-card">
-      <div class="news-card-cat">📈 KOSPI</div>
-      <div class="news-card-title">외국인 순매수 5거래일 연속, 코스피 반등 신호?</div>
-      <div class="news-card-desc">외국인 매수세가 지속되며 KOSPI 2,600선 회복에 대한 기대감이 높아지고 있습니다.</div>
-      <div class="news-card-footer"><div class="news-card-time">5시간 전</div><div class="news-tag">KOSPI</div></div>
-    </div>
-    <div class="news-card">
-      <div class="news-card-cat">🏦 정책</div>
-      <div class="news-card-title">한국은행 금리 결정 D-3, 시장 전망 종합</div>
-      <div class="news-card-desc">기준금리 동결 또는 인하 기대 속에 채권·증시 모두 촉각을 세우고 있습니다.</div>
-      <div class="news-card-footer"><div class="news-card-time">어제</div><div class="news-tag">금리</div></div>
-    </div>
-    <div class="news-card">
-      <div class="news-card-cat">🛢️ 원자재</div>
-      <div class="news-card-title">국제 유가 80달러 돌파, 에너지 관련주 수혜 종목</div>
-      <div class="news-card-desc">WTI 원유가 80달러를 돌파하며 에너지 섹터에 대한 관심이 급증하고 있습니다.</div>
-      <div class="news-card-footer"><div class="news-card-time">어제</div><div class="news-tag">원자재</div></div>
-    </div>
+    <!-- RSS에서 동적으로 로드됨 -->
   </div>
 </section>
 
@@ -283,6 +249,34 @@
     <div id="aiStock" style="font-size:14px; color:var(--accent); margin-bottom:20px;"></div>
     <div id="aiResult" style="font-size:14px; color:#D6E0F5; line-height:1.8;"></div>
     <button onclick="closeModal()" style="margin-top:20px; width:100%; background:linear-gradient(135deg,#1351C1,#4F9EFF); border:none; color:white; padding:12px; border-radius:8px; font-size:14px; font-weight:700; cursor:pointer; font-family:inherit;">닫기</button>
+  </div>
+</div>
+
+<div class="login-modal" id="loginModal" aria-hidden="true">
+  <div class="login-modal-backdrop" onclick="closeLoginModal()"></div>
+  <div class="login-modal-panel" role="dialog" aria-modal="true" aria-labelledby="loginModalTitle">
+    <button class="login-close" type="button" onclick="closeLoginModal()" aria-label="로그인 창 닫기">×</button>
+    <div class="login-modal-header">
+      <div class="login-eyebrow">JURIN.COM</div>
+      <h2 id="loginModalTitle">로그인</h2>
+      <p>아이디와 비밀번호를 입력해 서비스를 이용하세요.</p>
+    </div>
+    <form class="login-form" onsubmit="submitLogin(event)">
+      <label class="login-field">
+        <span>아이디</span>
+        <input type="text" id="loginId" name="loginId" placeholder="아이디를 입력하세요" autocomplete="username" required>
+      </label>
+      <label class="login-field">
+        <span>비밀번호</span>
+        <input type="password" id="loginPassword" name="loginPassword" placeholder="비밀번호를 입력하세요" autocomplete="current-password" required>
+      </label>
+      <button class="login-submit" type="submit">로그인</button>
+    </form>
+    <div class="login-links">
+      <a href="signup.html" target="_blank" rel="noopener noreferrer">회원가입</a>
+      <a href="find-id.html" target="_blank" rel="noopener noreferrer">아이디 찾기</a>
+      <a href="find-password.html" target="_blank" rel="noopener noreferrer">비밀번호 찾기</a>
+    </div>
   </div>
 </div>
 

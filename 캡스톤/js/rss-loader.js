@@ -1,9 +1,6 @@
 // RSS 피드 설정
 const rssFeeds = [
-  'https://www.mk.co.kr/rss/50200011/',
-  'https://www.hankyung.com/rss/economy',
-  'https://www.hani.co.kr/rss/economy/',
-  'https://www.sedaily.com/rss/S1N1.xml'
+  'https://www.mk.co.kr/rss/50200011/'
 ];
 
 // CORS 프록시 목록
@@ -129,8 +126,8 @@ async function loadNewsFromRSS() {
     }
   }
   
-  console.error('[RSS-NEWS] 모든 피드 실패 → 기본 뉴스 표시');
-  loadDefaultNews();
+  console.error('[RSS-NEWS] 모든 피드 실패 → 뉴스 없음');
+  // loadDefaultNews(); // 기본 뉴스 로드 제거
 }
 
 // 슬라이더 뉴스 로드 함수
