@@ -4,6 +4,6 @@ USE stock_db;
 CREATE USER 'stock_app'@'localhost' IDENTIFIED BY 'wnflsdl1324';
 
 -- stock_db 안의 모든 테이블에 대해 일반 CRUD (로그인·회원가입·모의투자 등)
-GRANT SELECT, INSERT, UPDATE, DELETE ON stock_db.* TO 'stock_app'@'localhost';
+GRANT SELECT, INSERT, UPDATE, DELETE ON stock_db.* TO 'stock_app'@'%';
 
 FLUSH PRIVILEGES;
