@@ -2,6 +2,41 @@
 
 console.log('[초기화] 앱 시작');
 
+const API_BASE = 'http://localhost:5000';
+
+async function refreshAuthNav() {
+  const loginBtn = document.getElementById('navLoginBtn');
+  const emailEl = document.getElementById('navUserEmail');
+  if (!loginBtn || !emailEl) return;
+
+  let email = null;
+  try {
+    const res = await fetch(`${API_BASE}/api/auth/me`, { credentials: 'include' });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok && data.success && data.user && data.user.email) {
+      email = data.user.email;
+    }
+  } catch (_) {
+    /* ignore */
+  }
+
+  if (!email) {
+    email = sessionStorage.getItem('jurinUserEmail');
+  }
+
+  if (email) {
+    loginBtn.style.display = 'none';
+    emailEl.textContent = email;
+    emailEl.style.display = 'inline-block';
+    emailEl.title = email;
+  } else {
+    loginBtn.style.display = '';
+    emailEl.style.display = 'none';
+    emailEl.textContent = '';
+    emailEl.removeAttribute('title');
+  }
+}
+
 // Intersection Observer - fade-in 애니메이션
 const observer = new IntersectionObserver(entries => {
   entries.forEach(e => {
@@ -35,6 +70,8 @@ function waitForRSSReady() {
 
 document.addEventListener('DOMContentLoaded', async () => {
   console.log('[초기화] DOMContentLoaded 이벤트 발생');
+
+  refreshAuthNav();
   
   // RSS 함수가 준비될 때까지 대기
   await waitForRSSReady();
@@ -77,19 +114,55 @@ function closeLoginModal() {
   document.body.style.overflow = '';
 }
 
-function submitLogin(event) {
+async function submitLogin(event) {
   event.preventDefault();
 
   const loginId = document.getElementById('loginId')?.value.trim();
-  const loginPassword = document.getElementById('loginPassword')?.value.trim();
+  const loginPassword = document.getElementById('loginPassword')?.value;
 
   if (!loginId || !loginPassword) {
-    alert('아이디와 비밀번호를 모두 입력해주세요.');
+    showLoginError('아이디와 비밀번호를 모두 입력해주세요.');
     return;
   }
 
-  alert('로그인 기능은 현재 준비 중입니다.');
-  closeLoginModal();
+  const submitBtn = event.target.querySelector('button[type="submit"]');
+  if (submitBtn) submitBtn.disabled = true;
+
+  try {
+    const res = await fetch(`${API_BASE}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ loginId, password: loginPassword }),
+    });
+    const data = await res.json().catch(() => ({}));
+
+    if (res.ok && data.success) {
+      const email = (data.user && data.user.email) ? data.user.email : '';
+      sessionStorage.setItem('jurinUserEmail', email);
+      closeLoginModal();
+      refreshAuthNav();
+    } else {
+      const msg = (data && data.message) ? data.message : '아이디 또는 비밀번호가 일치하지 않습니다.';
+      showLoginError(msg);
+    }
+  } catch (err) {
+    showLoginError('서버(localhost:5000)에 연결할 수 없습니다. 백엔드를 실행했는지 확인하세요.');
+  } finally {
+    if (submitBtn) submitBtn.disabled = false;
+  }
+}
+
+function showLoginError(message) {
+  let errEl = document.getElementById('loginErrorMsg');
+  if (!errEl) {
+    errEl = document.createElement('div');
+    errEl.id = 'loginErrorMsg';
+    errEl.style.cssText = 'color:#ff8e8e; font-size:13px; font-weight:600; margin-top:8px; text-align:center;';
+    const form = document.querySelector('.login-form');
+    if (form) form.appendChild(errEl);
+  }
+  errEl.textContent = message;
 }
 
 document.addEventListener('keydown', event => {
