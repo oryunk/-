@@ -99,11 +99,13 @@ def register():
 
             # ★ 수정: schema.sql의 실제 컬럼 구조에 맞는 INSERT
             #   users(email, password_hash, nickname, created_at, updated_at)
+
+            nickname = ""
             sql_insert = """
-                INSERT INTO users (email, password_hash, nickname, created_at, updated_at)
-                VALUES (%s, %s, %s, %s, %s)
+                INSERT INTO users (login_id, email, password_hash, nickname, created_at, updated_at)
+                VALUES (%s, %s, %s, %s, NOW(), NOW())
             """
-            cursor.execute(sql_insert, (email, password_hash, login_id, now, now))
+            cursor.execute(sql_insert, (login_id, email, password_hash, nickname))
             conn.commit()
 
         return jsonify({
