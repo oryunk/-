@@ -192,7 +192,9 @@
     return false;
   }
 
-  function submitSignup(event) {
+  const API_BASE = 'http://localhost:5000';
+
+  async function submitSignup(event) {
     event.preventDefault();
 
     const userId = document.getElementById('signupId').value.trim();
@@ -209,7 +211,56 @@
       return;
     }
 
-    updateSignupMessage('회원가입 기능은 현재 준비 중입니다. 입력 조건은 정상입니다.', 'success');
+    const submitBtn = event.target.querySelector('button[type="submit"]');
+    if (submitBtn) submitBtn.disabled = true;
+    updateSignupMessage('계정을 생성하는 중입니다…', 'success');
+
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          loginId: userId,
+          email,
+          password,
+          passwordConfirm,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+
+      if (res.ok && data.success) {
+        const savedEmail = (data.user && data.user.email) ? data.user.email : email;
+        try {
+          await fetch(`${API_BASE}/api/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ loginId: userId, password }),
+          });
+        } catch (_) {
+          /* 세션 쿠키가 막혀도 가입은 완료됨 — 홈에서 이메일 표시용 */
+        }
+        sessionStorage.setItem('jurinUserEmail', savedEmail);
+        window.location.href = '주린닷컴홈피.html';
+        return;
+      }
+
+      const serverMsg = (data && typeof data.message === 'string' && data.message.trim())
+        ? data.message.trim()
+        : '';
+      updateSignupMessage(
+        serverMsg ? `계정 생성에 실패했습니다. (${serverMsg})` : '계정 생성에 실패했습니다.',
+        'error'
+      );
+    } catch (err) {
+      const hint = (!navigator.onLine || (err && err.name === 'TypeError'))
+        ? '서버(localhost:5000)에 연결할 수 없습니다. 백엔드를 실행했는지 확인하세요.'
+        : '계정 생성에 실패했습니다.';
+      updateSignupMessage(hint, 'error');
+    } finally {
+      if (submitBtn) submitBtn.disabled = false;
+    }
   }
 
   document.getElementById('signupPassword').addEventListener('input', validatePasswordMatch);
