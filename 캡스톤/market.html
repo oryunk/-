@@ -204,6 +204,7 @@
     border: 1px solid rgba(79, 158, 255, 0.15);
     border-radius: 16px;
     padding: 32px;
+    scroll-margin-top: 90px;
   }
 
   .news-title {
@@ -347,14 +348,14 @@
     <div class="logo-text">주린<span>닷컴</span></div>
   </a>
   <ul class="nav-menu">
-    <li><a href="주린닷컴홈피.html">홈</a></li>
     <li><a href="analysis.html">AI 분석</a></li>
-    <li><a href="glossary.html">용어 사전</a></li>
+    <li><a href="ai-chart-prediction.html">AI 차트 예측 <span class="nav-badge">AI</span></a></li>
+    <li><a href="glossary.html">용어 검색</a></li>
     <li><a href="simulation.html">모의 투자</a></li>
     <li><a href="market.html" class="active">시장 <span class="nav-badge">📊</span></a></li>
   </ul>
   <div class="nav-right">
-    <button class="btn-ghost">로그인</button>
+    <button type="button" class="btn-ghost" id="navLoginBtn">로그인</button>
     <button class="btn-primary">무료 시작하기</button>
   </div>
 </nav>
@@ -364,7 +365,7 @@
     <div class="market-header-content">
       <a href="주린닷컴홈피.html" class="btn-back">← 돌아가기</a>
       <div class="market-title">📊 시장 정보</div>
-      <div class="market-sub">실시간 시장 지표와 주요 뉴스를 확인하세요</div>
+      <div class="market-sub">실시간 시장 지표와 주요 종목을 확인하세요</div>
     </div>
   </div>
 
@@ -401,13 +402,6 @@
         </tbody>
       </table>
     </div>
-
-    <div class="market-news">
-      <div class="news-title">📰 시장 뉴스</div>
-      <div class="news-list" id="newsList">
-        <!-- 동적으로 뉴스 아이템 생성 -->
-      </div>
-    </div>
   </div>
 </div>
 
@@ -434,52 +428,12 @@
     { name: '삼성바이오로직스', symbol: '207940', price: 789000, change: 4.23, volume: 123456, marketCap: 56000000000000 }
   ];
 
-  // 뉴스 데이터
-  const newsData = [
-    {
-      category: '경제',
-      headline: '반도체 슈퍼사이클 재개? 2025년 하반기 전망 분석',
-      summary: '메모리 반도체 가격 상승과 AI 수요 증가로 반도체 업계에 새로운 성장 기회가 찾아올 전망입니다.',
-      time: '2시간 전',
-      source: '매일경제'
-    },
-    {
-      category: '증권',
-      headline: '개인 투자자들의 ETF 투자 증가세... "안정적 수익 추구"',
-      summary: '코로나19 이후 개인 투자자들의 ETF 투자 비중이 크게 증가하며 안정적인 수익을 추구하는 투자 패턴이 확산되고 있습니다.',
-      time: '4시간 전',
-      source: '한국경제'
-    },
-    {
-      category: '산업',
-      headline: '전기차 시장 경쟁 심화... 현대차·기아의 대응 전략은?',
-      summary: '글로벌 전기차 시장에서 현대차와 기아의 점유율 확대를 위한 기술 개발과 시장 전략에 대한 분석입니다.',
-      time: '6시간 전',
-      source: '아시아경제'
-    },
-    {
-      category: '금융',
-      headline: '금리 인상 사이클 종료 임박... 주식시장에 미칠 영향은?',
-      summary: '연준의 금리 정책 변화가 주식시장에 미칠 영향을 분석하고 투자 전략을 제시합니다.',
-      time: '8시간 전',
-      source: '서울경제'
-    },
-    {
-      category: '기술',
-      headline: 'AI 투자 열풍... 관련주 주가 급등세 지속',
-      summary: 'ChatGPT 이후 AI 관련 기업들의 주가가 급등하며 투자자들의 관심이 집중되고 있습니다.',
-      time: '12시간 전',
-      source: '전자신문'
-    }
-  ];
-
   let currentFilter = 'all';
 
   // 페이지 로드 시 초기화
   document.addEventListener('DOMContentLoaded', function() {
     renderIndices();
     renderStocks();
-    renderNews();
   });
 
   // 지수 렌더링
@@ -535,28 +489,6 @@
     stocksTableBody.innerHTML = stocksHtml;
   }
 
-  // 뉴스 렌더링
-  function renderNews() {
-    const newsList = document.getElementById('newsList');
-
-    const newsHtml = newsData.map(news => `
-      <div class="news-item">
-        <div class="news-image">📰</div>
-        <div class="news-content">
-          <div class="news-category">${news.category}</div>
-          <div class="news-headline">${news.headline}</div>
-          <div class="news-summary">${news.summary}</div>
-          <div class="news-meta">
-            <div class="news-time">${news.time}</div>
-            <div class="news-source">${news.source}</div>
-          </div>
-        </div>
-      </div>
-    `).join('');
-
-    newsList.innerHTML = newsHtml;
-  }
-
   // 필터링 함수
   function filterStocks(filter) {
     currentFilter = filter;
@@ -594,7 +526,9 @@
     }
     return cap.toLocaleString();
   }
+
 </script>
+<script src="js/common-auth.js"></script>
 
 </body>
 </html>
