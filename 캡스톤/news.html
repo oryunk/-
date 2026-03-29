@@ -230,6 +230,11 @@
     transition: all 0.2s;
   }
 
+  .news-item.news-link {
+    text-decoration: none;
+    color: inherit;
+  }
+
   .news-item:hover {
     background: rgba(255, 255, 255, 0.04);
     border-color: var(--accent);
@@ -387,35 +392,40 @@
       headline: '반도체 슈퍼사이클 재개? 2025년 하반기 전망 분석',
       summary: '메모리 반도체 가격 상승과 AI 수요 증가로 반도체 업계에 새로운 성장 기회가 찾아올 전망입니다.',
       time: '2시간 전',
-      source: '매일경제'
+      source: '매일경제',
+      link: 'https://www.mk.co.kr/news/economy/'
     },
     {
       category: '증권',
       headline: '개인 투자자들의 ETF 투자 증가세... "안정적 수익 추구"',
       summary: '코로나19 이후 개인 투자자들의 ETF 투자 비중이 크게 증가하며 안정적인 수익을 추구하는 투자 패턴이 확산되고 있습니다.',
       time: '4시간 전',
-      source: '한국경제'
+      source: '한국경제',
+      link: 'https://www.hankyung.com/finance'
     },
     {
       category: '산업',
       headline: '전기차 시장 경쟁 심화... 현대차·기아의 대응 전략은?',
       summary: '글로벌 전기차 시장에서 현대차와 기아의 점유율 확대를 위한 기술 개발과 시장 전략에 대한 분석입니다.',
       time: '6시간 전',
-      source: '아시아경제'
+      source: '아시아경제',
+      link: 'https://www.asiae.co.kr/list/industry-IT'
     },
     {
       category: '금융',
       headline: '금리 인상 사이클 종료 임박... 주식시장에 미칠 영향은?',
       summary: '연준의 금리 정책 변화가 주식시장에 미칠 영향을 분석하고 투자 전략을 제시합니다.',
       time: '8시간 전',
-      source: '서울경제'
+      source: '서울경제',
+      link: 'https://www.sedaily.com/NewsList/GA'
     },
     {
       category: '기술',
       headline: 'AI 투자 열풍... 관련주 주가 급등세 지속',
       summary: 'ChatGPT 이후 AI 관련 기업들의 주가가 급등하며 투자자들의 관심이 집중되고 있습니다.',
       time: '12시간 전',
-      source: '전자신문'
+      source: '전자신문',
+      link: 'https://www.etnews.com/news/section.html?id1=02'
     }
   ];
 
@@ -429,7 +439,7 @@
     const newsList = document.getElementById('newsList');
 
     const newsHtml = newsData.map(news => `
-      <div class="news-item">
+      <a class="news-item news-link" href="${news.link}" target="_blank" rel="noopener noreferrer">
         <div class="news-image">📰</div>
         <div class="news-content">
           <div class="news-category">${news.category}</div>
@@ -440,7 +450,7 @@
             <div class="news-source">${news.source}</div>
           </div>
         </div>
-      </div>
+      </a>
     `).join('');
 
     newsList.innerHTML = newsHtml;
