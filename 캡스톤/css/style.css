@@ -529,11 +529,13 @@ nav {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
+  pointer-events: none;
 }
 
 .slide.active {
   opacity: 1;
   transform: translateX(0);
+  pointer-events: auto;
 }
 
 .slide-category {
@@ -652,6 +654,8 @@ nav {
   transition: all 0.25s;
   position: relative;
   overflow: hidden;
+  text-decoration: none;
+  color: inherit;
 }
 
 .news-card::before {
