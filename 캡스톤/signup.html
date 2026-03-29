@@ -139,8 +139,12 @@
   <div class="auth-card">
     <div class="auth-kicker">JURIN.COM SIGN UP</div>
     <h1>회원가입</h1>
-    <p>이메일과 아이디, 비밀번호를 입력해 계정을 생성하세요. 비밀번호는 두 번 입력해야 하며, 두 값이 일치해야 가입이 완료됩니다.</p>
+    <p>닉네임, 이메일, 아이디, 비밀번호를 입력해 계정을 생성하세요. 비밀번호는 두 번 입력해야 하며, 두 값이 일치해야 가입이 완료됩니다.</p>
     <form class="auth-form" onsubmit="submitSignup(event)">
+      <label class="auth-field">
+        <span>닉네임</span>
+        <input type="text" id="signupNickname" placeholder="표시할 닉네임을 입력하세요" autocomplete="nickname" required>
+      </label>
       <label class="auth-field">
         <span>아이디</span>
         <input type="text" id="signupId" placeholder="사용할 아이디를 입력하세요" autocomplete="username" required>
@@ -197,13 +201,14 @@
   async function submitSignup(event) {
     event.preventDefault();
 
+    const nickname = document.getElementById('signupNickname').value.trim();
     const userId = document.getElementById('signupId').value.trim();
     const email = document.getElementById('signupEmail').value.trim();
     const password = document.getElementById('signupPassword').value;
     const passwordConfirm = document.getElementById('signupPasswordConfirm').value;
 
-    if (!userId || !email || !password || !passwordConfirm) {
-      updateSignupMessage('아이디, 이메일, 비밀번호를 모두 입력해주세요.', 'error');
+    if (!nickname || !userId || !email || !password || !passwordConfirm) {
+      updateSignupMessage('닉네임, 아이디, 이메일, 비밀번호를 모두 입력해주세요.', 'error');
       return;
     }
 
@@ -221,6 +226,7 @@
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
+          nickname,
           loginId: userId,
           email,
           password,
@@ -231,6 +237,7 @@
 
       if (res.ok && data.success) {
         const savedEmail = (data.user && data.user.email) ? data.user.email : email;
+        const savedNickname = (data.user && data.user.nickname) ? data.user.nickname : nickname;
         try {
           await fetch(`${API_BASE}/api/auth/login`, {
             method: 'POST',
@@ -242,6 +249,7 @@
           /* 세션 쿠키가 막혀도 가입은 완료됨 — 홈에서 이메일 표시용 */
         }
         sessionStorage.setItem('jurinUserEmail', savedEmail);
+        sessionStorage.setItem('jurinUserNickname', savedNickname);
         window.location.href = '주린닷컴홈피.html';
         return;
       }
