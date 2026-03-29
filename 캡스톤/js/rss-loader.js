@@ -43,6 +43,17 @@ function truncateText(text, maxLength) {
   return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
 }
 
+// 링크 값 정규화 (RSS별 공백/개행/상대경로 대응)
+function normalizeNewsLink(rawLink) {
+  if (!rawLink) return '#';
+  const link = String(rawLink).trim();
+  if (!link) return '#';
+  if (link.startsWith('http://') || link.startsWith('https://')) {
+    return link;
+  }
+  return '#';
+}
+
 // 시간 계산 함수
 function getTimeAgo(dateString) {
   try {
@@ -98,7 +109,7 @@ async function loadNewsFromRSS() {
         const title = item.querySelector('title')?.textContent || '제목 없음';
         const description = item.querySelector('description')?.textContent || '내용 없음';
         const pubDate = item.querySelector('pubDate')?.textContent || '';
-        const link = item.querySelector('link')?.textContent || '#';
+        const link = normalizeNewsLink(item.querySelector('link')?.textContent || '');
         const timeStr = getTimeAgo(pubDate);
         const categories = ['📱 기술', '💼 정책', '📈 시황', '🏦 금융', '🌐 글로벌', '⚡ 동향'];
         const tags = ['뉴스', '경제', '증시', '시장', '정책', '기술'];
@@ -106,7 +117,7 @@ async function loadNewsFromRSS() {
         const tag = tags[index % tags.length];
         
         return `
-          <div class="news-card" onclick="window.open('${link}', '_blank')">
+          <a class="news-card" href="${link}" target="_blank" rel="noopener noreferrer">
             <div class="news-card-cat">${category}</div>
             <div class="news-card-title">${truncateText(title, 50)}</div>
             <div class="news-card-desc">${truncateText(stripHTML(description), 100)}</div>
@@ -114,7 +125,7 @@ async function loadNewsFromRSS() {
               <div class="news-card-time">${timeStr}</div>
               <div class="news-tag">${tag}</div>
             </div>
-          </div>
+          </a>
         `;
       });
       
@@ -165,7 +176,7 @@ async function loadSliderNews() {
         const title = item.querySelector('title')?.textContent || '제목 없음';
         const description = item.querySelector('description')?.textContent || '내용 없음';
         const pubDate = item.querySelector('pubDate')?.textContent || '';
-        const link = item.querySelector('link')?.textContent || '#';
+        const link = normalizeNewsLink(item.querySelector('link')?.textContent || '');
         const timeStr = pubDate ? new Date(pubDate).toLocaleDateString('ko-KR') : '최근';
         const category = categories[index % categories.length];
         
@@ -178,7 +189,7 @@ async function loadSliderNews() {
             </div>
             <div class="slide-footer">
               <div class="slide-time">${timeStr}</div>
-              <a class="slide-more" onclick="window.open('${link}', '_blank')">자세히 보기 →</a>
+              <a class="slide-more" href="${link}" target="_blank" rel="noopener noreferrer">자세히 보기 →</a>
             </div>
           </div>
         `;
@@ -206,10 +217,10 @@ function loadDefaultSliderNews() {
   if (!sliderContainer) return;
   
   const defaultSlides = [
-    { cat: '🔥 긴급', title: '삼성전자, 3분기 영업이익<br>9.1조 예상 상회 발표', desc: '반도체 업황 회복세가 본격화되며 시장 전망을 크게 웃도는 실적을 기록했습니다.', time: '2025.03.11 · 14:32' },
-    { cat: '📊 시황', title: '미 연준, 기준금리 동결<br>국내 증시 영향은?', desc: '연준의 금리 동결 결정에 따라 국내 외국인 자금 흐름이 주목받고 있습니다.', time: '2025.03.11 · 11:05' },
-    { cat: '🤖 AI', title: 'SK하이닉스 HBM4 양산<br>글로벌 AI 수요 급증', desc: '차세대 고대역폭 메모리 HBM4 본격 양산으로 수혜 전망이 높아지고 있습니다.', time: '2025.03.11 · 09:45' },
-    { cat: '💡 투자팁', title: '주린이가 꼭 알아야 할<br>PER · PBR 완전 정복', desc: '복잡한 주식 지표, 실제 사례와 함께 5분 만에 마스터해 보세요.', time: '2025.03.10 · 18:20' }
+    { cat: '🔥 긴급', title: '삼성전자, 3분기 영업이익<br>9.1조 예상 상회 발표', desc: '반도체 업황 회복세가 본격화되며 시장 전망을 크게 웃도는 실적을 기록했습니다.', time: '2025.03.11 · 14:32', link: 'https://www.mk.co.kr/news/stock/' },
+    { cat: '📊 시황', title: '미 연준, 기준금리 동결<br>국내 증시 영향은?', desc: '연준의 금리 동결 결정에 따라 국내 외국인 자금 흐름이 주목받고 있습니다.', time: '2025.03.11 · 11:05', link: 'https://www.hankyung.com/finance' },
+    { cat: '🤖 AI', title: 'SK하이닉스 HBM4 양산<br>글로벌 AI 수요 급증', desc: '차세대 고대역폭 메모리 HBM4 본격 양산으로 수혜 전망이 높아지고 있습니다.', time: '2025.03.11 · 09:45', link: 'https://www.etnews.com/news/section.html?id1=02' },
+    { cat: '💡 투자팁', title: '주린이가 꼭 알아야 할<br>PER · PBR 완전 정복', desc: '복잡한 주식 지표, 실제 사례와 함께 5분 만에 마스터해 보세요.', time: '2025.03.10 · 18:20', link: 'https://www.mk.co.kr/news/economy/' }
   ];
   
   const slides = defaultSlides.map((slide, index) => `
@@ -221,7 +232,7 @@ function loadDefaultSliderNews() {
       </div>
       <div class="slide-footer">
         <div class="slide-time">${slide.time}</div>
-        <a class="slide-more">자세히 보기 →</a>
+        <a class="slide-more" href="${slide.link}" target="_blank" rel="noopener noreferrer">자세히 보기 →</a>
       </div>
     </div>
   `).join('');
