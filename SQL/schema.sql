@@ -158,6 +158,15 @@ CREATE TABLE news_stock_rel (
 	FOREIGN KEY (stock_id) REFERENCES stocks(stock_id)                --  참조
 );
 
+# 8. api 연동
+CREATE TABLE api_tokens (
+    token_id     INT PRIMARY KEY AUTO_INCREMENT,        -- 토큰 id
+    token_type   VARCHAR(20) NOT NULL,          		-- 'KIS_ACCESS_TOKEN' 등
+    access_token TEXT NOT NULL,                 		-- 발급받은 토큰 값
+    expired_at   DATETIME NOT NULL,            			-- 만료 일시
+    updated_at   DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
 
 
 
