@@ -40,6 +40,9 @@ WS_URL = WS_URL_PROD if USE_PROD else "ws://ops.koreainvestment.com:31000"
 # ==============================
 # 3) 실시간 데이터 저장소
 # ==============================
+ws_connected = False
+last_received_time = None
+
 price_data = {
     code: {
         "name": name,
@@ -251,6 +254,8 @@ def parse_execution_message(raw_text: str):
 # 7) WebSocket 콜백
 # ==============================
 def on_open(ws):
+    global ws_connected
+    ws_connected = True
     print("WebSocket 연결 성공")
     approval_key = ws.approval_key
 
@@ -265,6 +270,7 @@ def on_open(ws):
 
 
 def on_message(ws, message):
+    global last_received_time
     if not isinstance(message, str):
         return
 
@@ -275,6 +281,7 @@ def on_message(ws, message):
     if not parsed:
         return
 
+    last_received_time = datetime.now().strftime("%H:%M:%S")
     code = parsed["code"]
     price_data[code]["times"].append(parsed["time"])
     price_data[code]["prices"].append(parsed["price"])
@@ -294,6 +301,8 @@ def on_error(ws, error):
 
 
 def on_close(ws, close_status_code, close_msg):
+    global ws_connected
+    ws_connected = False
     print("WebSocket 종료:", close_status_code, close_msg)
 
 
@@ -306,7 +315,10 @@ def print_summary():
         time.sleep(5)
         now = datetime.now().strftime("%H:%M:%S")
         os.system("cls" if os.name == "nt" else "clear")
+        conn_status = "연결됨" if ws_connected else "연결 안됨"
+        data_status = f"마지막 수신: {last_received_time}" if last_received_time else "수신 데이터 없음"
         print(f"=== 한국투자증권 실시간 체결가  [{now}] ===")
+        print(f"WebSocket: {conn_status}  |  {data_status}")
         print(f"{'종목명':<12} {'코드':<8} {'현재가':>10} {'등락률':>8} {'체결시간':>10}")
         print("-" * 55)
         for code, data in price_data.items():
@@ -345,6 +357,10 @@ def run_websocket():
 
 
 def main():
+    if not APP_KEY or not APP_SECRET:
+        print("APP_KEY 또는 APP_SECRET이 설정되지 않았습니다. 키를 입력 후 다시 실행해주세요.")
+        return
+
     prefetch_prices()
 
     ws_thread = threading.Thread(target=run_websocket, daemon=True)
