@@ -3,6 +3,8 @@ const rssFeeds = [
   'https://www.mk.co.kr/rss/50200011/'
 ];
 
+const RSS_API_BASE = 'http://localhost:5000';
+
 // CORS 프록시 목록
 const corsProxies = [
   'https://api.allorigins.win/raw?url=',
@@ -12,6 +14,122 @@ const corsProxies = [
 ];
 
 console.log('[RSS-LOADER] 파일 로드 시작 - loadSliderNews, loadNewsFromRSS 함수 정의 중...');
+
+const RSS_CACHE_KEY = 'jurin:rss:mk:daily:v1';
+let rssItemsPromise = null;
+
+function getTodayKey() {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+function readRssCache() {
+  try {
+    const raw = localStorage.getItem(RSS_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || !Array.isArray(parsed.items)) return null;
+    return parsed;
+  } catch (_) {
+    return null;
+  }
+}
+
+function writeRssCache(items) {
+  try {
+    const payload = {
+      dateKey: getTodayKey(),
+      savedAt: new Date().toISOString(),
+      items,
+    };
+    localStorage.setItem(RSS_CACHE_KEY, JSON.stringify(payload));
+  } catch (_) {
+    /* ignore cache errors */
+  }
+}
+
+function parseRssItems(xmlDoc) {
+  const items = xmlDoc.querySelectorAll('item');
+  if (!items || items.length === 0) return [];
+
+  return Array.from(items).map(item => ({
+    title: item.querySelector('title')?.textContent || '제목 없음',
+    description: item.querySelector('description')?.textContent || '내용 없음',
+    pubDate: item.querySelector('pubDate')?.textContent || '',
+    link: normalizeNewsLink(item.querySelector('link')?.textContent || ''),
+  }));
+}
+
+async function fetchRssItemsFromNetwork() {
+  try {
+    const apiRes = await fetch(`${RSS_API_BASE}/api/rss/news?limit=20`);
+    if (apiRes.ok) {
+      const apiData = await apiRes.json().catch(() => ({}));
+      if (apiData.success && Array.isArray(apiData.items) && apiData.items.length > 0) {
+        console.log(`[RSS] 백엔드 API 로드 성공: ${apiData.items.length}개`);
+        writeRssCache(apiData.items);
+        return apiData.items;
+      }
+    }
+  } catch (err) {
+    console.warn('[RSS] 백엔드 API 실패, 프록시 방식으로 재시도:', err.message || err);
+  }
+
+  for (let feedIdx = 0; feedIdx < rssFeeds.length; feedIdx++) {
+    try {
+      const feed = rssFeeds[feedIdx];
+      console.log(`[RSS] 피드 ${feedIdx + 1} 시도: ${feed}`);
+
+      const data = await fetchWithProxy(feed);
+      const parser = new DOMParser();
+      const xmlDoc = parser.parseFromString(data, 'text/xml');
+
+      if (xmlDoc.getElementsByTagName('parsererror').length > 0) {
+        throw new Error('XML 파싱 실패');
+      }
+
+      const parsedItems = parseRssItems(xmlDoc);
+      if (parsedItems.length > 0) {
+        console.log(`[RSS] 네트워크 로드 성공: ${parsedItems.length}개`);
+        writeRssCache(parsedItems);
+        return parsedItems;
+      }
+    } catch (error) {
+      console.error(`[RSS] 피드 ${feedIdx + 1} 실패:`, error.message);
+    }
+  }
+
+  throw new Error('모든 RSS 피드 로드 실패');
+}
+
+async function getRssItemsDaily() {
+  const cache = readRssCache();
+  const today = getTodayKey();
+
+  if (cache && cache.dateKey === today && cache.items.length > 0) {
+    console.log('[RSS] 오늘 캐시 사용');
+    return cache.items;
+  }
+
+  if (!rssItemsPromise) {
+    rssItemsPromise = fetchRssItemsFromNetwork()
+      .catch(err => {
+        if (cache && cache.items && cache.items.length > 0) {
+          console.warn('[RSS] 네트워크 실패, 이전 캐시로 대체');
+          return cache.items;
+        }
+        throw err;
+      })
+      .finally(() => {
+        rssItemsPromise = null;
+      });
+  }
+
+  return rssItemsPromise;
+}
 
 // 프록시를 통한 URL 요청 함수
 async function fetchWithProxy(url) {
@@ -85,31 +203,13 @@ async function loadNewsFromRSS() {
     return;
   }
   
-  for (let feedIdx = 0; feedIdx < rssFeeds.length; feedIdx++) {
-    try {
-      const feed = rssFeeds[feedIdx];
-      console.log(`[RSS-NEWS] 피드 ${feedIdx + 1} 시도: ${feed}`);
-      
-      const data = await fetchWithProxy(feed);
-      const parser = new DOMParser();
-      const xmlDoc = parser.parseFromString(data, 'text/xml');
-      
-      if (xmlDoc.getElementsByTagName('parsererror').length > 0) {
-        throw new Error('XML 파싱 실패');
-      }
-      
-      const items = xmlDoc.querySelectorAll('item');
-      if (items.length === 0) {
-        continue;
-      }
-      
-      console.log(`[RSS-NEWS] 성공! ${items.length}개 항목`);
-      
+  try {
+      const items = await getRssItemsDaily();
       const newsCards = Array.from(items).slice(0, 6).map((item, index) => {
-        const title = item.querySelector('title')?.textContent || '제목 없음';
-        const description = item.querySelector('description')?.textContent || '내용 없음';
-        const pubDate = item.querySelector('pubDate')?.textContent || '';
-        const link = normalizeNewsLink(item.querySelector('link')?.textContent || '');
+        const title = item.title || '제목 없음';
+        const description = item.description || '내용 없음';
+        const pubDate = item.pubDate || '';
+        const link = item.link || '#';
         const timeStr = getTimeAgo(pubDate);
         const categories = ['📱 기술', '💼 정책', '📈 시황', '🏦 금융', '🌐 글로벌', '⚡ 동향'];
         const tags = ['뉴스', '경제', '증시', '시장', '정책', '기술'];
@@ -132,9 +232,8 @@ async function loadNewsFromRSS() {
       newsGrid.innerHTML = newsCards.join('');
       console.log('[RSS-NEWS] 완료');
       return;
-    } catch (error) {
-      console.error(`[RSS-NEWS] 피드 ${feedIdx + 1} 실패:`, error.message);
-    }
+  } catch (error) {
+    console.error('[RSS-NEWS] 실패:', error.message);
   }
   
   console.error('[RSS-NEWS] 모든 피드 실패 → 뉴스 없음');
@@ -151,32 +250,14 @@ async function loadSliderNews() {
     return;
   }
   
-  for (let feedIdx = 0; feedIdx < rssFeeds.length; feedIdx++) {
-    try {
-      const feed = rssFeeds[feedIdx];
-      console.log(`[RSS-SLIDER] 피드 ${feedIdx + 1} 시도: ${feed}`);
-      
-      const data = await fetchWithProxy(feed);
-      const parser = new DOMParser();
-      const xmlDoc = parser.parseFromString(data, 'text/xml');
-      
-      if (xmlDoc.getElementsByTagName('parsererror').length > 0) {
-        throw new Error('XML 파싱 실패');
-      }
-      
-      const items = xmlDoc.querySelectorAll('item');
-      if (items.length === 0) {
-        continue;
-      }
-      
-      console.log(`[RSS-SLIDER] 성공! ${items.length}개 항목`);
-      
+  try {
+      const items = await getRssItemsDaily();
       const categories = ['🔥 긴급', '📊 시황', '🤖 AI', '💡 투자팁', '⚡ 동향', '💰 시장'];
       const slides = Array.from(items).slice(0, 4).map((item, index) => {
-        const title = item.querySelector('title')?.textContent || '제목 없음';
-        const description = item.querySelector('description')?.textContent || '내용 없음';
-        const pubDate = item.querySelector('pubDate')?.textContent || '';
-        const link = normalizeNewsLink(item.querySelector('link')?.textContent || '');
+        const title = item.title || '제목 없음';
+        const description = item.description || '내용 없음';
+        const pubDate = item.pubDate || '';
+        const link = item.link || '#';
         const timeStr = pubDate ? new Date(pubDate).toLocaleDateString('ko-KR') : '최근';
         const category = categories[index % categories.length];
         
@@ -200,9 +281,8 @@ async function loadSliderNews() {
       restartSliderAutoPlay();
       console.log('[RSS-SLIDER] 완료');
       return;
-    } catch (error) {
-      console.error(`[RSS-SLIDER] 피드 ${feedIdx + 1} 실패:`, error.message);
-    }
+  } catch (error) {
+    console.error('[RSS-SLIDER] 실패:', error.message);
   }
   
   console.error('[RSS-SLIDER] 모든 피드 실패 → 기본 슬라이더 표시');
@@ -295,6 +375,11 @@ function restartSliderAutoPlay() {
 
 // 초기화 - RSS 뉴스 자동 로드
 function initializeRSSFeeds() {
+  if (window.__rssInitDone) {
+    console.log('[RSS-LOADER] 이미 초기화됨 - 중복 실행 방지');
+    return;
+  }
+  window.__rssInitDone = true;
   console.log('[RSS-LOADER] 초기화 함수 호출 - 뉴스 로드 시작');
   loadSliderNews();
   loadNewsFromRSS();
