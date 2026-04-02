@@ -50,12 +50,14 @@ async function refreshAuthNav() {
 
   let email = null;
   let nickname = null;
+  let loginId = null;
   try {
     const res = await fetch(`${API_BASE}/api/auth/me`, { credentials: 'include' });
     const data = await res.json().catch(() => ({}));
     if (res.ok && data.success && data.user && data.user.email) {
       email = data.user.email;
       nickname = (data.user.nickname || '').trim();
+      loginId = (data.user.loginId || '').trim();
     }
   } catch (_) {
     /* ignore */
@@ -67,8 +69,11 @@ async function refreshAuthNav() {
   if (!nickname) {
     nickname = sessionStorage.getItem('jurinUserNickname');
   }
+  if (!loginId) {
+    loginId = sessionStorage.getItem('jurinUserLoginId');
+  }
 
-  const displayName = nickname || email;
+  const displayName = nickname || loginId || email;
 
   if (displayName) {
     loginBtn.style.display = 'none';
@@ -97,6 +102,7 @@ async function submitLogout() {
 
   sessionStorage.removeItem('jurinUserEmail');
   sessionStorage.removeItem('jurinUserNickname');
+  sessionStorage.removeItem('jurinUserLoginId');
   refreshAuthNav();
 }
 
@@ -149,8 +155,10 @@ async function submitLogin(event) {
     if (res.ok && data.success) {
       const email = (data.user && data.user.email) ? data.user.email : '';
       const nickname = (data.user && data.user.nickname) ? data.user.nickname : '';
+      const loginIdSaved = (data.user && data.user.loginId) ? data.user.loginId : '';
       sessionStorage.setItem('jurinUserEmail', email);
       sessionStorage.setItem('jurinUserNickname', nickname);
+      sessionStorage.setItem('jurinUserLoginId', loginIdSaved);
       closeLoginModal();
       refreshAuthNav();
     } else {
