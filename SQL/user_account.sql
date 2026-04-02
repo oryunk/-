@@ -27,27 +27,37 @@ DELIMITER ;
 
 -- [2] 주식 매수 체결 프로시저 (잔액 차감 + 포지션 추가/갱신)
 DELIMITER //
+
 CREATE PROCEDURE proc_execute_buy_order(
-    IN p_user_id BIGINT,
-    IN p_stock_id BIGINT,
-    IN p_quantity INT,
-    IN p_price DECIMAL(18,2)
+    IN p_user_id BIGINT,      -- 사용자 ID
+    IN p_stock_id BIGINT,     -- 종목 ID
+    IN p_quantity INT,        -- 구매 수량
+    IN p_price DECIMAL(18,2)  -- 현재가 (체결가)
 )
 BEGIN
     DECLARE v_total_cost DECIMAL(18,2);
     DECLARE v_account_id BIGINT;
     
-    SET v_total_cost = p_price * p_quantity;
-    SELECT account_id INTO v_account_id FROM virtual_accounts WHERE user_id = p_user_id;
+    -- 1. 먼저 해당 유저의 account_id 가져옴
+    SELECT account_id INTO v_account_id 
+    FROM virtual_accounts 
+    WHERE user_id = p_user_id;
 
-    -- 1. 잔액 확인 및 차감 (돈이 모자라면 실행 안 됨)
+    -- 2. 총 결제 금액 계산
+    SET v_total_cost = p_price * p_quantity;
+
+    -- 3. 잔액 확인 및 차감
+    -- 스키마상 PK인 account_id를 조건으로 사용하여 인덱스 효율을 높입니다.
     UPDATE virtual_accounts 
     SET cash_balance = cash_balance - v_total_cost,
         updated_at = NOW()
-    WHERE user_id = p_user_id AND cash_balance >= v_total_cost;
+    WHERE account_id = v_account_id AND cash_balance >= v_total_cost;
 
-    -- 2. 실제 차감이 일어났을 때만 주식 입고 (Row_count 확인)
+    -- 4. 실제 잔액 차감이 일어났을 때만(ROW_COUNT > 0) 후속 작업 진행
     IF ROW_COUNT() > 0 THEN
+        
+        -- 5. 보유 종목(virtual_positions) 추가 또는 평단가 갱신
+        -- UNIQUE (account_id, stock_id) 제약조건을 활용한 원자적 처리
         INSERT INTO virtual_positions (account_id, stock_id, quantity, avg_price, updated_at)
         VALUES (v_account_id, p_stock_id, p_quantity, p_price, NOW())
         ON DUPLICATE KEY UPDATE 
@@ -55,9 +65,18 @@ BEGIN
             quantity = quantity + p_quantity,
             updated_at = NOW();
             
-        -- 3. 주문 이력 남기기
-        INSERT INTO virtual_orders (account_id, stock_id, side, price, quantity, status, fee_amount, executed_at, created_at)
-        VALUES (v_account_id, p_stock_id, 'BUY', p_price, p_quantity, 'EXECUTED', 0, NOW(), NOW());
+        -- 6. 주문 이력(virtual_orders) 남기기
+        -- 스키마에 정의된 status('EXECUTED')와 fee_amount를 명확히 기록
+        INSERT INTO virtual_orders (
+            account_id, stock_id, side, price, quantity, 
+            status, fee_amount, executed_at, created_at
+        )
+        VALUES (
+            v_account_id, p_stock_id, 'BUY', p_price, p_quantity, 
+            'EXECUTED', 0.00, NOW(), NOW()
+        );
+        
     END IF;
 END //
+
 DELIMITER ;
