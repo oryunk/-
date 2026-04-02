@@ -3,13 +3,31 @@ import yfinance as yf
 import pandas as pd
 from datetime import datetime, timedelta
 import os
+import time
+import requests
+import xml.etree.ElementTree as ET
 from dotenv import load_dotenv
 from google import genai
+
+try:
+    from stock_prices import fetch_traded_value_rank
+    STOCK_PRICE_API_AVAILABLE = True
+except Exception as stock_err:
+    print(f'[WARN] stock_prices 로드 실패: {stock_err}')
+    STOCK_PRICE_API_AVAILABLE = False
 
 # ★ 수정: load_dotenv()를 auth_api import보다 반드시 먼저 호출해야 합니다.
 #   기존 코드도 순서는 맞았으나, 일부 환경에서 auth_api.py가 캐시된 상태(이미 import된 상태)로
 #   재사용될 경우 db_config가 빈 값으로 고정되는 문제가 있었습니다.
 #   auth_api.py에서 db_config를 get_connection() 내부로 이동하여 이 문제를 근본 해결합니다.
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+ENV_CANDIDATES = [
+    os.path.join(BASE_DIR, '.env'),
+    os.path.join(os.getcwd(), '.env'),
+]
+for env_path in ENV_CANDIDATES:
+    if os.path.exists(env_path):
+        load_dotenv(env_path)
 load_dotenv()
 
 app = Flask(__name__)
@@ -55,12 +73,17 @@ def _cors_preflight():
         return _apply_cors_headers(app.make_response(("", 204)))
 
 # Gemini API 설정
-GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', 'AIzaSyDvabBrAzgjB20EO9VpHCPzAOaO2yZi-dY')
+GEMINI_API_KEY = os.getenv('GEMINI_API_KEY') or os.getenv('GOOGLE_API_KEY')
+DEFAULT_GEMINI_MODEL = 'gemini-flash-latest'
+FALLBACK_GEMINI_MODEL = 'gemini-1.5-flash'
 try:
+    if not GEMINI_API_KEY:
+        raise ValueError('GEMINI_API_KEY is not set')
     gemini_client = genai.Client(api_key=GEMINI_API_KEY)
     GEMINI_AVAILABLE = True
 except Exception as e:
     print(f'[WARN] Gemini API 초기화 실패: {e}')
+    gemini_client = None
     GEMINI_AVAILABLE = False
 
 # 종목 코드 매핑
@@ -73,6 +96,10 @@ STOCK_CODES = {
     'LG전자': '066570.KS',
     'POSCO': '005490.KS',
 }
+
+RSS_FEEDS = [
+    'https://www.mk.co.kr/rss/50200011/'
+]
 
 MASTER_PROMPT = """[MASTER PROMPT] 스몰캡 전략 v7.4: 대화형 투자 분석 시스템 - Quantum Leap Hybrid Deep Analysis Edition
 
@@ -116,16 +143,52 @@ STAGE 5: 최종 투자 논거 요약 (GEMINI 종합)
 STAGE 6: 인지 편향 체크 (Benjamin 주도) → PASS / HOLD / REJECT
 """ 
 
-def call_gemini(prompt_text):
-    try:
-        response = gemini_client.models.generate_content(
-            model='gemini-2.0-flash',
-            contents=prompt_text
-        )
-        return {'success': True, 'text': response.text}
-    except Exception as err:
-        print(f'[Gemini] 호출 실패: {err}')
-        return {'success': False, 'message': str(err)}
+TERM_INTERPRETATION_PROMPT = """Sophia: Terminology interpretation
+사용자가 질문한 특정 금융/투자 용어만 설명한다. (추가 용어 설명 금지)
+설명 스타일: 친절한 금융 멘토처럼, 전문 용어 사용을 지양하고 쉬운 비유를 활용한다.
+
+[답변 구조]
+용어의 의미: 초보자의 눈높이에서 본질적인 정의를 한 줄로 요약한 후 보충 설명한다.
+특징: 용어를 물어볼때만 설명한다.
+실제 투자 활용 예시: 이 용어가 실제 시장 상황에서 어떻게 쓰이는가에 대한 시나리오나 예시를 제시한다.
+
+[제약]
+- 질문한 용어 외 다른 용어를 추가로 설명하지 않는다.
+- 한국어로 답변한다.
+"""
+
+def call_gemini(prompt_text, model=DEFAULT_GEMINI_MODEL):
+    if not GEMINI_AVAILABLE or gemini_client is None:
+        return {
+            'success': False,
+            'status_code': 500,
+            'message': 'Gemini API가 설정되지 않았습니다. GEMINI_API_KEY를 확인해주세요.'
+        }
+
+    model_candidates = [model]
+    if model != FALLBACK_GEMINI_MODEL:
+        model_candidates.append(FALLBACK_GEMINI_MODEL)
+
+    last_error = None
+    for model_name in model_candidates:
+        for attempt in range(3):
+            try:
+                response = gemini_client.models.generate_content(
+                    model=model_name,
+                    contents=prompt_text
+                )
+                return {'success': True, 'text': response.text}
+            except Exception as err:
+                last_error = str(err)
+                is_unavailable = ('503' in last_error) or ('UNAVAILABLE' in last_error.upper())
+                print(f'[Gemini] 호출 실패(model={model_name}, attempt={attempt + 1}): {last_error}')
+                if is_unavailable and attempt < 2:
+                    time.sleep(1.0 * (attempt + 1))
+                    continue
+                break
+
+    status_code = 503 if last_error and (('503' in last_error) or ('UNAVAILABLE' in last_error.upper())) else 500
+    return {'success': False, 'status_code': status_code, 'message': last_error or 'Gemini 호출에 실패했습니다.'}
 
 def get_stock_data(stock_name):
     """주식 데이터 조회"""
@@ -277,6 +340,49 @@ def analyze_stock(stock_name):
             'message': f'분석 중 오류가 발생했습니다: {str(e)}'
         }
 
+
+def explain_term_with_gemini(term_name):
+    """금융/투자 용어를 Gemini로 설명"""
+    prompt = (
+        f"{TERM_INTERPRETATION_PROMPT}\n"
+        f"[사용자 질문]\n{term_name}\n\n"
+        "위 질문은 단일 금융/투자 용어 질문이다. 답변 구조를 지켜 설명하라."
+    )
+    return call_gemini(prompt, model=DEFAULT_GEMINI_MODEL)
+
+
+def fetch_rss_items(limit=12):
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36'
+    }
+
+    for feed_url in RSS_FEEDS:
+        try:
+            response = requests.get(feed_url, headers=headers, timeout=10)
+            response.raise_for_status()
+
+            root = ET.fromstring(response.content)
+            channel = root.find('channel')
+            if channel is None:
+                continue
+
+            items = []
+            for item in channel.findall('item')[:limit]:
+                items.append({
+                    'title': (item.findtext('title') or '제목 없음').strip(),
+                    'description': (item.findtext('description') or '내용 없음').strip(),
+                    'link': (item.findtext('link') or '').strip(),
+                    'pubDate': (item.findtext('pubDate') or '').strip(),
+                    'source': '매일경제',
+                })
+
+            if items:
+                return {'success': True, 'items': items, 'feed': feed_url}
+        except Exception as err:
+            print(f'[RSS] 피드 로드 실패 ({feed_url}): {err}')
+
+    return {'success': False, 'message': 'RSS 피드를 불러오지 못했습니다.'}
+
 @app.route('/api/analyze', methods=['POST'])
 def analyze():
     """종목 분석 API 엔드포인트"""
@@ -288,6 +394,71 @@ def analyze():
     
     result = analyze_stock(stock_name)
     return jsonify(result)
+
+
+@app.route('/api/terms/explain', methods=['POST'])
+def explain_term():
+    """용어 설명 API 엔드포인트"""
+    data = request.get_json(silent=True) or {}
+    term = (data.get('term') or '').strip()
+
+    if not term:
+        return jsonify({'success': False, 'message': '설명할 용어를 입력해주세요.'}), 400
+
+    gemini_result = explain_term_with_gemini(term)
+    if not gemini_result.get('success'):
+        status_code = gemini_result.get('status_code', 500)
+        return jsonify({
+            'success': False,
+            'message': gemini_result.get('message', '용어 설명에 실패했습니다. 일시 후 다시 시도해주세요.')
+        }), status_code
+
+    return jsonify({
+        'success': True,
+        'term': term,
+        'answer': gemini_result.get('text', '').strip()
+    })
+
+
+@app.route('/api/rss/news', methods=['GET'])
+def rss_news():
+    """RSS 뉴스 프록시 API"""
+    try:
+        limit = int(request.args.get('limit', '12'))
+    except ValueError:
+        limit = 12
+
+    limit = max(1, min(limit, 30))
+    result = fetch_rss_items(limit=limit)
+
+    if not result.get('success'):
+        return jsonify({'success': False, 'message': result.get('message', 'RSS 조회 실패')}), 502
+
+    return jsonify({
+        'success': True,
+        'items': result.get('items', []),
+        'feed': result.get('feed', ''),
+    })
+
+
+@app.route('/api/mock/traded-value-rank', methods=['GET'])
+def mock_traded_value_rank():
+    """모의투자용 거래대금 상위 종목 조회"""
+    if not STOCK_PRICE_API_AVAILABLE:
+        return jsonify({'success': False, 'message': '시세 모듈이 준비되지 않았습니다.'}), 500
+
+    try:
+        limit = int(request.args.get('limit', '30'))
+    except ValueError:
+        limit = 30
+
+    limit = max(1, min(limit, 100))
+
+    try:
+        rows = fetch_traded_value_rank(limit=limit)
+        return jsonify({'success': True, 'items': rows, 'count': len(rows)})
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'거래대금 순위 조회 실패: {str(e)}'}), 502
 
 @app.route('/api/health', methods=['GET'])
 def health():
