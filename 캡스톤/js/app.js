@@ -17,12 +17,14 @@ async function refreshAuthNav() {
 
   let email = null;
   let nickname = null;
+  let loginId = null;
   try {
     const res = await fetch(`${API_BASE}/api/auth/me`, { credentials: 'include' });
     const data = await res.json().catch(() => ({}));
     if (res.ok && data.success && data.user && data.user.email) {
       email = data.user.email;
       nickname = (data.user.nickname || '').trim();
+      loginId = (data.user.loginId || '').trim();
     }
   } catch (_) {
     /* ignore */
@@ -34,8 +36,11 @@ async function refreshAuthNav() {
   if (!nickname) {
     nickname = sessionStorage.getItem('jurinUserNickname');
   }
+  if (!loginId) {
+    loginId = sessionStorage.getItem('jurinUserLoginId');
+  }
 
-  const displayName = nickname || email;
+  const displayName = nickname || loginId || email;
 
   if (displayName) {
     loginBtn.style.display = 'none';
@@ -104,19 +109,23 @@ document.addEventListener('DOMContentLoaded', async () => {
   
   // RSS 함수가 준비될 때까지 대기
   await waitForRSSReady();
-  
-  // RSS 뉴스 로드
+
+  // RSS 뉴스 로드 (rss-loader의 초기화 함수에 위임)
   console.log('[초기화] RSS 뉴스 로드 시작...');
-  if (typeof loadSliderNews === 'function') {
-    loadSliderNews().then(() => console.log('[초기화] 슬라이더 완료'));
+  if (typeof initializeRSSFeeds === 'function') {
+    initializeRSSFeeds();
   } else {
-    console.error('[초기화] loadSliderNews 함수를 찾을 수 없습니다.');
-  }
-  
-  if (typeof loadNewsFromRSS === 'function') {
-    loadNewsFromRSS().then(() => console.log('[초기화] 뉴스 그리드 완료'));
-  } else {
-    console.error('[초기화] loadNewsFromRSS 함수를 찾을 수 없습니다.');
+    if (typeof loadSliderNews === 'function') {
+      loadSliderNews().then(() => console.log('[초기화] 슬라이더 완료'));
+    } else {
+      console.error('[초기화] loadSliderNews 함수를 찾을 수 없습니다.');
+    }
+
+    if (typeof loadNewsFromRSS === 'function') {
+      loadNewsFromRSS().then(() => console.log('[초기화] 뉴스 그리드 완료'));
+    } else {
+      console.error('[초기화] loadNewsFromRSS 함수를 찾을 수 없습니다.');
+    }
   }
 });
 
@@ -169,8 +178,10 @@ async function submitLogin(event) {
     if (res.ok && data.success) {
       const email = (data.user && data.user.email) ? data.user.email : '';
       const nickname = (data.user && data.user.nickname) ? data.user.nickname : '';
+      const loginIdSaved = (data.user && data.user.loginId) ? data.user.loginId : '';
       sessionStorage.setItem('jurinUserEmail', email);
       sessionStorage.setItem('jurinUserNickname', nickname);
+      sessionStorage.setItem('jurinUserLoginId', loginIdSaved);
       closeLoginModal();
       refreshAuthNav();
     } else {
@@ -196,6 +207,7 @@ async function submitLogout() {
 
   sessionStorage.removeItem('jurinUserEmail');
   sessionStorage.removeItem('jurinUserNickname');
+  sessionStorage.removeItem('jurinUserLoginId');
   refreshAuthNav();
 }
 
