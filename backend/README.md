@@ -24,6 +24,13 @@ cd backend
 pip install -r requirements.txt
 ```
 
+### 환경변수 설정 (.env)
+`backend/.env` 파일에 아래 값을 추가하세요.
+
+```env
+GEMINI_API_KEY=여기에_본인_제미나이_API_키
+```
+
 ---
 
 ## 2️⃣ 서버 실행
@@ -155,5 +162,24 @@ pip install --upgrade yfinance
 {
   "status": "ok",
   "message": "서버가 정상 작동 중입니다."
+}
+```
+
+### 3. `/api/terms/explain` (POST)
+금융/투자 용어 AI 설명 요청
+
+**요청 바디:**
+```json
+{
+  "term": "PER"
+}
+```
+
+**응답 예시:**
+```json
+{
+  "success": true,
+  "term": "PER",
+  "answer": "용어의 의미: ...\n특징: ...\n실제 투자 활용 예시: ..."
 }
 ```
