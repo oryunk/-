@@ -34,7 +34,7 @@ CORS(app)
 # Gemini API 설정
 GEMINI_API_KEY = os.getenv('GEMINI_API_KEY') or os.getenv('GOOGLE_API_KEY')
 DEFAULT_GEMINI_MODEL = 'gemini-flash-latest'
-FALLBACK_GEMINI_MODEL = 'gemini-1.5-flash'
+FALLBACK_GEMINI_MODEL = 'gemini-2.0-flash'
 try:
     if not GEMINI_API_KEY:
         raise ValueError('GEMINI_API_KEY is not set')
@@ -116,6 +116,29 @@ TERM_INTERPRETATION_PROMPT = """Sophia: Terminology interpretation
 - 한국어로 답변한다.
 """
 
+LOCAL_TERM_FALLBACK = {
+    'per': '용어의 의미: PER은 주가가 이익에 비해 비싼지 싼지 보는 배수 지표입니다.\n특징: 같은 업종 내 기업끼리 비교할 때 유용합니다.\n실제 투자 활용 예시: 반도체 A와 B의 PER을 비교해 상대적으로 저평가된 종목을 후보로 고르는 식으로 씁니다.',
+    'roe': '용어의 의미: ROE는 회사가 자기자본으로 얼마나 효율적으로 이익을 냈는지 보여주는 수익성 지표입니다.\n특징: 숫자가 높고 안정적으로 유지되면 경영 효율이 좋다고 봅니다.\n실제 투자 활용 예시: 같은 업종 기업 중 ROE가 꾸준히 높은 회사를 장기 보유 후보로 추리는 데 활용합니다.',
+    'pbr': '용어의 의미: PBR은 주가가 장부상 순자산 대비 몇 배인지 보는 지표입니다.\n특징: 1배 이하면 자산가치 대비 저평가 가능성을 점검합니다.\n실제 투자 활용 예시: 경기 민감 업종에서 PBR이 낮은 종목을 골라 반등 구간을 노리는 전략에 사용합니다.',
+    'eps': '용어의 의미: EPS는 주식 1주당 회사가 벌어들인 순이익입니다.\n특징: EPS가 늘면 기업의 이익 체력이 좋아지고 있다는 신호가 됩니다.\n실제 투자 활용 예시: 분기 실적 발표 후 EPS 증가 추세가 확인된 기업을 추세 매수 후보로 봅니다.',
+    '배당주': '용어의 의미: 배당주는 이익 일부를 주주에게 배당금으로 꾸준히 나눠주는 주식입니다.\n특징: 시세차익뿐 아니라 현금흐름을 함께 노리는 투자에 적합합니다.\n실제 투자 활용 예시: 금리 하락기나 변동성 장세에서 월/분기 배당 종목을 모아 현금흐름 포트폴리오를 구성합니다.',
+    '시가총액': '용어의 의미: 시가총액은 현재 주가에 발행주식 수를 곱한 기업의 시장가치입니다.\n특징: 대형주/중형주/소형주 분류의 기준이 됩니다.\n실제 투자 활용 예시: 시장 불안 시기에 시가총액 상위 대형주 중심으로 비중을 높여 변동성을 낮춥니다.',
+    '변동성': '용어의 의미: 변동성은 가격이 얼마나 크게 흔들리는지 나타내는 위험 지표입니다.\n특징: 변동성이 높을수록 수익 기회와 손실 위험이 함께 커집니다.\n실제 투자 활용 예시: 변동성이 급등하면 분할매수 간격을 넓히고 손절 기준을 더 보수적으로 설정합니다.',
+    '포트폴리오': '용어의 의미: 포트폴리오는 내가 보유한 투자자산의 구성표입니다.\n특징: 자산을 나눠 담아 한 종목 리스크를 줄이는 데 핵심입니다.\n실제 투자 활용 예시: 주식 60%, 채권 30%, 현금 10%처럼 비중을 정하고 정기적으로 리밸런싱합니다.'
+}
+
+
+def explain_term_with_local_fallback(term_name):
+    normalized = (term_name or '').strip().lower()
+    if normalized in LOCAL_TERM_FALLBACK:
+        return LOCAL_TERM_FALLBACK[normalized]
+
+    return (
+        f"용어의 의미: {term_name}은(는) 투자 판단에 쓰이는 금융/투자 개념입니다.\n"
+        "특징: 현재 AI 쿼터가 소진되어 간단 요약으로 우선 안내합니다.\n"
+        f"실제 투자 활용 예시: {term_name}의 추이를 다른 지표와 함께 비교해 매수/매도 타이밍을 보조 판단합니다."
+    )
+
 def call_gemini(prompt_text, model=DEFAULT_GEMINI_MODEL):
     if not GEMINI_AVAILABLE or gemini_client is None:
         return {
@@ -146,7 +169,12 @@ def call_gemini(prompt_text, model=DEFAULT_GEMINI_MODEL):
                     continue
                 break
 
-    status_code = 503 if last_error and (('503' in last_error) or ('UNAVAILABLE' in last_error.upper())) else 500
+    if last_error and (('429' in last_error) or ('RESOURCE_EXHAUSTED' in last_error.upper()) or ('QUOTA' in last_error.upper())):
+        status_code = 429
+    elif last_error and (('503' in last_error) or ('UNAVAILABLE' in last_error.upper())):
+        status_code = 503
+    else:
+        status_code = 500
     return {'success': False, 'status_code': status_code, 'message': last_error or 'Gemini 호출에 실패했습니다.'}
 
 def get_stock_data(stock_name):
@@ -367,6 +395,15 @@ def explain_term():
     gemini_result = explain_term_with_gemini(term)
     if not gemini_result.get('success'):
         status_code = gemini_result.get('status_code', 500)
+        if status_code == 429:
+            fallback_answer = explain_term_with_local_fallback(term)
+            return jsonify({
+                'success': True,
+                'term': term,
+                'answer': fallback_answer,
+                'source': 'local-fallback',
+                'notice': 'Gemini 쿼터 초과로 로컬 요약 답변을 제공했습니다.'
+            })
         return jsonify({
             'success': False,
             'message': gemini_result.get('message', '용어 설명에 실패했습니다. 일시 후 다시 시도해주세요.')
