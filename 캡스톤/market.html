@@ -191,12 +191,98 @@
     color: var(--up);
   }
 
-  .stock-change.down {
-    color: var(--down);
+  .stock-change.flat {
+    color: var(--gray-400);
   }
+
+  .live-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #4fc97a;
+    margin-left: 12px;
+  }
+
+  .live-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #4fc97a;
+    animation: live-pulse 1.4s infinite;
+  }
+
+  .live-dot.error {
+    background: #ff5c5c;
+    animation: none;
+  }
+
+  @keyframes live-pulse {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.25; }
+  }
+
+  @keyframes flash-up {
+    0%   { background: rgba(79, 201, 122, 0.25); }
+    100% { background: transparent; }
+  }
+
+  @keyframes flash-down {
+    0%   { background: rgba(255, 92, 92, 0.25); }
+    100% { background: transparent; }
+  }
+
+  .flash-up   { animation: flash-up   0.7s ease-out; }
+  .flash-down { animation: flash-down 0.7s ease-out; }
 
   .stock-volume {
     color: var(--gray-200);
+  }
+
+  .stocks-pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    margin-top: 18px;
+    flex-wrap: wrap;
+  }
+
+  .page-btn {
+    min-width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    border: 1px solid rgba(79, 158, 255, 0.25);
+    background: rgba(79, 158, 255, 0.08);
+    color: var(--gray-200);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .page-btn:hover {
+    border-color: rgba(79, 158, 255, 0.45);
+    background: rgba(79, 158, 255, 0.18);
+  }
+
+  .page-btn.active {
+    border-color: var(--accent);
+    background: var(--accent);
+    color: #fff;
+  }
+
+  .page-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  .page-ellipsis {
+    color: var(--gray-500);
+    font-size: 13px;
+    padding: 0 2px;
+    user-select: none;
   }
 
   .market-news {
@@ -379,12 +465,17 @@
 
     <div class="stocks-section">
       <div class="stocks-header">
-        <div class="stocks-title">주요 종목</div>
+        <div class="stocks-title">
+          주요 종목
+          <span class="live-badge">
+            <span class="live-dot" id="liveDot"></span>
+            <span id="liveStatus">연결 중...</span>
+          </span>
+        </div>
         <div class="stocks-filter">
-          <button class="filter-btn active" onclick="filterStocks('all')">전체</button>
-          <button class="filter-btn" onclick="filterStocks('up')">상승</button>
-          <button class="filter-btn" onclick="filterStocks('down')">하락</button>
-          <button class="filter-btn" onclick="filterStocks('volume')">거래량</button>
+          <button class="filter-btn active" onclick="filterStocks('all', event)">전체</button>
+          <button class="filter-btn" onclick="filterStocks('up', event)">상승</button>
+          <button class="filter-btn" onclick="filterStocks('down', event)">하락</button>
         </div>
       </div>
       <table class="stocks-table" id="stocksTable">
@@ -393,140 +484,259 @@
             <th>종목명</th>
             <th>현재가</th>
             <th>전일대비</th>
+            <th>등락률</th>
             <th>거래량</th>
-            <th>시가총액</th>
           </tr>
         </thead>
         <tbody id="stocksTableBody">
-          <!-- 동적으로 주식 데이터 생성 -->
+          <tr><td colspan="5" style="text-align:center;color:var(--gray-400);padding:32px">시세 불러오는 중...</td></tr>
         </tbody>
       </table>
+      <div class="stocks-pagination" id="stocksPagination"></div>
     </div>
   </div>
 </div>
 
 <script>
-  // 시장 지수 데이터
+  const BACKEND = 'http://localhost:5000';
+  const POLL_INTERVAL = 5000; // 백엔드 캐시 응답을 사용해 5초마다 갱신
+  const PAGE_SIZE = 10;
+
+  // 시장 지수 데이터 (정적)
   const indicesData = [
-    { name: 'KOSPI', value: 2584.31, change: 0.63 },
-    { name: 'KOSDAQ', value: 745.18, change: -0.21 },
-    { name: 'KOSPI 200', value: 345.67, change: 0.45 },
-    { name: 'KRX 100', value: 5678.90, change: -0.12 }
+    { name: 'KOSPI',    value: 2584.31, change:  0.63 },
+    { name: 'KOSDAQ',   value:  745.18, change: -0.21 },
+    { name: 'KOSPI 200',value:  345.67, change:  0.45 },
+    { name: 'KRX 100',  value: 5678.90, change: -0.12 },
   ];
 
-  // 주식 데이터
-  const stocksData = [
-    { name: '삼성전자', symbol: '005930', price: 75200, change: 1.24, volume: 12345678, marketCap: 449000000000000 },
-    { name: 'SK하이닉스', symbol: '000660', price: 182500, change: 2.87, volume: 3456789, marketCap: 133000000000000 },
-    { name: 'NAVER', symbol: '035420', price: 201000, change: -0.49, volume: 2345678, marketCap: 33000000000000 },
-    { name: '카카오', symbol: '035720', price: 43150, change: 0.82, volume: 4567890, marketCap: 19200000000000 },
-    { name: '현대차', symbol: '005380', price: 238000, change: -1.05, volume: 1234567, marketCap: 52000000000000 },
-    { name: 'LG화학', symbol: '051910', price: 345000, change: 3.15, volume: 987654, marketCap: 23000000000000 },
-    { name: 'POSCO', symbol: '005490', price: 289000, change: -1.87, volume: 765432, marketCap: 28000000000000 },
-    { name: 'KB금융', symbol: '105560', price: 48500, change: 0.31, volume: 2345678, marketCap: 15800000000000 },
-    { name: '신한지주', symbol: '055550', price: 35600, change: -0.28, volume: 3456789, marketCap: 18900000000000 },
-    { name: '삼성바이오로직스', symbol: '207940', price: 789000, change: 4.23, volume: 123456, marketCap: 56000000000000 }
-  ];
-
+  // 현재 필터 + 이전 가격 캐시
   let currentFilter = 'all';
+  let currentPage = 1;
+  let totalPagesFromApi = 1;
+  let prevPrices = {};  // code -> price
+  let latestByCode = {}; // code -> 마지막 정상 데이터
+  let stockNameByCode = {}; // code -> name
+  let stockOrder = [];      // API가 내려준 순서 유지
+  let liveStocks = [];
 
-  // 페이지 로드 시 초기화
-  document.addEventListener('DOMContentLoaded', function() {
+  document.addEventListener('DOMContentLoaded', () => {
     renderIndices();
-    renderStocks();
+    fetchLivePrices();               // 즉시 1회
+    setInterval(fetchLivePrices, POLL_INTERVAL);
   });
 
-  // 지수 렌더링
-  function renderIndices() {
-    const indicesGrid = document.getElementById('indicesGrid');
+  // ── 실시간 시세 폴링 ─────────────────────────────────
+  async function fetchLivePrices() {
+    const dot    = document.getElementById('liveDot');
+    const status = document.getElementById('liveStatus');
+    try {
+      const res  = await fetch(`${BACKEND}/api/live-prices?page=${currentPage}&page_size=${PAGE_SIZE}`);
+      const data = await res.json();
+      if (!data.success) throw new Error(data.message);
 
-    const indicesHtml = indicesData.map(index => `
-      <div class="index-card">
-        <div class="index-name">${index.name}</div>
-        <div class="index-value">${index.value.toLocaleString()}</div>
-        <div class="index-change ${index.change >= 0 ? 'up' : 'down'}">
-          ${index.change >= 0 ? '▲' : '▼'} ${Math.abs(index.change)}%
-        </div>
-      </div>
-    `).join('');
+      const incoming = Array.isArray(data.stocks) ? data.stocks : [];
+      if (incoming.length > 0) {
+        stockOrder = incoming.map(s => s.code).filter(Boolean);
+      }
 
-    indicesGrid.innerHTML = indicesHtml;
+      totalPagesFromApi = Math.max(1, Number(data.total_pages || 1));
+      currentPage = Math.min(currentPage, totalPagesFromApi);
+
+      // 실패 응답이 와도 화면에서 종목이 사라지지 않게 마지막 정상값을 유지
+      incoming.forEach(stock => {
+        if (!stock || !stock.code) return;
+        stockNameByCode[stock.code] = stock.name || stockNameByCode[stock.code] || stock.code;
+        if (!stock.error) {
+          latestByCode[stock.code] = { ...stock, stale: false, error: null };
+        } else if (latestByCode[stock.code]) {
+          latestByCode[stock.code] = {
+            ...latestByCode[stock.code],
+            stale: true,
+            error: stock.error,
+          };
+        }
+      });
+
+      const incomingByCode = Object.fromEntries(incoming.map(s => [s.code, s]));
+      liveStocks = stockOrder.map(code => {
+        const cached = latestByCode[code];
+        if (cached) return { ...cached, name: stockNameByCode[code] || cached.name || code };
+
+        const raw = incomingByCode[code] || {};
+        if (raw.error) {
+          return {
+            code,
+            name: stockNameByCode[code] || code,
+            error: raw.error,
+            stale: true,
+            loading: false,
+          };
+        }
+        return { code, name: stockNameByCode[code] || code, loading: true };
+      });
+
+      dot.classList.remove('error');
+      status.textContent = `${data.ts} 업데이트 (${data.total_count || data.count || liveStocks.length}종목)`;
+      renderStocks();
+    } catch (e) {
+      dot.classList.add('error');
+      status.textContent = '연결 실패';
+      console.warn('[live-prices]', e.message);
+    }
   }
 
-  // 주식 렌더링
+  // ── 종목 테이블 렌더링 ───────────────────────────────
   function renderStocks() {
-    const stocksTableBody = document.getElementById('stocksTableBody');
+    const tbody = document.getElementById('stocksTableBody');
+    const pagination = document.getElementById('stocksPagination');
 
-    let filteredStocks = stocksData;
+    let filtered = liveStocks.filter(s => !s.loading);
+    if (currentFilter === 'up')   filtered = filtered.filter(s => s.direction === 'up');
+    if (currentFilter === 'down') filtered = filtered.filter(s => s.direction === 'down');
 
-    switch (currentFilter) {
-      case 'up':
-        filteredStocks = stocksData.filter(stock => stock.change > 0);
-        break;
-      case 'down':
-        filteredStocks = stocksData.filter(stock => stock.change < 0);
-        break;
-      case 'volume':
-        filteredStocks = [...stocksData].sort((a, b) => b.volume - a.volume);
-        break;
+    const totalPages = Math.max(1, totalPagesFromApi);
+    if (currentPage > totalPages) currentPage = totalPages;
+    if (currentPage < 1) currentPage = 1;
+
+    if (filtered.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--gray-400);padding:32px">
+        ${currentFilter !== 'all' ? '해당 조건의 종목이 없습니다.' : '시세 불러오는 중...'}
+      </td></tr>`;
+      pagination.innerHTML = '';
+      return;
     }
 
-    const stocksHtml = filteredStocks.map(stock => `
-      <tr>
-        <td>
-          <div class="stock-name">${stock.name}</div>
-          <div style="font-size: 12px; color: var(--gray-500);">${stock.symbol}</div>
-        </td>
-        <td class="stock-price">${formatCurrency(stock.price)}</td>
-        <td class="stock-change ${stock.change >= 0 ? 'up' : 'down'}">
-          ${stock.change >= 0 ? '+' : ''}${stock.change}%
-        </td>
-        <td class="stock-volume">${formatNumber(stock.volume)}</td>
-        <td>${formatMarketCap(stock.marketCap)}</td>
-      </tr>
-    `).join('');
+    const pageStocks = filtered;
 
-    stocksTableBody.innerHTML = stocksHtml;
+    // 페이지 단위(10개)로 한 번에 렌더링한다.
+    const rowsHtml = pageStocks.map(stock => {
+      if (stock.loading) {
+        return `
+          <tr id="row-${stock.code}">
+            <td>
+              <div class="stock-name">${stock.name}</div>
+              <div style="font-size:12px;color:var(--gray-500)">${stock.code}</div>
+            </td>
+            <td colspan="4" style="color:var(--gray-400)">시세 불러오는 중...</td>
+          </tr>`;
+      }
+
+      if (stock.error && (stock.price === undefined || stock.price === null)) {
+        return `
+          <tr id="row-${stock.code}">
+            <td>
+              <div class="stock-name">${stock.name}</div>
+              <div style="font-size:12px;color:var(--gray-500)">${stock.code}</div>
+            </td>
+            <td colspan="4" style="color:var(--gray-400)">조회 지연 (${stock.error})</td>
+          </tr>`;
+      }
+
+      const dir = stock.direction;
+      const changeSign = dir === 'up' ? '+' : (dir === 'down' ? '' : '±');
+      const changeClass = dir === 'up' ? 'up' : (dir === 'down' ? 'down' : 'flat');
+      const arrow = dir === 'up' ? '▲' : (dir === 'down' ? '▼' : '-');
+
+      const hadPrev = Object.prototype.hasOwnProperty.call(prevPrices, stock.code);
+      const priceChanged = hadPrev && prevPrices[stock.code] !== stock.price;
+      const flashClass = priceChanged ? (dir === 'up' ? 'flash-up' : dir === 'down' ? 'flash-down' : '') : '';
+
+      return `
+        <tr id="row-${stock.code}" class="${flashClass}">
+          <td>
+            <div class="stock-name">${stock.name}</div>
+            <div style="font-size:12px;color:var(--gray-500)">${stock.code}</div>
+          </td>
+          <td class="stock-price">${formatCurrency(stock.price)}</td>
+          <td class="stock-change ${changeClass}">${arrow} ${formatCurrency(Math.abs(stock.change))}</td>
+          <td class="stock-change ${changeClass}">${changeSign}${stock.rate.toFixed(2)}%</td>
+          <td class="stock-volume">${formatNumber(stock.volume)}${stock.stale ? ' (지연)' : ''}</td>
+        </tr>`;
+    }).join('');
+
+    tbody.innerHTML = rowsHtml;
+    renderPagination(totalPages);
+
+    // 다음 비교를 위해 렌더링 완료 후 가격 캐시 업데이트
+    filtered.forEach(stock => {
+      prevPrices[stock.code] = stock.price;
+    });
   }
 
-  // 필터링 함수
-  function filterStocks(filter) {
+  function renderPagination(totalPages) {
+    const pagination = document.getElementById('stocksPagination');
+    if (totalPages <= 1) {
+      pagination.innerHTML = '';
+      return;
+    }
+
+    const maxVisiblePages = 5;
+    let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+    let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+
+    // 끝쪽에 걸리면 시작 페이지를 다시 당겨서 버튼 개수를 맞춘다.
+    startPage = Math.max(1, endPage - maxVisiblePages + 1);
+
+    let html = '';
+    html += `<button class="page-btn" ${currentPage === 1 ? 'disabled' : ''} onclick="goToPage(${currentPage - 1})">이전</button>`;
+
+    if (startPage > 1) {
+      html += `<button class="page-btn" onclick="goToPage(1)">1</button>`;
+      if (startPage > 2) {
+        html += `<span class="page-ellipsis">...</span>`;
+      }
+    }
+
+    for (let page = startPage; page <= endPage; page += 1) {
+      html += `<button class="page-btn ${page === currentPage ? 'active' : ''}" onclick="goToPage(${page})">${page}</button>`;
+    }
+
+    if (endPage < totalPages) {
+      if (endPage < totalPages - 1) {
+        html += `<span class="page-ellipsis">...</span>`;
+      }
+      html += `<button class="page-btn" onclick="goToPage(${totalPages})">${totalPages}</button>`;
+    }
+
+    html += `<button class="page-btn" ${currentPage === totalPages ? 'disabled' : ''} onclick="goToPage(${currentPage + 1})">다음</button>`;
+    pagination.innerHTML = html;
+  }
+
+  function goToPage(page) {
+    currentPage = Math.max(1, Number(page) || 1);
+    fetchLivePrices();
+  }
+
+  // ── 지수 렌더링 ─────────────────────────────────────
+  function renderIndices() {
+    document.getElementById('indicesGrid').innerHTML = indicesData.map(idx => `
+      <div class="index-card">
+        <div class="index-name">${idx.name}</div>
+        <div class="index-value">${idx.value.toLocaleString()}</div>
+        <div class="index-change ${idx.change >= 0 ? 'up' : 'down'}">
+          ${idx.change >= 0 ? '▲' : '▼'} ${Math.abs(idx.change)}%
+        </div>
+      </div>`).join('');
+  }
+
+  // ── 필터 버튼 ────────────────────────────────────────
+  function filterStocks(filter, event) {
     currentFilter = filter;
-
-    // 필터 버튼 상태 업데이트
-    document.querySelectorAll('.filter-btn').forEach(btn => {
-      btn.classList.remove('active');
-    });
-    event.target.classList.add('active');
-
+    currentPage = 1;
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    if (event && event.target) event.target.classList.add('active');
     renderStocks();
   }
 
-  // 통화 포맷팅
-  function formatCurrency(amount) {
-    return '₩' + amount.toLocaleString();
-  }
+  // ── 포맷 유틸 ────────────────────────────────────────
+  function formatCurrency(v) { return '₩' + Number(v).toLocaleString(); }
 
-  // 숫자 포맷팅
-  function formatNumber(num) {
-    if (num >= 100000000) {
-      return (num / 100000000).toFixed(1) + '억';
-    } else if (num >= 10000) {
-      return (num / 10000).toFixed(1) + '만';
-    }
-    return num.toLocaleString();
+  function formatNumber(n) {
+    if (n >= 100000000) return (n / 100000000).toFixed(1) + '억';
+    if (n >= 10000)     return (n / 10000).toFixed(1) + '만';
+    return Number(n).toLocaleString();
   }
-
-  // 시가총액 포맷팅
-  function formatMarketCap(cap) {
-    if (cap >= 1000000000000) {
-      return (cap / 1000000000000).toFixed(1) + '조';
-    } else if (cap >= 100000000) {
-      return (cap / 100000000).toFixed(1) + '억';
-    }
-    return cap.toLocaleString();
-  }
-
 </script>
 <script src="js/common-auth.js"></script>
 
