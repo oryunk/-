@@ -42,6 +42,10 @@
     padding: 40px;
   }
 
+  .market-view.hidden {
+    display: none;
+  }
+
   .indices-section {
     background: rgba(255, 255, 255, 0.04);
     border: 1px solid rgba(79, 158, 255, 0.15);
@@ -171,6 +175,19 @@
   .stocks-table td {
     font-size: 15px;
     color: var(--white);
+  }
+
+  .stock-row {
+    cursor: pointer;
+    transition: background 0.2s ease, transform 0.2s ease;
+  }
+
+  .stock-row:hover {
+    background: rgba(255, 255, 255, 0.03);
+  }
+
+  .stock-row.active {
+    background: rgba(79, 158, 255, 0.12);
   }
 
   .stock-name {
@@ -404,7 +421,244 @@
     border-color: rgba(79, 158, 255, 0.6);
   }
 
+  .stock-detail-view {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(79, 158, 255, 0.16);
+    border-radius: 16px;
+    overflow: hidden;
+  }
+
+  .stock-detail-header {
+    padding: 20px;
+    border-bottom: 1px solid rgba(79, 158, 255, 0.15);
+    background:
+      radial-gradient(circle at 15% 10%, rgba(46, 115, 255, 0.2), transparent 42%),
+      radial-gradient(circle at 75% 10%, rgba(0, 212, 255, 0.16), transparent 45%),
+      linear-gradient(180deg, rgba(11, 24, 46, 0.85), rgba(8, 16, 31, 0.9));
+  }
+
+  .stock-detail-header .btn-back {
+    margin-bottom: 0;
+  }
+
+  .stock-detail-head {
+    padding: 26px 24px 12px;
+    border-bottom: 1px solid rgba(79, 158, 255, 0.18);
+  }
+
+  .stock-detail-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .stock-detail-name {
+    font-size: 26px;
+    font-weight: 800;
+    letter-spacing: -0.4px;
+    color: var(--white);
+  }
+
+  .stock-detail-code {
+    margin-top: 4px;
+    font-size: 13px;
+    color: var(--gray-400);
+    font-family: 'DM Mono', monospace;
+  }
+
+  .stock-detail-price {
+    margin-top: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .detail-price-main {
+    font-size: 38px;
+    font-weight: 800;
+    letter-spacing: -0.6px;
+  }
+
+  .detail-price-sub {
+    display: inline-flex;
+    gap: 8px;
+    align-items: center;
+    font-size: 14px;
+    font-weight: 700;
+  }
+
+  .detail-price-sub.up {
+    color: var(--up);
+  }
+
+  .detail-price-sub.down {
+    color: var(--down);
+  }
+
+  .detail-price-sub.flat {
+    color: var(--gray-400);
+  }
+
+  .detail-chip {
+    border-radius: 999px;
+    padding: 4px 10px;
+    font-size: 12px;
+    font-weight: 700;
+    border: 1px solid transparent;
+  }
+
+  .detail-chip.up {
+    background: rgba(255, 71, 71, 0.16);
+    border-color: rgba(255, 71, 71, 0.4);
+    color: var(--up);
+  }
+
+  .detail-chip.down {
+    background: rgba(79, 158, 255, 0.16);
+    border-color: rgba(79, 158, 255, 0.4);
+    color: var(--down);
+  }
+
+  .detail-chip.flat {
+    background: rgba(255, 255, 255, 0.07);
+    border-color: rgba(255, 255, 255, 0.18);
+    color: var(--gray-200);
+  }
+
+  .stock-detail-body {
+    padding: 16px 20px 24px;
+  }
+
+  .detail-toolbar {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+
+  .detail-range-btn {
+    flex: 1;
+    min-width: 0;
+    border: 1px solid rgba(79, 158, 255, 0.2);
+    background: rgba(255, 255, 255, 0.03);
+    color: var(--gray-200);
+    border-radius: 10px;
+    padding: 8px 0;
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .detail-range-btn.active {
+    background: rgba(79, 158, 255, 0.18);
+    border-color: rgba(79, 158, 255, 0.45);
+    color: #dff3ff;
+  }
+
+  .chart-placeholder {
+    border: 1px solid rgba(79, 158, 255, 0.18);
+    border-radius: 16px;
+    padding: 14px;
+    margin-bottom: 14px;
+    background: rgba(255, 255, 255, 0.02);
+  }
+
+  .chart-skeleton {
+    width: 100%;
+    height: 160px;
+    border-radius: 12px;
+    background:
+      linear-gradient(115deg, rgba(79, 158, 255, 0.05), rgba(79, 158, 255, 0.18), rgba(79, 158, 255, 0.05));
+    animation: chart-wave 1.7s linear infinite;
+  }
+
+  @keyframes chart-wave {
+    0% { background-position: -260px 0; }
+    100% { background-position: 260px 0; }
+  }
+
+  .chart-note {
+    margin-top: 10px;
+    font-size: 12px;
+    color: var(--gray-400);
+  }
+
+  .detail-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+
+  .detail-card {
+    border-radius: 12px;
+    border: 1px solid rgba(79, 158, 255, 0.16);
+    padding: 12px;
+    background: rgba(255, 255, 255, 0.02);
+  }
+
+  .detail-label {
+    font-size: 12px;
+    color: var(--gray-400);
+    margin-bottom: 6px;
+  }
+
+  .detail-value {
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--white);
+  }
+
+  .detail-cta {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 6px;
+    margin-bottom: 14px;
+  }
+
+  .detail-buy,
+  .detail-sell {
+    border: none;
+    border-radius: 12px;
+    padding: 12px 10px;
+    font-size: 14px;
+    font-weight: 800;
+    cursor: pointer;
+    font-family: inherit;
+  }
+
+  .detail-buy {
+    background: linear-gradient(135deg, #1f9fff, #00c2ff);
+    color: #05162e;
+  }
+
+  .detail-sell {
+    background: linear-gradient(135deg, #ff5f64, #ff8157);
+    color: #fff;
+  }
+
+  .detail-foot {
+    border-radius: 12px;
+    border: 1px solid rgba(79, 158, 255, 0.14);
+    background: rgba(255, 255, 255, 0.02);
+    padding: 12px;
+    font-size: 13px;
+    color: var(--gray-200);
+    line-height: 1.55;
+  }
+
   @media (max-width: 768px) {
+    .market-content {
+      padding: 24px 14px 30px;
+    }
+
+    .indices-section,
+    .stocks-section,
+    .market-news {
+      padding: 18px 14px;
+      border-radius: 12px;
+    }
+
     .stocks-table {
       font-size: 14px;
     }
@@ -422,6 +676,22 @@
     .news-image {
       width: 100%;
       height: 60px;
+    }
+
+    .stock-detail-header {
+      padding: 14px;
+    }
+
+    .stock-detail-head {
+      padding: 20px 16px 10px;
+    }
+
+    .stock-detail-body {
+      padding: 12px 14px 18px;
+    }
+
+    .detail-price-main {
+      font-size: 32px;
     }
   }
 </style>
@@ -456,6 +726,7 @@
   </div>
 
   <div class="market-content">
+    <div id="marketOverviewView" class="market-view">
     <div class="indices-section">
       <div class="indices-title">주요 지수</div>
       <div class="indices-grid" id="indicesGrid">
@@ -494,6 +765,62 @@
       </table>
       <div class="stocks-pagination" id="stocksPagination"></div>
     </div>
+    </div>
+
+    <div id="stockDetailView" class="market-view stock-detail-view hidden" aria-hidden="true">
+      <div class="stock-detail-header">
+        <button class="btn-back" type="button" onclick="closeStockDetail()">← 주요 종목으로 돌아가기</button>
+      </div>
+      <div class="stock-detail-head">
+        <div class="stock-detail-top">
+          <div>
+            <div class="stock-detail-name" id="detailName">종목 선택</div>
+            <div class="stock-detail-code" id="detailCode">-</div>
+          </div>
+        </div>
+        <div class="stock-detail-price">
+          <div class="detail-price-main" id="detailPrice">₩0</div>
+          <div class="detail-price-sub flat" id="detailChange">±0 (0.00%)</div>
+        </div>
+      </div>
+      <div class="stock-detail-body">
+        <div class="detail-toolbar">
+          <button class="detail-range-btn active" type="button">1일</button>
+          <button class="detail-range-btn" type="button">1주</button>
+          <button class="detail-range-btn" type="button">1개월</button>
+          <button class="detail-range-btn" type="button">1년</button>
+        </div>
+        <div class="chart-placeholder">
+          <div class="chart-skeleton"></div>
+          <div class="chart-note">차트 데이터 연동 전입니다. UI만 먼저 구성되어 있어요.</div>
+        </div>
+        <div class="detail-grid">
+          <div class="detail-card">
+            <div class="detail-label">거래량</div>
+            <div class="detail-value" id="detailVolume">-</div>
+          </div>
+          <div class="detail-card">
+            <div class="detail-label">상태</div>
+            <div class="detail-value" id="detailState">실시간</div>
+          </div>
+          <div class="detail-card">
+            <div class="detail-label">전일대비</div>
+            <div class="detail-value" id="detailDelta">-</div>
+          </div>
+          <div class="detail-card">
+            <div class="detail-label">등락률</div>
+            <div class="detail-value" id="detailRate">-</div>
+          </div>
+        </div>
+        <div class="detail-cta">
+          <button class="detail-buy" type="button">매수</button>
+          <button class="detail-sell" type="button">매도</button>
+        </div>
+        <div class="detail-foot" id="detailFootNote">
+          종목을 누르면 상세 정보가 열립니다. 차트 API는 추후 연결 예정이며 현재는 시세 정보 중심으로 확인할 수 있습니다.
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -519,11 +846,16 @@
   let stockNameByCode = {}; // code -> name
   let stockOrder = [];      // API가 내려준 순서 유지
   let liveStocks = [];
+  let selectedStockCode = null;
 
   document.addEventListener('DOMContentLoaded', () => {
     renderIndices();
     fetchLivePrices();               // 즉시 1회
     setInterval(fetchLivePrices, POLL_INTERVAL);
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') closeStockDetail();
+    });
   });
 
   // ── 실시간 시세 폴링 ─────────────────────────────────
@@ -579,6 +911,7 @@
       dot.classList.remove('error');
       status.textContent = `${data.ts} 업데이트 (${data.total_count || data.count || liveStocks.length}종목)`;
       renderStocks();
+      refreshStockDetailIfOpen();
     } catch (e) {
       dot.classList.add('error');
       status.textContent = '연결 실패';
@@ -643,7 +976,7 @@
       const flashClass = priceChanged ? (dir === 'up' ? 'flash-up' : dir === 'down' ? 'flash-down' : '') : '';
 
       return `
-        <tr id="row-${stock.code}" class="${flashClass}">
+        <tr id="row-${stock.code}" class="stock-row ${flashClass} ${selectedStockCode === stock.code ? 'active' : ''}" onclick="openStockDetail('${stock.code}')">
           <td>
             <div class="stock-name">${stock.name}</div>
             <div style="font-size:12px;color:var(--gray-500)">${stock.code}</div>
@@ -662,6 +995,75 @@
     filtered.forEach(stock => {
       prevPrices[stock.code] = stock.price;
     });
+  }
+
+  function getStockByCode(code) {
+    return liveStocks.find(stock => stock && stock.code === code && !stock.loading) || null;
+  }
+
+  function openStockDetail(code) {
+    const stock = getStockByCode(code);
+    if (!stock) return;
+
+    selectedStockCode = code;
+    renderStocks();
+    renderStockDetail(stock);
+
+    const overview = document.getElementById('marketOverviewView');
+    const detailView = document.getElementById('stockDetailView');
+    overview.classList.add('hidden');
+    detailView.classList.remove('hidden');
+    detailView.setAttribute('aria-hidden', 'false');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function closeStockDetail() {
+    const detailView = document.getElementById('stockDetailView');
+    if (detailView.classList.contains('hidden')) return;
+
+    selectedStockCode = null;
+    const overview = document.getElementById('marketOverviewView');
+    overview.classList.remove('hidden');
+    detailView.classList.add('hidden');
+    detailView.setAttribute('aria-hidden', 'true');
+    renderStocks();
+  }
+
+  function refreshStockDetailIfOpen() {
+    if (!selectedStockCode) return;
+    const detailView = document.getElementById('stockDetailView');
+    if (detailView.classList.contains('hidden')) return;
+
+    const stock = getStockByCode(selectedStockCode);
+    if (stock) renderStockDetail(stock);
+  }
+
+  function renderStockDetail(stock) {
+    const dir = stock.direction || 'flat';
+    const arrow = dir === 'up' ? '▲' : (dir === 'down' ? '▼' : '±');
+    const changeAbs = Math.abs(Number(stock.change || 0));
+    const rate = Number(stock.rate || 0);
+    const signedRate = dir === 'down' ? -Math.abs(rate) : dir === 'up' ? Math.abs(rate) : 0;
+    const changeClass = dir === 'up' ? 'up' : (dir === 'down' ? 'down' : 'flat');
+    const sign = dir === 'up' ? '+' : (dir === 'down' ? '-' : '');
+
+    document.getElementById('detailName').textContent = stock.name || stock.code;
+    document.getElementById('detailCode').textContent = stock.code;
+    document.getElementById('detailPrice').textContent = formatCurrency(stock.price || 0);
+
+    const changeEl = document.getElementById('detailChange');
+    changeEl.className = `detail-price-sub ${changeClass}`;
+    changeEl.innerHTML = `${arrow} ${formatCurrency(changeAbs)} <span class="detail-chip ${changeClass}">${sign}${Math.abs(signedRate).toFixed(2)}%</span>`;
+
+    document.getElementById('detailVolume').textContent = formatNumber(stock.volume || 0);
+    document.getElementById('detailState').textContent = stock.stale ? '지연 시세' : '실시간';
+    document.getElementById('detailDelta').textContent = `${arrow} ${formatCurrency(changeAbs)}`;
+    document.getElementById('detailRate').textContent = `${sign}${Math.abs(signedRate).toFixed(2)}%`;
+
+    const foot = document.getElementById('detailFootNote');
+    foot.textContent = stock.stale
+      ? '일시적으로 지연된 시세입니다. 다음 갱신에서 최신 값으로 자동 반영됩니다.'
+      : `${stock.name || stock.code} 실시간 요약 화면입니다. 차트 연동 전까지 가격/등락 중심으로 제공합니다.`;
   }
 
   function renderPagination(totalPages) {
