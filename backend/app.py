@@ -4,6 +4,8 @@ import pandas as pd
 from datetime import datetime, timedelta
 import os
 import time
+import json
+import threading
 import requests
 import xml.etree.ElementTree as ET
 from dotenv import load_dotenv
@@ -15,6 +17,12 @@ try:
 except Exception as stock_err:
     print(f'[WARN] stock_prices 로드 실패: {stock_err}')
     STOCK_PRICE_API_AVAILABLE = False
+
+try:
+    from price import STOCKS as PRICE_STOCKS
+except Exception as price_err:
+    print(f'[WARN] price.STOCKS 로드 실패: {price_err}')
+    PRICE_STOCKS = {}
 
 # ★ 수정: load_dotenv()를 auth_api import보다 반드시 먼저 호출해야 합니다.
 #   기존 코드도 순서는 맞았으나, 일부 환경에서 auth_api.py가 캐시된 상태(이미 import된 상태)로
@@ -53,6 +61,9 @@ def _apply_cors_headers(response):
             origin.encode("latin-1")
         except UnicodeEncodeError:
             origin = None
+    # file:// 로 열면 브라우저가 Origin: null 을 보냄 → 와일드카드로 처리
+    if origin == "null":
+        origin = None
     if origin:
         response.headers["Access-Control-Allow-Origin"] = origin
         response.headers["Access-Control-Allow-Credentials"] = "true"
@@ -501,6 +512,273 @@ def mock_traded_value_rank():
 def health():
     """헬스 체크"""
     return jsonify({'status': 'ok', 'message': '서버가 정상 작동 중입니다.'}), 200
+
+
+# ── KIS 실시간 시세 ─────────────────────────────────────────
+_KIS_KEY    = os.getenv('KIS_APP_KEY')
+_KIS_SECRET = os.getenv('KIS_APP_SECRET')
+_KIS_PROD   = os.getenv('KIS_USE_PROD', 'false').strip().lower() in {'1', 'true', 'y', 'yes', 'on'}
+_KIS_BASE   = 'https://openapi.koreainvestment.com:9443' if _KIS_PROD else 'https://openapivts.koreainvestment.com:29443'
+_KIS_TR     = 'FHKST01010100' if _KIS_PROD else 'VFHKST01010100'
+_KIS_TR_FB  = 'VFHKST01010100' if _KIS_PROD else 'FHKST01010100'
+_KIS_TOKEN_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'token_vts.json')
+_WEB_PRICE_MAX_COUNT = int(os.getenv('LIVE_PRICE_MAX_COUNT', '50'))
+_WEB_REQUEST_GAP_SEC = float(os.getenv('LIVE_PRICE_REQUEST_GAP_SEC', '0.35'))
+_WEB_REFRESH_BATCH_SIZE = int(os.getenv('LIVE_PRICE_REFRESH_BATCH_SIZE', '8'))
+_WEB_WARMUP_BATCH_SIZE = int(os.getenv('LIVE_PRICE_WARMUP_BATCH_SIZE', '20'))
+_WEB_UPDATE_INTERVAL_SEC = float(os.getenv('LIVE_PRICE_UPDATE_INTERVAL_SEC', '2.5'))
+
+if PRICE_STOCKS:
+    LIVE_PRICE_STOCKS = dict(list(PRICE_STOCKS.items())[:_WEB_PRICE_MAX_COUNT])
+else:
+    LIVE_PRICE_STOCKS = {
+        '005930': '삼성전자',
+        '000660': 'SK하이닉스',
+        '035420': 'NAVER',
+    }
+
+_LIVE_PRICE_CACHE = {}
+_LIVE_PRICE_CURSOR = 0
+_LIVE_PRICE_LOCK = threading.Lock()
+_LIVE_UPDATER_RUNNING = False
+_LIVE_LAST_UPDATE_AT = 0.0
+_KIS_TOKEN_CACHE = None
+_KIS_TOKEN_SAVED_AT = 0.0
+
+
+def _to_int(value):
+    try:
+        return int((value or '').replace(',', '').strip())
+    except ValueError:
+        return 0
+
+
+def _to_float(value):
+    try:
+        return float((value or '').replace(',', '').strip())
+    except ValueError:
+        return 0.0
+
+
+def _build_stock_payload(code, name, output):
+    sign = output.get('prdy_vrss_sign', '3')  # 1:상한 2:상승 3:보합 4:하한 5:하락
+    direction = 'up' if sign in ('1', '2') else 'down' if sign in ('4', '5') else 'flat'
+    change_abs = _to_int(output.get('prdy_vrss'))
+    change_signed = change_abs if direction == 'up' else -change_abs
+    rate_abs = _to_float(output.get('prdy_ctrt'))
+    rate_signed = rate_abs if direction == 'up' else -rate_abs
+
+    return {
+        'code': code,
+        'name': name,
+        'price': _to_int(output.get('stck_prpr')),
+        'change': change_signed,
+        'rate': rate_signed,
+        'volume': _to_int(output.get('acml_vol')),
+        'direction': direction,
+        'stale': False,
+        'error': None,
+    }
+
+
+def _kis_get_token():
+    global _KIS_TOKEN_CACHE, _KIS_TOKEN_SAVED_AT
+
+    # 파일 I/O를 줄이기 위해 메모리 캐시를 우선 사용
+    if _KIS_TOKEN_CACHE and (time.time() - _KIS_TOKEN_SAVED_AT < 18000):
+        return _KIS_TOKEN_CACHE
+
+    if os.path.exists(_KIS_TOKEN_FILE):
+        with open(_KIS_TOKEN_FILE) as f:
+            d = json.load(f)
+        if time.time() - d.get('saved_at', 0) < 18000:
+            _KIS_TOKEN_CACHE = d.get('access_token')
+            _KIS_TOKEN_SAVED_AT = d.get('saved_at', time.time())
+            return _KIS_TOKEN_CACHE
+    if not _KIS_KEY or not _KIS_SECRET:
+        return None
+    try:
+        res = requests.post(
+            f'{_KIS_BASE}/oauth2/tokenP',
+            json={'grant_type': 'client_credentials', 'appkey': _KIS_KEY, 'appsecret': _KIS_SECRET},
+            timeout=10,
+        )
+        if res.status_code == 200:
+            token = res.json().get('access_token')
+            if token:
+                saved_at = time.time()
+                with open(_KIS_TOKEN_FILE, 'w') as f:
+                    json.dump({'access_token': token, 'saved_at': saved_at}, f)
+                _KIS_TOKEN_CACHE = token
+                _KIS_TOKEN_SAVED_AT = saved_at
+                return token
+    except Exception:
+        pass
+    return None
+
+
+def _kis_fetch_one(token, code, tr_id):
+    try:
+        res = requests.get(
+            f'{_KIS_BASE}/uapi/domestic-stock/v1/quotations/inquire-price',
+            headers={
+                'Content-Type': 'application/json',
+                'authorization': f'Bearer {token}',
+                'appkey': _KIS_KEY,
+                'appsecret': _KIS_SECRET,
+                'tr_id': tr_id,
+            },
+            params={'fid_cond_mrkt_div_code': 'J', 'fid_input_iscd': code},
+            timeout=10,
+        )
+    except Exception as e:
+        return None, str(e)
+
+    try:
+        body = res.json()
+    except ValueError:
+        return None, f'HTTP {res.status_code}'
+
+    if res.status_code != 200:
+        err = body.get('message') or body.get('msg1') or f'HTTP {res.status_code}'
+        return None, err
+
+    rt = body.get('rt_cd')
+    if rt not in ('0', 0, None):
+        msg_cd = body.get('msg_cd') or body.get('message', '')
+        return None, msg_cd
+
+    return body.get('output', {}), None
+
+
+def _refresh_live_cache(selected_items, token):
+    """선택된 종목 일부를 순환 갱신한다. 별도 스레드에서 실행된다."""
+    global _LIVE_PRICE_CURSOR, _LIVE_UPDATER_RUNNING, _LIVE_LAST_UPDATE_AT
+
+    total = len(selected_items)
+    if total == 0:
+        with _LIVE_PRICE_LOCK:
+            _LIVE_UPDATER_RUNNING = False
+            _LIVE_LAST_UPDATE_AT = time.time()
+        return
+
+    with _LIVE_PRICE_LOCK:
+        cached_count = sum(1 for code, _ in selected_items if code in _LIVE_PRICE_CACHE)
+        refresh_count = _WEB_REFRESH_BATCH_SIZE
+        if cached_count == 0:
+            refresh_count = max(_WEB_WARMUP_BATCH_SIZE, _WEB_REFRESH_BATCH_SIZE)
+        refresh_count = max(1, min(refresh_count, total))
+
+        start = _LIVE_PRICE_CURSOR % total
+        indices = [(start + i) % total for i in range(refresh_count)]
+        _LIVE_PRICE_CURSOR = (start + refresh_count) % total
+
+    for seq, idx in enumerate(indices):
+        code, name = selected_items[idx]
+        if seq > 0 and _WEB_REQUEST_GAP_SEC > 0:
+            time.sleep(_WEB_REQUEST_GAP_SEC)
+
+        out, err = None, None
+        for tr_id in (_KIS_TR, _KIS_TR_FB):
+            out, err = _kis_fetch_one(token, code, tr_id)
+            if out is not None:
+                break
+
+        with _LIVE_PRICE_LOCK:
+            if out is not None:
+                _LIVE_PRICE_CACHE[code] = _build_stock_payload(code, name, out)
+            else:
+                previous = _LIVE_PRICE_CACHE.get(code)
+                if previous:
+                    _LIVE_PRICE_CACHE[code] = {
+                        **previous,
+                        'name': name,
+                        'stale': True,
+                        # 이전 정상값이 있으면 화면은 유지하고 stale만 표시한다.
+                        'error': None,
+                    }
+                else:
+                    _LIVE_PRICE_CACHE[code] = {
+                        'code': code,
+                        'name': name,
+                        'loading': True,
+                        'error': err,
+                    }
+
+    with _LIVE_PRICE_LOCK:
+        _LIVE_UPDATER_RUNNING = False
+        _LIVE_LAST_UPDATE_AT = time.time()
+
+
+@app.route('/api/live-prices', methods=['GET'])
+def live_prices():
+    """KIS API 실시간 시세 반환 (기본 50개, 배치 갱신 + 캐시)"""
+    global _LIVE_PRICE_CURSOR, _LIVE_UPDATER_RUNNING
+
+    if not _KIS_KEY or not _KIS_SECRET:
+        return jsonify({'success': False, 'message': 'KIS API 키가 설정되지 않았습니다.'}), 500
+
+    try:
+        page_size = int(request.args.get('page_size', request.args.get('limit', '10')))
+    except ValueError:
+        page_size = 10
+    page_size = max(1, min(page_size, _WEB_PRICE_MAX_COUNT))
+
+    try:
+        page = int(request.args.get('page', '1'))
+    except ValueError:
+        page = 1
+    page = max(1, page)
+
+    token = _kis_get_token()
+    if not token:
+        return jsonify({'success': False, 'message': '토큰 발급 실패'}), 500
+
+    all_items = list(LIVE_PRICE_STOCKS.items())[:_WEB_PRICE_MAX_COUNT]
+    total_count = len(all_items)
+    if total_count == 0:
+        return jsonify({'success': True, 'count': 0, 'stocks': [], 'ts': time.strftime('%H:%M:%S')})
+
+    total_pages = max(1, (total_count + page_size - 1) // page_size)
+    if page > total_pages:
+        page = total_pages
+
+    start_index = (page - 1) * page_size
+    end_index = min(start_index + page_size, total_count)
+    selected_items = all_items[start_index:end_index]
+
+    # 캐시 갱신은 백그라운드에서 수행하고 API는 즉시 캐시를 반환한다.
+    with _LIVE_PRICE_LOCK:
+        need_update = (not _LIVE_UPDATER_RUNNING) and (time.time() - _LIVE_LAST_UPDATE_AT >= _WEB_UPDATE_INTERVAL_SEC)
+        if need_update:
+            _LIVE_UPDATER_RUNNING = True
+            t = threading.Thread(target=_refresh_live_cache, args=(selected_items, token), daemon=True)
+            t.start()
+
+        stocks = []
+        for code, name in selected_items:
+            cached = _LIVE_PRICE_CACHE.get(code)
+            if cached:
+                stocks.append({**cached, 'name': name})
+            else:
+                stocks.append({'code': code, 'name': name, 'loading': True})
+
+        refresh_count = _WEB_REFRESH_BATCH_SIZE
+        if all(s.get('loading') for s in stocks):
+            refresh_count = max(_WEB_WARMUP_BATCH_SIZE, _WEB_REFRESH_BATCH_SIZE)
+
+    return jsonify({
+        'success': True,
+        'count': len(stocks),
+        'total_count': total_count,
+        'total_pages': total_pages,
+        'page': page,
+        'page_size': page_size,
+        'refresh_count': refresh_count,
+        'stocks': stocks,
+        'ts': time.strftime('%H:%M:%S')
+    })
+
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
