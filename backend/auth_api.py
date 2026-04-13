@@ -64,6 +64,7 @@ def register():
     email = _normalize_email(data)
     password = data.get("password", "")
     password_confirm = data.get("passwordConfirm", "")
+    nickname = (data.get("nickname") or "").strip()
 
     if not login_id or not email or not password or not password_confirm:
         return jsonify({"success": False, "message": "모든 항목을 입력해주세요."}), 400
@@ -98,13 +99,13 @@ def register():
                 INSERT INTO users (login_id, email, password_hash, nickname, created_at, updated_at)
                 VALUES (%s, %s, %s, %s, NOW(), NOW())
             """
-            cursor.execute(sql_insert, (login_id, email, password_hash, ""))
+            cursor.execute(sql_insert, (login_id, email, password_hash, nickname))
             conn.commit()
 
         return jsonify({
             "success": True,
             "message": "회원가입이 완료되었습니다.",
-            "user": {"email": email, "loginId": login_id},
+            "user": {"email": email, "loginId": login_id, "nickname": nickname},
         })
 
     except pymysql.err.IntegrityError:
@@ -131,7 +132,7 @@ def login():
         conn = get_connection()
         with conn.cursor() as cursor:
             sql = """
-                SELECT user_id, email, login_id, password_hash
+                SELECT user_id, email, login_id, password_hash, nickname
                 FROM users
                 WHERE login_id = %s
             """
@@ -154,6 +155,7 @@ def login():
                 "user": {
                     "email": user["email"],
                     "loginId": user["login_id"],
+                    "nickname": user.get("nickname") or "",
                 },
             })
 
@@ -175,7 +177,7 @@ def me():
         conn = get_connection()
         with conn.cursor() as cursor:
             cursor.execute(
-                "SELECT user_id, email, login_id FROM users WHERE user_id = %s",
+                "SELECT user_id, email, login_id, nickname FROM users WHERE user_id = %s",
                 (uid,),
             )
             user = cursor.fetchone()
@@ -189,6 +191,7 @@ def me():
                 "userId": user["user_id"],
                 "email": user["email"],
                 "loginId": user["login_id"],
+                "nickname": user.get("nickname") or "",
             },
         })
     except Exception as e:
