@@ -6,6 +6,7 @@
 <title>시장 정보 - 주린닷컴</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css">
+<script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
 <style>
   .market-container {
     min-height: 100vh;
@@ -785,14 +786,15 @@
       </div>
       <div class="stock-detail-body">
         <div class="detail-toolbar">
-          <button class="detail-range-btn active" type="button">1일</button>
-          <button class="detail-range-btn" type="button">1주</button>
-          <button class="detail-range-btn" type="button">1개월</button>
-          <button class="detail-range-btn" type="button">1년</button>
+          <button class="detail-range-btn active" type="button" data-range="1d" onclick="onRangeClick(this)">1일</button>
+          <button class="detail-range-btn" type="button" data-range="1w" onclick="onRangeClick(this)">1주</button>
+          <button class="detail-range-btn" type="button" data-range="1m" onclick="onRangeClick(this)">1개월</button>
+          <button class="detail-range-btn" type="button" data-range="1y" onclick="onRangeClick(this)">1년</button>
         </div>
-        <div class="chart-placeholder">
-          <div class="chart-skeleton"></div>
-          <div class="chart-note">차트 데이터 연동 전입니다. UI만 먼저 구성되어 있어요.</div>
+        <div class="chart-placeholder" id="chartWrapper">
+          <div id="stockChart" style="width:100%;height:200px;display:none;"></div>
+          <div class="chart-skeleton" id="chartSkeleton"></div>
+          <div class="chart-note" id="chartNote" style="display:none;"></div>
         </div>
         <div class="detail-grid">
           <div class="detail-card">
@@ -1015,6 +1017,13 @@
     detailView.classList.remove('hidden');
     detailView.setAttribute('aria-hidden', 'false');
     window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    // 범위 버튼 초기화 후 차트 로드
+    currentChartRange = '1d';
+    document.querySelectorAll('.detail-range-btn').forEach((b, i) => {
+      b.classList.toggle('active', i === 0);
+    });
+    loadChart(code, currentChartRange);
   }
 
   function closeStockDetail() {
@@ -1138,6 +1147,115 @@
     if (n >= 100000000) return (n / 100000000).toFixed(1) + '억';
     if (n >= 10000)     return (n / 10000).toFixed(1) + '만';
     return Number(n).toLocaleString();
+  }
+
+  // ── 차트 ──────────────────────────────────────────────
+  let stockChartInstance = null;
+  let currentChartRange = '1d';
+
+  function onRangeClick(btn) {
+    document.querySelectorAll('.detail-range-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentChartRange = btn.dataset.range;
+    if (selectedStockCode) loadChart(selectedStockCode, currentChartRange);
+  }
+
+  async function loadChart(code, range) {
+    const chartDiv = document.getElementById('stockChart');
+    const skeleton = document.getElementById('chartSkeleton');
+    const note     = document.getElementById('chartNote');
+
+    chartDiv.style.display  = 'none';
+    note.style.display      = 'none';
+    skeleton.style.display  = '';
+
+    try {
+      const res  = await fetch(`${BACKEND}/api/chart-data/${code}?range=${range}`);
+      const data = await res.json();
+
+      skeleton.style.display = 'none';
+
+      if (!data.success || !data.candles || data.candles.length === 0) {
+        note.textContent   = '차트 데이터를 불러올 수 없습니다.';
+        note.style.display = '';
+        return;
+      }
+
+      chartDiv.style.display = '';
+      renderChart(data.candles, data.ma5 || [], data.ma20 || [], data.intraday);
+    } catch (e) {
+      skeleton.style.display = 'none';
+      note.textContent   = '차트 로드 중 오류가 발생했습니다.';
+      note.style.display = '';
+    }
+  }
+
+  function renderChart(candles, ma5, ma20, intraday) {
+    const container = document.getElementById('stockChart');
+
+    if (stockChartInstance) {
+      stockChartInstance.remove();
+      stockChartInstance = null;
+    }
+
+    stockChartInstance = LightweightCharts.createChart(container, {
+      width:  container.clientWidth,
+      height: 200,
+      layout: {
+        background: { color: 'transparent' },
+        textColor:  '#8899aa',
+      },
+      grid: {
+        vertLines: { color: 'rgba(255,255,255,0.05)' },
+        horzLines: { color: 'rgba(255,255,255,0.05)' },
+      },
+      crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
+      rightPriceScale: {
+        borderColor:   'rgba(255,255,255,0.1)',
+        scaleMargins:  { top: 0.1, bottom: 0.1 },
+      },
+      timeScale: {
+        borderColor:    'rgba(255,255,255,0.1)',
+        timeVisible:    !!intraday,
+        secondsVisible: false,
+      },
+      handleScroll: true,
+      handleScale:  true,
+    });
+
+    const candleSeries = stockChartInstance.addCandlestickSeries({
+      upColor:        '#ef5350',
+      downColor:      '#42a5f5',
+      borderUpColor:  '#ef5350',
+      borderDownColor:'#42a5f5',
+      wickUpColor:    '#ef5350',
+      wickDownColor:  '#42a5f5',
+    });
+    candleSeries.setData(candles);
+
+    if (ma5.length > 0) {
+      const s = stockChartInstance.addLineSeries({
+        color: '#ff9800', lineWidth: 1,
+        priceLineVisible: false, lastValueVisible: false,
+      });
+      s.setData(ma5);
+    }
+
+    if (ma20.length > 0) {
+      const s = stockChartInstance.addLineSeries({
+        color: '#ce93d8', lineWidth: 1,
+        priceLineVisible: false, lastValueVisible: false,
+      });
+      s.setData(ma20);
+    }
+
+    stockChartInstance.timeScale().fitContent();
+
+    new ResizeObserver(() => {
+      if (stockChartInstance) {
+        stockChartInstance.applyOptions({ width: container.clientWidth });
+      }
+    }).observe(container);
   }
 </script>
 <script src="js/common-auth.js"></script>
