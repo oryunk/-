@@ -7,21 +7,15 @@ import time
 import json
 import threading
 import requests
+import subprocess
+import sys
+import atexit
 import xml.etree.ElementTree as ET
-from auth_api import get_connection
 from dotenv import load_dotenv
 from google import genai
-from Live_price import start_async_collector
 
 try:
-    from Live_price  import fetch_traded_value_rank
-    STOCK_PRICE_API_AVAILABLE = True
-except Exception as stock_err:
-    print(f'[WARN] stock_prices 로드 실패: {stock_err}')
-    STOCK_PRICE_API_AVAILABLE = False
-
-try:
-    from Live_price import STOCKS as PRICE_STOCKS
+    from price import STOCKS as PRICE_STOCKS
 except Exception as price_err:
     print(f'[WARN] price.STOCKS 로드 실패: {price_err}')
     PRICE_STOCKS = {}
@@ -63,10 +57,13 @@ def _apply_cors_headers(response):
             origin.encode("latin-1")
         except UnicodeEncodeError:
             origin = None
-    # file:// 로 열면 브라우저가 Origin: null 을 보냄 → 와일드카드로 처리
+    # file:// 로 열면 브라우저가 Origin: null 을 보냄
+    # credentials: 'include' 요청은 Allow-Origin: * 을 허용하지 않으므로 null 그대로 반환
     if origin == "null":
-        origin = None
-    if origin:
+        response.headers["Access-Control-Allow-Origin"] = "null"
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+        response.headers["Vary"] = "Origin"
+    elif origin:
         response.headers["Access-Control-Allow-Origin"] = origin
         response.headers["Access-Control-Allow-Credentials"] = "true"
         response.headers["Vary"] = "Origin"
@@ -494,26 +491,66 @@ def rss_news():
 @app.route('/api/mock/traded-value-rank', methods=['GET'])
 def mock_traded_value_rank():
     """모의투자용 거래대금 상위 종목 조회"""
-    if not STOCK_PRICE_API_AVAILABLE:
-        return jsonify({'success': False, 'message': '시세 모듈이 준비되지 않았습니다.'}), 500
-
-    try:
-        limit = int(request.args.get('limit', '30'))
-    except ValueError:
-        limit = 30
-
-    limit = max(1, min(limit, 100))
-
-    try:
-        rows = fetch_traded_value_rank(limit=limit)
-        return jsonify({'success': True, 'items': rows, 'count': len(rows)})
-    except Exception as e:
-        return jsonify({'success': False, 'message': f'거래대금 순위 조회 실패: {str(e)}'}), 502
+    return jsonify({'success': False, 'message': '거래대금 순위 기능은 현재 지원되지 않습니다.'}), 501
 
 @app.route('/api/health', methods=['GET'])
 def health():
     """헬스 체크"""
     return jsonify({'status': 'ok', 'message': '서버가 정상 작동 중입니다.'}), 200
+
+
+@app.route('/api/chart-data/<code>', methods=['GET'])
+def chart_data(code):
+    """종목 차트 데이터 반환 (yfinance) - OHLC + MA"""
+    range_param = request.args.get('range', '1d')
+
+    range_map = {
+        '1d': ('1d',  '5m'),
+        '1w': ('5d',  '60m'),
+        '1m': ('1mo', '1d'),
+        '1y': ('1y',  '1d'),
+    }
+    period, interval = range_map.get(range_param, ('1d', '5m'))
+    intraday = range_param == '1d'
+
+    for ticker_code in _candidate_yahoo_tickers(code):
+        try:
+            hist = yf.Ticker(ticker_code).history(period=period, interval=interval)
+            if hist.empty:
+                continue
+
+            candles = []
+            for ts, row in hist.iterrows():
+                o = row.get('Open');  h = row.get('High')
+                l = row.get('Low');   c = row.get('Close')
+                if pd.isna(o) or pd.isna(h) or pd.isna(l) or pd.isna(c):
+                    continue
+                time_val = int(ts.timestamp()) if intraday else ts.strftime('%Y-%m-%d')
+                candles.append({
+                    'time':  time_val,
+                    'open':  round(float(o), 2),
+                    'high':  round(float(h), 2),
+                    'low':   round(float(l), 2),
+                    'close': round(float(c), 2),
+                })
+
+            closes = [x['close'] for x in candles]
+            ma5, ma20 = [], []
+            for i in range(len(closes)):
+                if i >= 4:
+                    ma5.append({'time': candles[i]['time'], 'value': round(sum(closes[i-4:i+1]) / 5, 2)})
+                if i >= 19:
+                    ma20.append({'time': candles[i]['time'], 'value': round(sum(closes[i-19:i+1]) / 20, 2)})
+
+            return jsonify({
+                'success': True, 'candles': candles,
+                'ma5': ma5, 'ma20': ma20,
+                'code': code, 'intraday': intraday,
+            })
+        except Exception:
+            continue
+
+    return jsonify({'success': False, 'message': '차트 데이터를 불러올 수 없습니다.'}), 404
 
 
 # ── KIS 실시간 시세 ─────────────────────────────────────────
@@ -546,6 +583,12 @@ _LIVE_UPDATER_RUNNING = False
 _LIVE_LAST_UPDATE_AT = 0.0
 _KIS_TOKEN_CACHE = None
 _KIS_TOKEN_SAVED_AT = 0.0
+
+
+def _candidate_yahoo_tickers(code):
+    if '.' in code:
+        return [code]
+    return [f'{code}.KS', f'{code}.KQ']
 
 
 def _to_int(value):
@@ -581,6 +624,62 @@ def _build_stock_payload(code, name, output):
         'stale': False,
         'error': None,
     }
+
+
+def _build_yfinance_payload(code, name, history):
+    closes = history['Close'].dropna()
+    if closes.empty:
+        raise ValueError('종가 데이터 없음')
+
+    current_price = int(round(float(closes.iloc[-1])))
+    previous_price = current_price
+    if len(closes) >= 2:
+        previous_price = int(round(float(closes.iloc[-2])))
+
+    diff = current_price - previous_price
+    if diff > 0:
+        direction = 'up'
+    elif diff < 0:
+        direction = 'down'
+    else:
+        direction = 'flat'
+
+    rate = (diff / previous_price * 100) if previous_price else 0.0
+    volume_series = history['Volume'].dropna() if 'Volume' in history else pd.Series(dtype='float64')
+    volume = int(round(float(volume_series.iloc[-1]))) if not volume_series.empty else 0
+
+    return {
+        'code': code,
+        'name': name,
+        'price': current_price,
+        'change': diff,
+        'rate': rate,
+        'volume': volume,
+        'direction': direction,
+        'stale': True,
+        'error': None,
+    }
+
+
+def _fetch_yfinance_quote(code, name):
+    last_error = 'yfinance 조회 실패'
+    for ticker in _candidate_yahoo_tickers(code):
+        try:
+            history = yf.Ticker(ticker).history(period='5d', interval='1d', auto_adjust=False)
+        except Exception as e:
+            last_error = str(e)
+            continue
+
+        if history is None or history.empty:
+            last_error = f'{ticker} 데이터 없음'
+            continue
+
+        try:
+            return _build_yfinance_payload(code, name, history), None
+        except Exception as e:
+            last_error = str(e)
+
+    return None, last_error
 
 
 def _kis_get_token():
@@ -680,15 +779,24 @@ def _refresh_live_cache(selected_items, token):
         if seq > 0 and _WEB_REQUEST_GAP_SEC > 0:
             time.sleep(_WEB_REQUEST_GAP_SEC)
 
-        out, err = None, None
-        for tr_id in (_KIS_TR, _KIS_TR_FB):
-            out, err = _kis_fetch_one(token, code, tr_id)
-            if out is not None:
-                break
+        payload = None
+        err = None
+        if token and _KIS_KEY and _KIS_SECRET:
+            out = None
+            for tr_id in (_KIS_TR, _KIS_TR_FB):
+                out, err = _kis_fetch_one(token, code, tr_id)
+                if out is not None:
+                    payload = _build_stock_payload(code, name, out)
+                    break
+
+        if payload is None:
+            payload, yf_err = _fetch_yfinance_quote(code, name)
+            if payload is None:
+                err = yf_err or err
 
         with _LIVE_PRICE_LOCK:
-            if out is not None:
-                _LIVE_PRICE_CACHE[code] = _build_stock_payload(code, name, out)
+            if payload is not None:
+                _LIVE_PRICE_CACHE[code] = payload
             else:
                 previous = _LIVE_PRICE_CACHE.get(code)
                 if previous:
@@ -717,9 +825,6 @@ def live_prices():
     """KIS API 실시간 시세 반환 (기본 50개, 배치 갱신 + 캐시)"""
     global _LIVE_PRICE_CURSOR, _LIVE_UPDATER_RUNNING
 
-    if not _KIS_KEY or not _KIS_SECRET:
-        return jsonify({'success': False, 'message': 'KIS API 키가 설정되지 않았습니다.'}), 500
-
     try:
         page_size = int(request.args.get('page_size', request.args.get('limit', '10')))
     except ValueError:
@@ -732,9 +837,7 @@ def live_prices():
         page = 1
     page = max(1, page)
 
-    token = _kis_get_token()
-    if not token:
-        return jsonify({'success': False, 'message': '토큰 발급 실패'}), 500
+    token = _kis_get_token() if (_KIS_KEY and _KIS_SECRET) else None
 
     all_items = list(LIVE_PRICE_STOCKS.items())[:_WEB_PRICE_MAX_COUNT]
     total_count = len(all_items)
@@ -780,40 +883,6 @@ def live_prices():
         'stocks': stocks,
         'ts': time.strftime('%H:%M:%S')
     })
-
-@app.route('/api/live-prices', methods=['GET'])
-def get_live_prices():
-    conn = None
-    try:
-        conn = get_connection()
-        with conn.cursor() as cursor:
-            # DB에서 최신 시세 데이터 전체 조회
-            sql = "SELECT symbol as code, name_ko as name, current_price FROM stocks ORDER BY updated_at DESC"
-            cursor.execute(sql)
-            stocks = cursor.fetchall()
-            
-            return jsonify({
-                "success": True, 
-                "stocks": stocks,
-                "total_pages": 1 # 페이징은 일단 1로 고정
-            })
-    except Exception as e:
-        return jsonify({"success": False, "message": str(e)})
-    finally:
-        if conn:
-            conn.close()
-
-def run_stock_collector():
-    try:
-        print("[시스템] 백그라운드 시세 수집 엔진 가동 시작...")
-        start_async_collector()
-    except Exception as e:
-        print(f"[시스템/오류] 수집 엔진 가동 중 에러: {e}")
-
-# daemon=True로 설정하여 Flask 종료 시 함께 종료되도록 함
-threading.Thread(target=run_stock_collector, daemon=True).start()
-
-
 
 
 if __name__ == '__main__':
