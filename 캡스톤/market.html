@@ -648,6 +648,85 @@
     line-height: 1.55;
   }
 
+  /* ── 관심 섹터 버튼 ─────────────────────────────────── */
+  .sector-section {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(79, 158, 255, 0.15);
+    border-radius: 16px;
+    padding: 32px;
+    margin-bottom: 40px;
+  }
+
+  .sector-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--white);
+    margin-bottom: 24px;
+  }
+
+  .sector-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .sector-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 20px;
+    background: rgba(79, 158, 255, 0.08);
+    border: 1px solid rgba(79, 158, 255, 0.2);
+    border-radius: 12px;
+    color: var(--gray-200);
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.2s;
+  }
+
+  .sector-btn:hover {
+    background: rgba(79, 158, 255, 0.2);
+    border-color: rgba(79, 158, 255, 0.45);
+    color: var(--white);
+    transform: translateY(-2px);
+  }
+
+  .sector-btn.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+
+  .sector-icon {
+    font-size: 18px;
+  }
+
+  .sector-toast {
+    position: fixed;
+    bottom: 32px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: rgba(18, 32, 58, 0.95);
+    border: 1px solid rgba(79, 158, 255, 0.35);
+    border-radius: 12px;
+    padding: 12px 24px;
+    color: var(--white);
+    font-size: 14px;
+    font-weight: 600;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.3s ease;
+    z-index: 999;
+  }
+
+  .sector-toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
   @media (max-width: 768px) {
     .market-content {
       padding: 24px 14px 30px;
@@ -765,6 +844,21 @@
         </tbody>
       </table>
       <div class="stocks-pagination" id="stocksPagination"></div>
+    </div>
+
+    <div class="sector-section">
+      <div class="sector-title">📌 관심 섹터</div>
+      <div class="sector-grid">
+        <button class="sector-btn" data-sector="반도체" onclick="filterBySector(this)"><span class="sector-icon">💾</span> 반도체</button>
+        <button class="sector-btn" data-sector="건설" onclick="filterBySector(this)"><span class="sector-icon">🏗️</span> 건설</button>
+        <button class="sector-btn" data-sector="의료바이오" onclick="filterBySector(this)"><span class="sector-icon">🧬</span> 의료바이오</button>
+        <button class="sector-btn" data-sector="배터리" onclick="filterBySector(this)"><span class="sector-icon">🔋</span> 배터리</button>
+        <button class="sector-btn" data-sector="방산" onclick="filterBySector(this)"><span class="sector-icon">🛡️</span> 방산</button>
+        <button class="sector-btn" data-sector="엔터테인먼트" onclick="filterBySector(this)"><span class="sector-icon">🎬</span> 엔터테인먼트</button>
+        <button class="sector-btn" data-sector="로봇" onclick="filterBySector(this)"><span class="sector-icon">🤖</span> 로봇</button>
+        <button class="sector-btn" data-sector="우주항공" onclick="filterBySector(this)"><span class="sector-icon">🚀</span> 우주항공</button>
+        <button class="sector-btn" data-sector="미래에너지" onclick="filterBySector(this)"><span class="sector-icon">⚡</span> 미래에너지</button>
+      </div>
     </div>
     </div>
 
@@ -1138,6 +1232,40 @@
     document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
     if (event && event.target) event.target.classList.add('active');
     renderStocks();
+  }
+
+  // ── 관심 섹터 버튼 ────────────────────────────────────
+  let activeSector = null;
+  let sectorToastTimer = null;
+
+  function filterBySector(btn) {
+    const sector = btn.dataset.sector;
+    const isAlreadyActive = btn.classList.contains('active');
+
+    document.querySelectorAll('.sector-btn').forEach(b => b.classList.remove('active'));
+
+    if (isAlreadyActive) {
+      activeSector = null;
+      showSectorToast('섹터 필터가 해제되었습니다.');
+    } else {
+      btn.classList.add('active');
+      activeSector = sector;
+      showSectorToast(`📌 ${sector} 섹터가 선택되었습니다. (종목 데이터 연동 예정)`);
+    }
+  }
+
+  function showSectorToast(msg) {
+    let toast = document.getElementById('sectorToast');
+    if (!toast) {
+      toast = document.createElement('div');
+      toast.id = 'sectorToast';
+      toast.className = 'sector-toast';
+      document.body.appendChild(toast);
+    }
+    toast.textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(sectorToastTimer);
+    sectorToastTimer = setTimeout(() => toast.classList.remove('show'), 2500);
   }
 
   // ── 포맷 유틸 ────────────────────────────────────────
