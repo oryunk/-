@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>섹터 상세 - 주린닷컴</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+<style>
+  .sector-page {
+    min-height: 100vh;
+    padding-top: 84px;
+    background: radial-gradient(circle at 10% 0%, rgba(79, 158, 255, 0.14), transparent 45%),
+                radial-gradient(circle at 90% 20%, rgba(0, 212, 255, 0.12), transparent 45%),
+                var(--navy);
+  }
+
+  .sector-wrap {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 28px 24px 48px;
+  }
+
+  .sector-hero {
+    border: 1px solid rgba(79, 158, 255, 0.2);
+    border-radius: 18px;
+    padding: 28px;
+    background: linear-gradient(140deg, rgba(13, 45, 107, 0.7), rgba(10, 22, 40, 0.9));
+    margin-bottom: 24px;
+  }
+
+  .sector-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--accent);
+    border: 1px solid rgba(0, 212, 255, 0.35);
+    background: rgba(0, 212, 255, 0.08);
+  }
+
+  .sector-name {
+    margin-top: 12px;
+    font-size: clamp(28px, 4vw, 42px);
+    font-weight: 900;
+    letter-spacing: -0.02em;
+  }
+
+  .sector-desc {
+    margin-top: 12px;
+    color: var(--gray-200);
+    line-height: 1.7;
+    font-size: 15px;
+  }
+
+  .sector-keywords {
+    margin-top: 18px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .sector-keyword {
+    font-size: 12px;
+    font-weight: 600;
+    color: #cbe5ff;
+    border: 1px solid rgba(79, 158, 255, 0.3);
+    border-radius: 999px;
+    padding: 6px 10px;
+    background: rgba(79, 158, 255, 0.1);
+  }
+
+  .sector-actions {
+    margin-top: 20px;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .sector-actions .btn-ghost,
+  .sector-actions .btn-primary {
+    min-width: 168px;
+  }
+
+  .stocks-section {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(79, 158, 255, 0.15);
+    border-radius: 16px;
+    padding: 24px;
+    margin-top: 24px;
+  }
+
+  .stocks-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .stocks-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--white);
+  }
+
+  .live-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--gray-300);
+    padding: 4px 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(79, 158, 255, 0.25);
+    background: rgba(79, 158, 255, 0.08);
+  }
+
+  .live-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #5df2a0;
+    box-shadow: 0 0 10px rgba(93, 242, 160, 0.7);
+  }
+
+  .live-dot.error {
+    background: #ff6e6e;
+    box-shadow: 0 0 10px rgba(255, 110, 110, 0.7);
+  }
+
+  .stocks-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .stocks-table th,
+  .stocks-table td {
+    padding: 14px 10px;
+    text-align: left;
+    border-bottom: 1px solid rgba(79, 158, 255, 0.1);
+  }
+
+  .stocks-table th {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--gray-400);
+    letter-spacing: 0.02em;
+  }
+
+  .stocks-table td {
+    font-size: 14px;
+    color: var(--white);
+  }
+
+  .stock-name {
+    font-weight: 700;
+  }
+
+  .stock-code {
+    font-size: 12px;
+    color: var(--gray-400);
+    margin-top: 2px;
+  }
+
+  .stock-price {
+    color: var(--accent);
+    font-weight: 700;
+  }
+
+  .stock-change {
+    font-weight: 600;
+  }
+
+  .stock-change.up {
+    color: var(--up);
+  }
+
+  .stock-change.down {
+    color: var(--down);
+  }
+
+  .stock-change.flat {
+    color: var(--gray-400);
+  }
+
+  @media (max-width: 900px) {
+    .stocks-table th:nth-child(5),
+    .stocks-table td:nth-child(5) {
+      display: none;
+    }
+  }
+</style>
+</head>
+<body>
+<nav>
+  <a href="주린닷컴홈피.html" class="nav-logo">
+    <div class="logo-icon">주</div>
+    <div class="logo-text">주린<span>닷컴</span></div>
+  </a>
+  <ul class="nav-menu">
+    <li><a href="analysis.html">AI 분석 <span class="nav-badge">AI</span></a></li>
+    <li><a href="ai-chart-prediction.html">AI 차트 예측 <span class="nav-badge">AI</span></a></li>
+    <li><a href="glossary.html">용어 검색</a></li>
+    <li><a href="simulation.html">모의 투자</a></li>
+    <li><a href="market.html" class="active">시장</a></li>
+  </ul>
+  <div class="nav-right">
+    <button type="button" class="btn-ghost" onclick="window.location.href='market.html'">시장으로 돌아가기</button>
+  </div>
+</nav>
+
+<main class="sector-page">
+  <div class="sector-wrap">
+    <section class="sector-hero">
+      <div class="sector-badge" id="sectorBadge">📌 관심 섹터</div>
+      <h1 class="sector-name" id="sectorName">섹터 정보를 불러오는 중...</h1>
+      <p class="sector-desc" id="sectorDesc">선택한 섹터의 핵심 포인트를 요약해 보여줍니다.</p>
+      <div class="sector-keywords" id="sectorKeywords"></div>
+      <div class="sector-actions">
+        <button type="button" class="btn-ghost" onclick="window.location.href='market.html'">시장 페이지로 돌아가기</button>
+      </div>
+    </section>
+
+    <section class="stocks-section">
+      <div class="stocks-header">
+        <div class="stocks-title">주요 종목</div>
+        <div class="live-badge">
+          <span class="live-dot" id="liveDot"></span>
+          <span id="liveStatus">연결 중...</span>
+        </div>
+      </div>
+      <table class="stocks-table">
+        <thead>
+          <tr>
+            <th>종목명</th>
+            <th>현재가</th>
+            <th>전일대비</th>
+            <th>등락률</th>
+            <th>거래량</th>
+          </tr>
+        </thead>
+        <tbody id="sectorStocksBody">
+          <tr><td colspan="5" style="text-align:center;color:var(--gray-400);padding:24px">시세 불러오는 중...</td></tr>
+        </tbody>
+      </table>
+    </section>
+  </div>
+</main>
+
+<script>
+  const BACKEND = 'http://localhost:5000';
+  const POLL_INTERVAL = 5000;
+
+  const sectorData = {
+    '반도체': {
+      emoji: '💾',
+      desc: 'AI 서버, 고대역폭 메모리, 파운드리 투자 확대로 실적 민감도가 높은 핵심 수출 섹터입니다.',
+      keywords: ['HBM', '파운드리', 'AI 서버', '메모리 사이클'],
+      stocks: [
+        { name: '삼성전자', code: '005930' },
+        { name: 'SK하이닉스', code: '000660' },
+        { name: '한미반도체', code: '042700' },
+        { name: 'DB하이텍', code: '000990' },
+        { name: '리노공업', code: '058470' },
+        { name: '이오테크닉스', code: '039030' },
+        { name: 'HPSP', code: '403870' },
+        { name: '주성엔지니어링', code: '036930' },
+        { name: '원익IPS', code: '240810' },
+        { name: '가온칩스', code: '399720' }
+      ]
+    },
+    '건설': {
+      emoji: '🏗️',
+      desc: '금리 방향과 정부 인프라 정책의 영향을 크게 받는 경기 민감형 섹터입니다.',
+      keywords: ['주택 공급', 'SOC', '수주잔고', '금리 민감'],
+      stocks: [
+        { name: '현대건설', code: '000720' },
+        { name: '삼성물산', code: '000830' },
+        { name: '대우건설', code: '047040' },
+        { name: 'GS건설', code: '006360' },
+        { name: 'DL이앤씨', code: '375500' },
+        { name: 'HDC현대산업개발', code: '294870' },
+        { name: '금호건설', code: '002990' },
+        { name: '계룡건설', code: '013580' },
+        { name: '코오롱글로벌', code: '003070' },
+        { name: '태영건설', code: '009410' }
+      ]
+    },
+    '의료바이오': {
+      emoji: '🧬',
+      desc: '임상 이벤트, 기술수출, 허가 이슈가 주가를 좌우하는 고변동성 성장 섹터입니다.',
+      keywords: ['임상 3상', 'FDA', '기술이전', '신약 파이프라인'],
+      stocks: [
+        { name: '삼성바이오로직스', code: '207940' },
+        { name: '셀트리온', code: '068270' },
+        { name: '알테오젠', code: '196170' },
+        { name: '유한양행', code: '000100' },
+        { name: '한미약품', code: '128940' },
+        { name: 'HLB', code: '028300' },
+        { name: 'SK바이오팜', code: '326030' },
+        { name: '리가캠바이오', code: '141080' },
+        { name: '삼천당제약', code: '000250' },
+        { name: '에이비엘바이오', code: '298380' }
+      ]
+    },
+    '의료·바이오': {
+      emoji: '🧬',
+      desc: '임상 이벤트, 기술수출, 허가 이슈가 주가를 좌우하는 고변동성 성장 섹터입니다.',
+      keywords: ['임상 3상', 'FDA', '기술이전', '신약 파이프라인'],
+      stocks: [
+        { name: '삼성바이오로직스', code: '207940' },
+        { name: '셀트리온', code: '068270' },
+        { name: '알테오젠', code: '196170' },
+        { name: '유한양행', code: '000100' },
+        { name: '한미약품', code: '128940' },
+        { name: 'HLB', code: '028300' },
+        { name: 'SK바이오팜', code: '326030' },
+        { name: '리가캠바이오', code: '141080' },
+        { name: '삼천당제약', code: '000250' },
+        { name: '에이비엘바이오', code: '298380' }
+      ]
+    },
+    '배터리': {
+      emoji: '🔋',
+      desc: '전기차 수요와 원자재 가격, IRA 정책에 따른 밸류체인 변화가 중요한 섹터입니다.',
+      keywords: ['양극재', '리튬 가격', 'IRA', '전기차 침투율'],
+      stocks: [
+        { name: 'LG에너지솔루션', code: '373220' },
+        { name: '삼성SDI', code: '006400' },
+        { name: '포스코퓨처엠', code: '003670' },
+        { name: '에코프로비엠', code: '247540' },
+        { name: '엘앤에프', code: '066970' },
+        { name: 'SK아이이테크놀로지', code: '361610' },
+        { name: '코스모신소재', code: '005070' },
+        { name: '천보', code: '278280' },
+        { name: '대주전자재료', code: '078600' },
+        { name: '엔켐', code: '348370' }
+      ]
+    },
+    '방산': {
+      emoji: '🛡️',
+      desc: '수출 계약과 지정학 이슈에 따라 수주 모멘텀이 빠르게 반영되는 섹터입니다.',
+      keywords: ['K-방산', '해외 수주', '방위비', '지정학 리스크'],
+      stocks: [
+        { name: '한화에어로스페이스', code: '012450' },
+        { name: '현대로템', code: '064350' },
+        { name: 'LIG넥스원', code: '079550' },
+        { name: '한국항공우주', code: '047810' },
+        { name: '한화시스템', code: '272210' },
+        { name: '풍산', code: '103140' },
+        { name: '현대위아', code: '011210' },
+        { name: '코츠테크놀로지', code: '448710' },
+        { name: '퍼스텍', code: '010820' },
+        { name: '삼양컴텍', code: '054540' }
+      ]
+    },
+    '엔터테인먼트': {
+      emoji: '🎬',
+      desc: '음원, 공연, IP 매출과 글로벌 팬덤 확장이 실적과 밸류에이션을 견인합니다.',
+      keywords: ['글로벌 투어', 'IP 사업', '플랫폼', '팬덤 지표'],
+      stocks: [
+        { name: '하이브', code: '352820' },
+        { name: 'JYP Ent.', code: '035900' },
+        { name: '에스엠', code: '041510' },
+        { name: '와이지엔터', code: '122870' },
+        { name: 'CJ ENM', code: '035760' },
+        { name: '콘텐트리중앙', code: '039130' },
+        { name: '스튜디오드래곤', code: '253450' },
+        { name: '큐브엔터', code: '182360' },
+        { name: '키이스트', code: '054780' },
+        { name: '디어유', code: '376300' }
+      ]
+    },
+    '로봇': {
+      emoji: '🤖',
+      desc: '자동화 수요와 AI 결합 기대감이 큰 테마로, 뉴스 흐름에 민감하게 반응합니다.',
+      keywords: ['협동로봇', '스마트팩토리', '휴머노이드', '자동화'],
+      stocks: [
+        { name: '두산로보틱스', code: '454910' },
+        { name: '레인보우로보틱스', code: '277810' },
+        { name: '에스피지', code: '030700' },
+        { name: '로보스타', code: '090360' },
+        { name: '유진로봇', code: '056080' },
+        { name: '엔젤로보틱스', code: '455900' },
+        { name: '에브리봇', code: '270660' },
+        { name: '뉴로메카', code: '348340' },
+        { name: '이랜시스', code: '264850' },
+        { name: '티로보틱스', code: '117730' }
+      ]
+    },
+    '우주항공': {
+      emoji: '🚀',
+      desc: '국가 프로젝트, 민간 발사체, 위성 데이터 시장 성장 기대가 반영되는 신성장 섹터입니다.',
+      keywords: ['누리호', '위성통신', '민간 우주', '국방 융합'],
+      stocks: [
+        { name: '한화에어로스페이스', code: '012450' },
+        { name: '한국항공우주', code: '047810' },
+        { name: '컨텍', code: '451760' },
+        { name: '쎄트렉아이', code: '099320' },
+        { name: '인텔리안테크', code: '189300' },
+        { name: 'AP위성', code: '211270' },
+        { name: '제노코', code: '361390' },
+        { name: '켄코아에어로스페이스', code: '274090' },
+        { name: '비츠로테크', code: '042370' },
+        { name: '한화시스템', code: '272210' }
+      ]
+    },
+    '미래에너지': {
+      emoji: '⚡',
+      desc: '신재생, 수소, 전력 인프라 투자 흐름과 정책 수혜가 핵심인 에너지 전환 섹터입니다.',
+      keywords: ['수소', '태양광', 'ESS', '전력망 투자'],
+      stocks: [
+        { name: '두산에너빌리티', code: '034020' },
+        { name: 'HD현대일렉트릭', code: '267260' },
+        { name: '효성중공업', code: '298040' },
+        { name: 'LS ELECTRIC', code: '010120' },
+        { name: '한전기술', code: '052690' },
+        { name: '씨에스윈드', code: '112610' },
+        { name: '한화솔루션', code: '009830' },
+        { name: '대한전선', code: '001440' },
+        { name: 'LS마린솔루션', code: '060370' },
+        { name: '일진파워', code: '094820' }
+      ]
+    }
+  };
+
+  const sectorAliases = {
+    'Semiconductor': '반도체',
+    'Construction': '건설',
+    'Bio & Health': '의료바이오',
+    'Secondary Battery': '배터리',
+    'Defense': '방산',
+    'Entertainment': '엔터테인먼트',
+    'Robotics': '로봇',
+    'Aerospace': '우주항공',
+    'Future Energy': '미래에너지',
+  };
+
+  let selectedSector = null;
+  let pollHandle = null;
+
+  function resolveSectorName(rawName) {
+    const cleaned = (rawName || '').trim();
+    if (!cleaned) return '';
+    if (sectorData[cleaned]) return cleaned;
+    if (cleaned === '의료·바이오' || cleaned === '의료바이오') return '의료바이오';
+    return sectorAliases[cleaned] || cleaned;
+  }
+
+  function formatCurrency(value) {
+    return '₩' + Number(value || 0).toLocaleString();
+  }
+
+  function formatNumber(value) {
+    const n = Number(value || 0);
+    if (n >= 100000000) return (n / 100000000).toFixed(1) + '억';
+    if (n >= 10000) return (n / 10000).toFixed(1) + '만';
+    return n.toLocaleString();
+  }
+
+  function renderStocksRows(stocks) {
+    const body = document.getElementById('sectorStocksBody');
+    if (!Array.isArray(stocks) || stocks.length === 0) {
+      body.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--gray-400);padding:24px">표시할 종목이 없습니다.</td></tr>';
+      return;
+    }
+
+    body.innerHTML = stocks.map((stock) => {
+      if (stock.loading) {
+        return `
+          <tr>
+            <td>
+              <div class="stock-name">${stock.name}</div>
+              <div class="stock-code">${stock.code}</div>
+            </td>
+            <td colspan="4" style="color:var(--gray-400)">시세 불러오는 중...</td>
+          </tr>
+        `;
+      }
+
+      if (stock.error && (stock.price === undefined || stock.price === null)) {
+        return `
+          <tr>
+            <td>
+              <div class="stock-name">${stock.name}</div>
+              <div class="stock-code">${stock.code}</div>
+            </td>
+            <td colspan="4" style="color:var(--gray-400)">조회 지연 (${stock.error})</td>
+          </tr>
+        `;
+      }
+
+      const dir = stock.direction || 'flat';
+      const arrow = dir === 'up' ? '▲' : (dir === 'down' ? '▼' : '-');
+      const sign = dir === 'up' ? '+' : (dir === 'down' ? '' : '±');
+      const rate = Number(stock.rate || 0);
+      const change = Math.abs(Number(stock.change || 0));
+
+      return `
+        <tr>
+          <td>
+            <div class="stock-name">${stock.name}</div>
+            <div class="stock-code">${stock.code}</div>
+          </td>
+          <td class="stock-price">${formatCurrency(stock.price)}</td>
+          <td class="stock-change ${dir}">${arrow} ${formatCurrency(change)}</td>
+          <td class="stock-change ${dir}">${sign}${Math.abs(rate).toFixed(2)}%</td>
+          <td>${formatNumber(stock.volume)}${stock.stale ? ' (지연)' : ''}</td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  async function fetchSectorPrices() {
+    if (!selectedSector || !selectedSector.stocks || selectedSector.stocks.length === 0) return;
+
+    const codes = selectedSector.stocks.map(s => s.code).join(',');
+    const names = selectedSector.stocks.map(s => `${s.code}:${s.name}`).join('|');
+    const dot = document.getElementById('liveDot');
+    const status = document.getElementById('liveStatus');
+
+    try {
+      const url = `${BACKEND}/api/live-prices?codes=${encodeURIComponent(codes)}&names=${encodeURIComponent(names)}&page=1&page_size=${selectedSector.stocks.length}`;
+      const res = await fetch(url);
+      const data = await res.json();
+
+      if (!data.success) throw new Error(data.message || '조회 실패');
+
+      dot.classList.remove('error');
+      status.textContent = `${data.ts} 업데이트 (${data.count || 0}종목)`;
+      renderStocksRows(data.stocks || []);
+    } catch (err) {
+      dot.classList.add('error');
+      status.textContent = '연결 실패';
+      console.warn('[sector live-prices]', err.message);
+    }
+  }
+
+  function renderSectorPage() {
+    const params = new URLSearchParams(window.location.search);
+    const sectorName = resolveSectorName(params.get('name'));
+    const data = sectorData[sectorName] || null;
+
+    if (!sectorName || !data) {
+      document.getElementById('sectorName').textContent = '선택한 섹터를 찾을 수 없습니다.';
+      document.getElementById('sectorDesc').textContent = '시장 페이지로 돌아가서 관심 섹터 버튼을 다시 눌러주세요.';
+      document.getElementById('sectorBadge').textContent = '⚠️ 잘못된 접근';
+      document.getElementById('liveStatus').textContent = '대상 섹터 없음';
+      renderStocksRows([]);
+      return;
+    }
+
+    selectedSector = data;
+
+    document.title = `${sectorName} 섹터 - 주린닷컴`;
+    document.getElementById('sectorBadge').textContent = `${data.emoji} ${sectorName} 섹터`;
+    document.getElementById('sectorName').textContent = `${sectorName} 섹터 브리핑`;
+    document.getElementById('sectorDesc').textContent = data.desc;
+
+    const keywordWrap = document.getElementById('sectorKeywords');
+    keywordWrap.innerHTML = data.keywords.map(k => `<span class="sector-keyword">#${k}</span>`).join('');
+
+    renderStocksRows(data.stocks.map(s => ({ ...s, loading: true })));
+    fetchSectorPrices();
+    if (pollHandle) clearInterval(pollHandle);
+    pollHandle = setInterval(fetchSectorPrices, POLL_INTERVAL);
+  }
+
+  document.addEventListener('DOMContentLoaded', renderSectorPage);
+</script>
+</body>
+</html>
