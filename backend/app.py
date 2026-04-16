@@ -837,9 +837,39 @@ def live_prices():
         page = 1
     page = max(1, page)
 
+    custom_codes_raw = (request.args.get('codes') or '').strip()
+    custom_names_raw = (request.args.get('names') or '').strip()
+
+    custom_name_map = {}
+    if custom_names_raw:
+        for pair in custom_names_raw.split('|'):
+            if ':' not in pair:
+                continue
+            code, name = pair.split(':', 1)
+            code = code.strip()
+            name = name.strip()
+            if code and name:
+                custom_name_map[code] = name
+
     token = _kis_get_token() if (_KIS_KEY and _KIS_SECRET) else None
 
-    all_items = list(LIVE_PRICE_STOCKS.items())[:_WEB_PRICE_MAX_COUNT]
+    if custom_codes_raw:
+        dedup_codes = []
+        seen = set()
+        for code in custom_codes_raw.split(','):
+            cleaned = code.strip()
+            if not cleaned or cleaned in seen:
+                continue
+            seen.add(cleaned)
+            dedup_codes.append(cleaned)
+
+        all_items = []
+        for code in dedup_codes[:_WEB_PRICE_MAX_COUNT]:
+            name = custom_name_map.get(code) or LIVE_PRICE_STOCKS.get(code) or PRICE_STOCKS.get(code) or code
+            all_items.append((code, name))
+    else:
+        all_items = list(LIVE_PRICE_STOCKS.items())[:_WEB_PRICE_MAX_COUNT]
+
     total_count = len(all_items)
     if total_count == 0:
         return jsonify({'success': True, 'count': 0, 'stocks': [], 'ts': time.strftime('%H:%M:%S')})
