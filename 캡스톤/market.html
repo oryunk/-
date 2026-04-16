@@ -849,15 +849,15 @@
     <div class="sector-section">
       <div class="sector-title">📌 관심 섹터</div>
       <div class="sector-grid">
-        <button class="sector-btn" data-sector="반도체" onclick="filterBySector(this)"><span class="sector-icon">💾</span> 반도체</button>
-        <button class="sector-btn" data-sector="건설" onclick="filterBySector(this)"><span class="sector-icon">🏗️</span> 건설</button>
-        <button class="sector-btn" data-sector="의료바이오" onclick="filterBySector(this)"><span class="sector-icon">🧬</span> 의료바이오</button>
-        <button class="sector-btn" data-sector="배터리" onclick="filterBySector(this)"><span class="sector-icon">🔋</span> 배터리</button>
-        <button class="sector-btn" data-sector="방산" onclick="filterBySector(this)"><span class="sector-icon">🛡️</span> 방산</button>
-        <button class="sector-btn" data-sector="엔터테인먼트" onclick="filterBySector(this)"><span class="sector-icon">🎬</span> 엔터테인먼트</button>
-        <button class="sector-btn" data-sector="로봇" onclick="filterBySector(this)"><span class="sector-icon">🤖</span> 로봇</button>
-        <button class="sector-btn" data-sector="우주항공" onclick="filterBySector(this)"><span class="sector-icon">🚀</span> 우주항공</button>
-        <button class="sector-btn" data-sector="미래에너지" onclick="filterBySector(this)"><span class="sector-icon">⚡</span> 미래에너지</button>
+        <button class="sector-btn" data-sector="반도체" onclick="openSectorPage(this)"><span class="sector-icon">💾</span> 반도체</button>
+        <button class="sector-btn" data-sector="건설" onclick="openSectorPage(this)"><span class="sector-icon">🏗️</span> 건설</button>
+        <button class="sector-btn" data-sector="의료바이오" onclick="openSectorPage(this)"><span class="sector-icon">🧬</span> 의료바이오</button>
+        <button class="sector-btn" data-sector="배터리" onclick="openSectorPage(this)"><span class="sector-icon">🔋</span> 배터리</button>
+        <button class="sector-btn" data-sector="방산" onclick="openSectorPage(this)"><span class="sector-icon">🛡️</span> 방산</button>
+        <button class="sector-btn" data-sector="엔터테인먼트" onclick="openSectorPage(this)"><span class="sector-icon">🎬</span> 엔터테인먼트</button>
+        <button class="sector-btn" data-sector="로봇" onclick="openSectorPage(this)"><span class="sector-icon">🤖</span> 로봇</button>
+        <button class="sector-btn" data-sector="우주항공" onclick="openSectorPage(this)"><span class="sector-icon">🚀</span> 우주항공</button>
+        <button class="sector-btn" data-sector="미래에너지" onclick="openSectorPage(this)"><span class="sector-icon">⚡</span> 미래에너지</button>
       </div>
     </div>
     </div>
@@ -1235,37 +1235,10 @@
   }
 
   // ── 관심 섹터 버튼 ────────────────────────────────────
-  let activeSector = null;
-  let sectorToastTimer = null;
-
-  function filterBySector(btn) {
-    const sector = btn.dataset.sector;
-    const isAlreadyActive = btn.classList.contains('active');
-
-    document.querySelectorAll('.sector-btn').forEach(b => b.classList.remove('active'));
-
-    if (isAlreadyActive) {
-      activeSector = null;
-      showSectorToast('섹터 필터가 해제되었습니다.');
-    } else {
-      btn.classList.add('active');
-      activeSector = sector;
-      showSectorToast(`📌 ${sector} 섹터가 선택되었습니다. (종목 데이터 연동 예정)`);
-    }
-  }
-
-  function showSectorToast(msg) {
-    let toast = document.getElementById('sectorToast');
-    if (!toast) {
-      toast = document.createElement('div');
-      toast.id = 'sectorToast';
-      toast.className = 'sector-toast';
-      document.body.appendChild(toast);
-    }
-    toast.textContent = msg;
-    toast.classList.add('show');
-    clearTimeout(sectorToastTimer);
-    sectorToastTimer = setTimeout(() => toast.classList.remove('show'), 2500);
+  function openSectorPage(btn) {
+    const sector = (btn && btn.dataset && btn.dataset.sector) ? btn.dataset.sector.trim() : '';
+    if (!sector) return;
+    window.location.href = `sector.html?name=${encodeURIComponent(sector)}`;
   }
 
   // ── 포맷 유틸 ────────────────────────────────────────
