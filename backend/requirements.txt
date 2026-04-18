@@ -6,3 +6,4 @@ numpy==1.24.3
 python-dotenv==1.0.0
 requests==2.31.0
 google-generativeai==0.13.0
+pykrx==1.0.51
