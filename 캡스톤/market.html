@@ -74,7 +74,10 @@
     border-radius: 12px;
     padding: 24px;
     text-align: center;
+    transition: border-color 0.3s;
   }
+  .index-card.up   { border-color: rgba(255, 71, 71, 0.35); }
+  .index-card.down { border-color: rgba(79, 158, 255, 0.35); }
 
   .index-name {
     font-size: 16px;
@@ -94,13 +97,41 @@
     font-size: 16px;
     font-weight: 600;
   }
+  .index-change.up   { color: var(--up); }
+  .index-change.down { color: var(--down); }
+  .index-change.flat { color: var(--gray-400); }
 
-  .index-change.up {
-    color: var(--up);
+  .index-sub {
+    margin-top: 6px;
+    font-size: 12px;
+    color: var(--gray-400);
   }
 
-  .index-change.down {
-    color: var(--down);
+  .index-skeleton {
+    animation: index-pulse 1.4s ease-in-out infinite;
+  }
+  @keyframes index-pulse {
+    0%, 100% { opacity: 0.4; }
+    50%       { opacity: 1;   }
+  }
+
+  .indices-live-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--gray-400);
+  }
+  .indices-live-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #5df2a0;
+    box-shadow: 0 0 8px rgba(93,242,160,0.7);
+  }
+  .indices-live-dot.error {
+    background: #ff6e6e;
+    box-shadow: 0 0 8px rgba(255,110,110,0.7);
   }
 
   .stocks-section {
@@ -648,6 +679,181 @@
     line-height: 1.55;
   }
 
+  .detail-sections {
+    display: grid;
+    gap: 14px;
+    margin-top: 14px;
+  }
+
+  .detail-section {
+    border-radius: 14px;
+    border: 1px solid rgba(79, 158, 255, 0.14);
+    background: rgba(255, 255, 255, 0.02);
+    padding: 16px;
+  }
+
+  .detail-section-title {
+    font-size: 15px;
+    font-weight: 800;
+    color: var(--white);
+    margin-bottom: 12px;
+  }
+
+  .detail-section-sub {
+    font-size: 12px;
+    color: var(--gray-400);
+    margin-bottom: 12px;
+  }
+
+  .metric-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 10px;
+  }
+
+  .metric-item {
+    border-radius: 12px;
+    padding: 12px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(79, 158, 255, 0.12);
+  }
+
+  .metric-item-label {
+    font-size: 12px;
+    color: var(--gray-400);
+    margin-bottom: 6px;
+  }
+
+  .metric-item-value {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--white);
+  }
+
+  .detail-table-wrap {
+    overflow-x: auto;
+  }
+
+  .detail-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 520px;
+  }
+
+  .detail-table th,
+  .detail-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid rgba(79, 158, 255, 0.1);
+    text-align: right;
+    color: var(--gray-200);
+    font-size: 13px;
+  }
+
+  .detail-table th:first-child,
+  .detail-table td:first-child {
+    text-align: left;
+    color: var(--white);
+    font-weight: 700;
+  }
+
+  .detail-table th {
+    color: var(--gray-400);
+    font-size: 12px;
+  }
+
+  .detail-news-list {
+    display: grid;
+    gap: 10px;
+  }
+
+  .detail-news-item {
+    display: block;
+    border-radius: 12px;
+    padding: 12px;
+    border: 1px solid rgba(79, 158, 255, 0.12);
+    background: rgba(255, 255, 255, 0.02);
+    text-decoration: none;
+  }
+
+  .detail-news-item:hover {
+    border-color: rgba(79, 158, 255, 0.35);
+    background: rgba(79, 158, 255, 0.05);
+  }
+
+  .detail-news-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--white);
+    line-height: 1.45;
+  }
+
+  .detail-news-summary {
+    margin-top: 6px;
+    font-size: 13px;
+    color: var(--gray-300);
+    line-height: 1.5;
+  }
+
+  .detail-news-meta {
+    margin-top: 8px;
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--gray-500);
+  }
+
+  .investor-flow-list {
+    display: grid;
+    gap: 10px;
+  }
+
+  .investor-flow-row {
+    display: grid;
+    grid-template-columns: 54px 1fr 96px;
+    gap: 12px;
+    align-items: center;
+  }
+
+  .investor-flow-label {
+    font-size: 13px;
+    color: var(--gray-200);
+    font-weight: 700;
+  }
+
+  .investor-flow-bar-track {
+    position: relative;
+    height: 10px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.08);
+    overflow: hidden;
+  }
+
+  .investor-flow-bar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    border-radius: 999px;
+  }
+
+  .investor-flow-bar.positive { background: linear-gradient(90deg, #ff7b7b, #ff5454); }
+  .investor-flow-bar.negative { background: linear-gradient(90deg, #5ab6ff, #2f86ff); }
+  .investor-flow-bar.neutral { background: linear-gradient(90deg, #7b8ea8, #9aa7b8); }
+
+  .investor-flow-value {
+    text-align: right;
+    font-size: 12px;
+    color: var(--gray-300);
+    font-family: 'DM Mono', monospace;
+  }
+
+  .empty-state {
+    font-size: 13px;
+    color: var(--gray-400);
+    padding: 8px 0;
+  }
+
   /* ── 관심 섹터 버튼 ─────────────────────────────────── */
   .sector-section {
     background: rgba(255, 255, 255, 0.04);
@@ -808,7 +1014,13 @@
   <div class="market-content">
     <div id="marketOverviewView" class="market-view">
     <div class="indices-section">
-      <div class="indices-title">주요 지수</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;flex-wrap:wrap;gap:10px;">
+        <div class="indices-title" style="margin-bottom:0">주요 지수</div>
+        <div class="indices-live-badge">
+          <span class="indices-live-dot" id="indicesLiveDot"></span>
+          <span id="indicesLiveStatus">불러오는 중...</span>
+        </div>
+      </div>
       <div class="indices-grid" id="indicesGrid">
         <!-- 동적으로 지수 카드 생성 -->
       </div>
@@ -849,15 +1061,20 @@
     <div class="sector-section">
       <div class="sector-title">📌 관심 섹터</div>
       <div class="sector-grid">
-        <button class="sector-btn" data-sector="반도체" onclick="openSectorPage(this)"><span class="sector-icon">💾</span> 반도체</button>
-        <button class="sector-btn" data-sector="건설" onclick="openSectorPage(this)"><span class="sector-icon">🏗️</span> 건설</button>
-        <button class="sector-btn" data-sector="의료바이오" onclick="openSectorPage(this)"><span class="sector-icon">🧬</span> 의료바이오</button>
-        <button class="sector-btn" data-sector="배터리" onclick="openSectorPage(this)"><span class="sector-icon">🔋</span> 배터리</button>
-        <button class="sector-btn" data-sector="방산" onclick="openSectorPage(this)"><span class="sector-icon">🛡️</span> 방산</button>
-        <button class="sector-btn" data-sector="엔터테인먼트" onclick="openSectorPage(this)"><span class="sector-icon">🎬</span> 엔터테인먼트</button>
-        <button class="sector-btn" data-sector="로봇" onclick="openSectorPage(this)"><span class="sector-icon">🤖</span> 로봇</button>
-        <button class="sector-btn" data-sector="우주항공" onclick="openSectorPage(this)"><span class="sector-icon">🚀</span> 우주항공</button>
-        <button class="sector-btn" data-sector="미래에너지" onclick="openSectorPage(this)"><span class="sector-icon">⚡</span> 미래에너지</button>
+        <button class="sector-btn" data-sector="IT 및 기술" onclick="openSectorPage(this)"><span class="sector-icon">💻</span> IT 및 기술</button>
+        <button class="sector-btn" data-sector="전기/전자" onclick="openSectorPage(this)"><span class="sector-icon">⚙️</span> 전기/전자</button>
+        <button class="sector-btn" data-sector="금융" onclick="openSectorPage(this)"><span class="sector-icon">🏦</span> 금융</button>
+        <button class="sector-btn" data-sector="제조" onclick="openSectorPage(this)"><span class="sector-icon">🏭</span> 제조</button>
+        <button class="sector-btn" data-sector="바이오/제약" onclick="openSectorPage(this)"><span class="sector-icon">🧬</span> 바이오/제약</button>
+        <button class="sector-btn" data-sector="소비재" onclick="openSectorPage(this)"><span class="sector-icon">🛍️</span> 소비재</button>
+        <button class="sector-btn" data-sector="통신" onclick="openSectorPage(this)"><span class="sector-icon">📡</span> 통신</button>
+        <button class="sector-btn" data-sector="에너지" onclick="openSectorPage(this)"><span class="sector-icon">⚡</span> 에너지</button>
+        <button class="sector-btn" data-sector="부동산" onclick="openSectorPage(this)"><span class="sector-icon">🏢</span> 부동산</button>
+        <button class="sector-btn" data-sector="유통" onclick="openSectorPage(this)"><span class="sector-icon">🏪</span> 유통</button>
+        <button class="sector-btn" data-sector="화학" onclick="openSectorPage(this)"><span class="sector-icon">🧪</span> 화학</button>
+        <button class="sector-btn" data-sector="서비스" onclick="openSectorPage(this)"><span class="sector-icon">🎯</span> 서비스</button>
+        <button class="sector-btn" data-sector="지수ETF" onclick="openSectorPage(this)"><span class="sector-icon">📊</span> 지수ETF</button>
+        <button class="sector-btn" data-sector="섹터ETF" onclick="openSectorPage(this)"><span class="sector-icon">🗂️</span> 섹터ETF</button>
       </div>
     </div>
     </div>
@@ -896,8 +1113,16 @@
             <div class="detail-value" id="detailVolume">-</div>
           </div>
           <div class="detail-card">
-            <div class="detail-label">상태</div>
-            <div class="detail-value" id="detailState">실시간</div>
+            <div class="detail-label">시작가</div>
+            <div class="detail-value" id="detailOpen">-</div>
+          </div>
+          <div class="detail-card">
+            <div class="detail-label">전일 종가</div>
+            <div class="detail-value" id="detailPrevClose">-</div>
+          </div>
+          <div class="detail-card">
+            <div class="detail-label">거래대금</div>
+            <div class="detail-value" id="detailTradedValue">-</div>
           </div>
           <div class="detail-card">
             <div class="detail-label">전일대비</div>
@@ -907,6 +1132,58 @@
             <div class="detail-label">등락률</div>
             <div class="detail-value" id="detailRate">-</div>
           </div>
+        </div>
+        <div class="detail-sections">
+          <section class="detail-section">
+            <div class="detail-section-title">투자자 동향</div>
+            <div class="detail-section-sub" id="investorFlowMeta">최신 데이터 기준</div>
+            <div class="investor-flow-list" id="investorFlowList">
+              <div class="empty-state">데이터를 불러오는 중입니다.</div>
+            </div>
+          </section>
+          <section class="detail-section">
+            <div class="detail-section-title">투자 지표</div>
+            <div class="metric-grid" id="indicatorGrid">
+              <div class="empty-state">데이터를 불러오는 중입니다.</div>
+            </div>
+          </section>
+          <section class="detail-section">
+            <div class="detail-section-title">가치평가 비교</div>
+            <div class="detail-section-sub" id="valuationBasis">동종 업종 평균과 비교합니다.</div>
+            <div class="detail-table-wrap" id="valuationTableWrap">
+              <div class="empty-state">데이터를 불러오는 중입니다.</div>
+            </div>
+          </section>
+          <section class="detail-section">
+            <div class="detail-section-title">재무 성과</div>
+            <div class="detail-table-wrap" id="performanceTableWrap">
+              <div class="empty-state">데이터를 불러오는 중입니다.</div>
+            </div>
+          </section>
+          <section class="detail-section">
+            <div class="detail-section-title">재무상태표</div>
+            <div class="detail-table-wrap" id="statementsTableWrap">
+              <div class="empty-state">데이터를 불러오는 중입니다.</div>
+            </div>
+          </section>
+          <section class="detail-section">
+            <div class="detail-section-title">안정성 / 배당</div>
+            <div class="metric-grid" id="stabilityDividendGrid">
+              <div class="empty-state">데이터를 불러오는 중입니다.</div>
+            </div>
+          </section>
+          <section class="detail-section">
+            <div class="detail-section-title">관련 뉴스</div>
+            <div class="detail-news-list" id="detailNewsList">
+              <div class="empty-state">데이터를 불러오는 중입니다.</div>
+            </div>
+          </section>
+          <section class="detail-section">
+            <div class="detail-section-title">공시</div>
+            <div class="detail-news-list" id="detailDisclosureList">
+              <div class="empty-state">연결 가능한 공시 데이터가 없으면 비어 있을 수 있습니다.</div>
+            </div>
+          </section>
         </div>
         <div class="detail-cta">
           <button class="detail-buy" type="button">매수</button>
@@ -925,13 +1202,7 @@
   const POLL_INTERVAL = 5000; // 백엔드 캐시 응답을 사용해 5초마다 갱신
   const PAGE_SIZE = 10;
 
-  // 시장 지수 데이터 (정적)
-  const indicesData = [
-    { name: 'KOSPI',    value: 2584.31, change:  0.63 },
-    { name: 'KOSDAQ',   value:  745.18, change: -0.21 },
-    { name: 'KOSPI 200',value:  345.67, change:  0.45 },
-    { name: 'KRX 100',  value: 5678.90, change: -0.12 },
-  ];
+  // 주요 지수는 실시간 API로 대체됨
 
   // 현재 필터 + 이전 가격 캐시
   let currentFilter = 'all';
@@ -943,9 +1214,13 @@
   let stockOrder = [];      // API가 내려준 순서 유지
   let liveStocks = [];
   let selectedStockCode = null;
+  let selectedStockDetail = null;
+  let detailLastLoadedAt = 0;
 
   document.addEventListener('DOMContentLoaded', () => {
-    renderIndices();
+    renderIndicesSkeleton();
+    fetchMarketIndices();
+    setInterval(fetchMarketIndices, 60000);  // 1분마다 갱신
     fetchLivePrices();               // 즉시 1회
     setInterval(fetchLivePrices, POLL_INTERVAL);
 
@@ -1102,8 +1377,11 @@
     if (!stock) return;
 
     selectedStockCode = code;
+    selectedStockDetail = null;
+    detailLastLoadedAt = 0;
     renderStocks();
     renderStockDetail(stock);
+    renderDetailLoading();
 
     const overview = document.getElementById('marketOverviewView');
     const detailView = document.getElementById('stockDetailView');
@@ -1118,6 +1396,7 @@
       b.classList.toggle('active', i === 0);
     });
     loadChart(code, currentChartRange);
+    loadStockDetail(code, stock.name);
   }
 
   function closeStockDetail() {
@@ -1125,6 +1404,8 @@
     if (detailView.classList.contains('hidden')) return;
 
     selectedStockCode = null;
+    selectedStockDetail = null;
+    detailLastLoadedAt = 0;
     const overview = document.getElementById('marketOverviewView');
     overview.classList.remove('hidden');
     detailView.classList.add('hidden');
@@ -1138,7 +1419,15 @@
     if (detailView.classList.contains('hidden')) return;
 
     const stock = getStockByCode(selectedStockCode);
-    if (stock) renderStockDetail(stock);
+    if (stock) {
+      renderStockDetail(stock);
+      if (selectedStockDetail) {
+        selectedStockDetail.quote = { ...selectedStockDetail.quote, ...stock };
+      }
+    }
+    if (Date.now() - detailLastLoadedAt > 60000) {
+      loadStockDetail(selectedStockCode, stock ? stock.name : '');
+    }
   }
 
   function renderStockDetail(stock) {
@@ -1159,14 +1448,22 @@
     changeEl.innerHTML = `${arrow} ${formatCurrency(changeAbs)} <span class="detail-chip ${changeClass}">${sign}${Math.abs(signedRate).toFixed(2)}%</span>`;
 
     document.getElementById('detailVolume').textContent = formatNumber(stock.volume || 0);
-    document.getElementById('detailState').textContent = stock.stale ? '지연 시세' : '실시간';
+    document.getElementById('detailOpen').textContent = formatCurrency(stock.open || 0);
+    document.getElementById('detailPrevClose').textContent = formatCurrency(stock.previous_close || 0);
+    document.getElementById('detailTradedValue').textContent = formatCurrencyCompact(stock.traded_value || 0);
     document.getElementById('detailDelta').textContent = `${arrow} ${formatCurrency(changeAbs)}`;
     document.getElementById('detailRate').textContent = `${sign}${Math.abs(signedRate).toFixed(2)}%`;
 
     const foot = document.getElementById('detailFootNote');
-    foot.textContent = stock.stale
-      ? '일시적으로 지연된 시세입니다. 다음 갱신에서 최신 값으로 자동 반영됩니다.'
-      : `${stock.name || stock.code} 실시간 요약 화면입니다. 차트 연동 전까지 가격/등락 중심으로 제공합니다.`;
+    if (selectedStockDetail && selectedStockDetail.meta) {
+      const sector = selectedStockDetail.meta.sector || '섹터 미확인';
+      const industry = selectedStockDetail.meta.industry || '업종 미확인';
+      foot.textContent = `${stock.name || stock.code} 상세 화면입니다. ${sector} / ${industry} 기준으로 최신 시세와 재무 요약을 함께 보여줍니다.`;
+    } else {
+      foot.textContent = stock.stale
+        ? '일시적으로 지연된 시세입니다. 다음 갱신에서 최신 값으로 자동 반영됩니다.'
+        : `${stock.name || stock.code} 상세 화면입니다. 추가 데이터를 불러오는 중입니다.`;
+    }
   }
 
   function renderPagination(totalPages) {
@@ -1213,16 +1510,54 @@
     fetchLivePrices();
   }
 
-  // ── 지수 렌더링 ─────────────────────────────────────
-  function renderIndices() {
-    document.getElementById('indicesGrid').innerHTML = indicesData.map(idx => `
+  // ── 주요 지수 실시간 ─────────────────────────────────
+  const INDEX_PLACEHOLDER_NAMES = ['KOSPI', 'KOSDAQ', 'KOSPI 200', 'KOSDAQ 150'];
+
+  function renderIndicesSkeleton() {
+    document.getElementById('indicesGrid').innerHTML = INDEX_PLACEHOLDER_NAMES.map(name => `
       <div class="index-card">
-        <div class="index-name">${idx.name}</div>
-        <div class="index-value">${idx.value.toLocaleString()}</div>
-        <div class="index-change ${idx.change >= 0 ? 'up' : 'down'}">
-          ${idx.change >= 0 ? '▲' : '▼'} ${Math.abs(idx.change)}%
-        </div>
+        <div class="index-name">${name}</div>
+        <div class="index-value index-skeleton" style="color:var(--gray-400)">---</div>
+        <div class="index-change flat index-skeleton">불러오는 중</div>
       </div>`).join('');
+  }
+
+  async function fetchMarketIndices() {
+    const dot    = document.getElementById('indicesLiveDot');
+    const status = document.getElementById('indicesLiveStatus');
+    try {
+      const res  = await fetch(`${BACKEND}/api/market-indices`);
+      const data = await res.json();
+      if (!data.success) throw new Error(data.message || '조회 실패');
+
+      dot.classList.remove('error');
+      status.textContent = `${data.ts} 기준${data.cached ? ' (캐시)' : ''}`;
+
+      document.getElementById('indicesGrid').innerHTML = data.indices.map(idx => {
+        if (idx.error) {
+          return `
+            <div class="index-card">
+              <div class="index-name">${idx.name}</div>
+              <div class="index-value" style="color:var(--gray-400)">-</div>
+              <div class="index-change flat">조회 실패</div>
+            </div>`;
+        }
+        const dir    = idx.direction || 'flat';
+        const arrow  = dir === 'up' ? '▲' : (dir === 'down' ? '▼' : '-');
+        const sign   = dir === 'up' ? '+' : '';
+        return `
+          <div class="index-card ${dir}">
+            <div class="index-name">${idx.name}</div>
+            <div class="index-value">${idx.value.toLocaleString()}</div>
+            <div class="index-change ${dir}">${arrow} ${Math.abs(idx.change_pct).toFixed(2)}%</div>
+            <div class="index-sub">${sign}${idx.change_abs.toLocaleString()}</div>
+          </div>`;
+      }).join('');
+    } catch (e) {
+      dot.classList.add('error');
+      status.textContent = '지수 연결 실패';
+      console.warn('[market-indices]', e.message);
+    }
   }
 
   // ── 필터 버튼 ────────────────────────────────────────
@@ -1244,10 +1579,209 @@
   // ── 포맷 유틸 ────────────────────────────────────────
   function formatCurrency(v) { return '₩' + Number(v).toLocaleString(); }
 
+  function formatCurrencyCompact(v) {
+    const n = Number(v || 0);
+    if (n >= 1000000000000) return '₩' + (n / 1000000000000).toFixed(2) + '조';
+    if (n >= 100000000) return '₩' + (n / 100000000).toFixed(1) + '억';
+    if (n >= 10000) return '₩' + (n / 10000).toFixed(1) + '만';
+    return formatCurrency(n);
+  }
+
   function formatNumber(n) {
     if (n >= 100000000) return (n / 100000000).toFixed(1) + '억';
     if (n >= 10000)     return (n / 10000).toFixed(1) + '만';
     return Number(n).toLocaleString();
+  }
+
+  function formatPercent(v) {
+    if (v === null || v === undefined || Number.isNaN(Number(v))) return '-';
+    return `${Number(v).toFixed(2)}%`;
+  }
+
+  function escapeHtml(value) {
+    return String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function renderDetailLoading() {
+    document.getElementById('indicatorGrid').innerHTML = '<div class="empty-state">데이터를 불러오는 중입니다.</div>';
+    document.getElementById('valuationTableWrap').innerHTML = '<div class="empty-state">데이터를 불러오는 중입니다.</div>';
+    document.getElementById('performanceTableWrap').innerHTML = '<div class="empty-state">데이터를 불러오는 중입니다.</div>';
+    document.getElementById('statementsTableWrap').innerHTML = '<div class="empty-state">데이터를 불러오는 중입니다.</div>';
+    document.getElementById('stabilityDividendGrid').innerHTML = '<div class="empty-state">데이터를 불러오는 중입니다.</div>';
+    document.getElementById('detailNewsList').innerHTML = '<div class="empty-state">데이터를 불러오는 중입니다.</div>';
+    document.getElementById('detailDisclosureList').innerHTML = '<div class="empty-state">데이터를 불러오는 중입니다.</div>';
+    document.getElementById('investorFlowList').innerHTML = '<div class="empty-state">데이터를 불러오는 중입니다.</div>';
+    document.getElementById('investorFlowMeta').textContent = '최신 데이터 기준';
+    document.getElementById('valuationBasis').textContent = '동종 업종 평균과 비교합니다.';
+  }
+
+  async function loadStockDetail(code, name) {
+    try {
+      const res = await fetch(`${BACKEND}/api/stock-detail/${code}?name=${encodeURIComponent(name || '')}`);
+      const data = await res.json();
+      if (!data.success) throw new Error(data.message || '상세 조회 실패');
+
+      selectedStockDetail = data.detail;
+      detailLastLoadedAt = Date.now();
+
+      const stock = getStockByCode(code);
+      if (stock) {
+        selectedStockDetail.quote = { ...selectedStockDetail.quote, ...stock };
+        renderStockDetail(stock);
+      }
+      renderStockDetailExtras(selectedStockDetail);
+    } catch (e) {
+      document.getElementById('indicatorGrid').innerHTML = `<div class="empty-state">상세 데이터를 불러오지 못했습니다. (${escapeHtml(e.message)})</div>`;
+    }
+  }
+
+  function renderStockDetailExtras(detail) {
+    renderInvestorFlows(detail.investor_flows || {});
+    renderIndicatorGrid(detail.indicators || {});
+    renderValuationComparison(detail.valuation_comparison || {});
+    renderFinancialTable('performanceTableWrap', detail.financials?.performance || { columns: [], rows: [] });
+    renderFinancialTable('statementsTableWrap', detail.financials?.statements || { columns: [], rows: [] });
+    renderStabilityDividend(detail.financials || {});
+    renderArticleList('detailNewsList', detail.news || [], '관련 뉴스가 없습니다.');
+    renderArticleList('detailDisclosureList', detail.disclosures || [], '연결된 공시 데이터가 없습니다.');
+  }
+
+  function renderInvestorFlows(flow) {
+    document.getElementById('investorFlowMeta').textContent = flow.available
+      ? `${flow.updated_at || ''} 기준 · ${flow.source || ''}`
+      : (flow.source || '투자자 동향 데이터가 없습니다.');
+
+    if (!flow.available || !Array.isArray(flow.items) || flow.items.length === 0) {
+      document.getElementById('investorFlowList').innerHTML = '<div class="empty-state">투자자 동향 데이터를 제공하지 않습니다.</div>';
+      return;
+    }
+
+    const maxAbs = Math.max(...flow.items.map(item => Math.abs(Number(item.value || 0))), 1);
+    document.getElementById('investorFlowList').innerHTML = flow.items.map(item => {
+      const value = Number(item.value || 0);
+      const width = Math.max(4, Math.round(Math.abs(value) / maxAbs * 100));
+      const direction = value > 0 ? 'positive' : value < 0 ? 'negative' : 'neutral';
+      return `
+        <div class="investor-flow-row">
+          <div class="investor-flow-label">${escapeHtml(item.label)}</div>
+          <div class="investor-flow-bar-track"><div class="investor-flow-bar ${direction}" style="width:${width}%"></div></div>
+          <div class="investor-flow-value">${formatCurrencyCompact(value)}</div>
+        </div>`;
+    }).join('');
+  }
+
+  function renderIndicatorGrid(indicators) {
+    const items = [
+      ['시가총액', formatCurrencyCompact(indicators.market_cap)],
+      ['배당수익률', formatPercent(indicators.dividend_yield)],
+      ['PER', indicators.per ?? '-'],
+      ['PBR', indicators.pbr ?? '-'],
+      ['ROE', formatPercent(indicators.roe)],
+      ['PSR', indicators.psr ?? '-'],
+      ['외국인 소진율', formatPercent(indicators.foreign_ownership_rate)],
+    ];
+    document.getElementById('indicatorGrid').innerHTML = items.map(([label, value]) => `
+      <div class="metric-item">
+        <div class="metric-item-label">${escapeHtml(label)}</div>
+        <div class="metric-item-value">${escapeHtml(value)}</div>
+      </div>`).join('');
+  }
+
+  function renderValuationComparison(comparison) {
+    document.getElementById('valuationBasis').textContent = comparison.peer_count
+      ? `${comparison.basis} 기준 ${comparison.peer_count}개 종목 평균과 비교`
+      : '비교 가능한 동종 업종 평균 데이터가 부족합니다.';
+
+    if (!Array.isArray(comparison.rows) || comparison.rows.length === 0) {
+      document.getElementById('valuationTableWrap').innerHTML = '<div class="empty-state">가치평가 비교 데이터가 없습니다.</div>';
+      return;
+    }
+
+    document.getElementById('valuationTableWrap').innerHTML = `
+      <table class="detail-table">
+        <thead>
+          <tr><th>지표</th><th>현재</th><th>업종 평균</th><th>차이</th></tr>
+        </thead>
+        <tbody>
+          ${comparison.rows.map(row => `
+            <tr>
+              <td>${escapeHtml(row.label)}</td>
+              <td>${row.value ?? '-'}</td>
+              <td>${row.industry_avg ?? '-'}</td>
+              <td>${row.gap ?? '-'}</td>
+            </tr>`).join('')}
+        </tbody>
+      </table>`;
+  }
+
+  function renderFinancialTable(containerId, table) {
+    const el = document.getElementById(containerId);
+    if (!table || !Array.isArray(table.columns) || table.columns.length === 0 || !Array.isArray(table.rows) || table.rows.length === 0) {
+      el.innerHTML = '<div class="empty-state">표시할 재무 데이터가 없습니다.</div>';
+      return;
+    }
+
+    el.innerHTML = `
+      <table class="detail-table">
+        <thead>
+          <tr>
+            <th>항목</th>
+            ${table.columns.map(column => `<th>${escapeHtml(column)}</th>`).join('')}
+          </tr>
+        </thead>
+        <tbody>
+          ${table.rows.map(row => `
+            <tr>
+              <td>${escapeHtml(row.label)}</td>
+              ${row.values.map(value => `<td>${value === null || value === undefined ? '-' : formatCurrencyCompact(value)}</td>`).join('')}
+            </tr>`).join('')}
+        </tbody>
+      </table>`;
+  }
+
+  function renderStabilityDividend(financials) {
+    const stability = financials.stability || {};
+    const dividends = financials.dividends || {};
+    const items = [
+      ['부채비율', formatPercent(stability.debt_ratio)],
+      ['유동비율', formatPercent(stability.current_ratio)],
+      ['배당 지급 횟수', dividends.payment_count ?? '-'],
+      ['1주당 배당금', dividends.dividend_per_share ? formatCurrency(dividends.dividend_per_share) : '-'],
+      ['배당수익률', formatPercent(dividends.dividend_yield)],
+      ['최근 배당일', dividends.last_dividend_date || '-'],
+    ];
+
+    document.getElementById('stabilityDividendGrid').innerHTML = items.map(([label, value]) => `
+      <div class="metric-item">
+        <div class="metric-item-label">${escapeHtml(label)}</div>
+        <div class="metric-item-value">${escapeHtml(value)}</div>
+      </div>`).join('');
+  }
+
+  function renderArticleList(containerId, items, emptyMessage) {
+    const el = document.getElementById(containerId);
+    if (!Array.isArray(items) || items.length === 0) {
+      el.innerHTML = `<div class="empty-state">${escapeHtml(emptyMessage)}</div>`;
+      return;
+    }
+
+    el.innerHTML = items.map(item => {
+      const href = item.url ? ` href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer"` : '';
+      return `
+        <a class="detail-news-item"${href}>
+          <div class="detail-news-title">${escapeHtml(item.title || '제목 없음')}</div>
+          <div class="detail-news-summary">${escapeHtml(item.summary || '')}</div>
+          <div class="detail-news-meta">
+            <span>${escapeHtml(item.source || '출처 미상')}</span>
+            <span>${escapeHtml(item.published_at || '')}</span>
+          </div>
+        </a>`;
+    }).join('');
   }
 
   // ── 차트 ──────────────────────────────────────────────
