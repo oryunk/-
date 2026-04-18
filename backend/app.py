@@ -15,6 +15,12 @@ from dotenv import load_dotenv
 from google import genai
 
 try:
+    from pykrx import stock as pykrx_stock
+except Exception as pykrx_err:
+    print(f'[WARN] pykrx 로드 실패: {pykrx_err}')
+    pykrx_stock = None
+
+try:
     from price import STOCKS as PRICE_STOCKS
 except Exception as price_err:
     print(f'[WARN] price.STOCKS 로드 실패: {price_err}')
@@ -499,6 +505,57 @@ def health():
     return jsonify({'status': 'ok', 'message': '서버가 정상 작동 중입니다.'}), 200
 
 
+# ── 주요 시장 지수 ────────────────────────────────────────
+_INDEX_TICKERS = [
+    ('KOSPI',      '^KS11'),
+    ('KOSDAQ',     '^KQ11'),
+    ('KOSPI 200',  '^KS200'),
+    ('KOSDAQ 150', '229200.KS'),
+]
+_INDEX_CACHE = {'data': [], 'ts': 0.0}
+_INDEX_CACHE_TTL = 60  # 초
+
+
+@app.route('/api/market-indices', methods=['GET'])
+def market_indices():
+    """주요 지수 실시간 조회 (yfinance, 60초 캐시)"""
+    now = time.time()
+    if now - _INDEX_CACHE['ts'] < _INDEX_CACHE_TTL and _INDEX_CACHE['data']:
+        return jsonify({'success': True, 'indices': _INDEX_CACHE['data'],
+                        'cached': True, 'ts': datetime.fromtimestamp(_INDEX_CACHE['ts']).strftime('%H:%M:%S')})
+
+    result = []
+    for name, ticker in _INDEX_TICKERS:
+        try:
+            hist = yf.Ticker(ticker).history(period='2d', interval='1d')
+            if len(hist) >= 2:
+                prev_close = float(hist['Close'].iloc[-2])
+                curr_close = float(hist['Close'].iloc[-1])
+            elif len(hist) == 1:
+                prev_close = float(hist['Open'].iloc[-1])
+                curr_close = float(hist['Close'].iloc[-1])
+            else:
+                raise ValueError('데이터 없음')
+
+            change_abs = curr_close - prev_close
+            change_pct = (change_abs / prev_close * 100) if prev_close else 0.0
+            direction = 'up' if change_abs > 0 else ('down' if change_abs < 0 else 'flat')
+            result.append({
+                'name': name,
+                'value': round(curr_close, 2),
+                'change_abs': round(change_abs, 2),
+                'change_pct': round(change_pct, 2),
+                'direction': direction,
+            })
+        except Exception as e:
+            result.append({'name': name, 'error': str(e)})
+
+    _INDEX_CACHE['data'] = result
+    _INDEX_CACHE['ts'] = now
+    return jsonify({'success': True, 'indices': result, 'cached': False,
+                    'ts': datetime.now().strftime('%H:%M:%S')})
+
+
 @app.route('/api/chart-data/<code>', methods=['GET'])
 def chart_data(code):
     """종목 차트 데이터 반환 (yfinance) - OHLC + MA"""
@@ -583,6 +640,10 @@ _LIVE_UPDATER_RUNNING = False
 _LIVE_LAST_UPDATE_AT = 0.0
 _KIS_TOKEN_CACHE = None
 _KIS_TOKEN_SAVED_AT = 0.0
+_STOCK_DETAIL_CACHE = {}
+_STOCK_DETAIL_CACHE_TTL = 60.0
+_BASIC_PEER_CACHE = {}
+_BASIC_PEER_CACHE_TTL = 3600.0
 
 
 def _candidate_yahoo_tickers(code):
@@ -605,6 +666,203 @@ def _to_float(value):
         return 0.0
 
 
+def _normalize_percent(value):
+    if value in (None, '', 'N/A'):
+        return None
+    try:
+        num = float(value)
+    except (TypeError, ValueError):
+        return None
+    if abs(num) <= 1:
+        num *= 100
+    return round(num, 2)
+
+
+def _safe_round(value, digits=2):
+    if value in (None, '', 'N/A'):
+        return None
+    try:
+        return round(float(value), digits)
+    except (TypeError, ValueError):
+        return None
+
+
+def _format_period_label(value):
+    if hasattr(value, 'strftime'):
+        return value.strftime('%Y-%m')
+    return str(value)
+
+
+def _extract_series_values(df, candidates, limit=4):
+    if df is None or getattr(df, 'empty', True):
+        return None
+    for candidate in candidates:
+        if candidate in df.index:
+            series = df.loc[candidate]
+            values = []
+            columns = list(df.columns)[:limit]
+            for column in columns:
+                raw = series.get(column)
+                values.append(None if pd.isna(raw) else _safe_round(raw, 2))
+            return values
+    return None
+
+
+def _build_table_payload(df, rows_config, limit=4):
+    if df is None or getattr(df, 'empty', True):
+        return {'columns': [], 'rows': []}
+
+    columns = [_format_period_label(column) for column in list(df.columns)[:limit]]
+    rows = []
+    for label, candidates in rows_config:
+        values = _extract_series_values(df, candidates, limit=limit)
+        if values and any(value is not None for value in values):
+            rows.append({'label': label, 'values': values})
+    return {'columns': columns, 'rows': rows}
+
+
+def _get_last_non_zero_dividend(actions):
+    if actions is None or getattr(actions, 'empty', True) or 'Dividends' not in actions:
+        return None, None, 0
+    dividends = actions['Dividends'].dropna()
+    dividends = dividends[dividends > 0]
+    if dividends.empty:
+        return None, None, 0
+    latest_date = dividends.index[-1]
+    latest_value = float(dividends.iloc[-1])
+    return latest_value, latest_date.strftime('%Y-%m-%d'), int(dividends.count())
+
+
+def _build_news_items(ticker, limit=6):
+    items = []
+    try:
+        raw_items = getattr(ticker, 'news', None) or []
+    except Exception:
+        raw_items = []
+
+    for raw in raw_items[:limit]:
+        content = raw.get('content', {}) if isinstance(raw, dict) else {}
+        canonical = content.get('canonicalUrl') or {}
+        provider = content.get('provider') or {}
+        items.append({
+            'title': content.get('title') or '제목 없음',
+            'summary': content.get('summary') or content.get('description') or '',
+            'published_at': content.get('pubDate') or content.get('displayTime') or '',
+            'source': provider.get('displayName') or '',
+            'url': canonical.get('url') or '',
+        })
+    return items
+
+
+def _build_investor_flow_payload(code):
+    if pykrx_stock is None:
+        return {'available': False, 'source': 'pykrx 미사용', 'updated_at': '', 'items': []}
+
+    end = datetime.now().strftime('%Y%m%d')
+    start = (datetime.now() - timedelta(days=10)).strftime('%Y%m%d')
+    try:
+        df = pykrx_stock.get_market_trading_value_by_date(start, end, code)
+    except Exception:
+        df = None
+
+    if df is None or getattr(df, 'empty', True):
+        return {'available': False, 'source': '투자자 동향 데이터 없음', 'updated_at': '', 'items': []}
+
+    latest = df.iloc[-1]
+    index_map = {
+        '개인': ['개인', '개인투자자'],
+        '외국인': ['외국인합계', '외국인'],
+        '기관': ['기관합계', '기관'],
+    }
+    items = []
+    for label, candidates in index_map.items():
+        value = None
+        for candidate in candidates:
+            if candidate in latest.index:
+                raw = latest.get(candidate)
+                value = None if pd.isna(raw) else int(raw)
+                break
+        items.append({'label': label, 'value': value})
+
+    if not any(item['value'] is not None for item in items):
+        return {'available': False, 'source': '투자자 동향 컬럼 없음', 'updated_at': '', 'items': []}
+
+    return {
+        'available': True,
+        'source': 'pykrx',
+        'updated_at': _format_period_label(df.index[-1]),
+        'items': items,
+    }
+
+
+def _get_cached_peer_info(code):
+    cached = _BASIC_PEER_CACHE.get(code)
+    if cached and (time.time() - cached['ts'] < _BASIC_PEER_CACHE_TTL):
+        return cached['data']
+
+    data = None
+    for ticker_code in _candidate_yahoo_tickers(code):
+        try:
+            info = yf.Ticker(ticker_code).info
+        except Exception:
+            continue
+        if info:
+            data = {
+                'sector': info.get('sector') or '',
+                'industry': info.get('industry') or '',
+                'per': _safe_round(info.get('trailingPE')),
+                'pbr': _safe_round(info.get('priceToBook')),
+                'psr': _safe_round(info.get('priceToSalesTrailing12Months')),
+            }
+            break
+
+    if data is None:
+        data = {'sector': '', 'industry': '', 'per': None, 'pbr': None, 'psr': None}
+
+    _BASIC_PEER_CACHE[code] = {'ts': time.time(), 'data': data}
+    return data
+
+
+def _build_valuation_comparison(code, target_metrics):
+    target_info = _get_cached_peer_info(code)
+    target_sector = target_info.get('sector')
+    target_industry = target_info.get('industry')
+    peer_pool = []
+
+    for peer_code in list(PRICE_STOCKS.keys())[:40]:
+        if peer_code == code:
+            continue
+        peer_info = _get_cached_peer_info(peer_code)
+        same_group = False
+        if target_industry and peer_info.get('industry') == target_industry:
+            same_group = True
+        elif target_sector and peer_info.get('sector') == target_sector:
+            same_group = True
+        if same_group:
+            peer_pool.append(peer_info)
+        if len(peer_pool) >= 8:
+            break
+
+    def _avg(metric_name):
+        values = [peer.get(metric_name) for peer in peer_pool if peer.get(metric_name) is not None]
+        if not values:
+            return None
+        return round(sum(values) / len(values), 2)
+
+    rows = []
+    for label, key in (('PER', 'per'), ('PBR', 'pbr'), ('PSR', 'psr')):
+        value = target_metrics.get(key)
+        avg = _avg(key)
+        gap = round(value - avg, 2) if value is not None and avg is not None else None
+        rows.append({'label': label, 'value': value, 'industry_avg': avg, 'gap': gap})
+
+    return {
+        'basis': target_industry or target_sector or '비교군 부족',
+        'peer_count': len(peer_pool),
+        'rows': rows,
+    }
+
+
 def _build_stock_payload(code, name, output):
     sign = output.get('prdy_vrss_sign', '3')  # 1:상한 2:상승 3:보합 4:하한 5:하락
     direction = 'up' if sign in ('1', '2') else 'down' if sign in ('4', '5') else 'flat'
@@ -620,6 +878,16 @@ def _build_stock_payload(code, name, output):
         'change': change_signed,
         'rate': rate_signed,
         'volume': _to_int(output.get('acml_vol')),
+        'open': _to_int(output.get('stck_oprc')),
+        'previous_close': _to_int(output.get('stck_sdpr') or output.get('stck_prdy_clpr')),
+        'high': _to_int(output.get('stck_hgpr')),
+        'low': _to_int(output.get('stck_lwpr')),
+        'traded_value': _to_int(output.get('acml_tr_pbmn')),
+        'per': _safe_round(output.get('per')),
+        'pbr': _safe_round(output.get('pbr')),
+        'roe': None,
+        'psr': None,
+        'foreign_ownership_rate': _normalize_percent(output.get('frgn_hldn_rt')),
         'direction': direction,
         'stale': False,
         'error': None,
@@ -655,6 +923,16 @@ def _build_yfinance_payload(code, name, history):
         'change': diff,
         'rate': rate,
         'volume': volume,
+        'open': int(round(float(history['Open'].iloc[-1]))) if 'Open' in history else 0,
+        'previous_close': previous_price,
+        'high': int(round(float(history['High'].iloc[-1]))) if 'High' in history else 0,
+        'low': int(round(float(history['Low'].iloc[-1]))) if 'Low' in history else 0,
+        'traded_value': int(round(current_price * volume)),
+        'per': None,
+        'pbr': None,
+        'roe': None,
+        'psr': None,
+        'foreign_ownership_rate': None,
         'direction': direction,
         'stale': True,
         'error': None,
@@ -680,6 +958,161 @@ def _fetch_yfinance_quote(code, name):
             last_error = str(e)
 
     return None, last_error
+
+
+def _fetch_quote_snapshot(code, name, token):
+    payload = None
+    output = None
+    err = None
+
+    if token and _KIS_KEY and _KIS_SECRET:
+        for tr_id in (_KIS_TR, _KIS_TR_FB):
+            output, err = _kis_fetch_one(token, code, tr_id)
+            if output is not None:
+                payload = _build_stock_payload(code, name, output)
+                break
+
+    if payload is None:
+        payload, yf_err = _fetch_yfinance_quote(code, name)
+        if payload is None:
+            err = yf_err or err
+
+    return payload, output, err
+
+
+def _build_stock_detail_payload(code, name, token):
+    quote, kis_output, err = _fetch_quote_snapshot(code, name, token)
+    if quote is None:
+        raise ValueError(err or '상세 시세 조회 실패')
+
+    ticker = None
+    info = {}
+    quarterly_financials = pd.DataFrame()
+    quarterly_balance_sheet = pd.DataFrame()
+    annual_balance_sheet = pd.DataFrame()
+    annual_cashflow = pd.DataFrame()
+    try:
+        for ticker_code in _candidate_yahoo_tickers(code):
+            ticker = yf.Ticker(ticker_code)
+            info = ticker.info or {}
+            quarterly_financials = ticker.quarterly_financials
+            quarterly_balance_sheet = ticker.quarterly_balance_sheet
+            annual_balance_sheet = ticker.balance_sheet
+            annual_cashflow = ticker.cashflow
+            break
+    except Exception:
+        ticker = None
+        info = {}
+
+    market_cap = _safe_round(info.get('marketCap'), 0)
+    if market_cap is None and kis_output:
+        market_cap = _safe_round(kis_output.get('hts_avls'), 0)
+    dividend_yield = _normalize_percent(info.get('dividendYield'))
+    if dividend_yield is None:
+        dividend_yield = _normalize_percent(kis_output.get('divi') if kis_output else None)
+
+    per = quote.get('per') if quote.get('per') is not None else _safe_round(info.get('trailingPE'))
+    pbr = quote.get('pbr') if quote.get('pbr') is not None else _safe_round(info.get('priceToBook'))
+    roe = _normalize_percent(info.get('returnOnEquity'))
+    psr = _safe_round(info.get('priceToSalesTrailing12Months'))
+    foreign_rate = quote.get('foreign_ownership_rate')
+    if foreign_rate is None:
+        foreign_rate = _normalize_percent(info.get('heldPercentInstitutions'))
+
+    actions = ticker.actions if ticker is not None else pd.DataFrame()
+    last_dividend, last_dividend_date, dividend_count = _get_last_non_zero_dividend(actions)
+
+    performance = _build_table_payload(
+        quarterly_financials,
+        [
+            ('매출', ['Total Revenue', 'Operating Revenue', 'Revenue']),
+            ('영업이익', ['Operating Income', 'EBIT']),
+            ('순이익', ['Net Income', 'Net Income Common Stockholders', 'Net Income Including Noncontrolling Interests']),
+            ('EPS', ['Diluted EPS', 'Basic EPS']),
+        ],
+    )
+
+    statements = _build_table_payload(
+        annual_balance_sheet,
+        [
+            ('총자산', ['Total Assets']),
+            ('총부채', ['Total Liabilities Net Minority Interest', 'Total Liabilities']),
+            ('자본총계', ['Stockholders Equity', 'Common Stock Equity', 'Total Equity Gross Minority Interest']),
+            ('현금성자산', ['Cash And Cash Equivalents', 'Cash Cash Equivalents And Short Term Investments']),
+        ],
+    )
+
+    total_liabilities = _extract_series_values(quarterly_balance_sheet, ['Total Liabilities Net Minority Interest', 'Total Liabilities'], limit=1)
+    total_equity = _extract_series_values(quarterly_balance_sheet, ['Stockholders Equity', 'Common Stock Equity', 'Total Equity Gross Minority Interest'], limit=1)
+    current_assets = _extract_series_values(quarterly_balance_sheet, ['Current Assets'], limit=1)
+    current_liabilities = _extract_series_values(quarterly_balance_sheet, ['Current Liabilities'], limit=1)
+
+    debt_ratio = None
+    current_ratio = None
+    if total_liabilities and total_equity and total_liabilities[0] is not None and total_equity[0] not in (None, 0):
+        debt_ratio = round(total_liabilities[0] / total_equity[0] * 100, 2)
+    if current_assets and current_liabilities and current_assets[0] is not None and current_liabilities[0] not in (None, 0):
+        current_ratio = round(current_assets[0] / current_liabilities[0] * 100, 2)
+
+    indicator_metrics = {
+        'market_cap': market_cap,
+        'dividend_yield': dividend_yield,
+        'per': per,
+        'pbr': pbr,
+        'roe': roe,
+        'psr': psr,
+        'foreign_ownership_rate': foreign_rate,
+    }
+
+    return {
+        'code': code,
+        'name': name,
+        'quote': quote,
+        'indicators': indicator_metrics,
+        'valuation_comparison': _build_valuation_comparison(code, indicator_metrics),
+        'investor_flows': _build_investor_flow_payload(code),
+        'news': _build_news_items(ticker) if ticker is not None else [],
+        'disclosures': [],
+        'financials': {
+            'performance': performance,
+            'statements': statements,
+            'stability': {
+                'debt_ratio': debt_ratio,
+                'current_ratio': current_ratio,
+            },
+            'dividends': {
+                'payment_count': dividend_count,
+                'dividend_per_share': _safe_round(last_dividend, 2),
+                'dividend_yield': dividend_yield,
+                'last_dividend_date': last_dividend_date,
+            },
+        },
+        'meta': {
+            'sector': info.get('sector') or '',
+            'industry': info.get('industry') or '',
+            'currency': info.get('currency') or 'KRW',
+            'source': 'KIS+yfinance',
+        },
+    }
+
+
+@app.route('/api/stock-detail/<code>', methods=['GET'])
+def stock_detail(code):
+    name = request.args.get('name') or LIVE_PRICE_STOCKS.get(code) or PRICE_STOCKS.get(code) or code
+    cache_key = f'{code}:{name}'
+    cached = _STOCK_DETAIL_CACHE.get(cache_key)
+    if cached and (time.time() - cached['ts'] < _STOCK_DETAIL_CACHE_TTL):
+        return jsonify({'success': True, 'cached': True, 'ts': cached['clock'], 'detail': cached['data']})
+
+    token = _kis_get_token() if (_KIS_KEY and _KIS_SECRET) else None
+    try:
+        detail = _build_stock_detail_payload(code, name, token)
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+    clock = time.strftime('%H:%M:%S')
+    _STOCK_DETAIL_CACHE[cache_key] = {'ts': time.time(), 'clock': clock, 'data': detail}
+    return jsonify({'success': True, 'cached': False, 'ts': clock, 'detail': detail})
 
 
 def _kis_get_token():
