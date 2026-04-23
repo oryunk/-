@@ -1,4 +1,4 @@
-"""단독 실행용 인증 서버 (app.py와 동일한 /api/auth/*). 보통은 app.py만 실행하면 됩니다."""
+"""인증 API(/api/auth/*)만 올리는 Flask 앱. (평소에는 app.py 실행. auth 단독 디버깅 시 python signup.py, 포트는 AUTH_PORT.)"""
 
 import os
 from dotenv import load_dotenv
@@ -7,44 +7,21 @@ from flask import Flask, request
 load_dotenv()
 
 from auth_api import auth_bp
+from cors_helpers import apply_cors_headers
 
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "change-this-secret-key")
 
 
-def _apply_cors_headers(response):
-    origin = request.headers.get("Origin")
-    response.headers.setdefault(
-        "Access-Control-Allow-Headers",
-        "Content-Type, Authorization",
-    )
-    response.headers.setdefault(
-        "Access-Control-Allow-Methods",
-        "GET, POST, OPTIONS",
-    )
-    if origin:
-        try:
-            origin.encode("latin-1")
-        except UnicodeEncodeError:
-            origin = None
-    if origin:
-        response.headers["Access-Control-Allow-Origin"] = origin
-        response.headers["Access-Control-Allow-Credentials"] = "true"
-        response.headers["Vary"] = "Origin"
-    else:
-        response.headers["Access-Control-Allow-Origin"] = "*"
-    return response
-
-
 @app.after_request
 def _cors_after_request(response):
-    return _apply_cors_headers(response)
+    return apply_cors_headers(request, response)
 
 
 @app.before_request
 def _cors_preflight():
     if request.method == "OPTIONS":
-        return _apply_cors_headers(app.make_response(("", 204)))
+        return apply_cors_headers(request, app.make_response(("", 204)))
 
 
 app.register_blueprint(auth_bp)

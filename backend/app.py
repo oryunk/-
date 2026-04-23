@@ -87,6 +87,14 @@ STOCK_CODES = {
     'POSCO': '005490.KS',
 }
 
+_PRICE_NAME_TO_CODE = {}
+for _code, _name in (PRICE_STOCKS or {}).items():
+    _nm = str(_name or '').strip()
+    if not _nm:
+        continue
+    _PRICE_NAME_TO_CODE[_nm.lower()] = str(_code).strip()
+    _PRICE_NAME_TO_CODE[_nm.replace(' ', '').lower()] = str(_code).strip()
+
 RSS_FEEDS = [
     'https://www.mk.co.kr/rss/50200011/'
 ]
@@ -248,30 +256,228 @@ def call_gpt(prompt_text, model=DEFAULT_GPT_MODEL):
 
 def _resolve_chart_code(stock_name):
     """차트 API(/api/chart-data/<code>)용 코드. 한국 6자리면 숫자만, 그 외는 yfinance 티커 그대로."""
-    name = (stock_name or '').strip()
-    if not name:
-        return ''
-    if name in STOCK_CODES:
-        ticker = STOCK_CODES[name]
-        if isinstance(ticker, str) and '.' in ticker:
-            return ticker.split('.')[0]
-        return ticker
-    if len(name) == 6 and name.isdigit():
-        return name
-    return name
+    _ticker, chart_code = _resolve_ticker_and_chart_code(stock_name)
+    return chart_code
+
+
+def _resolve_ticker_and_chart_code(stock_name):
+    """
+    사용자 입력(한글명/6자리코드/티커)을 yfinance ticker + 차트코드로 해석.
+    - 한글명은 STOCK_CODES + price.STOCKS 역매핑으로 6자리 코드를 찾는다.
+    - 6자리 숫자는 .KS를 기본으로 붙인다.
+    """
+    raw = (stock_name or '').strip()
+    if not raw:
+        return '', ''
+
+    if raw in STOCK_CODES:
+        ticker = STOCK_CODES[raw]
+        chart_code = ticker.split('.')[0] if isinstance(ticker, str) and '.' in ticker else str(ticker)
+        return str(ticker), str(chart_code)
+
+    if len(raw) == 6 and raw.isdigit():
+        return f'{raw}.KS', raw
+
+    normalized = raw.replace(' ', '').lower()
+    mapped_code = _PRICE_NAME_TO_CODE.get(raw.lower()) or _PRICE_NAME_TO_CODE.get(normalized)
+    if mapped_code and len(mapped_code) == 6 and mapped_code.isdigit():
+        return f'{mapped_code}.KS', mapped_code
+
+    if re.fullmatch(r'[A-Za-z][A-Za-z0-9._-]*', raw):
+        return raw.upper(), raw.upper()
+
+    return raw, raw
+
+
+def _safe_float(value, default=0.0):
+    """NaN/inf/None 을 기본값으로 치환해 JSON 직렬화 오류를 방지."""
+    try:
+        num = float(value)
+    except Exception:
+        return float(default)
+    if pd.isna(num) or num in (float('inf'), float('-inf')):
+        return float(default)
+    return num
+
+
+def _extract_first_json_object(text):
+    """GPT 텍스트에서 첫 JSON 객체를 추출해 dict로 반환."""
+    raw = str(text or "").strip()
+    if not raw:
+        return None
+
+    # 1) ```json ... ``` 블록 우선
+    m = re.search(r"```json\s*(\{[\s\S]*?\})\s*```", raw, flags=re.IGNORECASE)
+    if m:
+        try:
+            obj = json.loads(m.group(1))
+            return obj if isinstance(obj, dict) else None
+        except Exception:
+            pass
+
+    # 2) 일반 텍스트에서 첫 { ... } 구간 탐색
+    start = raw.find("{")
+    end = raw.rfind("}")
+    if start != -1 and end != -1 and end > start:
+        try:
+            obj = json.loads(raw[start : end + 1])
+            return obj if isinstance(obj, dict) else None
+        except Exception:
+            return None
+    return None
+
+
+def _coerce_gpt_opinion(value, fallback):
+    allowed = {"강력매수", "매수", "보유", "약세"}
+    v = str(value or "").strip()
+    if v in allowed:
+        return v
+    return fallback
+
+
+def _opinion_to_color(opinion):
+    if opinion == "강력매수":
+        return "green"
+    if opinion == "매수":
+        return "light-green"
+    if opinion == "약세":
+        return "red"
+    return "gray"
+
+
+def _db_quote_for_analysis(stock_name):
+    """
+    분석 API용 현재가/등락률 DB fallback.
+    - yfinance 실패 시에도 DB 스냅샷으로 0원 응답을 피한다.
+    """
+    if not fetch_live_snapshot_batch:
+        return 0, 0.0
+    try:
+        _, chart_code = _resolve_ticker_and_chart_code(stock_name)
+        code = str(chart_code or "").strip()
+        if not (len(code) == 6 and code.isdigit()):
+            return 0, 0.0
+        snap = fetch_live_snapshot_batch([code]) or {}
+        row = snap.get(code) or {}
+        price = int(_safe_float(row.get("price"), 0))
+        rate = _safe_float(row.get("rate"), 0.0)
+        if price > 0:
+            return price, rate
+    except Exception:
+        pass
+    return 0, 0.0
+
+
+def _pick_representative_news(stock_name):
+    """종목 관련 최신 대표 뉴스 1건을 선택."""
+    name = str(stock_name or '').strip()
+    code = _resolve_stock_code_for_news(stock_name)
+    if not name and not code:
+        return None
+    conn = None
+    try:
+        conn = get_db_connection()
+        with conn.cursor() as cursor:
+            rows = []
+            if name:
+                like_name = f"%{name}%"
+                cursor.execute(
+                    """
+                    SELECT news_id, title, summary, source, published_at
+                    FROM news_articles
+                    WHERE title LIKE %s OR summary LIKE %s
+                    ORDER BY published_at DESC, news_id DESC
+                    LIMIT 5
+                    """,
+                    (like_name, like_name),
+                )
+                rows = cursor.fetchall() or []
+            if not rows and code:
+                like_code = f"%{code}%"
+                cursor.execute(
+                    """
+                    SELECT news_id, title, summary, source, published_at
+                    FROM news_articles
+                    WHERE title LIKE %s OR summary LIKE %s
+                    ORDER BY published_at DESC, news_id DESC
+                    LIMIT 5
+                    """,
+                    (like_code, like_code),
+                )
+                rows = cursor.fetchall() or []
+        if not rows:
+            return None
+        row = dict(rows[0])
+        return {
+            'news_id': row.get('news_id'),
+            'title': str(row.get('title') or '').strip(),
+            'summary': str(row.get('summary') or '').strip(),
+            'source': str(row.get('source') or '').strip(),
+            'published_at': str(row.get('published_at') or ''),
+        }
+    except Exception:
+        return None
+    finally:
+        if conn:
+            conn.close()
+
+
+def _resolve_stock_code_for_news(stock_name):
+    _, chart_code = _resolve_ticker_and_chart_code(stock_name)
+    code = str(chart_code or '').strip()
+    if len(code) == 6 and code.isdigit():
+        return code
+    return ''
+
+
+def _news_sentiment_score(stock_name, article):
+    """
+    대표 뉴스 1건을 기반으로 -1.0~1.0 감성 점수 산출.
+    GPT 실패 시 키워드 휴리스틱 fallback.
+    """
+    if not article:
+        return 0.0, ''
+
+    title = str(article.get('title') or '').strip()
+    summary = str(article.get('summary') or '').strip()
+    if len(summary) > 1500:
+        summary = summary[:1500] + '...'
+
+    prompt = (
+        "아래 뉴스가 해당 종목의 1~3개월 주가 기대에 주는 영향을 평가하라.\n"
+        "반드시 첫 줄에 JSON만 출력하라.\n"
+        "JSON 스키마: {\"sentiment_score\": -1.0~1.0 숫자, \"rationale\":\"한국어 한 문장\"}\n\n"
+        f"[종목]\n{stock_name}\n\n"
+        f"[뉴스 제목]\n{title}\n\n"
+        f"[뉴스 요약]\n{summary}\n"
+    )
+    gpt_result = call_gpt(prompt, model=DEFAULT_GPT_MODEL)
+    if gpt_result.get('success'):
+        obj = _extract_first_json_object(gpt_result.get('text', '')) or {}
+        score = _safe_float(obj.get('sentiment_score'), 0.0)
+        score = _clamp(score, -1.0, 1.0)
+        rationale = str(obj.get('rationale') or '').strip()
+        return score, rationale
+
+    text = f"{title}\n{summary}"
+    pos = ('수주', '호실적', '성장', '상승', '개선', '흑자', '신제품', '확대', '증가')
+    neg = ('적자', '하향', '감소', '리스크', '규제', '소송', '부진', '악화', '감원')
+    p = sum(1 for w in pos if w in text)
+    n = sum(1 for w in neg if w in text)
+    raw = (p - n) / 6.0
+    return _clamp(raw, -1.0, 1.0), '뉴스 키워드 기반 보조 점수'
+
+
+def _clamp(value, low, high):
+    return max(low, min(high, value))
 
 
 def get_stock_data(stock_name):
     """주식 데이터 조회"""
     try:
-        # 한글 이름 → 티커 변환
-        if stock_name in STOCK_CODES:
-            ticker = STOCK_CODES[stock_name]
-        elif re.fullmatch(r'\d{6}', stock_name):
-            # 6자리 숫자 코드는 .KS 먼저 시도 (yfinance 중복 탐색 방지)
-            ticker = stock_name + '.KS'
-        else:
-            ticker = stock_name
+        ticker, _ = _resolve_ticker_and_chart_code(stock_name)
+        if not ticker:
+            return None
 
         end_date = datetime.now()
         start_date = end_date - timedelta(days=90)
@@ -296,6 +502,16 @@ def get_stock_data(stock_name):
 def analyze_stock(stock_name):
     """AI 종목 분석"""
     data = get_stock_data(stock_name)
+    db_price, db_rate = _db_quote_for_analysis(stock_name)
+    rep_news = _pick_representative_news(stock_name)
+    news_score, news_rationale = _news_sentiment_score(stock_name, rep_news)
+    news_block = ""
+    if rep_news:
+        news_block = (
+            f"\n[대표 뉴스]\n제목: {rep_news.get('title')}\n"
+            f"요약: {rep_news.get('summary')}\n"
+            f"뉴스 점수(-1~1): {news_score:.2f}\n"
+        )
 
     # 시세 데이터 없이 GPT 직접 분석 경로
     if data is None:
@@ -304,30 +520,40 @@ def analyze_stock(stock_name):
             "--------------------------------------------------\n"
             f"[종목 데이터]\n종목: {stock_name}\n"
             "※ 현재 시세 데이터를 가져오지 못했습니다. 일반 공개 정보와 종목명 기반으로 분석하십시오.\n\n"
+            f"{news_block}\n"
             "[출력 지시]\n"
-            "- 모든 사용자 응답은 한국어로 작성한다.\n"
-            "- STAGE 0부터 STAGE 6까지 자동 연속 진행한다.\n"
-            "- 각 STAGE 끝에 반드시 핵심 결론 1문장과 팀 의견 통합 + 추가 인사이트를 포함한다.\n"
-            "- 사용 가능한 데이터 범위를 벗어나는 사실은 단정하지 말고 제한사항을 명시한다.\n"
-            "- STAGE 6까지 끝난 뒤 마지막 줄에 정확히 '통합 분석 리포트를 생성할까요?'를 출력한다."
+            "- 반드시 첫 출력은 JSON 코드블록 하나로 시작한다.\n"
+            "- JSON 스키마: {\"opinion\":\"강력매수|매수|보유|약세\", \"target_price\":정수, \"summary\":\"3~4문장 한국어 요약\"}\n"
+            "- JSON 뒤에는 상세 분석 본문을 이어서 작성한다.\n"
+            "- 한국어로 작성한다."
         )
         gpt_result = call_gpt(gpt_input)
         if gpt_result.get('success'):
+            gpt_text = gpt_result.get('text', '')
+            gpt_obj = _extract_first_json_object(gpt_text) or {}
+            opinion = _coerce_gpt_opinion(gpt_obj.get('opinion'), "보유")
+            target_price = round(_safe_float(gpt_obj.get('target_price'), 0), 0)
+            if target_price <= 0 and db_price > 0:
+                target_price = round(db_price * 1.02, 0)
+            summary = str(gpt_obj.get('summary') or '').strip() or f'【{stock_name}】 시세 데이터 없이 AI 텍스트 기반 분석을 제공합니다.'
             return {
                 'success': True,
                 'stock_name': stock_name,
                 'chart_code': _resolve_chart_code(stock_name),
-                'current_price': 0,
-                'change_rate': 0,
+                'current_price': int(db_price) if db_price > 0 else 0,
+                'change_rate': round(db_rate, 2) if db_price > 0 else 0,
                 'ma_20': 0,
                 'ma_60': 0,
                 'volatility': 0,
-                'opinion': '-',
-                'target_price': 0,
-                'summary': f'【{stock_name}】 실시간 시세 데이터를 불러오지 못해 AI 분석만 제공됩니다.',
-                'ai_analysis': gpt_result['text'],
+                'opinion': opinion,
+                'target_price': target_price,
+                'summary': summary,
+                'ai_analysis': gpt_text,
                 'ai_model': DEFAULT_GPT_MODEL,
-                'color': 'gray',
+                'color': _opinion_to_color(opinion),
+                'news_sentiment_score': round(news_score, 3),
+                'news_sentiment_rationale': news_rationale,
+                'representative_news': rep_news,
                 'data_source': 'gpt-only'
             }
         return {
@@ -337,20 +563,24 @@ def analyze_stock(stock_name):
     
     try:
         # 기본 통계
-        current_price = float(data['Close'].iloc[-1])
-        prev_price = float(data['Close'].iloc[-5]) if len(data) >= 5 else float(data['Close'].iloc[0])
+        current_price = _safe_float(data['Close'].iloc[-1], 0.0)
+        if current_price <= 0 and db_price > 0:
+            current_price = float(db_price)
+        prev_price = _safe_float(data['Close'].iloc[-5], current_price) if len(data) >= 5 else _safe_float(data['Close'].iloc[0], current_price)
         change_rate = ((current_price - prev_price) / prev_price * 100) if prev_price != 0 else 0
+        if abs(change_rate) < 1e-9 and db_price > 0:
+            change_rate = db_rate
         
         # 이동평균선
-        ma_20 = float(data['Close'].rolling(window=20).mean().iloc[-1])
-        ma_60 = float(data['Close'].rolling(window=60).mean().iloc[-1])
+        ma_20 = _safe_float(data['Close'].rolling(window=20).mean().iloc[-1], current_price)
+        ma_60 = _safe_float(data['Close'].rolling(window=60).mean().iloc[-1], current_price)
         
         # 변동성
-        volatility = float(data['Close'].pct_change().std() * 100)
+        volatility = _safe_float(data['Close'].pct_change().std() * 100, 0.0)
         
         # 거래량 추세
-        avg_volume = float(data['Volume'].rolling(window=20).mean().iloc[-1])
-        current_volume = float(data['Volume'].iloc[-1])
+        avg_volume = _safe_float(data['Volume'].rolling(window=20).mean().iloc[-1], 0.0)
+        current_volume = _safe_float(data['Volume'].iloc[-1], 0.0)
         volume_trend = "증가" if current_volume > avg_volume else "감소"
         
         # AI 분석 로직 (간단한 기술적 분석)
@@ -381,22 +611,21 @@ def analyze_stock(stock_name):
         if volatility < 3:
             signals['bullish'] += 0.5
         
-        # 의견 결정
+        # 로컬 fallback 의견 결정
         if signals['bullish'] >= 2.5:
             opinion = "강력매수"
-            color = "green"
         elif signals['bullish'] >= 1.5:
             opinion = "매수"
-            color = "light-green"
         elif signals['bearish'] > signals['bullish']:
             opinion = "약세"
-            color = "red"
         else:
             opinion = "보유"
-            color = "gray"
+        color = _opinion_to_color(opinion)
         
         # 목표가 설정 (간단한 계산)
         target_price = current_price * (1 + change_rate/100 * 0.5)
+        # 대표 뉴스 톤을 목표가에 소폭 반영 (과도 편향 방지)
+        target_price *= (1 + (news_score * 0.06))
         
         analysis_summary = f"""
 【종목: {stock_name}】
@@ -430,18 +659,34 @@ def analyze_stock(stock_name):
             "--------------------------------------------------\n"
             f"[종목 데이터]\n종목: {stock_name}\n현재가: {current_price:,.0f}원\n변동률: {change_rate:+.2f}%\n"
             f"20일 MA: {ma_20:,.0f}원\n60일 MA: {ma_60:,.0f}원\n변동성: {volatility:.2f}%\n거래량 추세: {volume_trend}\n"
-            f"댓글: {analysis_summary}\n\n"
+            f"댓글: {analysis_summary}\n"
+            f"{news_block}\n"
             "[출력 지시]\n"
-            "- 모든 사용자 응답은 한국어로 작성한다.\n"
-            "- STAGE 0부터 STAGE 6까지 자동 연속 진행한다.\n"
-            "- 각 STAGE 끝에 반드시 핵심 결론 1문장과 팀 의견 통합 + 추가 인사이트를 포함한다.\n"
-            "- 사용 가능한 입력 데이터 범위를 벗어나는 사실은 단정하지 말고 필요한 경우 제한사항을 명시한다.\n"
-            "- 웹 검색이나 실시간 뉴스/SEC 원문을 실제로 확인하지 못한 경우 추정처럼 보이게 쓰지 말고, 현재 제공 데이터 기반 관찰과 일반 원칙을 구분해 적는다.\n"
-            "- STAGE 6까지 끝난 뒤 마지막 줄에 정확히 '통합 분석 리포트를 생성할까요?'를 출력한다."
+            "- 반드시 첫 출력은 JSON 코드블록 하나로 시작한다.\n"
+            "- JSON 스키마: {\"opinion\":\"강력매수|매수|보유|약세\", \"target_price\":정수, \"summary\":\"3~4문장 한국어 요약\"}\n"
+            "- target_price는 현재가 기준 3개월 관점의 합리적 목표가를 숫자로 제시한다.\n"
+            "- JSON 뒤에는 상세 분석 본문을 이어서 작성한다.\n"
+            "- 한국어로 작성한다."
         )
 
         gpt_result = call_gpt(gpt_input)
         gpt_text = gpt_result.get('text') if gpt_result.get('success') else f"GPT 호출 실패: {gpt_result.get('message')}"
+        final_opinion = opinion
+        final_target_price = target_price
+        final_summary = analysis_summary
+        final_color = color
+
+        if gpt_result.get('success'):
+            gpt_obj = _extract_first_json_object(gpt_text) or {}
+            final_opinion = _coerce_gpt_opinion(gpt_obj.get('opinion'), opinion)
+            final_target_price = _safe_float(gpt_obj.get('target_price'), target_price)
+            if final_target_price <= 0:
+                final_target_price = target_price
+            final_target_price = final_target_price * (1 + (news_score * 0.03))
+            gpt_summary = str(gpt_obj.get('summary') or '').strip()
+            if gpt_summary:
+                final_summary = gpt_summary
+            final_color = _opinion_to_color(final_opinion)
 
         return {
             'success': True,
@@ -452,12 +697,15 @@ def analyze_stock(stock_name):
             'ma_20': round(ma_20, 0),
             'ma_60': round(ma_60, 0),
             'volatility': round(volatility, 2),
-            'opinion': opinion,
-            'target_price': round(target_price, 0),
-            'summary': analysis_summary,
+            'opinion': final_opinion,
+            'target_price': round(final_target_price, 0),
+            'summary': final_summary,
             'ai_analysis': gpt_text,
             'ai_model': DEFAULT_GPT_MODEL,
-            'color': color
+            'color': final_color,
+            'news_sentiment_score': round(news_score, 3),
+            'news_sentiment_rationale': news_rationale,
+            'representative_news': rep_news,
         }
     
     except Exception as e:

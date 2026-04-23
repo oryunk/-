@@ -1,10 +1,20 @@
-"""회원가입·로그인 등 /api/auth/* (schema.sql users). app.py·Login.py에서 블루프린트로 등록."""
+"""인증 API 블루프린트 (/api/auth/*)."""
 
 from flask import Blueprint, request, jsonify, session
 import pymysql
 import pymysql.err
 import bcrypt
 import os
+from dotenv import load_dotenv
+
+_AUTH_DIR = os.path.dirname(os.path.abspath(__file__))
+for _env_path in (
+    os.path.join(_AUTH_DIR, ".env"),
+    os.path.join(os.getcwd(), ".env"),
+):
+    if os.path.exists(_env_path):
+        load_dotenv(_env_path)
+load_dotenv()
 
 auth_bp = Blueprint("auth", __name__)
 
@@ -15,9 +25,9 @@ PASSWORD_MIN_LENGTH = 4
 
 def get_connection():
     db_config = {
-        "host":     os.getenv("MYSQL_HOST",     "49.170.46.148"),
+        "host":     os.getenv("MYSQL_HOST", "49.170.46.148"),
         "port":     int(os.getenv("MYSQL_PORT", "3306")),
-        "user":     os.getenv("MYSQL_USER",     "stock_app"),
+        "user":     os.getenv("MYSQL_USER", "stock_app"),
         "password": os.getenv("MYSQL_PASSWORD", "wnflsdl1324"),
         "database": os.getenv("MYSQL_DATABASE", "stock_db"),
         "charset":  "utf8mb4",
@@ -28,6 +38,13 @@ def get_connection():
 
 
 def _db_error_message(exc: Exception) -> str:
+    if isinstance(exc, pymysql.err.ProgrammingError) and exc.args:
+        code = exc.args[0]
+        if code == 1054:
+            return (
+                "DB에 login_id 등 필요한 컬럼이 없습니다(오류 1054). "
+                "SQL/update.sql을 stock_db에 적용했는지 확인하세요."
+            )
     if isinstance(exc, pymysql.err.OperationalError) and exc.args:
         code = exc.args[0]
         if code == 1045:
@@ -134,9 +151,9 @@ def login():
             sql = """
                 SELECT user_id, email, login_id, password_hash, nickname
                 FROM users
-                WHERE login_id = %s
+                WHERE login_id = %s OR email = %s
             """
-            cursor.execute(sql, (login_id,))
+            cursor.execute(sql, (login_id, login_id))
             user = cursor.fetchone()
 
             if not user:
