@@ -8,9 +8,12 @@ import json
 import re
 import threading
 import requests
+import logging
 from dotenv import load_dotenv
-from google import genai
 from decimal import Decimal, ROUND_HALF_UP
+
+# yfinance 내부 에러 로그(종목 없음, JSON 파싱 등) 터미널 출력 억제
+logging.getLogger('yfinance').setLevel(logging.CRITICAL)
 
 try:
     from pykrx import stock as pykrx_stock
@@ -65,19 +68,13 @@ def _cors_preflight():
     if request.method == "OPTIONS":
         return apply_cors_headers(request, app.make_response(("", 204)))
 
-# Gemini API 설정
-GEMINI_API_KEY = os.getenv('GEMINI_API_KEY') or os.getenv('GOOGLE_API_KEY')
-DEFAULT_GEMINI_MODEL = 'gemini-flash-latest'
-FALLBACK_GEMINI_MODEL = 'gemini-2.0-flash'
-try:
-    if not GEMINI_API_KEY:
-        raise ValueError('GEMINI_API_KEY is not set')
-    gemini_client = genai.Client(api_key=GEMINI_API_KEY)
-    GEMINI_AVAILABLE = True
-except Exception as e:
-    print(f'[WARN] Gemini API 초기화 실패: {e}')
-    gemini_client = None
-    GEMINI_AVAILABLE = False
+# GPT(OpenAI) API 설정
+OPENAI_API_KEY = (os.getenv('OPENAI_API_KEY') or os.getenv('GPT_API_KEY') or '').strip()
+DEFAULT_GPT_MODEL = os.getenv('GPT_MODEL', 'gpt-5.4-mini').strip() or 'gpt-5.4-mini'
+OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions'
+GPT_AVAILABLE = bool(OPENAI_API_KEY)
+if not GPT_AVAILABLE:
+    print('[WARN] GPT API 키가 설정되지 않았습니다. 분석/용어 설명은 로컬 fallback 또는 오류 응답이 반환될 수 있습니다.')
 
 # 종목 코드 매핑
 STOCK_CODES = {
@@ -97,47 +94,68 @@ RSS_FEEDS = [
 NEWS_DB_SYNC = os.getenv('NEWS_DB_SYNC', 'true').strip().lower() in {'1', 'true', 'y', 'yes', 'on'}
 NEWS_READER_DIGEST = os.getenv('NEWS_READER_DIGEST', 'true').strip().lower() in {'1', 'true', 'y', 'yes', 'on'}
 
-MASTER_PROMPT = """[MASTER PROMPT] 스몰캡 전략 v7.4: 대화형 투자 분석 시스템 - Quantum Leap Hybrid Deep Analysis Edition
+MASTER_PROMPT = """[MASTER PROMPT] 스몰캡 전략 v7.5: 자동 진행형 투자 분석 시스템 - Quantum Leap Hybrid Deep Analysis Edition
 
 나의 역할
-너는 Quantum Leap 팀 리더인 GEMINI이다.
+너는 Quantum Leap 팀 리더인 GPT이다.
 너는 Harper, Benjamin, Lucas, Sophia와 함께 5명 팀으로 작동하며, 모든 분석은 팀원들의 전문 영역을 최대한 활용하면서 이전 단일 역할 프롬프트 수준 이상의 상세하고 깊은 분석을 제공한다. 불필요한 영어 출력은 제한하고, 최대한 적절한 한국어로 출력한다. 특히 용어 출력시 불필요하게 사용하지 않는다.
 
 실제 팀 역할 분담
-GEMINI (Team Leader): 전체 조율, 각 STAGE 종합, 추가 인사이트 보강, 최종 결론
+GPT (Team Leader): 전체 조율, 각 STAGE 종합, 추가 인사이트 보강, 최종 결론
 Harper: Macro Sentinel (시장 국면, VIX, 매크로 환경, 메가트렌드 전문)
 Benjamin: Fundamental Researcher + Risk Guardian (SEC 자료, 펀더멘털 체크리스트, Cash Runway·Dilution, Red Team, Kill Switch, 인지 편향 체크 전문)
 Lucas: Technical Pattern Hunter (최신 차트 수집·패턴 분석, 상대강도, 시나리오 전문)
 
 강화된 대화 프로토콜 (절대 준수)
-분석은 반드시 STAGE별로 하나씩만 진행한다.
-각 STAGE가 끝나면 반드시 다음을 출력한다:
-해당 STAGE의 핵심 결론을 한 문장으로 명확히 제시
-절대 한 번에 여러 STAGE를 한꺼번에 출력하지 않는다.
+자동 진행 모드 (기본값)
+분석은 STAGE 0부터 STAGE 6까지 자동으로 연속 진행한다.
+각 STAGE 완료 후 자동으로 다음 STAGE로 넘어간다.
+사용자 개입 없이 전체 분석을 완료한다.
+
+Kill Switch 예외 처리
+Hard Kill 발생 시: 즉시 중단하고 사유 명시
+Soft Warning 발생 시: 경고 표시 후 "계속 진행할까요? (Yes/No)"로 사용자 확인 요청
+
+최종 단계
+STAGE 6 완료 후 자동으로 "통합 분석 리포트를 생성할까요?" 질문
+사용자가 Yes 입력 시에만 최종 보고서 출력
 
 강화된 분석 원칙 (Hybrid Deep Mode)
-각 에이전트는 분석 시 반드시 구체적인 숫자, 날짜, 경영진 코멘트 등을 최대한 포함하고, 논리를 자세히 풀어서 설명한다.
-GEMINI는 각 STAGE 끝에 팀 의견 통합 + 추가 인사이트를 반드시 추가한다.
+각 에이전트는 분석 시 반드시 구체적인 숫자, 날짜, SEC 인용, 경영진 코멘트(MD&A) 등을 최대한 포함하고, 논리를 자세히 풀어서 설명한다.
+GPT는 각 STAGE 끝에 "팀 의견 통합 + 추가 인사이트"를 반드시 추가한다.
 
-Kill Switch 프로토콜 v5.6
-Hard Kill: Going Concern, 사기 의심 등 치명적 리스크 → 즉시 중단
-Soft Warning: Cash Runway <6개월, Dilution >25% 등 → Override 여부 사용자에게 질문
+Persistent State Protocol
+대화 전체 히스토리를 완벽히 기억하며 이전 STAGE 결론을 자연스럽게 참조한다.
 
+1-A. 정보 수집 및 검증 원칙
+소스 한정: Bloomberg, Reuters, The Wall Street Journal, CNBC, Financial Times (U.S.), MarketWatch, Barron's, SEC EDGAR만 사용.
+검색 쿼리는 영어로만 작성한다.
+
+1-B. 자율적 데이터 수집 원칙
+모든 데이터는 사용자 요청 없이 스스로 검색 확보한다.
+성격 및 특징: 데이터 중심적, 규율적, 지적 겸손함.
+핵심 전략: 평소 스나이퍼 모드, 완벽 셋업 시 야수 모드.
+언어 프로토콜: 내부 검색·생각은 영어, 모든 사용자 응답은 한국어.
+
+Kill Switch 프로토콜 v5.6 (Flexible Risk)
+Hard Kill: Going Concern, SEC 조사, 사기 의심 등 치명적 리스크 → 즉시 중단
+Soft Warning: Cash Runway <6개월, Dilution >25%, 🔴 3개 이상 등 → Override 여부 사용자에게 질문
+
+분석 STAGE 구조 (자동 진행)
+STAGE -1: 능동적 주도주 발굴
+사용자가 발굴 모드 또는 메가트렌드를 지정하면 시총 20억 달러 이하, 주가 30달러 이하, 최근 3개월 내부자 매수 또는 주요 촉매가 있는 기업 3~5개를 제안한다.
 STAGE 0: 시장 국면 분석 (Harper 주도)
-- 시장 심리, VIX 수준, 매크로 환경 분석, 주요 지수 전술 위치, 시장 등급(A+/B/F) 판정
-
+시장 요약 센터, 포트폴리오 모드, 시장 심리, VIX 수준(현재값 + 최근 1주 추이), 핵심 시장 논리, 매크로 환경 분석(정치·경제·사회·기술), 주요 지수 전술 위치, 시장 등급(A+/B/F) 판정
 STAGE 1: 메가트렌드 식별 (Harper 주도)
-
 STAGE 2: 미래의 주도주 통합 분석 (Benjamin 주도)
-
 STAGE 3: 장기 차트 셋업 및 시나리오 분석 (Lucas 주도)
-
-STAGE 4: 포지션 구축 실행 계획 (GEMINI 종합)
-
-STAGE 5: 최종 투자 논거 요약 (GEMINI 종합)
-
+STAGE 4: 포지션 구축 실행 계획 (GPT 종합)
+STAGE 5: 최종 투자 논거 요약 (GPT 종합)
 STAGE 6: 인지 편향 체크 (Benjamin 주도) → PASS / HOLD / REJECT
-""" 
+
+FINAL STAGE
+모든 STAGE 완료 후 "통합 분석 리포트를 생성할까요?"라고 정확히 질문한다. Yes일 때만 전체 보고서를 출력한다.
+"""
 
 TERM_INTERPRETATION_PROMPT = """Sophia: Terminology interpretation
 사용자가 질문한 특정 금융/투자 용어만 설명한다. (추가 용어 설명 금지)
@@ -176,43 +194,57 @@ def explain_term_with_local_fallback(term_name):
         f"실제 투자 활용 예시: {term_name}의 추이를 다른 지표와 함께 비교해 매수/매도 타이밍을 보조 판단합니다."
     )
 
-def call_gemini(prompt_text, model=DEFAULT_GEMINI_MODEL):
-    if not GEMINI_AVAILABLE or gemini_client is None:
+def call_gpt(prompt_text, model=DEFAULT_GPT_MODEL):
+    """OpenAI GPT API 호출 (용어 설명용)."""
+    if not GPT_AVAILABLE:
         return {
             'success': False,
             'status_code': 500,
-            'message': 'Gemini API가 설정되지 않았습니다. GEMINI_API_KEY를 확인해주세요.'
+            'message': 'GPT API가 설정되지 않았습니다. OPENAI_API_KEY 또는 GPT_API_KEY를 확인해주세요.'
         }
 
-    model_candidates = [model]
-    if model != FALLBACK_GEMINI_MODEL:
-        model_candidates.append(FALLBACK_GEMINI_MODEL)
+    headers = {
+        'Authorization': f'Bearer {OPENAI_API_KEY}',
+        'content-type': 'application/json'
+    }
+    payload = {
+        'model': model,
+        'max_completion_tokens': 4000,
+        'messages': [{'role': 'user', 'content': prompt_text}]
+    }
 
-    last_error = None
-    for model_name in model_candidates:
-        for attempt in range(3):
-            try:
-                response = gemini_client.models.generate_content(
-                    model=model_name,
-                    contents=prompt_text
-                )
-                return {'success': True, 'text': response.text}
-            except Exception as err:
-                last_error = str(err)
-                is_unavailable = ('503' in last_error) or ('UNAVAILABLE' in last_error.upper())
-                print(f'[Gemini] 호출 실패(model={model_name}, attempt={attempt + 1}): {last_error}')
-                if is_unavailable and attempt < 2:
-                    time.sleep(1.0 * (attempt + 1))
-                    continue
-                break
+    try:
+        response = requests.post(OPENAI_API_URL, headers=headers, json=payload, timeout=40)
+    except Exception as err:
+        return {'success': False, 'status_code': 503, 'message': f'GPT 호출 실패: {err}'}
 
-    if last_error and (('429' in last_error) or ('RESOURCE_EXHAUSTED' in last_error.upper()) or ('QUOTA' in last_error.upper())):
-        status_code = 429
-    elif last_error and (('503' in last_error) or ('UNAVAILABLE' in last_error.upper())):
-        status_code = 503
-    else:
-        status_code = 500
-    return {'success': False, 'status_code': status_code, 'message': last_error or 'Gemini 호출에 실패했습니다.'}
+    if not response.ok:
+        message = f'GPT API 호출 실패({response.status_code})'
+        try:
+            error_payload = response.json()
+            api_msg = (((error_payload or {}).get('error') or {}).get('message') or '').strip()
+            if api_msg:
+                message = api_msg
+        except Exception:
+            pass
+        upper_msg = message.upper()
+        if ('CREDIT BALANCE IS TOO LOW' in upper_msg) or ('INSUFFICIENT' in upper_msg and 'CREDIT' in upper_msg) or ('INSUFFICIENT_QUOTA' in upper_msg):
+            return {'success': False, 'status_code': 429, 'message': message}
+        return {'success': False, 'status_code': response.status_code, 'message': message}
+
+    try:
+        data = response.json()
+    except Exception:
+        return {'success': False, 'status_code': 500, 'message': 'GPT 응답 JSON 파싱에 실패했습니다.'}
+
+    choices = data.get('choices') or []
+    first_choice = choices[0] if choices else {}
+    message_obj = first_choice.get('message') if isinstance(first_choice, dict) else {}
+    final_text = ((message_obj or {}).get('content') or '').strip()
+    if not final_text:
+        return {'success': False, 'status_code': 500, 'message': 'GPT 응답 텍스트가 비어 있습니다.'}
+
+    return {'success': True, 'text': final_text}
 
 def _resolve_chart_code(stock_name):
     """차트 API(/api/chart-data/<code>)용 코드. 한국 6자리면 숫자만, 그 외는 yfinance 티커 그대로."""
@@ -232,34 +264,75 @@ def _resolve_chart_code(stock_name):
 def get_stock_data(stock_name):
     """주식 데이터 조회"""
     try:
-        # 한글 이름으로 조회 시 코드로 변환
+        # 한글 이름 → 티커 변환
         if stock_name in STOCK_CODES:
             ticker = STOCK_CODES[stock_name]
+        elif re.fullmatch(r'\d{6}', stock_name):
+            # 6자리 숫자 코드는 .KS 먼저 시도 (yfinance 중복 탐색 방지)
+            ticker = stock_name + '.KS'
         else:
             ticker = stock_name
-        
-        # 최근 3개월 데이터 조회
+
         end_date = datetime.now()
         start_date = end_date - timedelta(days=90)
-        
-        data = yf.download(ticker, start=start_date, end=end_date, progress=False)
-        
+
+        data = yf.download(ticker, start=start_date, end=end_date,
+                           progress=False, auto_adjust=True)
+
+        # .KS 실패 시 .KQ 한 번만 재시도 (조용히)
+        if data.empty and ticker.endswith('.KS'):
+            alt = ticker.replace('.KS', '.KQ')
+            data = yf.download(alt, start=start_date, end=end_date,
+                               progress=False, auto_adjust=True)
+
         if data.empty:
             return None
-        
+
         return data
     except Exception as e:
-        print(f"데이터 조회 오류: {e}")
+        print(f"[데이터 조회 오류] {e}")
         return None
 
 def analyze_stock(stock_name):
     """AI 종목 분석"""
     data = get_stock_data(stock_name)
-    
+
+    # 시세 데이터 없이 GPT 직접 분석 경로
     if data is None:
+        gpt_input = (
+            f"{MASTER_PROMPT}\n\n"
+            "--------------------------------------------------\n"
+            f"[종목 데이터]\n종목: {stock_name}\n"
+            "※ 현재 시세 데이터를 가져오지 못했습니다. 일반 공개 정보와 종목명 기반으로 분석하십시오.\n\n"
+            "[출력 지시]\n"
+            "- 모든 사용자 응답은 한국어로 작성한다.\n"
+            "- STAGE 0부터 STAGE 6까지 자동 연속 진행한다.\n"
+            "- 각 STAGE 끝에 반드시 핵심 결론 1문장과 팀 의견 통합 + 추가 인사이트를 포함한다.\n"
+            "- 사용 가능한 데이터 범위를 벗어나는 사실은 단정하지 말고 제한사항을 명시한다.\n"
+            "- STAGE 6까지 끝난 뒤 마지막 줄에 정확히 '통합 분석 리포트를 생성할까요?'를 출력한다."
+        )
+        gpt_result = call_gpt(gpt_input)
+        if gpt_result.get('success'):
+            return {
+                'success': True,
+                'stock_name': stock_name,
+                'chart_code': _resolve_chart_code(stock_name),
+                'current_price': 0,
+                'change_rate': 0,
+                'ma_20': 0,
+                'ma_60': 0,
+                'volatility': 0,
+                'opinion': '-',
+                'target_price': 0,
+                'summary': f'【{stock_name}】 실시간 시세 데이터를 불러오지 못해 AI 분석만 제공됩니다.',
+                'ai_analysis': gpt_result['text'],
+                'ai_model': DEFAULT_GPT_MODEL,
+                'color': 'gray',
+                'data_source': 'gpt-only'
+            }
         return {
             'success': False,
-            'message': '종목 데이터를 불러올 수 없습니다.'
+            'message': f'종목 데이터 및 AI 분석 모두 실패했습니다: {gpt_result.get("message", "")}'
         }
     
     try:
@@ -352,10 +425,23 @@ def analyze_stock(stock_name):
         else:
             analysis_summary += "현재 뚜렷한 방향성이 없습니다. 추가 변화를 관찰이 필요합니다."
 
-        gemini_input = f"{MASTER_PROMPT}\n\n--------------------------------------------------\n[종목 데이터]\n종목: {stock_name}\n현재가: {current_price:,.0f}원\n변동률: {change_rate:+.2f}%\n20일 MA: {ma_20:,.0f}원\n60일 MA: {ma_60:,.0f}원\n변동성: {volatility:.2f}%\n거래량 추세: {volume_trend}\n댓글: {analysis_summary}\n\n[요청] 아래 STAGE 프로토콜에 따라 스몰캡 전략 v7.4 프레임으로 구조화된 투자 분석을 진행하라."
+        gpt_input = (
+            f"{MASTER_PROMPT}\n\n"
+            "--------------------------------------------------\n"
+            f"[종목 데이터]\n종목: {stock_name}\n현재가: {current_price:,.0f}원\n변동률: {change_rate:+.2f}%\n"
+            f"20일 MA: {ma_20:,.0f}원\n60일 MA: {ma_60:,.0f}원\n변동성: {volatility:.2f}%\n거래량 추세: {volume_trend}\n"
+            f"댓글: {analysis_summary}\n\n"
+            "[출력 지시]\n"
+            "- 모든 사용자 응답은 한국어로 작성한다.\n"
+            "- STAGE 0부터 STAGE 6까지 자동 연속 진행한다.\n"
+            "- 각 STAGE 끝에 반드시 핵심 결론 1문장과 팀 의견 통합 + 추가 인사이트를 포함한다.\n"
+            "- 사용 가능한 입력 데이터 범위를 벗어나는 사실은 단정하지 말고 필요한 경우 제한사항을 명시한다.\n"
+            "- 웹 검색이나 실시간 뉴스/SEC 원문을 실제로 확인하지 못한 경우 추정처럼 보이게 쓰지 말고, 현재 제공 데이터 기반 관찰과 일반 원칙을 구분해 적는다.\n"
+            "- STAGE 6까지 끝난 뒤 마지막 줄에 정확히 '통합 분석 리포트를 생성할까요?'를 출력한다."
+        )
 
-        gemini_result = call_gemini(gemini_input)
-        gemini_text = gemini_result.get('text') if gemini_result.get('success') else f"Gemini 호출 실패: {gemini_result.get('message')}"
+        gpt_result = call_gpt(gpt_input)
+        gpt_text = gpt_result.get('text') if gpt_result.get('success') else f"GPT 호출 실패: {gpt_result.get('message')}"
 
         return {
             'success': True,
@@ -369,7 +455,8 @@ def analyze_stock(stock_name):
             'opinion': opinion,
             'target_price': round(target_price, 0),
             'summary': analysis_summary,
-            'gemini_analysis': gemini_text,
+            'ai_analysis': gpt_text,
+            'ai_model': DEFAULT_GPT_MODEL,
             'color': color
         }
     
@@ -381,14 +468,14 @@ def analyze_stock(stock_name):
         }
 
 
-def explain_term_with_gemini(term_name):
-    """금융/투자 용어를 Gemini로 설명"""
+def explain_term_with_gpt(term_name):
+    """금융/투자 용어를 GPT로 설명"""
     prompt = (
         f"{TERM_INTERPRETATION_PROMPT}\n"
         f"[사용자 질문]\n{term_name}\n\n"
-        "위 질문은 단일 금융/투자 용어 질문이다. 답변 구조를 지켜 설명하라."
+        "위 질문은 단일 금융/투자 용어 질문이다. 질문한 용어만 설명하고 답변 구조를 지켜라."
     )
-    return call_gemini(prompt, model=DEFAULT_GEMINI_MODEL)
+    return call_gpt(prompt, model=DEFAULT_GPT_MODEL)
 
 
 def fetch_rss_items(limit=12):
@@ -437,7 +524,7 @@ def fetch_rss_items(limit=12):
 
 
 def _explain_news_reader_text(title: str, summary: str):
-    """주린이 독자용 짧은 뉴스 해설 (Gemini)."""
+    """주린이 독자용 짧은 뉴스 해설 (GPT)."""
     body = (summary or '').strip()
     if len(body) > 3500:
         body = body[:3500] + '…'
@@ -450,7 +537,7 @@ def _explain_news_reader_text(title: str, summary: str):
         '- 특정 종목의 매수·매도를 직접 권유하지 않는다.\n'
         '- 확인되지 않은 추측은 완곡하게 표현한다.\n'
     )
-    return call_gemini(prompt, model=DEFAULT_GEMINI_MODEL)
+    return call_gpt(prompt, model=DEFAULT_GPT_MODEL)
 
 
 _NEWS_STOCK_KEYWORDS = {
@@ -527,9 +614,9 @@ def explain_term():
     if not term:
         return jsonify({'success': False, 'message': '설명할 용어를 입력해주세요.'}), 400
 
-    gemini_result = explain_term_with_gemini(term)
-    if not gemini_result.get('success'):
-        status_code = gemini_result.get('status_code', 500)
+    gpt_result = explain_term_with_gpt(term)
+    if not gpt_result.get('success'):
+        status_code = gpt_result.get('status_code', 500)
         if status_code == 429:
             fallback_answer = explain_term_with_local_fallback(term)
             return jsonify({
@@ -537,17 +624,17 @@ def explain_term():
                 'term': term,
                 'answer': fallback_answer,
                 'source': 'local-fallback',
-                'notice': 'Gemini 쿼터 초과로 로컬 요약 답변을 제공했습니다.'
+                'notice': 'GPT 쿼터 초과로 로컬 요약 답변을 제공했습니다.'
             })
         return jsonify({
             'success': False,
-            'message': gemini_result.get('message', '용어 설명에 실패했습니다. 일시 후 다시 시도해주세요.')
+            'message': gpt_result.get('message', '용어 설명에 실패했습니다. 일시 후 다시 시도해주세요.')
         }), status_code
 
     return jsonify({
         'success': True,
         'term': term,
-        'answer': gemini_result.get('text', '').strip()
+        'answer': gpt_result.get('text', '').strip()
     })
 
 
@@ -589,7 +676,7 @@ def news_detail(news_id: int):
     if not article:
         return jsonify({'success': False, 'message': '기사를 찾을 수 없습니다.'}), 404
 
-    if want_digest and NEWS_READER_DIGEST and GEMINI_AVAILABLE and gemini_client:
+    if want_digest and NEWS_READER_DIGEST and GPT_AVAILABLE:
         if not (article.get('reader_digest') or '').strip():
             gen = _explain_news_reader_text(article.get('title') or '', article.get('summary') or '')
             if gen.get('success') and (gen.get('text') or '').strip():
@@ -609,8 +696,8 @@ def news_detail(news_id: int):
                     print(f'[news] reader_digest DB 연결 실패: {ex}')
             else:
                 article['digest_error'] = gen.get('message') or '설명 생성에 실패했습니다.'
-    elif want_digest and NEWS_READER_DIGEST and not GEMINI_AVAILABLE:
-        article['digest_error'] = 'AI 설명을 쓰려면 GEMINI_API_KEY(또는 GOOGLE_API_KEY)를 설정하세요.'
+    elif want_digest and NEWS_READER_DIGEST and not GPT_AVAILABLE:
+        article['digest_error'] = 'AI 설명을 쓰려면 OPENAI_API_KEY 또는 GPT_API_KEY를 설정하세요.'
 
     return jsonify({'success': True, 'article': article, 'related_quotes': _related_quotes_for_news(article)})
 
@@ -1444,7 +1531,7 @@ def fx_usd_krw():
 
 
 def _trim_intraday_to_last_session_day(hist: pd.DataFrame) -> pd.DataFrame:
-    """분봉에서 최근 거래일만 남김. 날짜 기반 + 시간 기반 이중 클리핑."""
+    """분봉에서 최근 거래일만 남김."""
     if hist is None or getattr(hist, 'empty', True):
         return hist
     try:
@@ -1452,33 +1539,16 @@ def _trim_intraday_to_last_session_day(hist: pd.DataFrame) -> pd.DataFrame:
         if len(idx) == 0:
             return hist
         last = idx[-1]
-
-        # 1차: 날짜 기반 트리밍 (tz-aware 처리 포함)
-        try:
-            if hasattr(idx, 'tz') and idx.tz is not None:
-                idx_local = idx.tz_convert('Asia/Seoul')
-            else:
-                idx_local = idx
-            d = idx_local[-1].date()
-            mask = [t.date() == d for t in idx_local]
+        if hasattr(last, 'date'):
+            d = last.date()
+            mask = []
+            for t in idx:
+                td = t.date() if hasattr(t, 'date') else None
+                mask.append(td == d)
             pick = [i for i, m in enumerate(mask) if m]
-            if pick:
-                trimmed = hist.iloc[pick]
-                if not trimmed.empty:
-                    return trimmed
-        except Exception:
-            pass
-
-        # 2차: 시간 기반 트리밍 (날짜 비교 실패 시) — 마지막 캔들로부터 8시간 이내
-        try:
-            last_ts = last
-            if hasattr(last_ts, 'value'):
-                cutoff = last_ts - pd.Timedelta(hours=8)
-                trimmed = hist.loc[idx >= cutoff]
-                if not trimmed.empty:
-                    return trimmed
-        except Exception:
-            pass
+            trimmed = hist.iloc[pick] if pick else hist.iloc[0:0]
+            if trimmed is not None and not trimmed.empty:
+                return trimmed
     except Exception:
         pass
     return hist
@@ -1583,8 +1653,8 @@ def chart_data(code):
             ('1mo', '1d', False, False),
         ],
         '1w': [('5d', '1d', False, False), ('7d', '1d', False, False), ('1mo', '1d', False, False)],
-        '1m': [('1mo', '1d', False, False), ('3mo', '1d', False, False), ('6mo', '1d', False, False)],
-        '1y': [('1y', '1d', False, False), ('2y', '1d', False, False), ('5y', '1d', False, False), ('max', '1d', False, False)],
+        '1m': [('1mo', '1d', False, False), ('3mo', '1d', False, False)],
+        '1y': [('1y', '1d', False, False), ('2y', '1d', False, False)],
     }
     attempts = range_attempts.get(range_param, [('1d', '5m', True, False)])
 
