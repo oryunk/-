@@ -115,7 +115,8 @@ CREATE TABLE ai_analyses (
 CREATE TABLE news_articles (
   news_id      BIGINT PRIMARY KEY AUTO_INCREMENT,  				-- 뉴스 id
   title        VARCHAR(255) NOT NULL,              				-- 제목
-  summary      TEXT,                               				-- 요약
+  summary      TEXT,                               				-- 요약(RSS 본문 등)
+  reader_digest TEXT NULL,                         				-- 사이트용 쉬운 설명(AI 생성 캐시)
   url          VARCHAR(500) NOT NULL,             				-- 원문 url
   guid         VARCHAR(255),                                    -- RSS guid
   img_url      VARCHAR(500),                                    -- 썸네일 이미지
