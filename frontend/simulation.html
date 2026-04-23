@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>?? ?? - ????</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/simulation.css">
+</head>
+<body>
+
+<nav>
+  <a href="??????.html" class="nav-logo">
+    <div class="logo-icon">?</div>
+    <div class="logo-text">??<span>??</span></div>
+  </a>
+  <ul class="nav-menu">
+    <li><a href="analysis.html">AI ??</a></li>
+    <li><a href="ai-chart-prediction.html">AI ?? ?? <span class="nav-badge">AI</span></a></li>
+    <li><a href="glossary.html">?? ??</a></li>
+    <li><a href="#" class="active">?? ?? <span class="nav-badge">NEW</span></a></li>
+    <li><a href="market.html">??</a></li>
+  </ul>
+  <div class="nav-right">
+    <button type="button" class="btn-ghost" id="navLoginBtn">???</button>
+    <button class="btn-primary">?? ????</button>
+  </div>
+</nav>
+
+<div class="simulation-container" id="simulationPageRoot">
+  <div class="simulation-header">
+    <div class="simulation-header-content">
+      <a href="??????.html" class="btn-back">&larr; ????</a>
+      <div class="simulation-title">?? ??</div>
+      <div class="simulation-sub">???? ??? ??????</div>
+    </div>
+  </div>
+
+  <div class="simulation-layout">
+    <aside class="market-sidebar" aria-label="?? ?? ? ??">
+      <div class="market-sidebar-inner">
+        <div class="market-sidebar-title">
+          <span>?? ??</span>
+          <button class="btn-trade" type="button" style="padding:8px 12px;font-size:12px;" onclick="loadTradedValueBoard()">????</button>
+        </div>
+        <div class="sim-rank-wrap">
+          <section class="sim-sidebar-rank" aria-label="?? ?? ??">
+            <div class="market-sidebar-scroll">
+              <div class="discovery-section">
+                <table class="discovery-table">
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>??</th>
+                      <th>???</th>
+                      <th>??</th>
+                      <th>???</th>
+                      <th>????</th>
+                    </tr>
+                  </thead>
+                  <tbody id="discoveryTableBody">
+                    <tr><td colspan="6" style="color: var(--gray-400);">?? ?...</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+          <div id="orderbookOverlay" class="orderbook-overlay" aria-hidden="true">
+            <div class="orderbook-overlay-inner">
+              <div class="orderbook-overlay-header">
+                <span class="orderbook-pane-title">??</span>
+                <div class="orderbook-overlay-actions">
+                  <button class="btn-trade" type="button" style="padding:8px 12px;font-size:12px;" id="orderbookRefreshBtn" onclick="refreshOrderbookPanel()" disabled>????</button>
+                  <button type="button" class="btn-orderbook-back" id="orderbookCloseBtn">?? ??</button>
+                </div>
+              </div>
+              <div class="orderbook-meta" id="orderbookMeta">??? ???? ??? ??? ? ????.</div>
+              <div class="orderbook-scroll-wrap">
+                <div id="orderbookTableWrap"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <div class="simulation-main">
+      <div class="portfolio-section">
+        <div class="portfolio-header">
+          <div class="portfolio-title">? ?? ??</div>
+          <div class="portfolio-balance">
+            <div class="balance-label">? ?? (??? + ?? ???)</div>
+            <div class="balance-amount" id="totalBalance">&#8361;0</div>
+            <div class="portfolio-split">
+              <div>
+                <div class="balance-label">???</div>
+                <div class="balance-sub" id="cashBalanceDisplay">&#8212;</div>
+              </div>
+              <div>
+                <div class="balance-label">?? ???</div>
+                <div class="balance-sub" id="stockEvalDisplay">&#8212;</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="mockPortfolioHint" class="mock-portfolio-hint" style="display:none; margin-bottom:20px; padding:14px 16px; border-radius:12px; background:rgba(255,142,142,0.12); border:1px solid rgba(255,142,142,0.35); color:#ffb4b4; font-size:14px; line-height:1.55;"></div>
+
+        <div class="portfolio-stats">
+          <div class="stat-card"><div class="stat-label">? ???</div><div class="stat-value" id="totalReturn">&#8212;</div></div>
+          <div class="stat-card"><div class="stat-label">? ???</div><div class="stat-value" id="totalProfit">&#8212;</div></div>
+          <div class="stat-card"><div class="stat-label">?? ??</div><div class="stat-value" id="holdingCount">&#8212;</div></div>
+          <div class="stat-card"><div class="stat-label">?? ??</div><div class="stat-value" id="unrealizedProfit">&#8212;</div></div>
+        </div>
+
+        <table class="holdings-table" id="holdingsTable">
+          <thead>
+            <tr><th>???</th><th>????</th><th>????</th><th>???</th><th>????</th><th>???</th></tr>
+          </thead>
+          <tbody id="holdingsTableBody"></tbody>
+        </table>
+      </div>
+
+      <div class="trading-section">
+        <div class="trading-title">?? / ??</div>
+
+        <div class="trading-form">
+          <div class="form-group tf-stock">
+            <label class="form-label" for="tradeStock">?? ??</label>
+            <input type="text" class="form-input" id="tradeStock" placeholder="??? ?? ??" autocomplete="off">
+            <input type="hidden" id="tradeStockCode" value="">
+          </div>
+          <div class="form-group tf-qty-price">
+            <div class="qty-price-row">
+              <div class="qty-price-cell">
+                <label class="form-label" for="tradeQuantity">?? ??</label>
+                <input type="number" class="form-input" id="tradeQuantity" placeholder="??" min="1">
+              </div>
+              <div class="qty-price-cell">
+                <label class="form-label" for="tradeLimitPrice">?? ??</label>
+                <div class="price-stepper">
+                  <input type="text" class="form-input input-price-plain price-stepper-input" id="tradeLimitPrice" placeholder="??? ?? ??" inputmode="numeric" autocomplete="off">
+                  <div class="price-stepper-side">
+                    <button type="button" class="btn-step" id="tradeLimitPricePlus" aria-label="?? ? ?? ??">+</button>
+                    <button type="button" class="btn-step" id="tradeLimitPriceMinus" aria-label="?? ? ?? ??">&#8722;</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="form-group form-group--buy">
+            <span class="form-label form-label-align" aria-hidden="true">??</span>
+            <button type="button" class="btn-trade" onclick="openBuyConfirmModal()">??</button>
+          </div>
+        </div>
+
+        <div class="trading-form sell-inline-form">
+          <div class="form-group tf-stock">
+            <label class="form-label" for="tradeSellStock">?? ??</label>
+            <select id="tradeSellStock" class="form-input" disabled><option value="">?? ?? ??</option></select>
+          </div>
+          <div class="form-group tf-qty-price">
+            <div class="qty-price-row">
+              <div class="qty-price-cell">
+                <label class="form-label" for="tradeSellQuantity">?? ??</label>
+                <input type="number" class="form-input" id="tradeSellQuantity" placeholder="??" min="1" value="1">
+              </div>
+              <div class="qty-price-cell">
+                <label class="form-label" for="tradeSellLimitPrice">?? ??</label>
+                <div class="price-stepper">
+                  <input type="text" class="form-input input-price-plain price-stepper-input" id="tradeSellLimitPrice" placeholder="??? ?? ??" inputmode="numeric" autocomplete="off">
+                  <div class="price-stepper-side">
+                    <button type="button" class="btn-step" id="tradeSellLimitPricePlus" aria-label="???? ? ?? ??">+</button>
+                    <button type="button" class="btn-step" id="tradeSellLimitPriceMinus" aria-label="???? ? ?? ??">&#8722;</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="form-group form-group--buy">
+            <span class="form-label form-label-align" aria-hidden="true">??</span>
+            <button type="button" class="btn-trade sell" id="tradeSellBtn" onclick="executeQuickSell()" disabled>??</button>
+          </div>
+        </div>
+
+        <div id="tradeFeedback" class="trade-feedback" style="display: none;" role="status" aria-live="polite"></div>
+        <div id="sellTradeFeedback" class="trade-feedback sell-feedback" style="display: none;" role="status" aria-live="polite"></div>
+
+        <div class="order-status-board">
+          <div class="order-status-header">
+            <h3 class="order-status-title">??/?? ??</h3>
+            <div class="order-status-summary" id="orderStatusSummary">?? ?? ??? ????.</div>
+          </div>
+          <div class="order-status-list" id="orderStatusList">
+            <div class="order-status-empty">?? ??? ??? ?????.</div>
+          </div>
+        </div>
+
+        <div class="trading-history">
+          <div class="history-toolbar">
+            <div class="history-toolbar-main">
+              <h3 class="history-title">?? ??</h3>
+              <div class="history-filters">
+                <label class="history-date-wrap">
+                  <span class="history-date-label">??</span>
+                  <input type="date" class="history-date-input" id="historyDateFilter" title="??? ?????. ?? ??? ??? ? ????.">
+                </label>
+                <button type="button" class="history-btn-ghost" id="historyClearDisplay">???</button>
+                <button type="button" class="history-btn-ghost" id="historyRestoreDisplay" title="???? ?? ??? ?????.">??</button>
+              </div>
+            </div>
+            <div class="history-tabs" role="tablist" aria-label="?? ??">
+              <button type="button" class="history-tab active" data-history-tab="all" aria-selected="true">??</button>
+              <button type="button" class="history-tab" data-history-tab="buy" aria-selected="false">??</button>
+              <button type="button" class="history-tab" data-history-tab="sell" aria-selected="false">??</button>
+            </div>
+          </div>
+          <div class="history-list" id="tradingHistory"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="sellModal" class="sell-modal-overlay" aria-hidden="true" role="presentation" onclick="if (event.target === this) closeSellModal()">
+    <div class="sell-modal-panel trade-confirm-panel trade-confirm-panel--sell" role="dialog" aria-modal="true" aria-labelledby="sellModalHeading" onclick="event.stopPropagation()">
+      <button type="button" class="sell-modal-close" onclick="closeSellModal()" aria-label="??">&#215;</button>
+      <h3 class="sell-modal-title" id="sellModalHeading">??</h3>
+      <div class="sell-modal-stock" id="sellModalStockLine"></div>
+      <div class="sell-modal-field"><label for="sellModalQty">??</label><input type="number" class="form-input" id="sellModalQty" min="1" step="1"></div>
+      <div class="sell-modal-field">
+        <label for="sellModalLimitPrice">???</label>
+        <div class="price-stepper">
+          <input type="text" class="form-input input-price-plain price-stepper-input" id="sellModalLimitPrice" placeholder="???" inputmode="numeric" autocomplete="off">
+          <div class="price-stepper-side">
+            <button type="button" class="btn-step" id="sellModalLimitPricePlus" aria-label="?? ? ?? ??">+</button>
+            <button type="button" class="btn-step" id="sellModalLimitPriceMinus" aria-label="?? ? ?? ??">&#8722;</button>
+          </div>
+        </div>
+      </div>
+      <div class="sell-modal-row"><span>?? ??</span><span id="sellModalUnitPrice">&#8212;</span></div>
+      <div class="sell-modal-row"><span>?? ????</span><span id="sellModalEstTotal">&#8212;</span></div>
+      <div class="sell-modal-actions">
+        <button type="button" class="btn-trade sell" onclick="confirmSellFromModal()">?? ??</button>
+        <button type="button" class="btn-ghost-modal" onclick="closeSellModal()">??</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="buyModal" class="sell-modal-overlay" aria-hidden="true" role="presentation" onclick="if (event.target === this) closeBuyModal()">
+    <div class="sell-modal-panel trade-confirm-panel trade-confirm-panel--buy" role="dialog" aria-modal="true" aria-labelledby="buyModalHeading" onclick="event.stopPropagation()">
+      <button type="button" class="sell-modal-close" onclick="closeBuyModal()" aria-label="??">&#215;</button>
+      <h3 class="sell-modal-title" id="buyModalHeading">??</h3>
+      <div class="sell-modal-row"><span>??</span><span id="buyModalStockLine">&#8212;</span></div>
+      <div class="sell-modal-row"><span>??</span><span id="buyModalQtyLine">&#8212;</span></div>
+      <div class="sell-modal-row"><span>???</span><span id="buyModalPriceLine">?? ??</span></div>
+      <p class="form-note trade-confirm-note">? ???? ??? ?????.</p>
+      <div class="sell-modal-actions">
+        <button type="button" class="btn-trade" onclick="confirmBuyFromModal()">?? ??</button>
+        <button type="button" class="btn-ghost-modal" onclick="closeBuyModal()">??</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="js/api-base.js"></script>
+<script src="js/common-auth.js"></script>
+<script src="js/simulation-page.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 차트 예측 - 주린닷컴</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+<style>
+  .chart-container {
+    min-height: 100vh;
+    padding-top: 80px;
+  }
+
+  .chart-header {
+    background: linear-gradient(135deg, var(--blue-dark), var(--navy));
+    padding: 40px 0;
+    border-bottom: 1px solid rgba(79, 158, 255, 0.15);
+  }
+
+  .chart-header-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 40px;
+  }
+
+  .chart-title {
+    font-size: 32px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    color: var(--white);
+  }
+
+  .chart-sub {
+    font-size: 16px;
+    color: var(--gray-400);
+  }
+
+  .chart-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 40px;
+  }
+
+  .stock-input-section {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(79, 158, 255, 0.15);
+    border-radius: 16px;
+    padding: 32px;
+    margin-bottom: 40px;
+  }
+
+  .input-group {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  .input-field {
+    flex: 1;
+    padding: 12px 16px;
+    border: 1px solid rgba(79, 158, 255, 0.2);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--white);
+    font-size: 16px;
+  }
+
+  .input-field::placeholder {
+    color: var(--gray-500);
+  }
+
+  .btn-predict {
+    background: linear-gradient(135deg, var(--blue), var(--blue-light));
+    color: var(--white);
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+
+  .btn-predict:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(79, 158, 255, 0.3);
+  }
+
+  .chart-display {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(79, 158, 255, 0.15);
+    border-radius: 16px;
+    padding: 32px;
+    min-height: 400px;
+  }
+
+  .chart-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 300px;
+    color: var(--gray-500);
+    font-size: 18px;
+    text-align: center;
+  }
+
+  .prediction-chart-wrap {
+    margin: 24px 0;
+  }
+
+  .prediction-chart-title {
+    font-size: 14px;
+    color: var(--gray-400);
+    margin-bottom: 10px;
+    font-weight: 600;
+    display: none;
+  }
+
+  #predictionChart {
+    width: 100%;
+    height: 420px;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: #0d1117;
+  }
+
+  @media (max-width: 640px) {
+    #predictionChart {
+      height: 320px;
+    }
+  }
+</style>
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
+</head>
+<body>
+
+<nav>
+  <a href="주린닷컴홈피.html" class="nav-logo">
+    <div class="logo-icon">주</div>
+    <div class="logo-text">주린<span>닷컴</span></div>
+  </a>
+  <ul class="nav-menu">
+    <li><a href="analysis.html">AI 분석 <span class="nav-badge">AI</span></a></li>
+    <li><a href="ai-chart-prediction.html" class="active">AI 차트 예측</a></li>
+    <li><a href="glossary.html">용어 검색</a></li>
+    <li><a class="jurin-simulation-link" href="http://127.0.0.1:5000/simulation.html">모의 투자 <span class="nav-badge">NEW</span></a></li>
+    <li><a href="market.html">시장</a></li>
+  </ul>
+  <div class="nav-right">
+    <button type="button" class="btn-ghost" id="navLoginBtn">로그인</button>
+    <button class="btn-primary">무료 시작하기</button>
+  </div>
+</nav>
+
+<div class="chart-container">
+  <div class="chart-header">
+    <div class="chart-header-content">
+      <div class="chart-title">AI 차트 예측</div>
+      <div class="chart-sub">실제 시세 곡선과 예상곡선을 함께 확인해보세요.</div>
+    </div>
+  </div>
+
+  <div class="chart-content">
+    <div class="stock-input-section">
+      <div class="input-group">
+        <input type="text" class="input-field" placeholder="종목명 또는 종목코드 입력 (예: 삼성전자, 005930)" id="stockInput">
+        <button type="button" class="btn-predict" onclick="predictChart()">차트 예측하기</button>
+      </div>
+    </div>
+
+    <div class="chart-display">
+      <div class="chart-placeholder" id="chartArea">
+        📊 종목을 입력하고 예측 버튼을 클릭하세요
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="js/api-base.js"></script>
+<script>
+  function escapeHtml(text) {
+    if (text == null) return '';
+    const d = document.createElement('div');
+    d.textContent = String(text);
+    return d.innerHTML;
+  }
+
+  function predictionParseChartTime(candle, intraday) {
+    if (intraday) return new Date(Number(candle.time) * 1000);
+    const t = String(candle.time || '');
+    return new Date(t.length <= 10 ? t + 'T12:00:00' : t);
+  }
+
+  function predictionForecastEndpoint(lastY, targetRaw, opinion) {
+    let target = Number(targetRaw);
+    const cur = Number(lastY);
+    if (!Number.isFinite(cur) || cur <= 0) return cur;
+    if (!Number.isFinite(target) || target <= 0) target = cur;
+    if (Math.abs(target - cur) < cur * 0.002) {
+      if (opinion === '약세') target = cur * 0.97;
+      else if (opinion === '강력매수' || opinion === '매수') target = cur * 1.03;
+      else target = cur * 1.005;
+    }
+    return target;
+  }
+
+  function stddev(values) {
+    if (!Array.isArray(values) || values.length < 2) return 0;
+    let sum = 0;
+    for (let i = 0; i < values.length; i += 1) sum += values[i];
+    const mean = sum / values.length;
+    let varSum = 0;
+    for (let j = 0; j < values.length; j += 1) {
+      const d = values[j] - mean;
+      varSum += d * d;
+    }
+    return Math.sqrt(varSum / (values.length - 1));
+  }
+
+  function percentileSorted(sortedArr, p) {
+    if (!sortedArr.length) return 0;
+    const pos = (sortedArr.length - 1) * p;
+    const lo = Math.floor(pos);
+    const hi = Math.ceil(pos);
+    if (lo === hi) return sortedArr[lo];
+    const w = pos - lo;
+    return sortedArr[lo] * (1 - w) + sortedArr[hi] * w;
+  }
+
+  function randn() {
+    let u = 0;
+    let v = 0;
+    while (u === 0) u = Math.random();
+    while (v === 0) v = Math.random();
+    return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+  }
+
+  function opinionDriftBias(opinion) {
+    if (opinion === '강력매수') return 0.0009;
+    if (opinion === '매수') return 0.00045;
+    if (opinion === '약세') return -0.0007;
+    return 0.00005;
+  }
+
+  function buildForecastScenario(closes, lastY, targetY, steps, opinion, newsSentimentScore) {
+    const rets = [];
+    for (let i = 1; i < closes.length; i += 1) {
+      const prev = Number(closes[i - 1]);
+      const cur = Number(closes[i]);
+      if (Number.isFinite(prev) && Number.isFinite(cur) && prev > 0 && cur > 0) {
+        rets.push(Math.log(cur / prev));
+      }
+    }
+
+    const histVol = Math.max(0.0015, stddev(rets.slice(-60)));
+    const targetDrift = Math.log(Math.max(targetY, 1) / Math.max(lastY, 1)) / Math.max(steps, 1);
+    const sentiment = Number.isFinite(Number(newsSentimentScore)) ? Number(newsSentimentScore) : 0;
+    const drift = targetDrift * 0.78 + opinionDriftBias(opinion) + sentiment * 0.00065;
+    const sigma = histVol * (0.9 + Math.min(0.25, Math.abs(sentiment) * 0.2));
+
+    const pathCount = 180;
+    const paths = [];
+    const finalPrices = [];
+    for (let p = 0; p < pathCount; p += 1) {
+      const one = [lastY];
+      let price = lastY;
+      for (let s = 1; s <= steps; s += 1) {
+        const shock = sigma * randn();
+        const growth = drift + shock;
+        price = Math.max(1, price * Math.exp(growth));
+        one.push(price);
+      }
+      paths.push(one);
+      finalPrices.push(price);
+    }
+
+    const median = [lastY];
+    const lower = [lastY];
+    const upper = [lastY];
+    for (let s = 1; s <= steps; s += 1) {
+      const bucket = [];
+      for (let p = 0; p < pathCount; p += 1) bucket.push(paths[p][s]);
+      bucket.sort(function (a, b) { return a - b; });
+      lower.push(percentileSorted(bucket, 0.2));
+      median.push(percentileSorted(bucket, 0.5));
+      upper.push(percentileSorted(bucket, 0.8));
+    }
+
+    let upCount = 0;
+    for (let i = 0; i < finalPrices.length; i += 1) {
+      if (finalPrices[i] >= lastY) upCount += 1;
+    }
+    const upProb = Math.round((upCount / Math.max(1, finalPrices.length)) * 100);
+
+    return { lower: lower, median: median, upper: upper, upProb: upProb };
+  }
+
+  function kstDateFromUtcDate(d) {
+    return new Date(d.getTime() + 9 * 60 * 60 * 1000);
+  }
+
+  function utcDateFromKstDate(d) {
+    return new Date(d.getTime() - 9 * 60 * 60 * 1000);
+  }
+
+  function isKoreanChartCode(code) {
+    return /^\d{6}$/.test(String(code || ''));
+  }
+
+  function moveKstToNextBusinessOpen(kstDate) {
+    const d = new Date(kstDate.getTime());
+    d.setUTCDate(d.getUTCDate() + 1);
+    d.setUTCHours(9, 0, 0, 0);
+    while (d.getUTCDay() === 0 || d.getUTCDay() === 6) {
+      d.setUTCDate(d.getUTCDate() + 1);
+      d.setUTCHours(9, 0, 0, 0);
+    }
+    return d;
+  }
+
+  function buildForecastTimes(lastX, steps, intraday, code) {
+    if (!intraday) {
+      const fxs = [lastX];
+      for (let i = 1; i <= steps; i += 1) {
+        const d = new Date(lastX.getTime());
+        d.setDate(d.getDate() + i);
+        fxs.push(d);
+      }
+      return fxs;
+    }
+
+    const useKrSession = isKoreanChartCode(code);
+    const out = [lastX];
+
+    if (!useKrSession) {
+      const sec = Math.floor(lastX.getTime() / 1000);
+      for (let i = 1; i <= steps; i += 1) {
+        out.push(new Date((sec + i * 300) * 1000));
+      }
+      return out;
+    }
+
+    let kst = kstDateFromUtcDate(lastX);
+    const hh = kst.getUTCHours();
+    const mm = kst.getUTCMinutes();
+    if (hh > 15 || (hh === 15 && mm >= 30)) {
+      kst = moveKstToNextBusinessOpen(kst);
+    } else {
+      kst = new Date(kst.getTime() + 5 * 60 * 1000);
+      if (kst.getUTCHours() < 9) kst.setUTCHours(9, 0, 0, 0);
+      if (kst.getUTCHours() > 15 || (kst.getUTCHours() === 15 && kst.getUTCMinutes() > 30)) {
+        kst = moveKstToNextBusinessOpen(kst);
+      }
+      if (kst.getUTCDay() === 0 || kst.getUTCDay() === 6) {
+        kst = moveKstToNextBusinessOpen(kst);
+      }
+    }
+
+    for (let i = 1; i <= steps; i += 1) {
+      out.push(utcDateFromKstDate(kst));
+      kst = new Date(kst.getTime() + 5 * 60 * 1000);
+      if (kst.getUTCHours() > 15 || (kst.getUTCHours() === 15 && kst.getUTCMinutes() > 30)) {
+        kst = moveKstToNextBusinessOpen(kst);
+      }
+      if (kst.getUTCDay() === 0 || kst.getUTCDay() === 6) {
+        kst = moveKstToNextBusinessOpen(kst);
+      }
+    }
+    return out;
+  }
+
+  async function renderPredictionPlot(analysisPayload) {
+    const el = document.getElementById('predictionChart');
+    if (!el) return;
+    if (typeof Plotly === 'undefined') {
+      return;
+    }
+
+    const code = (analysisPayload && analysisPayload.chart_code) ? String(analysisPayload.chart_code).trim() : '';
+    if (!code) {
+      return;
+    }
+
+    const apiBase = window.JURIN_API_BASE || 'http://localhost:5000';
+
+    try {
+      const res = await fetch(`${apiBase}/api/chart-data/${encodeURIComponent(code)}?range=1d`);
+      const ch = await res.json().catch(function () { return {}; });
+      if (!res.ok || !ch.success || !Array.isArray(ch.candles) || ch.candles.length === 0) {
+        return;
+      }
+
+      const intraday = Boolean(ch.intraday);
+      const candles = ch.candles;
+      const xs = candles.map(function (c) { return predictionParseChartTime(c, intraday); });
+      const opens = candles.map(function (c) { return Number(c.open); });
+      const highs = candles.map(function (c) { return Number(c.high); });
+      const lows = candles.map(function (c) { return Number(c.low); });
+      const closes = candles.map(function (c) { return Number(c.close); });
+
+      const lastX = xs[xs.length - 1];
+      const lastY = closes[closes.length - 1];
+      const targetY = predictionForecastEndpoint(
+        lastY,
+        analysisPayload.target_price,
+        analysisPayload.opinion
+      );
+
+      const steps = 28;
+      const fxs = buildForecastTimes(lastX, steps, intraday, code);
+      const forecast = buildForecastScenario(
+        closes,
+        lastY,
+        targetY,
+        steps,
+        analysisPayload.opinion,
+        analysisPayload.news_sentiment_score
+      );
+
+      const traces = [
+        {
+          type: 'candlestick',
+          x: xs,
+          open: opens,
+          high: highs,
+          low: lows,
+          close: closes,
+          name: '실제 캔들',
+          increasing: {
+            line: { color: '#ef5350', width: 1 },
+            fillcolor: 'rgba(239, 83, 80, 0.35)',
+          },
+          decreasing: {
+            line: { color: '#42a5f5', width: 1 },
+            fillcolor: 'rgba(66, 165, 245, 0.35)',
+          },
+        },
+        {
+          x: xs,
+          y: closes,
+          mode: 'lines',
+          name: '현재 추이',
+          line: {
+            color: 'rgba(46, 204, 113, 0.88)',
+            width: 1.8,
+            shape: 'spline',
+            smoothing: 0.7,
+          },
+        },
+        {
+          x: fxs,
+          y: forecast.upper,
+          mode: 'lines',
+          name: '예측 상단(80%)',
+          line: { color: 'rgba(196, 167, 255, 0.10)', width: 1.2, shape: 'spline', smoothing: 1.05 },
+          hoverinfo: 'skip',
+        },
+        {
+          x: fxs,
+          y: forecast.lower,
+          mode: 'lines',
+          name: '예측 하단(20%)',
+          line: { color: 'rgba(196, 167, 255, 0.10)', width: 1.2, shape: 'spline', smoothing: 1.05 },
+          fill: 'tonexty',
+          fillcolor: 'rgba(196, 167, 255, 0.10)',
+          hoverinfo: 'skip',
+        },
+        {
+          x: fxs,
+          y: forecast.median,
+          mode: 'lines',
+          name: '예측 중앙경로',
+          line: {
+            color: 'rgba(196, 167, 255, 0.92)',
+            width: 2.6,
+            shape: 'spline',
+            smoothing: 1.15,
+          },
+        },
+      ];
+
+      const xaxisConfig = {
+        type: 'date',
+        gridcolor: 'rgba(255,255,255,0.06)',
+        zeroline: false,
+        showspikes: true,
+        spikecolor: 'rgba(46, 204, 113, 0.35)',
+        rangeslider: { visible: false },
+      };
+      if (intraday && isKoreanChartCode(code)) {
+        xaxisConfig.rangebreaks = [
+          { pattern: 'hour', bounds: [15.51, 9] },
+          { pattern: 'day of week', bounds: ['sat', 'mon'] },
+        ];
+      }
+
+      const layout = {
+        paper_bgcolor: 'transparent',
+        plot_bgcolor: '#0d1117',
+        font: { color: '#9aa7bd', size: 11, family: 'Noto Sans KR, sans-serif' },
+        margin: { t: 32, r: 56, b: 44, l: 8 },
+        dragmode: 'pan',
+        xaxis: xaxisConfig,
+        yaxis: {
+          gridcolor: 'rgba(255,255,255,0.06)',
+          zeroline: false,
+          tickformat: ',.0f',
+          side: 'right',
+          fixedrange: false,
+        },
+        legend: {
+          orientation: 'h',
+          y: 1.06,
+          x: 0,
+          bgcolor: 'rgba(0,0,0,0)',
+          font: { color: '#e4e9f0', size: 12 },
+        },
+        showlegend: true,
+      };
+
+      await Plotly.newPlot(el, traces, layout, { responsive: true, displayModeBar: true, scrollZoom: true });
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  async function predictChart() {
+    const stockInput = document.getElementById('stockInput').value.trim();
+    if (!stockInput) {
+      alert('종목명을 입력해주세요.');
+      return;
+    }
+
+    const chartArea = document.getElementById('chartArea');
+    chartArea.className = '';
+    chartArea.innerHTML =
+      '<div style="text-align:center;padding:48px;color:var(--gray-400);">분석·차트 데이터를 불러오는 중…</div>';
+
+    try {
+      const apiBase = window.JURIN_API_BASE || 'http://localhost:5000';
+      const response = await fetch(`${apiBase}/api/analyze`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ stock_name: stockInput }),
+      });
+
+      if (!response.ok) {
+        throw new Error(response.statusText || 'API 오류');
+      }
+
+      const data = await response.json();
+
+      if (!data.success) {
+        chartArea.innerHTML =
+          '<div class="chart-placeholder" style="flex-direction:column;gap:12px;"><span>⚠️</span><span>' +
+          escapeHtml(data.message || '분석에 실패했습니다.') +
+          '</span></div>';
+        return;
+      }
+
+      const opinionColor = {
+        강력매수: '#00D084',
+        매수: '#4F9EFF',
+        보유: '#FFB800',
+        약세: '#FF6B6B',
+      };
+      const color = opinionColor[data.opinion] || '#4F9EFF';
+      const repNews = data.representative_news || null;
+      const newsTone = Number(data.news_sentiment_score || 0);
+      const newsToneLabel = newsTone > 0.05 ? '긍정' : (newsTone < -0.05 ? '부정' : '중립');
+      const newsRationale = data.news_sentiment_rationale ? String(data.news_sentiment_rationale) : '';
+
+      chartArea.innerHTML =
+        '<div style="width:100%;color:var(--white);">' +
+        '<h3 style="margin-bottom:16px;font-size:20px;">📈 ' +
+        escapeHtml(data.stock_name) +
+        ' · 차트 예측</h3>' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:8px;">' +
+        '<div style="background:rgba(79,158,255,0.1);padding:14px;border-radius:10px;">' +
+        '<div style="color:var(--gray-400);font-size:12px;margin-bottom:6px;">현재가</div>' +
+        '<div style="font-size:22px;font-weight:700;">' +
+        Number(data.current_price).toLocaleString() +
+        '원</div>' +
+        '<div style="font-size:13px;margin-top:6px;color:' +
+        (data.change_rate >= 0 ? '#00D084' : '#FF6B6B') +
+        ';">' +
+        (data.change_rate >= 0 ? '▲' : '▼') +
+        ' ' +
+        Math.abs(Number(data.change_rate)).toFixed(2) +
+        '%</div></div>' +
+        '<div style="background:rgba(255,255,255,0.04);padding:14px;border-radius:10px;border:1px solid rgba(79,158,255,0.25);">' +
+        '<div style="color:var(--gray-400);font-size:12px;margin-bottom:6px;">AI 투자의견 · 목표가</div>' +
+        '<div style="font-size:20px;font-weight:700;color:' +
+        color +
+        ';">' +
+        escapeHtml(data.opinion) +
+        '</div>' +
+        '<div style="font-size:12px;margin-top:6px;color:var(--gray-300);">목표가 ' +
+        Number(data.target_price).toLocaleString() +
+        '원</div></div></div>' +
+        '<div class="prediction-chart-wrap">' +
+        '<div class="prediction-chart-title">예상그래프</div>' +
+        '<div id="predictionChart"></div>' +
+        '</div>' +
+        (repNews ? (
+          '<div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);padding:12px;border-radius:10px;margin-bottom:12px;">' +
+          '<div style="font-size:12px;color:var(--gray-400);margin-bottom:6px;">대표 뉴스 반영 (' + newsToneLabel + ' · 점수 ' + Number(newsTone).toFixed(2) + ')</div>' +
+          '<div style="font-size:14px;color:var(--gray-200);margin-bottom:4px;">' + escapeHtml(repNews.title || '') + '</div>' +
+          '<div style="font-size:12px;color:var(--gray-400);">' + escapeHtml(newsRationale) + '</div>' +
+          '</div>'
+        ) : '') +
+        '<div style="background:rgba(0,0,0,0.2);padding:16px;border-radius:10px;font-size:15px;line-height:1.8;color:var(--gray-300);white-space:pre-wrap;">' +
+        escapeHtml(data.summary || '') +
+        '</div>' +
+        '</div>';
+
+      setTimeout(function () {
+        renderPredictionPlot(data);
+      }, 0);
+    } catch (error) {
+      console.error(error);
+      chartArea.innerHTML =
+        '<div class="chart-placeholder" style="flex-direction:column;gap:12px;"><span>❌</span><span>' +
+        escapeHtml(error.message || '백엔드 서버 연결을 확인해 주세요.') +
+        '</span></div>';
+    }
+  }
+
+  document.getElementById('stockInput').addEventListener('keypress', function (e) {
+    if (e.key === 'Enter') predictChart();
+  });
+</script>
+<script src="js/common-auth.js"></script>
+
+</body>
+</html>

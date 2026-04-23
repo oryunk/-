@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>아이디 찾기 - 주린닷컴</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+<style>
+  .helper-page {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    background:
+      radial-gradient(circle at top right, rgba(79, 158, 255, 0.18), transparent 30%),
+      radial-gradient(circle at bottom left, rgba(0, 212, 255, 0.12), transparent 35%),
+      var(--navy);
+  }
+
+  .helper-card {
+    width: min(100%, 480px);
+    padding: 36px;
+    border-radius: 24px;
+    border: 1px solid rgba(79, 158, 255, 0.2);
+    background: rgba(13, 31, 60, 0.94);
+    box-shadow: 0 26px 80px rgba(0, 0, 0, 0.38);
+  }
+
+  .helper-card h1 {
+    font-size: 30px;
+    margin-bottom: 10px;
+  }
+
+  .helper-card p {
+    color: var(--gray-400);
+    line-height: 1.7;
+    font-size: 14px;
+    margin-bottom: 24px;
+  }
+
+  .helper-card label {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 16px;
+    color: var(--gray-200);
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .helper-card input {
+    width: 100%;
+    padding: 14px 16px;
+    border-radius: 10px;
+    border: 1px solid rgba(79, 158, 255, 0.22);
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--white);
+    font-size: 14px;
+    font-family: inherit;
+  }
+
+  .helper-card button {
+    width: 100%;
+    border: none;
+    border-radius: 10px;
+    padding: 14px 18px;
+    background: linear-gradient(135deg, var(--blue-bright), var(--accent));
+    color: var(--white);
+    font-weight: 700;
+    font-size: 15px;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+
+  .helper-card button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  /* 결과 박스 */
+  #result-box {
+    display: none;
+    margin-top: 20px;
+    padding: 16px 20px;
+    border-radius: 12px;
+    font-size: 14px;
+    line-height: 1.6;
+    text-align: center;
+  }
+
+  #result-box.success {
+    background: rgba(0, 212, 255, 0.08);
+    border: 1px solid rgba(0, 212, 255, 0.35);
+    color: var(--gray-200);
+  }
+
+  #result-box.error {
+    background: rgba(255, 80, 80, 0.08);
+    border: 1px solid rgba(255, 80, 80, 0.35);
+    color: #ff8080;
+  }
+
+  #result-box .result-label {
+    font-size: 12px;
+    color: var(--gray-400);
+    margin-bottom: 6px;
+  }
+
+  #result-box .result-id {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--blue-bright);
+    letter-spacing: 1px;
+  }
+</style>
+</head>
+<body>
+<div class="helper-page">
+  <div class="helper-card">
+    <h1>아이디 찾기</h1>
+    <p>회원가입할 때 등록한 이메일을 입력하면 해당 이메일로 등록된 아이디를 찾는 절차를 진행할 수 있습니다.</p>
+
+    <label>
+      가입 이메일
+      <input type="email" id="email-input" placeholder="example@email.com" required>
+    </label>
+    <button id="find-btn" onclick="findId()">아이디 찾기</button>
+
+    <!-- 결과 영역 -->
+    <div id="result-box"></div>
+  </div>
+</div>
+
+<script>
+  const API_BASE = 'http://localhost:5000';
+
+  async function findId() {
+    const emailInput = document.getElementById('email-input');
+    const btn = document.getElementById('find-btn');
+    const resultBox = document.getElementById('result-box');
+    const email = emailInput.value.trim();
+
+    if (!email) {
+      showResult('error', '이메일을 입력해주세요.');
+      return;
+    }
+
+    // 로딩 상태
+    btn.disabled = true;
+    btn.textContent = '조회 중...';
+    resultBox.style.display = 'none';
+
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/find-id`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ email }),
+      });
+
+      const data = await res.json();
+
+      if (data.success && data.loginId) {
+        resultBox.className = 'success';
+        resultBox.innerHTML = `
+          <div class="result-label">해당 이메일로 등록된 아이디</div>
+          <div class="result-id">${escapeHtml(data.loginId)}</div>
+        `;
+        resultBox.style.display = 'block';
+      } else {
+        showResult('error', data.message || '아이디를 찾을 수 없습니다.');
+      }
+    } catch (err) {
+      showResult('error', '서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '아이디 찾기';
+    }
+  }
+
+  function showResult(type, message) {
+    const resultBox = document.getElementById('result-box');
+    resultBox.className = type;
+    resultBox.innerHTML = message;
+    resultBox.style.display = 'block';
+  }
+
+  function escapeHtml(str) {
+    return String(str ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  // 엔터키 지원
+  document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('email-input').addEventListener('keydown', e => {
+      if (e.key === 'Enter') findId();
+    });
+  });
+</script>
+</body>
+</html>

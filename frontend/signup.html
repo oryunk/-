@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>회원가입 - 주린닷컴</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+<style>
+  .auth-page {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    background:
+      radial-gradient(circle at top right, rgba(79, 158, 255, 0.18), transparent 30%),
+      radial-gradient(circle at bottom left, rgba(0, 212, 255, 0.12), transparent 35%),
+      var(--navy);
+  }
+
+  .auth-card {
+    width: min(100%, 520px);
+    padding: 36px;
+    border-radius: 24px;
+    border: 1px solid rgba(79, 158, 255, 0.2);
+    background: rgba(13, 31, 60, 0.94);
+    box-shadow: 0 26px 80px rgba(0, 0, 0, 0.38);
+  }
+
+  .auth-kicker {
+    font-family: 'DM Mono', monospace;
+    color: var(--accent);
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    margin-bottom: 12px;
+  }
+
+  .auth-card h1 {
+    font-size: 32px;
+    margin-bottom: 10px;
+  }
+
+  .auth-card p {
+    color: var(--gray-400);
+    line-height: 1.7;
+    font-size: 14px;
+    margin-bottom: 24px;
+  }
+
+  .auth-form {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .auth-field {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .auth-field span {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--gray-200);
+  }
+
+  .auth-field input {
+    width: 100%;
+    padding: 14px 16px;
+    border-radius: 10px;
+    border: 1px solid rgba(79, 158, 255, 0.22);
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--white);
+    font-size: 14px;
+    font-family: inherit;
+  }
+
+  .auth-field input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.12);
+  }
+
+  .auth-submit {
+    margin-top: 8px;
+    border: none;
+    border-radius: 10px;
+    padding: 14px 18px;
+    background: linear-gradient(135deg, var(--blue-bright), var(--accent));
+    color: var(--white);
+    font-weight: 700;
+    font-size: 15px;
+    cursor: pointer;
+  }
+
+  .auth-message {
+    min-height: 20px;
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .auth-message.error {
+    color: #ff8e8e;
+  }
+
+  .auth-message.success {
+    color: var(--green);
+  }
+
+  .auth-links {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 22px;
+    flex-wrap: wrap;
+  }
+
+  .auth-links a {
+    color: var(--gray-400);
+    text-decoration: none;
+    font-size: 13px;
+  }
+
+  .auth-links a:hover {
+    color: var(--accent);
+  }
+
+  @media (max-width: 600px) {
+    .auth-card {
+      padding: 28px 20px;
+    }
+  }
+</style>
+</head>
+<body>
+<div class="auth-page">
+  <div class="auth-card">
+    <div class="auth-kicker">JURIN.COM SIGN UP</div>
+    <h1>회원가입</h1>
+    <p>닉네임, 이메일, 아이디, 비밀번호를 입력해 계정을 생성하세요. 비밀번호는 두 번 입력해야 하며, 두 값이 일치해야 가입이 완료됩니다.</p>
+    <form class="auth-form" onsubmit="submitSignup(event)">
+      <label class="auth-field">
+        <span>닉네임</span>
+        <input type="text" id="signupNickname" placeholder="표시할 닉네임을 입력하세요" autocomplete="nickname" required>
+      </label>
+      <label class="auth-field">
+        <span>아이디</span>
+        <input type="text" id="signupId" placeholder="사용할 아이디를 입력하세요" autocomplete="username" required>
+      </label>
+      <label class="auth-field">
+        <span>이메일</span>
+        <input type="email" id="signupEmail" placeholder="example@email.com" autocomplete="email" required>
+      </label>
+      <label class="auth-field">
+        <span>비밀번호</span>
+        <input type="password" id="signupPassword" placeholder="비밀번호를 입력하세요" autocomplete="new-password" required>
+      </label>
+      <label class="auth-field">
+        <span>비밀번호 확인</span>
+        <input type="password" id="signupPasswordConfirm" placeholder="비밀번호를 한 번 더 입력하세요" autocomplete="new-password" required>
+      </label>
+      <div class="auth-message" id="signupMessage"></div>
+      <button class="auth-submit" type="submit">회원가입 완료</button>
+    </form>
+    <div class="auth-links">
+      <a href="find-id.html" target="_blank" rel="noopener noreferrer">아이디 찾기</a>
+      <a href="find-password.html" target="_blank" rel="noopener noreferrer">비밀번호 찾기</a>
+    </div>
+  </div>
+</div>
+
+<script>
+  function updateSignupMessage(message, type) {
+    const signupMessage = document.getElementById('signupMessage');
+    signupMessage.textContent = message;
+    signupMessage.className = `auth-message ${type}`;
+  }
+
+  function validatePasswordMatch() {
+    const password = document.getElementById('signupPassword').value;
+    const passwordConfirm = document.getElementById('signupPasswordConfirm').value;
+
+    if (!passwordConfirm) {
+      updateSignupMessage('', '');
+      return true;
+    }
+
+    if (password === passwordConfirm) {
+      updateSignupMessage('비밀번호가 일치합니다.', 'success');
+      return true;
+    }
+
+    updateSignupMessage('비밀번호가 일치하지 않습니다.', 'error');
+    return false;
+  }
+
+  const API_BASE = 'http://localhost:5000';
+
+  async function submitSignup(event) {
+    event.preventDefault();
+
+    const nickname = document.getElementById('signupNickname').value.trim();
+    const userId = document.getElementById('signupId').value.trim();
+    const email = document.getElementById('signupEmail').value.trim();
+    const password = document.getElementById('signupPassword').value;
+    const passwordConfirm = document.getElementById('signupPasswordConfirm').value;
+
+    if (!nickname || !userId || !email || !password || !passwordConfirm) {
+      updateSignupMessage('닉네임, 아이디, 이메일, 비밀번호를 모두 입력해주세요.', 'error');
+      return;
+    }
+
+    if (!validatePasswordMatch()) {
+      return;
+    }
+
+    const submitBtn = event.target.querySelector('button[type="submit"]');
+    if (submitBtn) submitBtn.disabled = true;
+    updateSignupMessage('계정을 생성하는 중입니다…', 'success');
+
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          nickname,
+          loginId: userId,
+          email,
+          password,
+          passwordConfirm,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+
+      if (res.ok && data.success) {
+        const savedEmail = (data.user && data.user.email) ? data.user.email : email;
+        const savedNickname = (data.user && data.user.nickname) ? data.user.nickname : nickname;
+        try {
+          await fetch(`${API_BASE}/api/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ loginId: userId, password }),
+          });
+        } catch (_) {
+          /* 세션 쿠키가 막혀도 가입은 완료됨 — 홈에서 이메일 표시용 */
+        }
+        sessionStorage.setItem('jurinUserEmail', savedEmail);
+        sessionStorage.setItem('jurinUserNickname', savedNickname);
+        window.location.href = '주린닷컴홈피.html';
+        return;
+      }
+
+      const serverMsg = (data && typeof data.message === 'string' && data.message.trim())
+        ? data.message.trim()
+        : '';
+      updateSignupMessage(
+        serverMsg ? `계정 생성에 실패했습니다. (${serverMsg})` : '계정 생성에 실패했습니다.',
+        'error'
+      );
+    } catch (err) {
+      const hint = (!navigator.onLine || (err && err.name === 'TypeError'))
+        ? '서버(localhost:5000)에 연결할 수 없습니다. 백엔드를 실행했는지 확인하세요.'
+        : '계정 생성에 실패했습니다.';
+      updateSignupMessage(hint, 'error');
+    } finally {
+      if (submitBtn) submitBtn.disabled = false;
+    }
+  }
+
+  document.getElementById('signupPassword').addEventListener('input', validatePasswordMatch);
+  document.getElementById('signupPasswordConfirm').addEventListener('input', validatePasswordMatch);
+</script>
+</body>
+</html>
