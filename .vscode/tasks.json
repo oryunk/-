@@ -1,17 +1,26 @@
 {
-    "version": "2.0.0",
-    "tasks": [
-        {
-            "label": "Auto Start Stock Server",
-            "type": "shell",
-            "command": "python ${workspaceFolder}/backend/app.py",
-            "runOptions": {
-                "runOn": "folderOpen"
-            },
-            "presentation": {
-                "reveal": "always",
-                "panel": "shared"
-            }
-        }
-    ]
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Flask: 주린닷컴 서버 실행",
+      "type": "shell",
+      "command": "python",
+      "args": ["backend/app.py"],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "runOptions": {
+        "runOn": "folderOpen"
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "focus": false
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    }
+  ]
 }
