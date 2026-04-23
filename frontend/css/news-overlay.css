@@ -1,0 +1,214 @@
+/* 홈페이지 뉴스 인라인 리더 (전역 오버레이) */
+.news-reader-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 260;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  box-sizing: border-box;
+}
+
+.news-reader-overlay.is-open {
+  display: flex;
+}
+
+.news-reader-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(5, 12, 28, 0.72);
+  backdrop-filter: blur(4px);
+}
+
+.news-reader-panel {
+  position: relative;
+  z-index: 1;
+  width: min(640px, 100%);
+  max-height: min(88vh, 720px);
+  overflow: auto;
+  background: linear-gradient(165deg, rgba(13, 31, 60, 0.98), rgba(8, 18, 36, 0.99));
+  border: 1px solid rgba(79, 158, 255, 0.35);
+  border-radius: 16px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.55);
+  padding: 24px 22px 20px;
+  color: var(--gray-200, #d6e0f5);
+}
+
+.news-reader-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--white, #fff);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.news-reader-close:hover {
+  background: rgba(79, 158, 255, 0.25);
+}
+
+.news-reader-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  align-items: baseline;
+  margin-bottom: 10px;
+  padding-right: 40px;
+  font-size: 12px;
+  color: var(--gray-400, #9aa8c4);
+}
+
+.news-reader-source {
+  font-weight: 600;
+  color: var(--accent, #4f9eff);
+}
+
+.news-reader-title {
+  margin: 0 0 14px;
+  font-size: 1.35rem;
+  font-weight: 800;
+  line-height: 1.35;
+  color: var(--white, #fff);
+  letter-spacing: -0.02em;
+}
+
+.news-reader-lead {
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--gray-300, #c5d0e5);
+  margin-bottom: 20px;
+  white-space: pre-wrap;
+}
+
+.news-reader-image-wrap {
+  margin: 6px 0 16px;
+}
+
+.news-reader-image {
+  width: 100%;
+  max-height: 260px;
+  object-fit: cover;
+  border-radius: 10px;
+  border: 1px solid rgba(79, 158, 255, 0.22);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.news-reader-digest-section {
+  margin-bottom: 20px;
+  padding: 16px 14px;
+  border-radius: 12px;
+  background: rgba(79, 158, 255, 0.08);
+  border: 1px solid rgba(79, 158, 255, 0.2);
+}
+
+.news-reader-digest-section h3 {
+  margin: 0 0 10px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--accent, #4f9eff);
+}
+
+.news-reader-digest {
+  font-size: 14px;
+  line-height: 1.7;
+  color: #e8eef9;
+  white-space: pre-wrap;
+}
+
+.news-reader-digest.is-muted {
+  color: var(--gray-400, #9aa8c4);
+  font-size: 13px;
+}
+
+.news-reader-related {
+  margin: 0 0 16px;
+  padding: 14px 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(79, 158, 255, 0.16);
+}
+
+.news-reader-related h3 {
+  margin: 0 0 10px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--accent, #4f9eff);
+}
+
+.news-reader-related-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.news-related-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 13px;
+}
+
+.news-related-item-name {
+  color: var(--gray-200, #d6e0f5);
+  font-weight: 600;
+}
+
+.news-related-item-price {
+  color: #ffffff;
+  font-family: 'DM Mono', monospace;
+}
+
+.news-related-item-change.up { color: var(--up, #ff6b6b); }
+.news-related-item-change.down { color: var(--down, #4f9eff); }
+.news-related-item-change.flat { color: var(--gray-400, #9aa8c4); }
+
+.news-reader-original {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent, #4f9eff);
+  text-decoration: none;
+}
+
+.news-reader-original:hover {
+  text-decoration: underline;
+}
+
+.news-card.news-card--interactive {
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.news-card.news-card--interactive:focus-visible {
+  outline: 2px solid var(--accent, #4f9eff);
+  outline-offset: 2px;
+}
+
+button.slide-read-more {
+  border: none;
+  background: none;
+  cursor: pointer;
+  font: inherit;
+  color: var(--accent, #4f9eff);
+  font-weight: 600;
+  padding: 0;
+}
+
+button.slide-read-more:hover {
+  text-decoration: underline;
+}
