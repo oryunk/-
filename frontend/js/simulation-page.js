@@ -26,15 +26,16 @@
     var logoText = document.querySelector('nav .nav-logo .logo-text');
     if (logoText) logoText.innerHTML = '주린<span>닷컴</span>';
 
-    setText('nav .nav-menu li:nth-child(1) a', 'AI 분석');
-    setText('nav .nav-menu li:nth-child(2) a', 'AI 차트 예측 ');
-    var aiBadge = document.querySelector('nav .nav-menu li:nth-child(2) a .nav-badge');
+    setText('nav .nav-menu a[href="guide.html"]', '가이드');
+    setText('nav .nav-menu a[href="analysis.html"]', 'AI 분석');
+    setText('nav .nav-menu a[href="ai-chart-prediction.html"]', 'AI 차트 예측 ');
+    var aiBadge = document.querySelector('nav .nav-menu a[href="ai-chart-prediction.html"] .nav-badge');
     if (aiBadge) aiBadge.textContent = 'AI';
-    setText('nav .nav-menu li:nth-child(3) a', '용어 검색');
-    setText('nav .nav-menu li:nth-child(4) a', '모의 투자 ');
-    var newBadge = document.querySelector('nav .nav-menu li:nth-child(4) a .nav-badge');
+    setText('nav .nav-menu a[href="glossary.html"]', '용어 검색');
+    setText('nav .nav-menu a[href="simulation.html"]', '모의 투자 ');
+    var newBadge = document.querySelector('nav .nav-menu a[href="simulation.html"] .nav-badge');
     if (newBadge) newBadge.textContent = 'NEW';
-    setText('nav .nav-menu li:nth-child(5) a', '시장');
+    setText('nav .nav-menu a[href="market.html"]', '시장');
     setText('#navLoginBtn', '로그인');
     var startBtn = document.querySelector('nav .btn-primary');
     if (startBtn) startBtn.textContent = '무료 시작하기';
@@ -978,11 +979,11 @@
         } else if (fromFile) {
           msg = '지금은 <strong>파일을 직접 연 방식(file://)</strong>이라 로그인 쿠키가 서버에 전달되지 않습니다. ' +
             '<code>backend</code> 폴더에서 Flask를 켠 뒤(<code>python app.py</code>), 주소창에 아래를 입력해 접속하세요.<br />' +
-            '<a href="' + openUrl + '" style="color:#7ec8ff;font-weight:700;">' + openUrl + '</a>';
+            '<a href="' + openUrl + '">' + openUrl + '</a>';
         } else {
           msg = '이 페이지가 <strong>포트 ' + (port || '기본') + '</strong>에서 열려 있어 로그인 쿠키가 API(:5000)에 전달되지 않을 수 있습니다. ' +
             'Flask 실행 후 아래 주소로 접속하세요.<br />' +
-            '<a href="' + openUrl + '" style="color:#7ec8ff;font-weight:600;">' + openUrl + '</a>';
+            '<a href="' + openUrl + '">' + openUrl + '</a>';
         }
         setMockPortfolioHint(msg);
         console.warn('[mock-portfolio] 401 — file:// 이 아닌 http://127.0.0.1:5000/simulation.html 로 열고 로그인하세요.');
@@ -1152,7 +1153,7 @@
         var openUrl = urlToOpenSimulationOnFlask();
         var hint =
           '로그인 세션이 없어 매수할 수 없습니다. Flask(<code>:5000</code>)에서 이 페이지를 연 뒤 상단에서 로그인하세요.<br />' +
-          '<a href="' + openUrl + '" style="color:#7ec8ff;font-weight:600;">' + openUrl + '</a>';
+          '<a href="' + openUrl + '">' + openUrl + '</a>';
         setMockPortfolioHint(hint);
         alert(data.message || '로그인이 필요합니다.');
         return;

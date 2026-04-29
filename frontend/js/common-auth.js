@@ -27,11 +27,12 @@ function setAuthNavVisible(displayName) {
   const emailEl = document.getElementById('navUserEmail');
   if (!loginBtn || !emailEl) return;
   if (displayName) {
+    const welcomeText = `${displayName}님 환영합니다`;
     loginBtn.style.display = 'none';
     if (logoutBtn) logoutBtn.style.display = '';
-    emailEl.textContent = displayName;
+    emailEl.textContent = welcomeText;
     emailEl.style.display = 'inline-block';
-    emailEl.title = displayName;
+    emailEl.title = welcomeText;
   } else {
     loginBtn.style.display = '';
     if (logoutBtn) logoutBtn.style.display = 'none';
@@ -215,6 +216,10 @@ function showLoginError(message) {
   errEl.textContent = message;
 }
 
+function jurinNavigateSignup() {
+  window.location.href = 'signup.html';
+}
+
 function setupAuthNav() {
   const navRight = document.querySelector('.nav-right');
   if (!navRight) return;
@@ -226,6 +231,14 @@ function setupAuthNav() {
   loginBtn.type = 'button';
   loginBtn.removeAttribute('onclick');
   loginBtn.addEventListener('click', openLoginModal);
+
+  const signupBtn = navRight.querySelector('.btn-primary');
+  if (signupBtn) {
+    signupBtn.type = 'button';
+    signupBtn.removeAttribute('onclick');
+    signupBtn.removeEventListener('click', jurinNavigateSignup);
+    signupBtn.addEventListener('click', jurinNavigateSignup);
+  }
 
   let emailEl = document.getElementById('navUserEmail');
   if (!emailEl) {

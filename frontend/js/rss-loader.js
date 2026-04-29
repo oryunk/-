@@ -194,6 +194,39 @@ function escapeHtml(s) {
     .replace(/"/g, '&quot;');
 }
 
+/** GPT 산문에 남는 """ · 코드펜스 · 프롬프트 꼬리표 제거 */
+function cleanGptProse(raw) {
+  let t = String(raw || '').trim();
+  for (let i = 0; i < 6; i++) {
+    const u = t.trim();
+    if (u.length >= 6 && u.startsWith('"""') && u.endsWith('"""')) {
+      t = u.slice(3, -3).trim();
+      continue;
+    }
+    if (u.length >= 6 && u.startsWith("'''") && u.endsWith("'''")) {
+      t = u.slice(3, -3).trim();
+      continue;
+    }
+    break;
+  }
+  const fence = /^```(?:\w*)?\s*\r?\n([\s\S]*?)\r?\n```\s*$/;
+  const fm = t.match(fence);
+  if (fm) t = fm[1].trim();
+  let lines = t.split('\n');
+  const onlyFence = (ln) => {
+    const x = ln.trim();
+    return x === '"""' || x === "'''" || x === '```' || /^`{3,}$/.test(x);
+  };
+  while (lines.length && onlyFence(lines[0])) lines.shift();
+  while (lines.length && onlyFence(lines[lines.length - 1])) lines.pop();
+  t = lines.join('\n').trim();
+  for (const marker of ['\n[작성 규칙]', '\n[사용자 질문]', '\n[제목]', '\n[요약]']) {
+    const idx = t.indexOf(marker);
+    if (idx !== -1) t = t.slice(0, idx).trim();
+  }
+  return t;
+}
+
 function formatNewsDateLabel(pd) {
   try {
     if (!pd) return '';
@@ -296,7 +329,7 @@ function openNewsReader(item) {
   digestEl.classList.remove('is-muted');
 
   if (item.reader_digest) {
-    digestEl.textContent = item.reader_digest;
+    digestEl.textContent = cleanGptProse(item.reader_digest);
     return;
   }
 
@@ -318,7 +351,7 @@ function openNewsReader(item) {
           }
         }
         if (data && data.success && art && art.reader_digest) {
-          digestEl.textContent = art.reader_digest;
+          digestEl.textContent = cleanGptProse(art.reader_digest);
           return;
         }
         if (art && art.digest_error) {
@@ -411,13 +444,18 @@ async function loadNewsFromRSS() {
         const description = item.description || '내용 없음';
         const pubDate = item.pubDate || '';
         const timeStr = getTimeAgo(pubDate);
-        const categories = ['📱 기술', '💼 정책', '📈 시황', '🏦 금융', '🌐 글로벌', '⚡ 동향'];
+        const categories = ['기술', '정책', '시황', '금융', '글로벌', '동향'];
         const tags = ['뉴스', '경제', '증시', '시장', '정책', '기술'];
         const category = categories[index % categories.length];
         const tag = tags[index % tags.length];
-        
+        const thumb = (item.img_url || '').trim();
+        const thumbBlock = thumb
+          ? `<div class="news-card-thumb"><img src="${escapeHtml(thumb)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" /></div>`
+          : '';
+
         return `
           <button type="button" class="news-card news-card--interactive" data-news-idx="${index}">
+            ${thumbBlock}
             <div class="news-card-cat">${category}</div>
             <div class="news-card-title">${escapeHtml(truncateText(title, 50))}</div>
             <div class="news-card-desc">${escapeHtml(truncateText(stripHTML(description), 100))}</div>
@@ -453,14 +491,14 @@ async function loadSliderNews() {
   try {
       const items = await getRssItemsDaily();
       window.__jurinNewsItems = items;
-      const categories = ['🔥 긴급', '📊 시황', '🤖 AI', '💡 투자팁', '⚡ 동향', '💰 시장'];
+      const categories = ['긴급', '시황', '분석', '투자팁', '동향', '시장'];
       const slides = Array.from(items).slice(0, 4).map((item, index) => {
         const title = item.title || '제목 없음';
         const description = item.description || '내용 없음';
         const pubDate = item.pubDate || '';
         const timeStr = pubDate ? new Date(pubDate).toLocaleDateString('ko-KR') : '최근';
         const category = categories[index % categories.length];
-        
+
         return `
           <div class="slide ${index === 0 ? 'active' : ''}">
             <div>
@@ -497,10 +535,10 @@ function loadDefaultSliderNews() {
   if (!sliderContainer) return;
   
   const defaultSlides = [
-    { cat: '🔥 긴급', title: '삼성전자, 3분기 영업이익<br>9.1조 예상 상회 발표', desc: '반도체 업황 회복세가 본격화되며 시장 전망을 크게 웃도는 실적을 기록했습니다.', time: '2025.03.11 · 14:32', link: 'https://www.mk.co.kr/news/stock/' },
-    { cat: '📊 시황', title: '미 연준, 기준금리 동결<br>국내 증시 영향은?', desc: '연준의 금리 동결 결정에 따라 국내 외국인 자금 흐름이 주목받고 있습니다.', time: '2025.03.11 · 11:05', link: 'https://www.hankyung.com/finance' },
-    { cat: '🤖 AI', title: 'SK하이닉스 HBM4 양산<br>글로벌 AI 수요 급증', desc: '차세대 고대역폭 메모리 HBM4 본격 양산으로 수혜 전망이 높아지고 있습니다.', time: '2025.03.11 · 09:45', link: 'https://www.etnews.com/news/section.html?id1=02' },
-    { cat: '💡 투자팁', title: '주린이가 꼭 알아야 할<br>PER · PBR 완전 정복', desc: '복잡한 주식 지표, 실제 사례와 함께 5분 만에 마스터해 보세요.', time: '2025.03.10 · 18:20', link: 'https://www.mk.co.kr/news/economy/' }
+    { cat: '긴급', title: '삼성전자, 3분기 영업이익<br>9.1조 예상 상회 발표', desc: '반도체 업황 회복세가 본격화되며 시장 전망을 크게 웃도는 실적을 기록했습니다.', time: '2025.03.11 · 14:32', link: 'https://www.mk.co.kr/news/stock/' },
+    { cat: '시황', title: '미 연준, 기준금리 동결<br>국내 증시 영향은?', desc: '연준의 금리 동결 결정에 따라 국내 외국인 자금 흐름이 주목받고 있습니다.', time: '2025.03.11 · 11:05', link: 'https://www.hankyung.com/finance' },
+    { cat: '분석', title: 'SK하이닉스 HBM4 양산<br>글로벌 AI 수요 급증', desc: '차세대 고대역폭 메모리 HBM4 본격 양산으로 수혜 전망이 높아지고 있습니다.', time: '2025.03.11 · 09:45', link: 'https://www.etnews.com/news/section.html?id1=02' },
+    { cat: '투자팁', title: '주린이가 꼭 알아야 할<br>PER · PBR 완전 정복', desc: '복잡한 주식 지표, 실제 사례와 함께 5분 만에 마스터해 보세요.', time: '2025.03.10 · 18:20', link: 'https://www.mk.co.kr/news/economy/' }
   ];
   
   const slides = defaultSlides.map((slide, index) => `
@@ -529,12 +567,12 @@ function loadDefaultNews() {
   if (!newsGrid) return;
   
   const defaultNews = [
-    { cat: '🏭 산업·종목', title: '반도체 슈퍼사이클 재개? 2025년 하반기 전망 분석', desc: '메모리 업황 회복세와 AI 수요 증가로 반도체 섹터에 대한 긍정 전망이 확산', time: '1시간 전', tag: '반도체' },
-    { cat: '🌐 글로벌', title: '나스닥 사상 최고치 경신, 국내 증시 연동 여부는', desc: '나스닥이 연일 고점을 갱신하는 가운데 KOSPI와의 상관관계 분석이 주목', time: '2시간 전', tag: '글로벌' },
-    { cat: '💰 ETF', title: '초보 투자자를 위한 ETF 포트폴리오 구성 전략', desc: '분산 투자의 기본인 ETF, 어떻게 골라야 할지 핵심만 정리했습니다.', time: '4시간 전', tag: 'ETF' },
-    { cat: '📈 KOSPI', title: '외국인 순매수 5거래일 연속, 코스피 반등 신호?', desc: '외국인 매수세가 지속되며 KOSPI 2,600선 회복에 대한 기대감이 높아지고 있습니다.', time: '5시간 전', tag: 'KOSPI' },
-    { cat: '🏦 정책', title: '한국은행 금리 결정 D-3, 시장 전망 종합', desc: '기준금리 동결 또는 인하 기대 속에 채권·증시 모두 촉각을 세우고 있습니다.', time: '어제', tag: '금리' },
-    { cat: '🛢️ 원자재', title: '국제 유가 80달러 돌파, 에너지 관련주 수혜 종목', desc: 'WTI 원유가 80달러를 돌파하며 에너지 섹터에 대한 관심이 급증하고 있습니다.', time: '어제', tag: '원자재' }
+    { cat: '산업·종목', title: '반도체 슈퍼사이클 재개? 2025년 하반기 전망 분석', desc: '메모리 업황 회복세와 AI 수요 증가로 반도체 섹터에 대한 긍정 전망이 확산', time: '1시간 전', tag: '반도체' },
+    { cat: '글로벌', title: '나스닥 사상 최고치 경신, 국내 증시 연동 여부는', desc: '나스닥이 연일 고점을 갱신하는 가운데 KOSPI와의 상관관계 분석이 주목', time: '2시간 전', tag: '글로벌' },
+    { cat: 'ETF', title: '초보 투자자를 위한 ETF 포트폴리오 구성 전략', desc: '분산 투자의 기본인 ETF, 어떻게 골라야 할지 핵심만 정리했습니다.', time: '4시간 전', tag: 'ETF' },
+    { cat: 'KOSPI', title: '외국인 순매수 5거래일 연속, 코스피 반등 신호?', desc: '외국인 매수세가 지속되며 KOSPI 2,600선 회복에 대한 기대감이 높아지고 있습니다.', time: '5시간 전', tag: 'KOSPI' },
+    { cat: '정책', title: '한국은행 금리 결정 D-3, 시장 전망 종합', desc: '기준금리 동결 또는 인하 기대 속에 채권·증시 모두 촉각을 세우고 있습니다.', time: '어제', tag: '금리' },
+    { cat: '원자재', title: '국제 유가 80달러 돌파, 에너지 관련주 수혜 종목', desc: 'WTI 원유가 80달러를 돌파하며 에너지 섹터에 대한 관심이 급증하고 있습니다.', time: '어제', tag: '원자재' }
   ];
   
   const newsCards = defaultNews.map(news => `

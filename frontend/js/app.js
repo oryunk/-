@@ -30,11 +30,12 @@ function setAuthNavVisible(displayName) {
   const emailEl = document.getElementById('navUserEmail');
   if (!loginBtn || !emailEl) return;
   if (displayName) {
+    const welcomeText = `${displayName}님 환영합니다`;
     loginBtn.style.display = 'none';
     if (logoutBtn) logoutBtn.style.display = '';
-    emailEl.textContent = displayName;
+    emailEl.textContent = welcomeText;
     emailEl.style.display = 'inline-block';
-    emailEl.title = displayName;
+    emailEl.title = welcomeText;
   } else {
     loginBtn.style.display = '';
     if (logoutBtn) logoutBtn.style.display = 'none';
