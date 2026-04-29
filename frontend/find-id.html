@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>아이디 찾기 - 주린닷컴</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/style.css?v=20260428">
 <style>
   .helper-page {
     min-height: 100vh;
@@ -14,23 +14,24 @@
     justify-content: center;
     padding: 40px 20px;
     background:
-      radial-gradient(circle at top right, rgba(79, 158, 255, 0.18), transparent 30%),
-      radial-gradient(circle at bottom left, rgba(0, 212, 255, 0.12), transparent 35%),
-      var(--navy);
+      radial-gradient(circle at top right, rgba(47, 143, 95, 0.12), transparent 32%),
+      radial-gradient(circle at bottom left, rgba(47, 143, 95, 0.08), transparent 38%),
+      #ffffff;
   }
 
   .helper-card {
     width: min(100%, 480px);
     padding: 36px;
     border-radius: 24px;
-    border: 1px solid rgba(79, 158, 255, 0.2);
-    background: rgba(13, 31, 60, 0.94);
-    box-shadow: 0 26px 80px rgba(0, 0, 0, 0.38);
+    border: 1px solid rgba(47, 143, 95, 0.18);
+    background: #ffffff;
+    box-shadow: 0 20px 60px rgba(31, 47, 38, 0.1);
   }
 
   .helper-card h1 {
     font-size: 30px;
     margin-bottom: 10px;
+    color: var(--text-primary);
   }
 
   .helper-card p {
@@ -45,7 +46,7 @@
     flex-direction: column;
     gap: 8px;
     margin-bottom: 16px;
-    color: var(--gray-200);
+    color: var(--text-primary);
     font-size: 13px;
     font-weight: 600;
   }
@@ -54,9 +55,9 @@
     width: 100%;
     padding: 14px 16px;
     border-radius: 10px;
-    border: 1px solid rgba(79, 158, 255, 0.22);
-    background: rgba(255, 255, 255, 0.04);
-    color: var(--white);
+    border: 1px solid rgba(47, 143, 95, 0.22);
+    background: var(--gray-100);
+    color: var(--text-primary);
     font-size: 14px;
     font-family: inherit;
   }
@@ -67,7 +68,7 @@
     border-radius: 10px;
     padding: 14px 18px;
     background: linear-gradient(135deg, var(--blue-bright), var(--accent));
-    color: var(--white);
+    color: #ffffff;
     font-weight: 700;
     font-size: 15px;
     cursor: pointer;
@@ -91,9 +92,9 @@
   }
 
   #result-box.success {
-    background: rgba(0, 212, 255, 0.08);
-    border: 1px solid rgba(0, 212, 255, 0.35);
-    color: var(--gray-200);
+    background: rgba(47, 143, 95, 0.08);
+    border: 1px solid rgba(47, 143, 95, 0.28);
+    color: var(--text-primary);
   }
 
   #result-box.error {

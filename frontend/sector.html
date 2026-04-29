@@ -5,15 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>섹터 상세 - 주린닷컴</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/style.css?v=20260428">
 <script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
 <style>
   .sector-page {
     min-height: 100vh;
     padding-top: 84px;
-    background: radial-gradient(circle at 10% 0%, rgba(79, 158, 255, 0.14), transparent 45%),
-                radial-gradient(circle at 90% 20%, rgba(0, 212, 255, 0.12), transparent 45%),
-                var(--navy);
+    background: radial-gradient(circle at 10% 0%, rgba(47, 143, 95, 0.1), transparent 45%),
+                radial-gradient(circle at 90% 20%, rgba(47, 143, 95, 0.06), transparent 45%),
+                #ffffff;
   }
 
   .sector-wrap {
@@ -23,10 +23,10 @@
   }
 
   .sector-hero {
-    border: 1px solid rgba(79, 158, 255, 0.2);
+    border: 1px solid rgba(47, 143, 95, 0.18);
     border-radius: 18px;
     padding: 28px;
-    background: linear-gradient(140deg, rgba(13, 45, 107, 0.7), rgba(10, 22, 40, 0.9));
+    background: linear-gradient(180deg, #eef8f1 0%, #ffffff 100%);
     margin-bottom: 24px;
   }
 
@@ -48,11 +48,12 @@
     font-size: clamp(28px, 4vw, 42px);
     font-weight: 900;
     letter-spacing: -0.02em;
+    color: var(--text-primary);
   }
 
   .sector-desc {
     margin-top: 12px;
-    color: var(--gray-200);
+    color: var(--gray-400);
     line-height: 1.7;
     font-size: 15px;
   }
@@ -67,11 +68,11 @@
   .sector-keyword {
     font-size: 12px;
     font-weight: 600;
-    color: #cbe5ff;
-    border: 1px solid rgba(79, 158, 255, 0.3);
+    color: var(--accent);
+    border: 1px solid rgba(47, 143, 95, 0.28);
     border-radius: 999px;
     padding: 6px 10px;
-    background: rgba(79, 158, 255, 0.1);
+    background: rgba(47, 143, 95, 0.08);
   }
 
   .sector-actions {
@@ -87,8 +88,8 @@
   }
 
   .stocks-section {
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(79, 158, 255, 0.15);
+    background: #ffffff;
+    border: 1px solid rgba(47, 143, 95, 0.16);
     border-radius: 16px;
     padding: 24px;
     margin-top: 24px;
@@ -106,7 +107,7 @@
   .stocks-title {
     font-size: 20px;
     font-weight: 700;
-    color: var(--white);
+    color: var(--text-primary);
   }
 
   .live-badge {
@@ -114,11 +115,11 @@
     align-items: center;
     gap: 6px;
     font-size: 13px;
-    color: var(--gray-300);
+    color: var(--gray-400);
     padding: 4px 10px;
     border-radius: 999px;
-    border: 1px solid rgba(79, 158, 255, 0.25);
-    background: rgba(79, 158, 255, 0.08);
+    border: 1px solid rgba(47, 143, 95, 0.2);
+    background: rgba(47, 143, 95, 0.06);
   }
 
   .live-dot {
@@ -143,7 +144,7 @@
   .stocks-table td {
     padding: 14px 10px;
     text-align: left;
-    border-bottom: 1px solid rgba(79, 158, 255, 0.1);
+    border-bottom: 1px solid rgba(47, 143, 95, 0.1);
   }
 
   .stocks-table th {
@@ -155,7 +156,7 @@
 
   .stocks-table td {
     font-size: 14px;
-    color: var(--white);
+    color: var(--text-primary);
   }
 
   .stock-name {
@@ -243,8 +244,8 @@
     transition: all 0.2s;
   }
   .btn-back:hover {
-    background: rgba(79,158,255,0.12);
-    color: var(--white);
+    background: rgba(47,143,95,0.12);
+    color: var(--accent);
   }
 
   .stock-detail-head {
@@ -261,7 +262,7 @@
     font-size: 26px;
     font-weight: 800;
     letter-spacing: -0.4px;
-    color: var(--white);
+    color: var(--text-primary);
   }
   .stock-detail-code {
     margin-top: 4px;
@@ -303,11 +304,11 @@
   .detail-chip.flat { background: rgba(255,255,255,0.07); border-color: rgba(255,255,255,0.18); color: var(--gray-200); }
 
   @keyframes detail-flash-up {
-    0%   { background: rgba(79, 201, 122, 0.25); }
+    0%   { background: rgba(239, 68, 68, 0.28); }
     100% { background: transparent; }
   }
   @keyframes detail-flash-down {
-    0%   { background: rgba(255, 92, 92, 0.25); }
+    0%   { background: rgba(37, 99, 235, 0.26); }
     100% { background: transparent; }
   }
   .detail-price-main.flash-up   { animation: detail-flash-up   0.7s ease-out; border-radius: 8px; }
@@ -384,7 +385,7 @@
   .detail-value {
     font-size: 17px;
     font-weight: 700;
-    color: var(--white);
+    color: var(--text-primary);
   }
 
   .detail-cta {
@@ -423,6 +424,7 @@
     <div class="logo-text">주린<span>닷컴</span></div>
   </a>
   <ul class="nav-menu">
+    <li><a href="guide.html">가이드</a></li>
     <li><a href="analysis.html">AI 분석 <span class="nav-badge">AI</span></a></li>
     <li><a href="ai-chart-prediction.html">AI 차트 예측 <span class="nav-badge">AI</span></a></li>
     <li><a href="glossary.html">용어 검색</a></li>
@@ -440,7 +442,7 @@
     <!-- ── 섹터 메인 뷰 ── -->
     <div id="sectorMainView">
     <section class="sector-hero">
-      <div class="sector-badge" id="sectorBadge">📌 관심 섹터</div>
+      <div class="sector-badge" id="sectorBadge">관심 섹터</div>
       <h1 class="sector-name" id="sectorName">섹터 정보를 불러오는 중...</h1>
       <p class="sector-desc" id="sectorDesc">선택한 섹터의 핵심 포인트를 요약해 보여줍니다.</p>
       <div class="sector-keywords" id="sectorKeywords"></div>
@@ -542,7 +544,7 @@
 
   const sectorData = {
     'IT 및 기술': {
-      emoji: '💻',
+      emoji: '',
       desc: '소프트웨어, 인터넷 플랫폼, AI, 반도체 등 디지털 전환을 주도하는 핵심 성장 섹터입니다.',
       keywords: ['AI', '클라우드', '소프트웨어', '플랫폼'],
       stocks: [
@@ -559,7 +561,7 @@
       ]
     },
     '전기/전자': {
-      emoji: '⚙️',
+      emoji: '',
       desc: '전자부품, 디스플레이, 전자기기 등 제조 기반의 핵심 전기·전자 섹터입니다.',
       keywords: ['디스플레이', 'OLED', '전자부품', 'PCB'],
       stocks: [
@@ -576,7 +578,7 @@
       ]
     },
     '금융': {
-      emoji: '🏦',
+      emoji: '',
       desc: '은행, 보험, 증권, 카드 등 금리와 경기 사이클의 영향을 받는 금융 섹터입니다.',
       keywords: ['금리', 'NIM', '대출 성장', '배당'],
       stocks: [
@@ -593,7 +595,7 @@
       ]
     },
     '제조': {
-      emoji: '🏭',
+      emoji: '',
       desc: '자동차, 철강, 기계 등 국내 수출을 이끄는 주력 제조 섹터입니다.',
       keywords: ['수출', '수주잔고', '원가 경쟁력', '자동화'],
       stocks: [
@@ -610,7 +612,7 @@
       ]
     },
     '바이오/제약': {
-      emoji: '🧬',
+      emoji: '',
       desc: '임상 이벤트, 기술수출, 허가 이슈가 주가를 좌우하는 고변동성 성장 섹터입니다.',
       keywords: ['임상 3상', 'FDA', '기술이전', '신약 파이프라인'],
       stocks: [
@@ -627,7 +629,7 @@
       ]
     },
     '소비재': {
-      emoji: '🛍️',
+      emoji: '',
       desc: '식품, 의류, 생활용품 등 내수 소비 트렌드와 연동되는 소비재 섹터입니다.',
       keywords: ['내수', '브랜드', '소비 심리', '가격 전가력'],
       stocks: [
@@ -644,7 +646,7 @@
       ]
     },
     '통신': {
-      emoji: '📡',
+      emoji: '',
       desc: '5G 인프라, 데이터 트래픽, 미디어 사업 확장을 기반으로 한 통신 섹터입니다.',
       keywords: ['5G', '가입자 ARPU', 'B2B', '미디어 플랫폼'],
       stocks: [
@@ -661,7 +663,7 @@
       ]
     },
     '에너지': {
-      emoji: '⚡',
+      emoji: '',
       desc: '신재생, 수소, 전력 인프라 투자 흐름과 정책 수혜가 핵심인 에너지 전환 섹터입니다.',
       keywords: ['수소', '태양광', 'ESS', '전력망 투자'],
       stocks: [
@@ -678,7 +680,7 @@
       ]
     },
     '부동산': {
-      emoji: '🏢',
+      emoji: '',
       desc: '금리 방향과 정부 정책의 영향을 크게 받는 리츠·건설·부동산 섹터입니다.',
       keywords: ['금리', 'PF', '리츠', '주택 공급'],
       stocks: [
@@ -695,7 +697,7 @@
       ]
     },
     '유통': {
-      emoji: '🏪',
+      emoji: '',
       desc: '이커머스, 대형마트, 편의점 등 내수 소비경기에 민감한 유통 섹터입니다.',
       keywords: ['이커머스', '오프라인 객수', '물류', '할인행사'],
       stocks: [
@@ -712,7 +714,7 @@
       ]
     },
     '화학': {
-      emoji: '🧪',
+      emoji: '',
       desc: '원유·나프타 가격, 스프레드, 친환경 소재 전환이 중요한 기초소재 섹터입니다.',
       keywords: ['스프레드', '나프타', '친환경 소재', '원자재'],
       stocks: [
@@ -729,7 +731,7 @@
       ]
     },
     '서비스': {
-      emoji: '🎯',
+      emoji: '',
       desc: '여행, 외식, 광고, 교육 등 내수 서비스 경기에 연동되는 다양한 서비스 섹터입니다.',
       keywords: ['내수 회복', '광고 단가', '여행 수요', '구독 모델'],
       stocks: [
@@ -746,7 +748,7 @@
       ]
     },
     '지수ETF': {
-      emoji: '📊',
+      emoji: '',
       desc: 'KOSPI·KOSDAQ 등 주요 지수를 추종하는 ETF로 시장 전체 흐름에 투자합니다.',
       keywords: ['KOSPI 200', 'ETF', '인덱스', '분산투자'],
       stocks: [
@@ -763,7 +765,7 @@
       ]
     },
     '섹터ETF': {
-      emoji: '🗂️',
+      emoji: '',
       desc: '특정 산업 섹터에 집중 투자하는 ETF로 섹터별 성장 트렌드를 반영합니다.',
       keywords: ['섹터 투자', '테마', 'ETF', '집중형'],
       stocks: [
@@ -1138,7 +1140,7 @@
 
     if (ma5.length > 0) {
       const s = stockChartInstance.addLineSeries({
-        color: '#2ecc71', lineWidth: 1,
+        color: '#d97706', lineWidth: 1,
         priceLineVisible: false, lastValueVisible: false,
       });
       s.setData(ma5);
@@ -1168,7 +1170,7 @@
     if (!sectorName || !data) {
       document.getElementById('sectorName').textContent = '선택한 섹터를 찾을 수 없습니다.';
       document.getElementById('sectorDesc').textContent = '시장 페이지로 돌아가서 관심 섹터 버튼을 다시 눌러주세요.';
-      document.getElementById('sectorBadge').textContent = '⚠️ 잘못된 접근';
+      document.getElementById('sectorBadge').textContent = '잘못된 접근';
       document.getElementById('liveStatus').textContent = '대상 섹터 없음';
       renderStocksRows([]);
       return;

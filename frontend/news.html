@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>경제 뉴스 - 주린닷컴</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/style.css?v=20260428">
 <style>
   .market-container {
     min-height: 100vh;
@@ -13,9 +13,9 @@
   }
 
   .market-header {
-    background: linear-gradient(135deg, var(--blue-dark), var(--navy));
+    background: linear-gradient(180deg, #f0f7f3 0%, #ffffff 100%);
     padding: 40px 0;
-    border-bottom: 1px solid rgba(79, 158, 255, 0.15);
+    border-bottom: 1px solid rgba(47, 143, 95, 0.15);
   }
 
   .market-header-content {
@@ -28,12 +28,13 @@
     font-size: 32px;
     font-weight: 700;
     margin-bottom: 8px;
-    color: var(--white);
+    color: var(--text-primary);
   }
 
   .market-sub {
     font-size: 16px;
-    color: var(--gray-400);
+    color: #3f5a4b;
+    font-weight: 600;
   }
 
   .market-content {
@@ -43,8 +44,8 @@
   }
 
   .indices-section {
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(79, 158, 255, 0.15);
+    background: #ffffff;
+    border: 1px solid rgba(47, 143, 95, 0.16);
     border-radius: 16px;
     padding: 32px;
     margin-bottom: 40px;
@@ -53,7 +54,7 @@
   .indices-title {
     font-size: 20px;
     font-weight: 700;
-    color: var(--white);
+    color: var(--text-primary);
     margin-bottom: 24px;
   }
 
@@ -64,8 +65,8 @@
   }
 
   .index-card {
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(79, 158, 255, 0.1);
+    background: var(--gray-100);
+    border: 1px solid rgba(47, 143, 95, 0.12);
     border-radius: 12px;
     padding: 24px;
     text-align: center;
@@ -74,7 +75,7 @@
   .index-name {
     font-size: 16px;
     font-weight: 600;
-    color: var(--white);
+    color: var(--text-primary);
     margin-bottom: 12px;
   }
 
@@ -99,8 +100,8 @@
   }
 
   .stocks-section {
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(79, 158, 255, 0.15);
+    background: #ffffff;
+    border: 1px solid rgba(47, 143, 95, 0.16);
     border-radius: 16px;
     padding: 32px;
     margin-bottom: 40px;
@@ -116,7 +117,7 @@
   .stocks-title {
     font-size: 20px;
     font-weight: 700;
-    color: var(--white);
+    color: var(--text-primary);
   }
 
   .stocks-filter {
@@ -126,10 +127,10 @@
 
   .filter-btn {
     padding: 8px 16px;
-    background: rgba(79, 158, 255, 0.1);
-    border: 1px solid rgba(79, 158, 255, 0.2);
+    background: rgba(47, 143, 95, 0.08);
+    border: 1px solid rgba(47, 143, 95, 0.2);
     border-radius: 20px;
-    color: var(--gray-200);
+    color: var(--text-primary);
     font-size: 14px;
     font-weight: 500;
     cursor: pointer;
@@ -144,8 +145,8 @@
   }
 
   .filter-btn:hover {
-    background: rgba(79, 158, 255, 0.2);
-    border-color: rgba(79, 158, 255, 0.4);
+    background: rgba(47, 143, 95, 0.14);
+    border-color: rgba(47, 143, 95, 0.35);
   }
 
   .stocks-table {
@@ -157,7 +158,7 @@
   .stocks-table td {
     padding: 16px 12px;
     text-align: left;
-    border-bottom: 1px solid rgba(79, 158, 255, 0.1);
+    border-bottom: 1px solid rgba(47, 143, 95, 0.1);
   }
 
   .stocks-table th {
@@ -170,12 +171,12 @@
 
   .stocks-table td {
     font-size: 15px;
-    color: var(--white);
+    color: var(--text-primary);
   }
 
   .stock-name {
     font-weight: 600;
-    color: var(--white);
+    color: var(--text-primary);
   }
 
   .stock-price {
@@ -200,8 +201,8 @@
   }
 
   .market-news {
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(79, 158, 255, 0.15);
+    background: #ffffff;
+    border: 1px solid rgba(47, 143, 95, 0.16);
     border-radius: 16px;
     padding: 32px;
     scroll-margin-top: 90px;
@@ -209,8 +210,8 @@
 
   .news-title {
     font-size: 20px;
-    font-weight: 700;
-    color: var(--white);
+    font-weight: 800;
+    color: var(--text-primary);
     margin-bottom: 24px;
   }
 
@@ -222,10 +223,10 @@
   .news-item {
     display: flex;
     gap: 16px;
-    padding: 20px;
-    background: rgba(255, 255, 255, 0.02);
+    padding: 18px;
+    background: #ffffff;
     border-radius: 12px;
-    border: 1px solid rgba(79, 158, 255, 0.08);
+    border: 1px solid rgba(47, 143, 95, 0.18);
     cursor: pointer;
     transition: all 0.2s;
   }
@@ -236,21 +237,24 @@
   }
 
   .news-item:hover {
-    background: rgba(255, 255, 255, 0.04);
-    border-color: var(--accent);
+    background: #f7fcf9;
+    border-color: rgba(47, 143, 95, 0.45);
     transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(31, 47, 38, 0.08);
   }
 
   .news-image {
     width: 80px;
     height: 80px;
-    background: linear-gradient(135deg, var(--blue-bright), var(--accent));
+    background: #e8f6ee;
+    border: 1px solid rgba(47, 143, 95, 0.28);
     border-radius: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 24px;
-    color: white;
+    font-size: 14px;
+    font-weight: 800;
+    color: #1f6d47;
     flex-shrink: 0;
   }
 
@@ -259,24 +263,32 @@
   }
 
   .news-category {
+    display: inline-flex;
+    align-items: center;
     font-size: 12px;
-    color: var(--accent);
-    font-weight: 600;
+    color: #185f3d;
+    background: #e7f5ed;
+    border: 1px solid rgba(47, 143, 95, 0.3);
+    border-radius: 999px;
+    padding: 3px 9px;
+    font-weight: 800;
     margin-bottom: 8px;
     text-transform: uppercase;
+    letter-spacing: 0.02em;
   }
 
   .news-headline {
-    font-size: 16px;
-    font-weight: 600;
-    color: var(--white);
+    font-size: 17px;
+    font-weight: 800;
+    color: var(--text-primary);
     margin-bottom: 8px;
     line-height: 1.4;
   }
 
   .news-summary {
     font-size: 14px;
-    color: var(--gray-400);
+    color: #3e5849;
+    font-weight: 500;
     line-height: 1.5;
   }
 
@@ -289,15 +301,18 @@
 
   .news-time {
     font-size: 12px;
-    color: var(--gray-500);
+    color: #5b7566;
+    font-weight: 600;
   }
 
   .news-source {
     font-size: 12px;
-    color: var(--gray-500);
-    background: rgba(79, 158, 255, 0.1);
-    padding: 4px 8px;
+    color: #204f38;
+    background: #eaf7f0;
+    border: 1px solid rgba(47, 143, 95, 0.22);
+    padding: 4px 9px;
     border-radius: 12px;
+    font-weight: 700;
   }
 
   .btn-back {
@@ -353,11 +368,12 @@
     <div class="logo-text">주린<span>닷컴</span></div>
   </a>
   <ul class="nav-menu">
+    <li><a href="guide.html">가이드</a></li>
     <li><a href="analysis.html">AI 분석</a></li>
     <li><a href="ai-chart-prediction.html">AI 차트 예측 <span class="nav-badge">AI</span></a></li>
     <li><a href="glossary.html">용어 검색</a></li>
     <li><a class="jurin-simulation-link" href="http://127.0.0.1:5000/simulation.html">모의 투자</a></li>
-    <li><a href="market.html">시장 <span class="nav-badge">📊</span></a></li>
+    <li><a href="market.html">시장 <span class="nav-badge">LIVE</span></a></li>
   </ul>
   <div class="nav-right">
     <button type="button" class="btn-ghost" id="navLoginBtn">로그인</button>
@@ -369,14 +385,14 @@
   <div class="market-header">
     <div class="market-header-content">
       <a href="주린닷컴홈피.html" class="btn-back">← 돌아가기</a>
-      <div class="market-title">📰 경제 뉴스</div>
+      <div class="market-title">경제 뉴스</div>
       <div class="market-sub">최신 경제 이슈와 시장 뉴스를 빠르게 확인하세요</div>
     </div>
   </div>
 
   <div class="market-content">
     <div class="market-news" id="marketNewsSection">
-      <div class="news-title">📰 오늘의 경제 뉴스</div>
+      <div class="news-title">오늘의 경제 뉴스</div>
       <div class="news-list" id="newsList">
         <!-- 동적으로 뉴스 아이템 생성 -->
       </div>
@@ -440,7 +456,7 @@
 
     const newsHtml = newsData.map(news => `
       <a class="news-item news-link" href="${news.link}" target="_blank" rel="noopener noreferrer">
-        <div class="news-image">📰</div>
+        <div class="news-image">뉴스</div>
         <div class="news-content">
           <div class="news-category">${news.category}</div>
           <div class="news-headline">${news.headline}</div>

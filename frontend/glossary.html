@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>용어 사전 - 주린닷컴</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/style.css?v=20260428">
 <style>
   .glossary-container {
     min-height: 100vh;
@@ -13,9 +13,9 @@
   }
 
   .glossary-header {
-    background: linear-gradient(135deg, var(--blue-dark), var(--navy));
+    background: linear-gradient(180deg, #f0f7f3 0%, #ffffff 100%);
     padding: 40px 0;
-    border-bottom: 1px solid rgba(79, 158, 255, 0.15);
+    border-bottom: 1px solid rgba(47, 143, 95, 0.15);
   }
 
   .glossary-header-content {
@@ -28,7 +28,7 @@
     font-size: 32px;
     font-weight: 700;
     margin-bottom: 8px;
-    color: var(--white);
+    color: var(--text-primary);
   }
 
   .glossary-sub {
@@ -43,8 +43,8 @@
   }
 
   .search-section {
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(79, 158, 255, 0.15);
+    background: #ffffff;
+    border: 1px solid rgba(47, 143, 95, 0.18);
     border-radius: 16px;
     padding: 32px;
     margin-bottom: 40px;
@@ -54,7 +54,7 @@
     font-size: 16px;
     font-weight: 600;
     margin-bottom: 12px;
-    color: var(--white);
+    color: var(--text-primary);
   }
 
   .search-group {
@@ -65,11 +65,11 @@
 
   .term-input-field {
     flex: 1;
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid rgba(79, 158, 255, 0.25);
+    background: var(--gray-100);
+    border: 1px solid rgba(47, 143, 95, 0.25);
     border-radius: 10px;
     padding: 14px 18px;
-    color: var(--white);
+    color: var(--text-primary);
     font-size: 15px;
     font-family: inherit;
     transition: border-color 0.2s;
@@ -78,7 +78,7 @@
   .term-input-field:focus {
     outline: none;
     border-color: var(--accent);
-    background: rgba(255, 255, 255, 0.08);
+    background: #ffffff;
   }
 
   .term-input-field::placeholder {
@@ -104,8 +104,8 @@
   }
 
   .btn-back {
-    background: rgba(79, 158, 255, 0.2);
-    border: 1px solid rgba(79, 158, 255, 0.4);
+    background: rgba(47, 143, 95, 0.1);
+    border: 1px solid rgba(47, 143, 95, 0.35);
     color: var(--accent);
     padding: 10px 20px;
     font-size: 13px;
@@ -122,15 +122,16 @@
   }
 
   .btn-back:hover {
-    background: rgba(79, 158, 255, 0.3);
-    border-color: rgba(79, 158, 255, 0.6);
+    background: rgba(47, 143, 95, 0.16);
+    border-color: rgba(47, 143, 95, 0.45);
   }
 
   .glossary-result {
-    margin-top: 40px;
-    min-height: 300px;
-    background: rgba(255, 255, 255, 0.02);
-    border: 1px solid rgba(79, 158, 255, 0.1);
+    margin-top: 0;
+    margin-bottom: 28px;
+    min-height: 120px;
+    background: #ffffff;
+    border: 1px solid rgba(47, 143, 95, 0.14);
     border-radius: 16px;
     padding: 32px;
     display: flex;
@@ -169,7 +170,7 @@
 
   .term-definition {
     width: 100%;
-    color: var(--white);
+    color: var(--text-primary);
   }
 
   .term-title {
@@ -180,34 +181,34 @@
   }
 
   .term-content {
-    background: rgba(79, 158, 255, 0.05);
-    border: 1px solid rgba(79, 158, 255, 0.15);
+    background: var(--gray-100);
+    border: 1px solid rgba(47, 143, 95, 0.15);
     border-radius: 12px;
     padding: 24px;
     font-size: 14px;
     line-height: 1.8;
-    color: var(--gray-200);
+    color: var(--text-primary);
   }
 
   .term-examples {
     margin-top: 20px;
     padding-top: 20px;
-    border-top: 1px solid rgba(79, 158, 255, 0.15);
+    border-top: 1px solid rgba(47, 143, 95, 0.15);
   }
 
   .term-examples-title {
     font-weight: 600;
-    color: var(--white);
+    color: var(--text-primary);
     margin-bottom: 12px;
   }
 
   .term-example {
-    background: rgba(255, 255, 255, 0.03);
+    background: var(--gray-100);
     border-radius: 8px;
     padding: 12px;
     margin-bottom: 8px;
     font-size: 13px;
-    color: var(--gray-300);
+    color: var(--gray-400);
   }
 
   .popular-terms {
@@ -218,7 +219,7 @@
     font-size: 20px;
     font-weight: 700;
     margin-bottom: 20px;
-    color: var(--white);
+    color: var(--text-primary);
   }
 
   .terms-grid {
@@ -228,8 +229,8 @@
   }
 
   .term-card {
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(79, 158, 255, 0.15);
+    background: #ffffff;
+    border: 1px solid rgba(47, 143, 95, 0.16);
     border-radius: 12px;
     padding: 20px;
     cursor: pointer;
@@ -237,7 +238,7 @@
   }
 
   .term-card:hover {
-    background: rgba(255, 255, 255, 0.06);
+    background: var(--gray-100);
     border-color: var(--accent);
     transform: translateY(-2px);
   }
@@ -245,7 +246,7 @@
   .term-card-name {
     font-size: 16px;
     font-weight: 600;
-    color: var(--white);
+    color: var(--text-primary);
     margin-bottom: 8px;
   }
 
@@ -253,6 +254,75 @@
     font-size: 13px;
     color: var(--gray-400);
     line-height: 1.5;
+  }
+
+  .glossary-browse-root {
+    margin-bottom: 36px;
+  }
+
+  .glossary-browse-block {
+    margin-bottom: 32px;
+    padding: 24px;
+    background: #ffffff;
+    border: 1px solid rgba(47, 143, 95, 0.14);
+    border-radius: 16px;
+  }
+
+  .glossary-browse-title {
+    font-size: 17px;
+    font-weight: 800;
+    color: var(--text-primary);
+    margin: 0 0 8px;
+  }
+
+  .glossary-browse-sub {
+    font-size: 13px;
+    color: var(--gray-400);
+    margin: 0 0 16px;
+    line-height: 1.5;
+  }
+
+  .glossary-browse-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 12px;
+  }
+
+  .glossary-browse-item {
+    border-radius: 12px;
+    padding: 14px;
+    background: var(--gray-100);
+    border: 1px solid rgba(47, 143, 95, 0.12);
+  }
+
+  .glossary-browse-name {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 6px;
+  }
+
+  .glossary-browse-desc {
+    font-size: 12px;
+    color: var(--gray-400);
+    line-height: 1.5;
+    margin-bottom: 10px;
+  }
+
+  .glossary-browse-ai {
+    font-size: 12px;
+    font-weight: 700;
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: 1px solid rgba(47, 143, 95, 0.35);
+    background: rgba(47, 143, 95, 0.08);
+    color: var(--accent);
+    cursor: pointer;
+    font-family: inherit;
+  }
+
+  .glossary-browse-ai:hover {
+    background: rgba(47, 143, 95, 0.14);
   }
 </style>
 </head>
@@ -264,6 +334,7 @@
     <div class="logo-text">주린<span>닷컴</span></div>
   </a>
   <ul class="nav-menu">
+    <li><a href="guide.html">가이드</a></li>
     <li><a href="analysis.html">AI 분석</a></li>
     <li><a href="ai-chart-prediction.html">AI 차트 예측 <span class="nav-badge">AI</span></a></li>
     <li><a href="glossary.html" class="active">용어 검색</a></li>
@@ -280,13 +351,13 @@
   <div class="glossary-header">
     <div class="glossary-header-content">
       <a href="주린닷컴홈피.html" class="btn-back">← 돌아가기</a>
-      <div class="glossary-title">📚 용어 사전</div>
-      <div class="glossary-sub">주식 용어를 쉽게 찾아보세요</div>
+      <div class="glossary-title">용어 사전</div>
+      <div class="glossary-sub">주식 용어를 쉽게 찾아보세요 · 증권사 화면 흐름에 맞춘 <strong>주린이 모음</strong>은 아래에서 카드로 먼저 읽을 수 있어요.</div>
     </div>
   </div>
 
   <div class="glossary-content">
-    <div class="search-section">
+    <div class="search-section" id="glossarySearchSection">
       <div class="search-label">찾고 싶은 용어를 입력하세요</div>
       <div class="search-group">
         <input
@@ -301,13 +372,15 @@
 
     <div class="glossary-result" id="resultContainer">
       <div class="result-placeholder">
-        <div class="result-placeholder-icon">🔍</div>
+        <div class="result-placeholder-icon">검색</div>
         <div class="result-placeholder-text">용어를 입력하고 검색하기를 눌러주세요</div>
       </div>
     </div>
 
+    <div id="glossaryCategories" class="glossary-browse-root" aria-label="증권사식 용어 카테고리"></div>
+
     <div class="popular-terms">
-      <div class="popular-terms-title">🔥 자주 찾는 용어</div>
+      <div class="popular-terms-title">자주 찾는 용어</div>
       <div class="terms-grid">
         <div class="term-card" onclick="searchPopularTerm('PER')">
           <div class="term-card-name">PER (주가수익비율)</div>
@@ -333,12 +406,33 @@
           <div class="term-card-name">포트폴리오</div>
           <div class="term-card-desc">투자자가 보유한 자산의 조합</div>
         </div>
+        <div class="term-card" onclick="searchPopularTerm('체결강도')">
+          <div class="term-card-name">체결강도</div>
+          <div class="term-card-desc">매수·매도 체결 중 어느 쪽이 더 셌는지 요약한 지표</div>
+        </div>
+        <div class="term-card" onclick="searchPopularTerm('호가')">
+          <div class="term-card-name">호가</div>
+          <div class="term-card-desc">사고팔려는 가격대에 줄 선 물량</div>
+        </div>
+        <div class="term-card" onclick="searchPopularTerm('EPS')">
+          <div class="term-card-name">EPS</div>
+          <div class="term-card-desc">주 1주당 순이익 — PER의 분모</div>
+        </div>
+        <div class="term-card" onclick="searchPopularTerm('BPS')">
+          <div class="term-card-name">BPS</div>
+          <div class="term-card-desc">주 1주당 순자산 — PBR의 분모</div>
+        </div>
+        <div class="term-card" onclick="searchPopularTerm('배당성향')">
+          <div class="term-card-name">배당성향</div>
+          <div class="term-card-desc">이익 중 얼마를 배당으로 줄지 비율</div>
+        </div>
       </div>
     </div>
   </div>
 </div>
 
 <script src="js/api-base.js"></script>
+<script src="js/stock-terms.js"></script>
 <script>
   const GLOSSARY_API_BASE = window.JURIN_API_BASE || 'http://localhost:5000';
 
@@ -351,15 +445,22 @@
       .replace(/'/g, '&#39;');
   }
 
+  function scrollGlossaryResultIntoView() {
+    const el = document.getElementById('resultContainer');
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
   function renderLoading() {
     const resultContainer = document.getElementById('resultContainer');
     resultContainer.classList.add('loading');
     resultContainer.innerHTML = `
       <div class="result-placeholder">
-        <div class="result-placeholder-icon">⏳</div>
+        <div class="result-placeholder-icon">로딩</div>
         <div class="result-placeholder-text">AI가 용어를 설명하고 있습니다...</div>
       </div>
     `;
+    scrollGlossaryResultIntoView();
   }
 
   function renderError(message) {
@@ -371,13 +472,51 @@
         <div class="result-placeholder-text">${escapeHtml(message)}</div>
       </div>
     `;
+    scrollGlossaryResultIntoView();
+  }
+
+  function normalizeTermAnswerText(raw) {
+    let s = String(raw || '').trim();
+    for (let i = 0; i < 6; i++) {
+      if (s.length >= 6 && s.startsWith('"""') && s.endsWith('"""')) {
+        s = s.slice(3, -3).trim();
+        continue;
+      }
+      if (s.length >= 6 && s.startsWith("'''") && s.endsWith("'''")) {
+        s = s.slice(3, -3).trim();
+        continue;
+      }
+      break;
+    }
+    const fence = /^```(?:\w*)?\s*\n([\s\S]*?)\n```\s*$/;
+    const fm = s.match(fence);
+    if (fm) s = fm[1].trim();
+    let lines = s.split('\n');
+    const onlyFence = (ln) => {
+      const x = ln.trim();
+      return x === '"""' || x === "'''" || x === '```' || /^`{3,}$/.test(x);
+    };
+    while (lines.length && onlyFence(lines[0])) lines.shift();
+    while (lines.length && onlyFence(lines[lines.length - 1])) lines.pop();
+    s = lines.join('\n');
+    for (const marker of ['\n[작성 규칙]', '\n[사용자 질문]', '\n[제목]', '\n[요약]']) {
+      const idx = s.indexOf(marker);
+      if (idx !== -1) s = s.slice(0, idx);
+    }
+    s = s.replace(/\*\*용어의 의미:\*\*\s*/gi, '');
+    s = s.replace(/\*\*특징:\*\*\s*/gi, '');
+    s = s.replace(/\*\*실제 투자 활용 예시:\*\*\s*/gi, '');
+    s = s.replace(/^용어의 의미:\s*/gim, '');
+    s = s.replace(/^특징:\s*/gim, '');
+    s = s.replace(/^실제 투자 활용 예시:\s*/gim, '');
+    return s.replace(/\n{3,}/g, '\n\n').trim();
   }
 
   function renderAnswer(termName, answer) {
     const resultContainer = document.getElementById('resultContainer');
     resultContainer.classList.remove('loading');
 
-    const safeAnswer = escapeHtml(answer).replace(/\n/g, '<br>');
+    const safeAnswer = escapeHtml(normalizeTermAnswerText(answer)).replace(/\n/g, '<br>');
     resultContainer.innerHTML = `
       <div class="term-definition">
         <div class="term-title">${escapeHtml(termName)}</div>
@@ -386,6 +525,7 @@
         </div>
       </div>
     `;
+    scrollGlossaryResultIntoView();
   }
 
   // 용어 검색 함수
@@ -434,6 +574,21 @@
     if (e.key === 'Enter') {
       searchTerm();
     }
+  });
+
+  document.addEventListener('DOMContentLoaded', function () {
+    if (window.JurinStockTerms && typeof JurinStockTerms.mountGlossaryBrowse === 'function') {
+      JurinStockTerms.mountGlossaryBrowse('glossaryCategories');
+    }
+    try {
+      var params = new URLSearchParams(window.location.search);
+      var preset = params.get('term');
+      if (preset) {
+        var inp = document.getElementById('termInput');
+        if (inp) inp.value = preset;
+        searchTerm();
+      }
+    } catch (e) { /* ignore */ }
   });
 </script>
 <script src="js/common-auth.js"></script>
