@@ -9,8 +9,8 @@ import re
 import threading
 import requests
 import logging
-from dotenv import load_dotenv
 from decimal import Decimal, ROUND_HALF_UP
+from runtime_config import load_env_files, flask_secret_key, flask_run_options
 
 # yfinance 내부 에러 로그(종목 없음, JSON 파싱 등) 터미널 출력 억제
 logging.getLogger('yfinance').setLevel(logging.CRITICAL)
@@ -36,17 +36,10 @@ except Exception as live_price_err:
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 _FRONTEND_DIR = os.path.abspath(os.path.join(BASE_DIR, '..', 'frontend'))
-ENV_CANDIDATES = [
-    os.path.join(BASE_DIR, '.env'),
-    os.path.join(os.getcwd(), '.env'),
-]
-for env_path in ENV_CANDIDATES:
-    if os.path.exists(env_path):
-        load_dotenv(env_path)
-load_dotenv()
+load_env_files()
 
 app = Flask(__name__)
-app.secret_key = os.getenv("FLASK_SECRET_KEY", "change-this-secret-key")
+app.secret_key = flask_secret_key()
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 app.config["SESSION_COOKIE_PATH"] = "/"
@@ -56,6 +49,11 @@ from cors_helpers import apply_cors_headers
 import news_service
 
 app.register_blueprint(auth_bp)
+
+
+def create_app():
+    """WSGI/테스트 환경에서 사용할 Flask app factory."""
+    return app
 
 
 @app.after_request
@@ -165,29 +163,53 @@ FINAL STAGE
 모든 STAGE 완료 후 "통합 분석 리포트를 생성할까요?"라고 정확히 질문한다. Yes일 때만 전체 보고서를 출력한다.
 """
 
-TERM_INTERPRETATION_PROMPT = """Sophia: Terminology interpretation
-사용자가 질문한 특정 금융/투자 용어만 설명한다. (추가 용어 설명 금지)
-설명 스타일: 친절한 금융 멘토처럼, 전문 용어 사용을 지양하고 쉬운 비유를 활용한다.
+TERM_INTERPRETATION_PROMPT = """주린이 투자자에게 질문한 금융·투자 용어 **하나만** 설명한다.
 
-[답변 구조]
-용어의 의미: 초보자의 눈높이에서 본질적인 정의를 한 줄로 요약한 후 보충 설명한다.
-특징: 용어를 물어볼때만 설명한다.
-실제 투자 활용 예시: 이 용어가 실제 시장 상황에서 어떻게 쓰이는가에 대한 시나리오나 예시를 제시한다.
-
-[제약]
+[작성 규칙]
+- 한국어, 친한 멘토 말투. 전문 용어는 꼭 필요할 때만 짧게 쓴다.
+- "용어의 의미:", "특징:", "실제 투자 활용 예시:" 같은 **고정 소제목·굵은 꼬리표**는 절대 쓰지 않는다.
+- 2~4문단, 짧게. 첫 문단은 한 줄로 핵심만 요약한다.
 - 질문한 용어 외 다른 용어를 추가로 설명하지 않는다.
-- 한국어로 답변한다.
+- 특정 종목 매수·매도를 권유하지 않는다.
 """
 
 LOCAL_TERM_FALLBACK = {
-    'per': '용어의 의미: PER은 주가가 이익에 비해 비싼지 싼지 보는 배수 지표입니다.\n특징: 같은 업종 내 기업끼리 비교할 때 유용합니다.\n실제 투자 활용 예시: 반도체 A와 B의 PER을 비교해 상대적으로 저평가된 종목을 후보로 고르는 식으로 씁니다.',
-    'roe': '용어의 의미: ROE는 회사가 자기자본으로 얼마나 효율적으로 이익을 냈는지 보여주는 수익성 지표입니다.\n특징: 숫자가 높고 안정적으로 유지되면 경영 효율이 좋다고 봅니다.\n실제 투자 활용 예시: 같은 업종 기업 중 ROE가 꾸준히 높은 회사를 장기 보유 후보로 추리는 데 활용합니다.',
-    'pbr': '용어의 의미: PBR은 주가가 장부상 순자산 대비 몇 배인지 보는 지표입니다.\n특징: 1배 이하면 자산가치 대비 저평가 가능성을 점검합니다.\n실제 투자 활용 예시: 경기 민감 업종에서 PBR이 낮은 종목을 골라 반등 구간을 노리는 전략에 사용합니다.',
-    'eps': '용어의 의미: EPS는 주식 1주당 회사가 벌어들인 순이익입니다.\n특징: EPS가 늘면 기업의 이익 체력이 좋아지고 있다는 신호가 됩니다.\n실제 투자 활용 예시: 분기 실적 발표 후 EPS 증가 추세가 확인된 기업을 추세 매수 후보로 봅니다.',
-    '배당주': '용어의 의미: 배당주는 이익 일부를 주주에게 배당금으로 꾸준히 나눠주는 주식입니다.\n특징: 시세차익뿐 아니라 현금흐름을 함께 노리는 투자에 적합합니다.\n실제 투자 활용 예시: 금리 하락기나 변동성 장세에서 월/분기 배당 종목을 모아 현금흐름 포트폴리오를 구성합니다.',
-    '시가총액': '용어의 의미: 시가총액은 현재 주가에 발행주식 수를 곱한 기업의 시장가치입니다.\n특징: 대형주/중형주/소형주 분류의 기준이 됩니다.\n실제 투자 활용 예시: 시장 불안 시기에 시가총액 상위 대형주 중심으로 비중을 높여 변동성을 낮춥니다.',
-    '변동성': '용어의 의미: 변동성은 가격이 얼마나 크게 흔들리는지 나타내는 위험 지표입니다.\n특징: 변동성이 높을수록 수익 기회와 손실 위험이 함께 커집니다.\n실제 투자 활용 예시: 변동성이 급등하면 분할매수 간격을 넓히고 손절 기준을 더 보수적으로 설정합니다.',
-    '포트폴리오': '용어의 의미: 포트폴리오는 내가 보유한 투자자산의 구성표입니다.\n특징: 자산을 나눠 담아 한 종목 리스크를 줄이는 데 핵심입니다.\n실제 투자 활용 예시: 주식 60%, 채권 30%, 현금 10%처럼 비중을 정하고 정기적으로 리밸런싱합니다.'
+    '현재가': (
+        '1단계 학습: 시세 읽기 기초\n\n'
+        '처음에는 어렵게 보이지만 핵심은 간단합니다. 시장(코스피·코스닥)과 가격 다섯 가지—'
+        '시가, 현재가, 종가, 고가, 저가—만 먼저 익히면 됩니다.\n\n'
+        '현재가는 지금 장에서 이 종목이 얼마에 거래되고 있는지 보여 주는 가격이에요. '
+        '매수·매도 주문이 붙을 때마다 수시로 바뀔 수 있습니다.'
+    ),
+    'per': (
+        'PER은 주가가 1주당 이익의 몇 배인지 나타내요. 같은 업종 기업끼리 비교해 '
+        '“이익 대비 주가가 비싼 편인지”를 가늠할 때 씁니다. 성장 단계가 다르면 숫자만으로 판단하긴 어려워요.'
+    ),
+    'roe': (
+        'ROE는 자기자본으로 얼마나 이익을 냈는지 보는 효율 지표예요. '
+        '꾸준히 높으면 자본 활용이 나은 편이라고 볼 수 있지만, 부채가 많으면 왜곡될 수 있어 다른 표도 같이 봐야 해요.'
+    ),
+    'pbr': (
+        'PBR은 주가가 장부상 순자산(1주당)의 몇 배인지예요. 자산 비중이 큰 업종에서 '
+        '상대적 저·고평가를 볼 때 자주 씁니다.'
+    ),
+    'eps': (
+        'EPS는 주 1주당 순이익이에요. PER을 계산할 때 분모로 쓰이고, 실적이 늘었는지 줄었는지 추이를 볼 때도 써요.'
+    ),
+    '배당주': (
+        '배당주는 이익 일부를 배당금으로 주주에게 돌려주는 성향이 있는 주식을 가리키는 말로 쓰여요. '
+        '시세차익과 함께 현금 흐름을 노릴 때 참고할 수 있어요.'
+    ),
+    '시가총액': (
+        '시가총액은 주가에 발행 주식 수를 곱해 본 회사 규모(시장에서 매기는 가치)예요. '
+        '대형·중형·소형주를 나눌 때 기준이 됩니다.'
+    ),
+    '변동성': (
+        '변동성은 가격이 얼마나 크게 오르내리는지를 나타내요. 크면 기회도 있지만 손실 폭도 커질 수 있어요.'
+    ),
+    '포트폴리오': (
+        '포트폴리오는 내가 가진 투자 자산의 조합이에요. 한 종목에 몰지 않고 나눠 담으면 리스크를 줄이는 데 도움이 됩니다.'
+    ),
 }
 
 
@@ -197,10 +219,53 @@ def explain_term_with_local_fallback(term_name):
         return LOCAL_TERM_FALLBACK[normalized]
 
     return (
-        f"용어의 의미: {term_name}은(는) 투자 판단에 쓰이는 금융/투자 개념입니다.\n"
-        "특징: 현재 AI 쿼터가 소진되어 간단 요약으로 우선 안내합니다.\n"
-        f"실제 투자 활용 예시: {term_name}의 추이를 다른 지표와 함께 비교해 매수/매도 타이밍을 보조 판단합니다."
+        f"{term_name}은(는) 투자 공부를 하다 보면 자주 나오는 개념이에요.\n\n"
+        '지금은 AI 설명을 잠시 쓸 수 없어 짧게만 안내해요. '
+        f'"{term_name}"의 정의·쓰임은 용어 사전 카드나 시장 화면의 힌트를 함께 보면 이해가 빨라요.'
     )
+
+
+def _clean_gpt_prose(text: str) -> str:
+    """모델이 삼중따옴표·펜스·프롬프트 꼬리표를 그대로 내보낼 때 제거(용어 설명·뉴스 쉬운 설명 등 산문용)."""
+    if not text or not str(text).strip():
+        return str(text or '').strip()
+    s = str(text).strip()
+    for _ in range(6):
+        t = s.strip()
+        if len(t) >= 6 and t.startswith('"""') and t.endswith('"""'):
+            s = t[3:-3].strip()
+            continue
+        if len(t) >= 6 and t.startswith("'''") and t.endswith("'''"):
+            s = t[3:-3].strip()
+            continue
+        break
+    m = re.match(r'^```(?:[a-zA-Z0-9_-]*)?\s*\r?\n([\s\S]*?)\r?\n```\s*$', s)
+    if m:
+        s = m.group(1).strip()
+    lines = s.split('\n')
+
+    def _is_fence_line(ln: str) -> bool:
+        x = ln.strip()
+        return x in ('"""', "'''", '"', "'", '```', "''", '""') or re.fullmatch(r'`{3,}', x) is not None
+
+    while lines and _is_fence_line(lines[0]):
+        lines.pop(0)
+    while lines and _is_fence_line(lines[-1]):
+        lines.pop()
+    s = '\n'.join(lines).strip()
+    for marker in (
+        '\n[작성 규칙]',
+        '\n[사용자 질문]',
+        '\n[제목]',
+        '\n[요약]',
+        '\n---\n[작성',
+    ):
+        idx = s.find(marker)
+        if idx != -1:
+            s = s[:idx].strip()
+            break
+    return s.strip()
+
 
 def call_gpt(prompt_text, model=DEFAULT_GPT_MODEL):
     """OpenAI GPT API 호출 (용어 설명용)."""
@@ -721,7 +786,7 @@ def explain_term_with_gpt(term_name):
     prompt = (
         f"{TERM_INTERPRETATION_PROMPT}\n"
         f"[사용자 질문]\n{term_name}\n\n"
-        "위 질문은 단일 금융/투자 용어 질문이다. 질문한 용어만 설명하고 답변 구조를 지켜라."
+        "위는 단일 용어 질문이다. 질문한 용어만, 위 작성 규칙을 지켜 답하라."
     )
     return call_gpt(prompt, model=DEFAULT_GPT_MODEL)
 
@@ -882,7 +947,7 @@ def explain_term():
     return jsonify({
         'success': True,
         'term': term,
-        'answer': gpt_result.get('text', '').strip()
+        'answer': _clean_gpt_prose(gpt_result.get('text', ''))
     })
 
 
@@ -924,11 +989,14 @@ def news_detail(news_id: int):
     if not article:
         return jsonify({'success': False, 'message': '기사를 찾을 수 없습니다.'}), 404
 
+    if (article.get('reader_digest') or '').strip():
+        article['reader_digest'] = _clean_gpt_prose(article['reader_digest'])
+
     if want_digest and NEWS_READER_DIGEST and GPT_AVAILABLE:
         if not (article.get('reader_digest') or '').strip():
             gen = _explain_news_reader_text(article.get('title') or '', article.get('summary') or '')
             if gen.get('success') and (gen.get('text') or '').strip():
-                digest_text = gen['text'].strip()
+                digest_text = _clean_gpt_prose(gen['text'].strip())
                 article['reader_digest'] = digest_text
                 try:
                     conn = get_db_connection()
@@ -3180,6 +3248,9 @@ def serve_capstone(filename):
     """frontend 정적 파일."""
     if not filename or '..' in filename:
         abort(404)
+    # 과거 파일명 호환: 주린닷컴.html 요청도 최신 홈 파일로 제공
+    if filename in {'주린닷컴.html', 'jurin.html', 'index.html'}:
+        filename = '주린닷컴홈피.html'
     safe = os.path.normpath(filename).replace('\\', '/')
     if safe.startswith('..'):
         abort(404)
@@ -3194,5 +3265,6 @@ def serve_capstone(filename):
 
 if __name__ == '__main__':
     _ensure_live_price_background_worker()
-    print('Server: http://127.0.0.1:5000')
-    app.run(debug=True, port=5000)
+    run_opts = flask_run_options()
+    print(f"Server: http://{run_opts['host']}:{run_opts['port']}")
+    app.run(**run_opts)

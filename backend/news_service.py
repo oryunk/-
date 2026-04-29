@@ -15,6 +15,8 @@ except ImportError:
     ProgrammingError = type('ProgrammingError', (Exception,), {})  # type: ignore[misc, assignment]
 
 _STRIP_TAGS = re.compile(r'<[^>]+>')
+_MRSS_NS = '{http://search.yahoo.com/mrss/}'
+_IMG_SRC_RE = re.compile(r'<img[^>]+src\s*=\s*["\']([^"\']+)["\']', re.I)
 
 
 def strip_html(text: str | None, max_len: int = 8000) -> str:
@@ -49,14 +51,40 @@ def _parse_pub_date(raw: str | None) -> datetime:
         return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
+def _first_img_from_html_raw(desc_raw: str | None) -> str | None:
+    """RSS description 안의 첫 <img src=…> (일부 매체)."""
+    if not desc_raw or not str(desc_raw).strip():
+        return None
+    m = _IMG_SRC_RE.search(str(desc_raw))
+    if not m:
+        return None
+    u = html.unescape(m.group(1).strip())
+    if u.startswith('//'):
+        u = 'https:' + u
+    if u.startswith('http://') or u.startswith('https://'):
+        return u[:500]
+    return None
+
+
 def _first_img_from_item(item: ET.Element) -> str | None:
+    """enclosure / media:content / mrss:thumbnail 순."""
+    for mc in item.findall(f'{_MRSS_NS}content'):
+        u = (mc.get('url') or '').strip()
+        if not u:
+            continue
+        medium = (mc.get('medium') or '').lower()
+        typ = (mc.get('type') or '').lower()
+        if medium == 'image' or 'image/' in typ or typ.startswith('image/'):
+            return u[:500]
+
     enc = item.find('enclosure')
     if enc is not None:
         t = (enc.get('type') or '').lower()
         u = (enc.get('url') or '').strip()
         if u and ('image' in t or t == ''):
             return u[:500]
-    for th in item.findall('{http://search.yahoo.com/mrss/}thumbnail'):
+
+    for th in item.findall(f'{_MRSS_NS}thumbnail'):
         u = (th.get('url') or '').strip()
         if u:
             return u[:500]
@@ -103,7 +131,7 @@ def parse_rss_channel_bytes(
         pub_raw = item.findtext('pubDate')
         cat = (item.findtext('category') or '').strip() or None
         summary = strip_html(desc_raw, max_len=4000)
-        img = _first_img_from_item(item)
+        img = _first_img_from_item(item) or _first_img_from_html_raw(desc_raw)
 
         out.append(
             {

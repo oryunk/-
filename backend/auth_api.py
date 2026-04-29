@@ -4,17 +4,9 @@ from flask import Blueprint, request, jsonify, session
 import pymysql
 import pymysql.err
 import bcrypt
-import os
-from dotenv import load_dotenv
+from runtime_config import load_env_files, mysql_config
 
-_AUTH_DIR = os.path.dirname(os.path.abspath(__file__))
-for _env_path in (
-    os.path.join(_AUTH_DIR, ".env"),
-    os.path.join(os.getcwd(), ".env"),
-):
-    if os.path.exists(_env_path):
-        load_dotenv(_env_path)
-load_dotenv()
+load_env_files()
 
 auth_bp = Blueprint("auth", __name__)
 
@@ -24,12 +16,13 @@ PASSWORD_MIN_LENGTH = 4
 
 
 def get_connection():
+    base = mysql_config()
     db_config = {
-        "host":     os.getenv("MYSQL_HOST", "49.170.46.148"),
-        "port":     int(os.getenv("MYSQL_PORT", "3306")),
-        "user":     os.getenv("MYSQL_USER", "stock_app"),
-        "password": os.getenv("MYSQL_PASSWORD", "wnflsdl1324"),
-        "database": os.getenv("MYSQL_DATABASE", "stock_db"),
+        "host": base["host"],
+        "port": base["port"],
+        "user": base["user"],
+        "password": base["password"],
+        "database": base["database"],
         "charset":  "utf8mb4",
         "cursorclass": pymysql.cursors.DictCursor,
         "init_command": "SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci",
