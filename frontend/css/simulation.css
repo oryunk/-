@@ -492,7 +492,7 @@
   }
 
   .trade-confirm-panel--buy .sell-modal-title {
-    color: var(--accent);
+    color: #0d7ee0;
   }
 
   .trade-confirm-panel--sell .sell-modal-title {
@@ -783,12 +783,86 @@
     margin-bottom: 12px;
   }
 
+  .tf-qty-price {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-items: stretch;
+    min-width: 0;
+  }
+
+  #tradeLimitPrice:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+  }
+
+  #tradeLimitPriceCell.is-market-mode #tradeLimitPrice:disabled,
+  #tradeSellLimitPriceCell.is-market-mode #tradeSellLimitPrice:disabled {
+    opacity: 1;
+    cursor: default;
+    color: var(--text-primary);
+  }
+
   .qty-price-row {
     display: grid;
     grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.25fr);
     gap: 14px 16px;
     align-items: end;
     width: 100%;
+  }
+
+  .trade-price-label-row {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+    margin-bottom: 8px;
+  }
+
+  .trade-price-label-row .form-label {
+    margin-bottom: 0;
+  }
+
+  .trade-inline-price-type {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    flex: 0 0 auto;
+  }
+
+  .trade-price-type-btn {
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: 1px solid rgba(47, 143, 95, 0.28);
+    background: #fff;
+    color: var(--text-primary);
+    font-size: 12px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+    white-space: nowrap;
+    min-width: 64px;
+  }
+
+  .trade-price-type-btn:hover {
+    border-color: rgba(47, 143, 95, 0.45);
+    background: rgba(47, 143, 95, 0.06);
+  }
+
+  .trade-price-type-btn.active {
+    background: rgba(47, 143, 95, 0.16);
+    border-color: var(--accent);
+    color: #1d4d38;
+  }
+
+  #tradeLimitPriceCell.is-market-mode .price-stepper-side,
+  #tradeSellLimitPriceCell.is-market-mode .price-stepper-side {
+    visibility: hidden;
+    pointer-events: none;
   }
 
   .qty-price-cell {
@@ -804,17 +878,18 @@
   }
 
   .price-stepper {
-    display: flex;
-    flex-direction: row;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 36px;
     align-items: stretch;
-    gap: 8px;
+    column-gap: 8px;
     width: 100%;
   }
 
   .price-stepper-input,
   .price-stepper .price-stepper-input {
-    flex: 1;
     min-width: 0;
+    width: 100%;
+    box-sizing: border-box;
     text-align: right;
     font-size: 15px;
   }
@@ -822,19 +897,27 @@
   .price-stepper-side {
     display: flex;
     flex-direction: column;
-    gap: 4px;
-    flex: 0 0 48px;
-    width: 48px;
+    gap: 3px;
+    width: 100%;
+    min-width: 0;
+    min-height: 0;
+    align-self: stretch;
   }
 
-  .price-stepper-side .btn-step {
-    flex: 1;
-    min-height: 24px;
-    border-radius: 8px;
+  .price-stepper .price-stepper-side > .btn-step {
+    flex: 1 1 0;
+    min-height: 0;
+    min-width: 0;
+    width: 100%;
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 1;
+    padding: 0 1px;
+    border-radius: 6px;
   }
 
   .btn-step {
-    flex: 0 0 44px;
+    flex: 0 0 auto;
     border-radius: 8px;
     border: 1px solid rgba(47, 143, 95, 0.4);
     background: #f6faf7;
@@ -913,25 +996,48 @@
     color: var(--gray-400);
   }
 
+  /* 사이드바 새로고침·갱신 등 보조 버튼 */
   .btn-trade {
-    background: linear-gradient(135deg, var(--blue-bright), var(--accent));
-    border: none;
-    color: white;
+    background: var(--gray-100);
+    border: 1px solid rgba(47, 143, 95, 0.22);
+    color: var(--text-primary);
     padding: 12px 24px;
     font-size: 14px;
     font-weight: 700;
     cursor: pointer;
     font-family: inherit;
     border-radius: 8px;
-    transition: opacity 0.2s;
+    transition: background 0.2s, border-color 0.2s;
   }
 
   .btn-trade:hover {
-    opacity: 0.9;
+    background: rgba(47, 143, 95, 0.08);
+    border-color: rgba(47, 143, 95, 0.35);
+  }
+
+  /* 시장 정보 매수·매도와 동일: 매수 파랑 + 흰 글씨, 매도 코랄 그라데이션 */
+  .form-group--buy .btn-trade:not(.sell),
+  .trade-confirm-panel--buy .sell-modal-actions .btn-trade {
+    background: linear-gradient(135deg, #1f9fff, #0d7ee0);
+    border: none;
+    color: #fff;
+  }
+
+  .form-group--buy .btn-trade:not(.sell):hover,
+  .trade-confirm-panel--buy .sell-modal-actions .btn-trade:hover {
+    filter: brightness(1.06);
+    background: linear-gradient(135deg, #1f9fff, #0d7ee0);
   }
 
   .btn-trade.sell {
-    background: linear-gradient(135deg, var(--up), #ff6b6b);
+    background: linear-gradient(135deg, #ff5f64, #ff8157);
+    border: none;
+    color: #fff;
+  }
+
+  .btn-trade.sell:hover {
+    filter: brightness(1.06);
+    background: linear-gradient(135deg, #ff5f64, #ff8157);
   }
 
   .trade-feedback {
@@ -1012,17 +1118,16 @@
     overflow-y: auto;
   }
 
-  .order-status-empty {
-    font-size: 13px;
-    color: var(--gray-400);
-    padding: 8px 2px;
-  }
-
   .order-status-item {
     border: 1px solid rgba(47, 143, 95, 0.14);
     border-radius: 10px;
     padding: 10px 12px;
     background: #ffffff;
+  }
+
+  .order-status-item--wait {
+    background: rgba(255, 71, 71, 0.07);
+    border-color: rgba(220, 60, 60, 0.22);
   }
 
   .order-status-top {
@@ -1047,8 +1152,8 @@
   }
 
   .order-status-badge.wait {
-    background: rgba(255, 215, 117, 0.2);
-    color: #ffd775;
+    background: rgba(255, 71, 71, 0.14);
+    color: #c41e1e;
   }
 
   .order-status-badge.auto {

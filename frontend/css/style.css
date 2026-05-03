@@ -12,6 +12,10 @@
   --gray-200: #e1ede5;
   --gray-300: #9eb0a3;
   --gray-400: #5f7c6c;
+  /* 보합·0.00% 등락: 본문보다 살짝만 진하게(가독성·부담 균형) */
+  --quote-flat: #3a5246;
+  --quote-flat-bg: rgba(58, 82, 70, 0.08);
+  --quote-flat-border: rgba(58, 82, 70, 0.14);
   --up: #FF4747;
   /* 국내 관례: 상승 빨강, 하락 파랑 */
   --down: #2563eb;
@@ -467,6 +471,11 @@ nav {
   background: #f2efff;
 }
 
+.mascot-coach-badge.wink {
+  color: #5944a8;
+  background: #f2efff;
+}
+
 .mascot-coach-close {
   border: none;
   width: 28px;
@@ -550,8 +559,51 @@ body.market-step1-spotlight:not(.market-step1-clear-phase) .market-step1-overlay
   pointer-events: none;
 }
 
-body.market-step1-spotlight .mascot-coach.is-open {
+/* 거래량 필터 단계: 상승·하락과 동일 딤·오버레이 스택 */
+body.market-step1-spotlight-volume:not(.market-step1-clear-phase) .market-step1-overlay {
+  z-index: 400;
+}
+
+body.market-step1-spotlight-volume:not(.market-step1-clear-phase) .market-step1-overlay.is-dim {
+  background: rgba(4, 8, 6, 0.68);
+  pointer-events: none;
+}
+
+/* 상세 시세·용어 스텝: 상승·하락과 같은 전역 딤(오버레이) */
+body.market-step1-detail-spotlight:not(.market-step1-clear-phase) .market-step1-overlay {
+  z-index: 400;
+}
+
+body.market-step1-detail-spotlight:not(.market-step1-clear-phase) .market-step1-overlay.is-dim {
+  background: rgba(4, 8, 6, 0.68);
+  pointer-events: none;
+}
+
+/* 상세 시세: 용어별 한 카드만 콜아웃일 때 나머지 카드 딤 */
+body.market-step1-detail-term-mode .stock-detail-view .detail-grid .detail-card:not(.tutorial-callout-target) {
+  opacity: 0.38;
+  transition: opacity 0.2s ease;
+}
+
+body.market-step1-detail-term-mode .stock-detail-view .detail-grid .detail-card.tutorial-callout-target {
+  position: relative;
+  /* 전역 .tutorial-callout-target z-index:500과 동일 — 상세 딤 오버레이(400) 위로 올려 시가 등 강조 카드가 어둡게 보이지 않게 */
   z-index: 500;
+  opacity: 1;
+}
+
+/* 전체 그리드 소개: 카드별 딤 없음(그리드 전체에만 콜아웃) */
+body.market-step1-detail-overview .stock-detail-view .detail-grid .detail-card {
+  opacity: 1;
+}
+
+/* 겹칠 때 루미 말풍선이 강조 카드(.tutorial-callout-target z-index 500) 위에 오도록 */
+body.market-step1-active .mascot-coach.is-open:not(.mascot-coach--spotlight) {
+  z-index: 600;
+}
+
+body.market-step1-active .mascot-coach-dock {
+  z-index: 590;
 }
 
 .mascot-coach-actions .tutorial-btn-ghost {
@@ -846,7 +898,9 @@ body.tutorial-step1-active .tutorial-callout-target::after {
 }
 
 .ticker-change.flat {
-  color: var(--gray-400);
+  color: var(--quote-flat);
+  font-weight: 600;
+  letter-spacing: -0.02em;
 }
 
 @keyframes ticker {
@@ -1128,8 +1182,8 @@ body.tutorial-step1-active .tutorial-callout-target::after {
 
 .section-more {
   font-size: 13px;
-  color: var(--blue-light);
-  font-weight: 600;
+  color: #1a5c3e;
+  font-weight: 700;
   text-decoration: none;
   cursor: pointer;
   display: flex;
@@ -1139,6 +1193,8 @@ body.tutorial-step1-active .tutorial-callout-target::after {
 
 .section-more:hover {
   color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 .divider {
@@ -1181,6 +1237,50 @@ body.tutorial-step1-active .tutorial-callout-target::after {
   height: 100%;
   object-fit: cover;
   display: block;
+}
+
+.news-card-thumb--placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(145deg, #e5efe8 0%, #d8e8df 42%, #c9dfd2 100%);
+}
+
+.news-card-thumb-placeholder-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  text-align: center;
+}
+
+.news-card-thumb-ph-icon {
+  width: 44px;
+  height: 34px;
+  border-radius: 8px;
+  border: 2px solid rgba(47, 143, 95, 0.32);
+  background: rgba(255, 255, 255, 0.55);
+  box-sizing: border-box;
+  position: relative;
+}
+
+.news-card-thumb-ph-icon::after {
+  content: '';
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  top: 10px;
+  height: 6px;
+  border-radius: 2px;
+  background: rgba(47, 143, 95, 0.2);
+}
+
+.news-card-thumb-ph-hint {
+  font-size: 11px;
+  font-weight: 700;
+  color: #5a7a6a;
+  letter-spacing: -0.02em;
 }
 
 .news-card::before {
@@ -1234,8 +1334,9 @@ body.tutorial-step1-active .tutorial-callout-target::after {
   line-height: 1.6;
   margin-bottom: 14px;
   display: -webkit-box;
-  -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
   overflow: hidden;
 }
 
@@ -1516,6 +1617,15 @@ body.tutorial-step1-active .tutorial-callout-target::after {
   background: rgba(79, 158, 255, 0.04);
 }
 
+.market-table tbody tr[data-stock-code] {
+  cursor: pointer;
+}
+
+.market-table tbody tr[data-stock-code]:focus-visible {
+  outline: 2px solid rgba(47, 143, 95, 0.55);
+  outline-offset: -2px;
+}
+
 .stock-name {
   font-weight: 700;
   color: #1f2f26;
@@ -1554,6 +1664,29 @@ body.tutorial-step1-active .tutorial-callout-target::after {
   font-family: 'DM Mono', monospace;
 }
 
+.badge-flat {
+  background: var(--quote-flat-bg);
+  color: var(--quote-flat);
+  border: 1px solid var(--quote-flat-border);
+  border-radius: 4px;
+  padding: 3px 8px;
+  font-size: 12px;
+  font-weight: 700;
+  font-family: 'DM Mono', monospace;
+}
+
+/* 메인 홈 시장 인기 종목: 등락률은 배경·테두리 없이 퍼센트만 */
+.market-table tbody td:nth-child(4) .badge-up,
+.market-table tbody td:nth-child(4) .badge-down,
+.market-table tbody td:nth-child(4) .badge-flat {
+  background: transparent;
+  border: none;
+  padding: 0;
+  border-radius: 0;
+  font-size: 13px;
+  font-weight: 700;
+}
+
 .volume {
   font-size: 12px;
   color: var(--gray-400);
@@ -1580,7 +1713,6 @@ body.tutorial-step1-active .tutorial-callout-target::after {
 .ai-hold {
   background: #fff5db;
   color: #8a6200;
-  border: 1px solid rgba(138, 98, 0, 0.28);
 }
 
 /* FOOTER */
