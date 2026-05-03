@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify, session, send_from_directory, abort
 import yfinance as yf
 import pandas as pd
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 import os
 import time
 import json
@@ -2128,6 +2128,12 @@ _LIVE_BLOCK_OFFHOURS_FETCH = os.getenv('LIVE_PRICE_BLOCK_OFFHOURS_FETCH', 'true'
 _LIVE_OFFHOURS_USE_CACHE = os.getenv('LIVE_PRICE_OFFHOURS_USE_CACHE', 'true').strip().lower() in {'1', 'true', 'y', 'yes', 'on'}
 _LIVE_OFFHOURS_YFINANCE = os.getenv('LIVE_PRICE_OFFHOURS_YFINANCE', 'true').strip().lower() in {'1', 'true', 'y', 'yes', 'on'}
 _LIVE_OFFHOURS_YF_BUDGET = max(0, int(os.getenv('LIVE_PRICE_OFFHOURS_YF_BUDGET', '12')))
+# 장외: stock_price_daily 최신 일자가 오늘 기준 N일 이상 지났으면 yfinance 보강 대상 (0이면 비활성)
+_LIVE_OFFHOURS_STALE_DAYS = max(0, int(os.getenv('LIVE_PRICE_OFFHOURS_STALE_DAYS', '2')))
+# EOD(End-of-Day) 종가 확정 동기화: 평일 15:35 1회 pykrx 로 그날 OHLC 를 받아
+# stock_price_daily 의 close_price 를 "마지막 동기화 시점 가격" 이 아닌 "거래소 공식 종가" 로 덮음.
+_LIVE_EOD_FIX_ENABLED = os.getenv('LIVE_PRICE_EOD_FIX_ENABLED', 'true').strip().lower() in {'1', 'true', 'y', 'yes', 'on'}
+_LIVE_EOD_FIX_HHMM = int(os.getenv('LIVE_PRICE_EOD_FIX_HHMM', '1535'))
 _KIS_TOKEN_USE_DB = os.getenv('KIS_TOKEN_USE_DB', 'true').strip().lower() in {'1', 'true', 'y', 'yes', 'on'}
 _KR_MARKET_OPEN_HHMM = int(os.getenv('KR_MARKET_OPEN_HHMM', '900'))
 _KR_MARKET_CLOSE_HHMM = int(os.getenv('KR_MARKET_CLOSE_HHMM', '1530'))
@@ -2148,6 +2154,7 @@ _LIVE_PRICE_LOCK = threading.Lock()
 _LIVE_UPDATER_RUNNING = False
 _LIVE_LAST_UPDATE_AT = 0.0
 _LIVE_BG_WORKER_STARTED = False
+_LIVE_EOD_WORKER_STARTED = False
 _SECTOR_FULL_REFRESH_GUARD = threading.Lock()
 _KIS_TOKEN_CACHE = None
 _KIS_TOKEN_SAVED_AT = 0.0
@@ -3122,18 +3129,103 @@ def _live_price_background_loop():
         time.sleep(max(1.0, _LIVE_BG_INTERVAL_SEC))
 
 
+def _run_eod_close_fix():
+    """장 마감 직후 1회: pykrx 일봉으로 그날 OHLC + 종가를 stock_price_daily 에 확정 반영.
+
+    sync_live_price_batch 는 장중 마지막 동기화 시점의 '현재가' 를 close_price 로 덮어쓰기 때문에
+    토스의 거래소 공식 종가와 작게는 몇 호가, 크게는 시간외 단일가 차이가 날 수 있다.
+    EOD 작업은 그 격차를 없애기 위함.
+    """
+    if pykrx_stock is None or not sync_live_price_batch:
+        print('[EOD_FIX] pykrx 또는 sync_live_price_batch 미가용. 스킵.')
+        return
+
+    today = datetime.now().strftime('%Y%m%d')
+    items = list(LIVE_PRICE_STOCKS.items())
+    if not items:
+        return
+
+    payloads = []
+    for code, name in items:
+        try:
+            df = pykrx_stock.get_market_ohlcv(today, today, code, adjusted=False)
+        except Exception as e:
+            print(f'[EOD_FIX] pykrx 조회 실패 ({code}): {e}')
+            continue
+        if df is None or getattr(df, 'empty', True):
+            continue
+        try:
+            row = df.iloc[-1]
+            close_p = int(round(float(row.get('종가') or row.get('Close') or 0)))
+            if close_p <= 0:
+                continue
+            open_p = int(round(float(row.get('시가') or row.get('Open') or close_p)))
+            high_p = int(round(float(row.get('고가') or row.get('High') or close_p)))
+            low_p = int(round(float(row.get('저가') or row.get('Low') or close_p)))
+            volume = int(round(float(row.get('거래량') or row.get('Volume') or 0)))
+        except Exception as e:
+            print(f'[EOD_FIX] 행 파싱 실패 ({code}): {e}')
+            continue
+
+        # prev_close 는 pykrx 로 직전 거래일 종가를 한 번 더 받아야 하지만, 비용이 크므로
+        # 동기화 로직의 ON DUPLICATE KEY UPDATE COALESCE 규칙에 맡겨 기존 값을 유지한다.
+        payloads.append({
+            'code': code,
+            'name': name,
+            'price': close_p,
+            'open': open_p,
+            'high': high_p,
+            'low': low_p,
+            'volume': volume,
+        })
+
+    if not payloads:
+        print('[EOD_FIX] 반영 대상 없음.')
+        return
+
+    try:
+        n = sync_live_price_batch(payloads)
+        print(f'[EOD_FIX] 종가 확정 반영: {n} 종목')
+    except Exception as e:
+        print(f'[EOD_FIX] DB 동기화 실패: {e}')
+
+
+def _eod_close_fix_loop():
+    """평일 _LIVE_EOD_FIX_HHMM(기본 15:35) 에 한 번 EOD 종가 확정 동기화 실행."""
+    last_run_date = None
+    while True:
+        try:
+            now = datetime.now()
+            today_key = now.strftime('%Y-%m-%d')
+            hhmm = now.hour * 100 + now.minute
+            if (
+                now.weekday() < 5
+                and hhmm >= _LIVE_EOD_FIX_HHMM
+                and last_run_date != today_key
+            ):
+                _run_eod_close_fix()
+                last_run_date = today_key
+        except Exception as e:
+            print(f'[EOD_FIX] 루프 오류: {e}')
+        time.sleep(60)
+
+
 def _ensure_live_price_background_worker():
     """시세 백그라운드 워커 1회 시작."""
-    global _LIVE_BG_WORKER_STARTED
-    if not _LIVE_BG_ENABLED or _LIVE_BG_WORKER_STARTED:
-        return
+    global _LIVE_BG_WORKER_STARTED, _LIVE_EOD_WORKER_STARTED
 
     if app.debug and os.environ.get('WERKZEUG_RUN_MAIN') != 'true':
         return
 
-    _LIVE_BG_WORKER_STARTED = True
-    t = threading.Thread(target=_live_price_background_loop, daemon=True)
-    t.start()
+    if _LIVE_BG_ENABLED and not _LIVE_BG_WORKER_STARTED:
+        _LIVE_BG_WORKER_STARTED = True
+        t = threading.Thread(target=_live_price_background_loop, daemon=True)
+        t.start()
+
+    if _LIVE_EOD_FIX_ENABLED and not _LIVE_EOD_WORKER_STARTED:
+        _LIVE_EOD_WORKER_STARTED = True
+        t_eod = threading.Thread(target=_eod_close_fix_loop, daemon=True)
+        t_eod.start()
 
 
 def _ordered_stock_rows(selected_items, snapshot):
@@ -3171,7 +3263,30 @@ def _offhours_row_needs_yfinance(row):
         pc = int(row['previous_close'] or 0)
     except (TypeError, ValueError):
         return False
-    return pc <= 0
+    if pc <= 0:
+        return True
+
+    # DB 일봉 최신 날짜가 N일 이상 지났으면 stale — 가격은 stocks.current_price 등으로 보이나
+    # 실제 거래일 종가와 어긋날 수 있어 yfinance 로 갱신 (예산은 LIVE_PRICE_OFFHOURS_YF_BUDGET)
+    if _LIVE_OFFHOURS_STALE_DAYS > 0:
+        latest_raw = row.get('latest_date')
+        if latest_raw:
+            try:
+                today = datetime.now().date()
+                if isinstance(latest_raw, str):
+                    ld = datetime.strptime(str(latest_raw)[:10], '%Y-%m-%d').date()
+                elif isinstance(latest_raw, datetime):
+                    ld = latest_raw.date()
+                elif isinstance(latest_raw, date):
+                    ld = latest_raw
+                else:
+                    ld = latest_raw
+                age_days = (today - ld).days
+                if age_days >= _LIVE_OFFHOURS_STALE_DAYS:
+                    return True
+            except Exception:
+                pass
+    return False
 
 
 def _offhours_fill_yfinance_rows(full_rows, all_items, budget):

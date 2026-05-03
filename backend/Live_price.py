@@ -59,6 +59,9 @@ def sync_live_price_batch(items):
                         high_p = price
                     if low_p is None:
                         low_p = price
+                    # 등락률 계산용 전일 종가 (KIS: stck_sdpr / stck_prdy_clpr,
+                    # yfinance/pykrx fallback 도 _build_yfinance_payload 에서 같이 채움)
+                    prev_close = _optional_ohlc(item.get("previous_close"))
                     if not code or price <= 0:
                         continue
 
@@ -92,23 +95,26 @@ def sync_live_price_batch(items):
                         continue
                     stock_id = stock_row["stock_id"]
 
+                    # prev_close 는 들어온 값이 양수일 때만 덮어쓴다.
+                    # (장중에 KIS 가 일시적으로 0/공백을 주더라도 기존 값 유지)
                     cursor.execute(
                         """
                         INSERT INTO stock_price_daily (
                             stock_id, date,
                             open_price, high_price, low_price,
-                            close_price, volume, created_at
+                            close_price, prev_close, volume, created_at
                         )
-                        VALUES (%s, CURDATE(), %s, %s, %s, %s, %s, NOW())
+                        VALUES (%s, CURDATE(), %s, %s, %s, %s, %s, %s, NOW())
                         ON DUPLICATE KEY UPDATE
                             open_price = VALUES(open_price),
                             high_price = VALUES(high_price),
                             low_price = VALUES(low_price),
                             close_price = VALUES(close_price),
+                            prev_close = COALESCE(NULLIF(VALUES(prev_close), 0), prev_close),
                             volume = VALUES(volume),
                             created_at = NOW()
                         """,
-                        (stock_id, open_p, high_p, low_p, price, volume),
+                        (stock_id, open_p, high_p, low_p, price, prev_close, volume),
                     )
                     updated_count += 1
 
@@ -140,6 +146,9 @@ def fetch_live_snapshot_batch(codes):
         return {}
 
     placeholders = ",".join(["%s"] * len(cleaned))
+    # prev_close 우선순위:
+    #   1) sp_latest.prev_close 컬럼 (시세 동기화 시 같이 박은 KIS 전일 종가)
+    #   2) 그 종목의 sp_latest.date 보다 이전 일자 행의 close_price (백필 후 폴백)
     sql_with_cp = f"""
         SELECT
             s.symbol,
@@ -147,14 +156,18 @@ def fetch_live_snapshot_batch(codes):
             s.current_price AS price,
             sp_latest.close_price AS latest_close,
             sp_latest.volume AS latest_volume,
-            (
-                SELECT sp2.close_price
-                FROM stock_price_daily sp2
-                WHERE sp2.stock_id = s.stock_id
-                  AND sp_latest.date IS NOT NULL
-                  AND sp2.date < sp_latest.date
-                ORDER BY sp2.date DESC
-                LIMIT 1
+            sp_latest.date AS latest_date,
+            COALESCE(
+                NULLIF(sp_latest.prev_close, 0),
+                (
+                    SELECT sp2.close_price
+                    FROM stock_price_daily sp2
+                    WHERE sp2.stock_id = s.stock_id
+                      AND sp_latest.date IS NOT NULL
+                      AND sp2.date < sp_latest.date
+                    ORDER BY sp2.date DESC
+                    LIMIT 1
+                )
             ) AS prev_close
         FROM stocks s
         LEFT JOIN stock_price_daily sp_latest
@@ -171,14 +184,18 @@ def fetch_live_snapshot_batch(codes):
             sp_latest.close_price AS price,
             sp_latest.close_price AS latest_close,
             sp_latest.volume AS latest_volume,
-            (
-                SELECT sp2.close_price
-                FROM stock_price_daily sp2
-                WHERE sp2.stock_id = s.stock_id
-                  AND sp_latest.date IS NOT NULL
-                  AND sp2.date < sp_latest.date
-                ORDER BY sp2.date DESC
-                LIMIT 1
+            sp_latest.date AS latest_date,
+            COALESCE(
+                NULLIF(sp_latest.prev_close, 0),
+                (
+                    SELECT sp2.close_price
+                    FROM stock_price_daily sp2
+                    WHERE sp2.stock_id = s.stock_id
+                      AND sp_latest.date IS NOT NULL
+                      AND sp2.date < sp_latest.date
+                    ORDER BY sp2.date DESC
+                    LIMIT 1
+                )
             ) AS prev_close
         FROM stocks s
         LEFT JOIN stock_price_daily sp_latest
@@ -223,6 +240,17 @@ def fetch_live_snapshot_batch(codes):
                     direction = "down"
                 else:
                     direction = "flat"
+                raw_ld = row.get("latest_date")
+                latest_date_str = None
+                if raw_ld is not None:
+                    try:
+                        latest_date_str = (
+                            raw_ld.strftime("%Y-%m-%d")
+                            if hasattr(raw_ld, "strftime")
+                            else str(raw_ld)[:10]
+                        )
+                    except Exception:
+                        latest_date_str = None
                 rows_by_code[code] = {
                     "code": code,
                     "name": row.get("name_ko") or code,
@@ -235,6 +263,8 @@ def fetch_live_snapshot_batch(codes):
                     "error": None,
                     # 장외 보강: 전일 종가 없으면 등락률이 0으로만 나오므로 API에서 yfinance로 채울 때 구분
                     "previous_close": prev_close,
+                    # 장외 stale 검사: stock_price_daily 최신 일자 (YYYY-MM-DD)
+                    "latest_date": latest_date_str,
                 }
     except Exception as e:
         print(f"[LIVE_DB_SNAPSHOT] 조회 실패: {e}")
