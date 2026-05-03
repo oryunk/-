@@ -233,6 +233,8 @@ def fetch_live_snapshot_batch(codes):
                     "direction": direction,
                     "stale": True,
                     "error": None,
+                    # 장외 보강: 전일 종가 없으면 등락률이 0으로만 나오므로 API에서 yfinance로 채울 때 구분
+                    "previous_close": prev_close,
                 }
     except Exception as e:
         print(f"[LIVE_DB_SNAPSHOT] 조회 실패: {e}")

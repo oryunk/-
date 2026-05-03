@@ -47,6 +47,7 @@ app.config["SESSION_COOKIE_PATH"] = "/"
 from auth_api import auth_bp, get_connection as get_db_connection
 from cors_helpers import apply_cors_headers
 import news_service
+import kis_token_db
 
 app.register_blueprint(auth_bp)
 
@@ -99,6 +100,9 @@ RSS_FEEDS = [
 
 NEWS_DB_SYNC = os.getenv('NEWS_DB_SYNC', 'true').strip().lower() in {'1', 'true', 'y', 'yes', 'on'}
 NEWS_READER_DIGEST = os.getenv('NEWS_READER_DIGEST', 'true').strip().lower() in {'1', 'true', 'y', 'yes', 'on'}
+_NEWS_STOCK_REL_SYNC = os.getenv('NEWS_STOCK_REL_SYNC', 'true').strip().lower() in {'1', 'true', 'y', 'yes', 'on'}
+_AI_ANALYSIS_PERSIST_DB = os.getenv('AI_ANALYSIS_PERSIST_DB', 'true').strip().lower() in {'1', 'true', 'y', 'yes', 'on'}
+_STOCK_POPULARITY_ON_ANALYSIS = os.getenv('STOCK_POPULARITY_ON_ANALYSIS', 'true').strip().lower() in {'1', 'true', 'y', 'yes', 'on'}
 
 MASTER_PROMPT = """[MASTER PROMPT] 스몰캡 전략 v7.5: 자동 진행형 투자 분석 시스템 - Quantum Leap Hybrid Deep Analysis Edition
 
@@ -815,6 +819,13 @@ def fetch_rss_items(limit=12):
                     conn = get_db_connection()
                     try:
                         news_service.upsert_rss_batch(conn, parsed)
+                        if _NEWS_STOCK_REL_SYNC:
+                            try:
+                                news_service.sync_news_stock_links(
+                                    conn, scan_limit=max(len(parsed) * 4, limit * 3, 40)
+                                )
+                            except Exception as rel_err:
+                                print(f'[RSS] news_stock_rel 동기화 실패: {rel_err}')
                         conn.commit()
                         items = news_service.fetch_recent_list(conn, limit=limit)
                         return {'success': True, 'items': items, 'feed': feed_url, 'from_db': True}
@@ -853,68 +864,98 @@ def _explain_news_reader_text(title: str, summary: str):
     return call_gpt(prompt, model=DEFAULT_GPT_MODEL)
 
 
-_NEWS_STOCK_KEYWORDS = {
-    '삼성전자': '005930',
-    '삼전': '005930',
-    'SK하이닉스': '000660',
-    'SK하닉': '000660',
-    '하이닉스': '000660',
-    'LG에너지솔루션': '373220',
-    '에코프로비엠': '247540',
-    '에코프로': '086520',
-    '삼성SDI': '006400',
-    '포스코퓨처엠': '003670',
-    'POSCO퓨처엠': '003670',
-}
+def _resolve_stock_id_for_analysis(conn, stock_name: str):
+    chart = _resolve_chart_code(stock_name)
+    if not chart:
+        return None
+    code = str(chart).strip()
+    if not re.match(r'^\d{6}$', code):
+        return None
+    with conn.cursor() as c:
+        c.execute('SELECT stock_id FROM stocks WHERE symbol = %s LIMIT 1', (code,))
+        r = c.fetchone()
+        return int(r['stock_id']) if r else None
 
 
-def _extract_related_stock_codes(title: str, summary: str, max_count: int = 4):
-    text = f"{title or ''}\n{summary or ''}"
-    found = []
-    for key, code in _NEWS_STOCK_KEYWORDS.items():
-        if key in text and code not in found:
-            found.append(code)
-            if len(found) >= max_count:
-                break
-    return found
+def _bump_stock_popularity_on_analysis(conn, stock_id: int):
+    if not _STOCK_POPULARITY_ON_ANALYSIS or stock_id <= 0:
+        return
+    with conn.cursor() as c:
+        c.execute(
+            """
+            INSERT INTO stock_popularity (stock_id, date, view_count, search_count, trade_count)
+            VALUES (%s, CURDATE(), 1, 1, 0)
+            ON DUPLICATE KEY UPDATE
+                view_count = view_count + 1,
+                search_count = search_count + 1
+            """,
+            (stock_id,),
+        )
 
 
-def _related_quotes_for_news(article: dict):
-    codes = _extract_related_stock_codes(article.get('title') or '', article.get('summary') or '')
-    if not codes:
-        return []
-    snap = {}
-    if fetch_live_snapshot_batch:
+def _persist_ai_analysis_row(result: dict, stock_name: str, user_id):
+    if not _AI_ANALYSIS_PERSIST_DB or not result.get('success'):
+        return
+    try:
+        conn = get_db_connection()
         try:
-            snap = fetch_live_snapshot_batch(codes) or {}
-        except Exception:
-            snap = {}
-    rows = []
-    for code in codes:
-        name = PRICE_STOCKS.get(code) or code
-        row = snap.get(code) or {}
-        price, rate, direction = _effective_quote_for_mock(code, row)
-        if price <= 0:
-            continue
-        rows.append({
-            'code': code,
-            'name': name,
-            'price': int(price),
-            'change_rate': round(float(rate or 0.0), 2),
-            'direction': direction or 'flat',
-        })
-    return rows
+            stock_id = _resolve_stock_id_for_analysis(conn, stock_name)
+            summary = str(result.get('summary') or '')[:65000]
+            rating = (result.get('opinion') or '보유')[:50]
+            cp = result.get('current_price')
+            try:
+                per_text = f'{float(cp):,.0f}원' if cp is not None and float(cp) > 0 else None
+            except (TypeError, ValueError):
+                per_text = None
+            with conn.cursor() as c:
+                c.execute(
+                    """
+                    INSERT INTO ai_analyses
+                    (user_id, stock_id, target_type, target_key, rating, per_text, summary, created_at)
+                    VALUES (%s, %s, 'STOCK', %s, %s, %s, %s, NOW())
+                    """,
+                    (user_id, stock_id, stock_name[:50], rating, per_text, summary),
+                )
+                new_id = c.lastrowid
+            if new_id:
+                print(f'[ai_analyses] 저장 완료 analysis_id={new_id} stock={stock_name!r}')
+            if stock_id:
+                try:
+                    _bump_stock_popularity_on_analysis(conn, stock_id)
+                except Exception as bump_err:
+                    bc = getattr(bump_err, 'args', None)
+                    if not (bc and bc[0] == 1146):
+                        print(f'[stock_popularity] 갱신 실패: {bump_err}')
+            conn.commit()
+        except Exception as e:
+            conn.rollback()
+            code = getattr(e, 'args', None)
+            if code and code[0] == 1146:
+                return
+            print(f'[ai_analyses] 저장 실패: {e}')
+        finally:
+            conn.close()
+    except Exception as e:
+        print(f'[ai_analyses] DB 연결 실패: {e}')
+
 
 @app.route('/api/analyze', methods=['POST'])
 def analyze():
     """종목 분석 API 엔드포인트"""
     data = request.json
     stock_name = data.get('stock_name', '').strip()
-    
+        
     if not stock_name:
         return jsonify({'success': False, 'message': '종목명을 입력해주세요.'}), 400
     
     result = analyze_stock(stock_name)
+    uid = session.get('user_id')
+    if uid is not None:
+        try:
+            uid = int(uid)
+        except (TypeError, ValueError):
+            uid = None
+    _persist_ai_analysis_row(result, stock_name, uid)
     return jsonify(result)
 
 
@@ -1015,7 +1056,60 @@ def news_detail(news_id: int):
     elif want_digest and NEWS_READER_DIGEST and not GPT_AVAILABLE:
         article['digest_error'] = 'AI 설명을 쓰려면 OPENAI_API_KEY 또는 GPT_API_KEY를 설정하세요.'
 
-    return jsonify({'success': True, 'article': article, 'related_quotes': _related_quotes_for_news(article)})
+    return jsonify({
+        'success': True,
+        'article': article,
+    })
+
+
+@app.route('/api/news/by-stock/<code>', methods=['GET'])
+def news_by_stock(code: str):
+    """news_stock_rel + 인덱스로 종목 연관 뉴스 조회."""
+    sym = re.sub(r'\D', '', str(code or ''))
+    if len(sym) != 6:
+        return jsonify({'success': False, 'message': '6자리 종목코드가 필요합니다.'}), 400
+    try:
+        limit = int(request.args.get('limit', '10'))
+    except ValueError:
+        limit = 10
+    limit = max(1, min(limit, 30))
+    try:
+        conn = get_db_connection()
+        try:
+            with conn.cursor() as c:
+                c.execute(
+                    """
+                    SELECT n.news_id, n.title, n.summary, n.url, n.img_url, n.source,
+                           n.published_at, r.match_type, r.confidence
+                    FROM news_stock_rel r
+                    INNER JOIN stocks s ON s.stock_id = r.stock_id AND s.symbol = %s
+                    INNER JOIN news_articles n ON n.news_id = r.news_id
+                    ORDER BY n.published_at DESC, n.news_id DESC
+                    LIMIT %s
+                    """,
+                    (sym, limit),
+                )
+                rows = [dict(x) for x in (c.fetchall() or [])]
+        finally:
+            conn.close()
+    except Exception as e:
+        err = getattr(e, 'args', None)
+        if err and err[0] == 1146:
+            return jsonify({'success': True, 'code': sym, 'items': [], 'notice': 'news_stock_rel 테이블이 없습니다.'})
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+    for it in rows:
+        pa = it.get('published_at')
+        if hasattr(pa, 'isoformat'):
+            it['published_at'] = pa.isoformat()
+        cf = it.get('confidence')
+        if cf is not None:
+            try:
+                it['confidence'] = float(cf)
+            except (TypeError, ValueError):
+                pass
+
+    return jsonify({'success': True, 'code': sym, 'items': rows})
 
 
 @app.route('/api/mock/traded-value-rank', methods=['GET'])
@@ -2030,6 +2124,11 @@ _LIVE_PRICE_DB_SYNC_ENABLED = os.getenv('LIVE_PRICE_DB_SYNC_ENABLED', 'true').st
 _LIVE_BG_ENABLED = os.getenv('LIVE_PRICE_BG_ENABLED', 'true').strip().lower() in {'1', 'true', 'y', 'yes', 'on'}
 _LIVE_BG_INTERVAL_SEC = float(os.getenv('LIVE_PRICE_BG_INTERVAL_SEC', '2.0'))
 _LIVE_BLOCK_OFFHOURS_FETCH = os.getenv('LIVE_PRICE_BLOCK_OFFHOURS_FETCH', 'true').strip().lower() in {'1', 'true', 'y', 'yes', 'on'}
+# 장외·주말: DB에 없을 때 메모리 캐시·yfinance로 보강 (순수 DB만 쓰지 않음)
+_LIVE_OFFHOURS_USE_CACHE = os.getenv('LIVE_PRICE_OFFHOURS_USE_CACHE', 'true').strip().lower() in {'1', 'true', 'y', 'yes', 'on'}
+_LIVE_OFFHOURS_YFINANCE = os.getenv('LIVE_PRICE_OFFHOURS_YFINANCE', 'true').strip().lower() in {'1', 'true', 'y', 'yes', 'on'}
+_LIVE_OFFHOURS_YF_BUDGET = max(0, int(os.getenv('LIVE_PRICE_OFFHOURS_YF_BUDGET', '12')))
+_KIS_TOKEN_USE_DB = os.getenv('KIS_TOKEN_USE_DB', 'true').strip().lower() in {'1', 'true', 'y', 'yes', 'on'}
 _KR_MARKET_OPEN_HHMM = int(os.getenv('KR_MARKET_OPEN_HHMM', '900'))
 _KR_MARKET_CLOSE_HHMM = int(os.getenv('KR_MARKET_CLOSE_HHMM', '1530'))
 _MOCK_INITIAL_CASH = int(float(os.getenv('MOCK_INITIAL_CASH', '1000000')))
@@ -2052,6 +2151,7 @@ _LIVE_BG_WORKER_STARTED = False
 _SECTOR_FULL_REFRESH_GUARD = threading.Lock()
 _KIS_TOKEN_CACHE = None
 _KIS_TOKEN_SAVED_AT = 0.0
+_KIS_TOKEN_DEADLINE = 0.0
 _STOCK_DETAIL_CACHE = {}
 _STOCK_DETAIL_CACHE_TTL = 60.0
 _BASIC_PEER_CACHE = {}
@@ -2358,6 +2458,8 @@ def _build_stock_payload(code, name, output):
         'previous_close': _to_int(output.get('stck_sdpr') or output.get('stck_prdy_clpr')),
         'high': _to_int(output.get('stck_hgpr')),
         'low': _to_int(output.get('stck_lwpr')),
+        'upper_limit': _to_int(output.get('stck_mxpr')),
+        'lower_limit': _to_int(output.get('stck_llam')),
         'traded_value': _to_int(output.get('acml_tr_pbmn')),
         'per': _safe_round(output.get('per')),
         'pbr': _safe_round(output.get('pbr')),
@@ -2403,6 +2505,8 @@ def _build_yfinance_payload(code, name, history):
         'previous_close': previous_price,
         'high': int(round(float(history['High'].iloc[-1]))) if 'High' in history else 0,
         'low': int(round(float(history['Low'].iloc[-1]))) if 'Low' in history else 0,
+        'upper_limit': None,
+        'lower_limit': None,
         'traded_value': int(round(current_price * volume)),
         'per': None,
         'pbr': None,
@@ -2623,17 +2727,54 @@ def stock_detail(code):
 
 
 def _kis_get_token():
-    global _KIS_TOKEN_CACHE, _KIS_TOKEN_SAVED_AT
+    global _KIS_TOKEN_CACHE, _KIS_TOKEN_SAVED_AT, _KIS_TOKEN_DEADLINE
 
-    if _KIS_TOKEN_CACHE and (time.time() - _KIS_TOKEN_SAVED_AT < 18000):
+    now = time.time()
+    if _KIS_TOKEN_CACHE and now < _KIS_TOKEN_DEADLINE:
         return _KIS_TOKEN_CACHE
+
+    if _KIS_TOKEN_USE_DB:
+        try:
+            conn = get_db_connection()
+            try:
+                row = kis_token_db.load_valid_token_row(conn)
+                if row and row.get('access_token'):
+                    _KIS_TOKEN_CACHE = row['access_token']
+                    _KIS_TOKEN_SAVED_AT = now
+                    exp = row.get('expired_at')
+                    if hasattr(exp, 'timestamp'):
+                        _KIS_TOKEN_DEADLINE = min(now + 18000, float(exp.timestamp()) - 120)
+                    else:
+                        _KIS_TOKEN_DEADLINE = now + 18000
+                    return _KIS_TOKEN_CACHE
+            finally:
+                conn.close()
+        except Exception as e:
+            print(f'[KIS] api_tokens 로드 실패: {e}')
 
     if os.path.exists(_KIS_TOKEN_FILE):
         with open(_KIS_TOKEN_FILE) as f:
             d = json.load(f)
-        if time.time() - d.get('saved_at', 0) < 18000:
-            _KIS_TOKEN_CACHE = d.get('access_token')
-            _KIS_TOKEN_SAVED_AT = d.get('saved_at', time.time())
+        saved_at = float(d.get('saved_at') or 0)
+        if now - saved_at < 18000:
+            tok = d.get('access_token')
+            _KIS_TOKEN_CACHE = tok
+            _KIS_TOKEN_SAVED_AT = saved_at
+            _KIS_TOKEN_DEADLINE = saved_at + 18000
+            if _KIS_TOKEN_USE_DB and tok:
+                try:
+                    c2 = get_db_connection()
+                    try:
+                        if kis_token_db.ensure_token_saved_if_absent(c2, tok):
+                            c2.commit()
+                            print('[KIS] api_tokens: 파일 토큰을 DB에 백필했습니다.')
+                    except Exception as dbe:
+                        c2.rollback()
+                        print(f'[KIS] api_tokens 백필 실패: {dbe}')
+                    finally:
+                        c2.close()
+                except Exception as conn_err:
+                    print(f'[KIS] api_tokens 백필 DB 연결 실패: {conn_err}')
             return _KIS_TOKEN_CACHE
     if not _KIS_KEY or not _KIS_SECRET:
         return None
@@ -2651,6 +2792,21 @@ def _kis_get_token():
                     json.dump({'access_token': token, 'saved_at': saved_at}, f)
                 _KIS_TOKEN_CACHE = token
                 _KIS_TOKEN_SAVED_AT = saved_at
+                _KIS_TOKEN_DEADLINE = saved_at + 18000
+                if _KIS_TOKEN_USE_DB:
+                    try:
+                        conn = get_db_connection()
+                        try:
+                            kis_token_db.save_token(conn, token)
+                            conn.commit()
+                            print('[KIS] api_tokens: 신규 발급 토큰을 DB에 저장했습니다.')
+                        except Exception as dbe:
+                            conn.rollback()
+                            print(f'[KIS] api_tokens 저장 실패: {dbe}')
+                        finally:
+                            conn.close()
+                    except Exception as conn_err:
+                        print(f'[KIS] api_tokens DB 연결 실패: {conn_err}')
                 return token
     except Exception:
         pass
@@ -2999,6 +3155,47 @@ def _ordered_stock_rows(selected_items, snapshot):
     return rows
 
 
+def _offhours_row_needs_yfinance(row):
+    """장외 yfinance 보강 대상: 미조회 행 또는 DB에 전일 종가가 없어 등락을 못 쓴 행."""
+    if row.get('loading'):
+        return True
+    try:
+        price = int(row.get('price') or 0)
+    except (TypeError, ValueError):
+        return False
+    if price <= 0:
+        return False
+    if 'previous_close' not in row:
+        return False
+    try:
+        pc = int(row['previous_close'] or 0)
+    except (TypeError, ValueError):
+        return False
+    return pc <= 0
+
+
+def _offhours_fill_yfinance_rows(full_rows, all_items, budget):
+    """장외: loading·전일종가 누락 행을 yfinance로 채움(요청당 상한). 성공 시 메모리 캐시에도 저장."""
+    if budget <= 0 or not full_rows or len(full_rows) != len(all_items):
+        return
+    used = 0
+    for i, (code, name) in enumerate(all_items):
+        if used >= budget:
+            break
+        row = full_rows[i]
+        if not _offhours_row_needs_yfinance(row):
+            continue
+        if used > 0 and _WEB_REQUEST_GAP_SEC > 0:
+            time.sleep(_WEB_REQUEST_GAP_SEC)
+        payload, _err = _fetch_yfinance_quote(code, name)
+        used += 1
+        if payload:
+            merged = {**payload, 'name': name, 'stale': True}
+            full_rows[i] = merged
+            with _LIVE_PRICE_LOCK:
+                _LIVE_PRICE_CACHE[code] = merged
+
+
 @app.route('/api/live-prices', methods=['GET'])
 def live_prices():
     """실시간 시세 API."""
@@ -3017,7 +3214,7 @@ def live_prices():
     page = max(1, page)
 
     price_filter = (request.args.get('filter') or 'all').strip().lower()
-    if price_filter not in ('all', 'up', 'down'):
+    if price_filter not in ('all', 'up', 'down', 'volume'):
         price_filter = 'all'
 
     custom_codes_raw = (request.args.get('codes') or '').strip()
@@ -3062,7 +3259,7 @@ def live_prices():
 
     market_open = _live_fetch_enabled_now()
     if not market_open:
-        # 장외에는 캐시 변동을 배제하고 DB 스냅샷만 반환(고정값 보장)
+        # 장외: DB 스냅샷 우선 → 빈 종목은 (옵션) 메모리 캐시 → (옵션) yfinance로 보강
         snapshot = {}
         if fetch_live_snapshot_batch:
             snapshot = fetch_live_snapshot_batch([c for c, _ in all_items]) or {}
@@ -3072,14 +3269,37 @@ def live_prices():
             row = snapshot.get(code)
             if row:
                 full_rows.append({**row, 'name': name})
+                continue
+            cached_row = None
+            if _LIVE_OFFHOURS_USE_CACHE:
+                with _LIVE_PRICE_LOCK:
+                    c = _LIVE_PRICE_CACHE.get(code)
+                if c and not c.get('loading') and c.get('price') is not None:
+                    cached_row = {**c, 'name': name, 'stale': True}
+            if cached_row:
+                full_rows.append(cached_row)
             else:
                 full_rows.append({'code': code, 'name': name, 'loading': True})
+
+        if _LIVE_OFFHOURS_YFINANCE:
+            _offhours_fill_yfinance_rows(full_rows, all_items, _LIVE_OFFHOURS_YF_BUDGET)
 
         if price_filter in ('up', 'down'):
             filtered_rows = [
                 r for r in full_rows
                 if (not r.get('loading')) and ((r.get('direction') or 'flat') == price_filter)
             ]
+        elif price_filter == 'volume':
+            def _off_vol_key(r):
+                if r.get('loading'):
+                    return (1, 0)
+                try:
+                    v = int(r.get('volume') or 0)
+                except (TypeError, ValueError):
+                    v = 0
+                return (0, -v)
+
+            filtered_rows = sorted(full_rows, key=_off_vol_key)
         else:
             filtered_rows = full_rows
 
@@ -3157,6 +3377,68 @@ def live_prices():
             'page': page,
             'page_size': page_size,
             'filter': price_filter,
+            'refresh_count': refresh_count,
+            'market_open': True,
+            'stocks': stocks,
+            'ts': time.strftime('%H:%M:%S')
+        })
+
+    if price_filter == 'volume':
+        prime_items = []
+        with _LIVE_PRICE_LOCK:
+            if not _LIVE_UPDATER_RUNNING:
+                miss = [c for c, _ in all_items if c not in _LIVE_PRICE_CACHE]
+                if miss and len(miss) == universe_count:
+                    prime_len = min(8, len(all_items))
+                    prime_items = all_items[:prime_len]
+        if prime_items:
+            _refresh_live_cache(prime_items, token)
+
+        _start_live_refresh(all_items, token, force=False)
+
+        missing_for_snapshot = []
+        with _LIVE_PRICE_LOCK:
+            for code, name in all_items:
+                cached = _LIVE_PRICE_CACHE.get(code)
+                if not cached or cached.get('loading'):
+                    missing_for_snapshot.append((code, name))
+
+        snapshot = {}
+        if missing_for_snapshot and fetch_live_snapshot_batch:
+            snapshot = fetch_live_snapshot_batch([code for code, _ in missing_for_snapshot])
+
+        full_stocks = _ordered_stock_rows(all_items, snapshot)
+
+        def _live_vol_key(r):
+            if r.get('loading'):
+                return (1, 0)
+            try:
+                v = int(r.get('volume') or 0)
+            except (TypeError, ValueError):
+                v = 0
+            return (0, -v)
+
+        vol_sorted = sorted(full_stocks, key=_live_vol_key)
+        total_filtered = len(vol_sorted)
+        total_pages = max(1, (total_filtered + page_size - 1) // page_size)
+        if page > total_pages:
+            page = total_pages
+        start_i = (page - 1) * page_size
+        stocks = vol_sorted[start_i:start_i + page_size]
+
+        refresh_count = _WEB_REFRESH_BATCH_SIZE
+        if total_filtered == 0 or all(s.get('loading') for s in stocks):
+            refresh_count = max(_WEB_WARMUP_BATCH_SIZE, _WEB_REFRESH_BATCH_SIZE)
+
+        return jsonify({
+            'success': True,
+            'count': len(stocks),
+            'total_count': total_filtered,
+            'universe_count': universe_count,
+            'total_pages': total_pages,
+            'page': page,
+            'page_size': page_size,
+            'filter': 'volume',
             'refresh_count': refresh_count,
             'market_open': True,
             'stocks': stocks,

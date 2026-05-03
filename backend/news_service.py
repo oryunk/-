@@ -305,3 +305,100 @@ def update_reader_digest(conn, news_id: int, text: str) -> None:
                     'news_articles.reader_digest 컬럼이 없습니다. SQL/add_news_reader_digest.sql 을 적용하세요.'
                 ) from e
             raise
+
+
+_CODE_6 = re.compile(r"(?<!\d)(\d{6})(?!\d)")
+
+
+def sync_news_stock_links(conn, scan_limit: int = 60) -> None:
+    """최근 기사 제목·요약에서 종목 코드·종목명을 찾아 news_stock_rel 에 반영 (종목별 뉴스 조회용)."""
+    if scan_limit <= 0:
+        return
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT news_id, title, summary FROM news_articles
+                ORDER BY news_id DESC
+                LIMIT %s
+                """,
+                (scan_limit,),
+            )
+            articles = [dict(r) for r in (cur.fetchall() or [])]
+            try:
+                cur.execute(
+                    """
+                    SELECT stock_id, symbol, name_ko FROM stocks
+                    WHERE symbol IS NOT NULL AND symbol != ''
+                      AND COALESCE(is_active, 1) = 1
+                    """
+                )
+            except ProgrammingError:
+                cur.execute(
+                    """
+                    SELECT stock_id, symbol, name_ko FROM stocks
+                    WHERE symbol IS NOT NULL AND symbol != ''
+                    """
+                )
+            stocks = [dict(r) for r in (cur.fetchall() or [])]
+    except ProgrammingError as e:
+        if e.args and e.args[0] == 1146:
+            return
+        raise
+
+    if not articles:
+        return
+    if not stocks:
+        print(
+            "[news_stock_rel] stocks 테이블에 종목 행이 없습니다. "
+            "시세 동기화(Live_price) 등으로 stocks를 채운 뒤 /api/rss/news 를 다시 호출하세요."
+        )
+        return
+
+    stocks.sort(key=lambda s: len((s.get("name_ko") or "").strip()), reverse=True)
+    sym_to_row = {str(s["symbol"]).strip(): s for s in stocks if s.get("symbol")}
+
+    rel_sql = """
+        INSERT INTO news_stock_rel (news_id, stock_id, match_type, confidence, created_at)
+        VALUES (%s, %s, %s, %s, NOW())
+        ON DUPLICATE KEY UPDATE
+            match_type = VALUES(match_type),
+            confidence = VALUES(confidence)
+    """
+
+    with conn.cursor() as cur:
+        for art in articles:
+            nid = art.get("news_id")
+            text = f"{art.get('title') or ''} {art.get('summary') or ''}"
+            if not str(text).strip():
+                continue
+            seen: set[int] = set()
+            for m in _CODE_6.finditer(text):
+                row = sym_to_row.get(m.group(1))
+                if not row:
+                    continue
+                sid = int(row["stock_id"])
+                if sid in seen:
+                    continue
+                seen.add(sid)
+                try:
+                    cur.execute(rel_sql, (nid, sid, "TICKER", 0.95))
+                except ProgrammingError as pe:
+                    if pe.args and pe.args[0] == 1146:
+                        return
+                    raise
+            for s in stocks:
+                nk = (s.get("name_ko") or "").strip()
+                if len(nk) < 2:
+                    continue
+                if nk in text:
+                    sid = int(s["stock_id"])
+                    if sid in seen:
+                        continue
+                    seen.add(sid)
+                    try:
+                        cur.execute(rel_sql, (nid, sid, "NLP", 0.72))
+                    except ProgrammingError as pe:
+                        if pe.args and pe.args[0] == 1146:
+                            return
+                        raise
