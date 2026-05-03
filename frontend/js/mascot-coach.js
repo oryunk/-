@@ -13,6 +13,8 @@
     caution: 'assets/mascot/mascot-caution.png?v=' + MASCOT_ASSET_VERSION,
     welcome: 'assets/mascot/mascot-welcome.png?v=' + MASCOT_ASSET_VERSION,
     info: 'assets/mascot/mascot-info.png?v=' + MASCOT_ASSET_VERSION,
+    /* 클리어 후 돌아갈까 대화: 도크와 동일 눈웃음 일러스트 */
+    wink: 'assets/mascot/mascot-dock.png?v=' + MASCOT_ASSET_VERSION,
   };
 
   var FALLBACK_EMOJI = {
@@ -20,6 +22,7 @@
     caution: '⚠️',
     welcome: '👋',
     info: '💡',
+    wink: '😉',
   };
 
   function innerCloseCoach() {
@@ -115,6 +118,11 @@
     }
     if (dockBtn) {
       dockBtn.addEventListener('click', function () {
+        var alt = tryDockReopenPayload();
+        if (alt) {
+          show(alt, true);
+          return;
+        }
         if (lastPayload) {
           show(lastPayload, true);
         }
@@ -125,8 +133,17 @@
 
   function resolveMood(mood) {
     var m = String(mood || '').toLowerCase();
-    if (m === 'success' || m === 'caution' || m === 'welcome' || m === 'info') return m;
+    if (m === 'success' || m === 'caution' || m === 'welcome' || m === 'info' || m === 'wink') return m;
     return 'info';
+  }
+
+  function tryDockReopenPayload() {
+    if (typeof window.__mascotDockReopenFilter !== 'function') return null;
+    try {
+      return window.__mascotDockReopenFilter(lastPayload, true);
+    } catch (e) {
+      return null;
+    }
   }
 
   function typewrite(textEl, fullText) {
@@ -188,6 +205,7 @@
         caution: '주의/위험',
         welcome: '기본/환영',
         info: '정보/똑똑이',
+        wink: '응원/눈웃음',
       }[mood];
     }
     if (titleEl) titleEl.textContent = title;
@@ -212,7 +230,7 @@
       }
     }
     if (dismissBtn) {
-      dismissBtn.textContent = '닫기';
+      dismissBtn.textContent = (payload && payload.dismissLabel) ? String(payload.dismissLabel) : '닫기';
     }
 
     if (img && fallback) {
@@ -234,11 +252,22 @@
     }
   }
 
+  function hideDock() {
+    var dock = document.getElementById('mascotCoachDock');
+    if (dock) dock.style.display = 'none';
+  }
+
   window.MascotCoach = {
     show: show,
     reopen: function () {
+      var alt = tryDockReopenPayload();
+      if (alt) {
+        show(alt, true);
+        return;
+      }
       if (lastPayload) show(lastPayload, true);
     },
     close: innerCloseCoach,
+    hideDock: hideDock,
   };
 })();

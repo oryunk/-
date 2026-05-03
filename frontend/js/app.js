@@ -110,6 +110,22 @@ function waitForRSSReady() {
   });
 }
 
+function initHomePopularStockRows() {
+  document.querySelectorAll('.market-table tbody tr[data-stock-code]').forEach((tr) => {
+    tr.addEventListener('click', () => {
+      const code = tr.getAttribute('data-stock-code');
+      if (!code) return;
+      window.location.href = `market.html?stock=${encodeURIComponent(code)}`;
+    });
+    tr.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        tr.click();
+      }
+    });
+  });
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
   console.log('[초기화] DOMContentLoaded 이벤트 발생');
 
@@ -119,6 +135,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   refreshAuthNav();
+  initHomePopularStockRows();
 
   const params = new URLSearchParams(window.location.search);
   if (params.get('openLogin') === '1') {

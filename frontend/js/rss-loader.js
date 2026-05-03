@@ -238,43 +238,43 @@ function formatNewsDateLabel(pd) {
   }
 }
 
-function formatWon(v) {
-  const n = Number(v || 0);
-  if (!Number.isFinite(n)) return '—';
-  return n.toLocaleString('ko-KR') + '원';
-}
-
-function renderRelatedQuotes(quotes) {
-  const box = document.getElementById('newsReaderRelated');
-  const list = document.getElementById('newsReaderRelatedList');
-  if (!box || !list) return;
-  if (!Array.isArray(quotes) || quotes.length === 0) {
-    box.style.display = 'none';
-    list.innerHTML = '';
-    return;
-  }
-  const rows = quotes.slice(0, 4).map((q) => {
-    const parsedRate = Number(q.change_rate || 0);
-    const rate = Number.isFinite(parsedRate) ? parsedRate : 0;
-    const dir = q.direction || (rate > 0 ? 'up' : (rate < 0 ? 'down' : 'flat'));
-    const sign = rate > 0 ? '+' : '';
-    return (
-      '<div class="news-related-item">' +
-      `<span class="news-related-item-name">${escapeHtml(q.name || q.code || '')}</span>` +
-      `<span class="news-related-item-price">${formatWon(q.price)}</span>` +
-      `<span class="news-related-item-change ${dir}">${sign}${rate.toFixed(2)}%</span>` +
-      '</div>'
-    );
-  });
-  list.innerHTML = rows.join('');
-  box.style.display = 'block';
-}
-
 function closeNewsReader() {
   const el = document.getElementById('newsReaderOverlay');
   if (!el) return;
   el.classList.remove('is-open');
   el.setAttribute('aria-hidden', 'true');
+}
+
+/** @param {string} imgUrl @param {string} title @param {string} source */
+function setNewsReaderHeroImage(imgUrl, title, source) {
+  const imageWrap = document.getElementById('newsReaderImageWrap');
+  const imageEl = document.getElementById('newsReaderImage');
+  const placeholderEl = document.getElementById('newsReaderImagePlaceholder');
+  const placeholderSourceEl = document.getElementById('newsReaderImagePlaceholderSource');
+  if (!imageWrap || !imageEl || !placeholderEl) return;
+
+  const img = (imgUrl || '').trim();
+  const altBase = title || '뉴스';
+
+  imageWrap.style.display = 'block';
+
+  if (img) {
+    imageEl.src = img;
+    imageEl.alt = altBase + ' 이미지';
+    imageEl.style.display = '';
+    imageEl.removeAttribute('aria-hidden');
+    placeholderEl.style.display = 'none';
+    placeholderEl.setAttribute('aria-hidden', 'true');
+  } else {
+    imageEl.removeAttribute('src');
+    imageEl.style.display = 'none';
+    imageEl.setAttribute('aria-hidden', 'true');
+    placeholderEl.style.display = 'flex';
+    placeholderEl.removeAttribute('aria-hidden');
+    if (placeholderSourceEl) {
+      placeholderSourceEl.textContent = source ? source + ' · 원문에서 확인' : '원문에서 확인';
+    }
+  }
 }
 
 function openNewsReader(item) {
@@ -287,8 +287,6 @@ function openNewsReader(item) {
   const leadEl = document.getElementById('newsReaderLead');
   const digestEl = document.getElementById('newsReaderDigest');
   const origEl = document.getElementById('newsReaderOriginal');
-  const imageWrap = document.getElementById('newsReaderImageWrap');
-  const imageEl = document.getElementById('newsReaderImage');
 
   if (sourceEl) sourceEl.textContent = item.source || '뉴스';
   if (dateEl) {
@@ -298,18 +296,8 @@ function openNewsReader(item) {
   if (titleEl) titleEl.textContent = item.title || '';
   const leadText = stripHTML(item.summary || item.description || '');
   if (leadEl) leadEl.textContent = leadText || '요약이 없습니다.';
-  if (imageWrap && imageEl) {
-    const img = (item.img_url || '').trim();
-    if (img) {
-      imageEl.src = img;
-      imageEl.alt = (item.title || '뉴스 이미지') + ' 이미지';
-      imageWrap.style.display = 'block';
-    } else {
-      imageEl.removeAttribute('src');
-      imageWrap.style.display = 'none';
-    }
-  }
-  renderRelatedQuotes([]);
+  setNewsReaderHeroImage(item.img_url || '', item.title || '', item.source || '');
+  const hasNewsId = Number.isInteger(Number(item.news_id)) && Number(item.news_id) > 0;
 
   if (origEl) {
     const href = item.link || '';
@@ -333,22 +321,15 @@ function openNewsReader(item) {
     return;
   }
 
-  if (item.news_id) {
+  if (hasNewsId) {
     digestEl.textContent = '쉬운 설명을 준비하는 중…';
     fetch(`${jurinNewsApiBase()}/api/news/${encodeURIComponent(item.news_id)}?digest=1`)
       .then((r) => r.json().catch(() => ({})))
       .then((data) => {
         const art = data && data.article;
-        if (data && data.success && Array.isArray(data.related_quotes)) {
-          renderRelatedQuotes(data.related_quotes);
-        }
-        if (art && imageWrap && imageEl) {
+        if (art) {
           const img = (art.img_url || item.img_url || '').trim();
-          if (img) {
-            imageEl.src = img;
-            imageEl.alt = (art.title || item.title || '뉴스 이미지') + ' 이미지';
-            imageWrap.style.display = 'block';
-          }
+          setNewsReaderHeroImage(img, art.title || item.title || '', item.source || '');
         }
         if (data && data.success && art && art.reader_digest) {
           digestEl.textContent = cleanGptProse(art.reader_digest);
@@ -451,7 +432,7 @@ async function loadNewsFromRSS() {
         const thumb = (item.img_url || '').trim();
         const thumbBlock = thumb
           ? `<div class="news-card-thumb"><img src="${escapeHtml(thumb)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" /></div>`
-          : '';
+          : `<div class="news-card-thumb news-card-thumb--placeholder" aria-hidden="true"><div class="news-card-thumb-placeholder-inner"><span class="news-card-thumb-ph-icon"></span><span class="news-card-thumb-ph-hint">미리보기 이미지 없음</span></div></div>`;
 
         return `
           <button type="button" class="news-card news-card--interactive" data-news-idx="${index}">
@@ -476,6 +457,55 @@ async function loadNewsFromRSS() {
   
   console.error('[RSS-NEWS] 모든 피드 실패 → 뉴스 없음');
   // loadDefaultNews(); // 기본 뉴스 로드 제거
+}
+
+/** 경제 뉴스 전용 페이지 (#newsList) — 클릭 시 리더 오버레이 + 관련 종목 */
+async function loadNewsListPage() {
+  const newsList = document.getElementById('newsList');
+  if (!newsList) return;
+
+  try {
+    const items = await getRssItemsDaily();
+    window.__jurinNewsItems = items;
+    const rows = Array.from(items).slice(0, 24);
+    const categories = ['경제', '증권', '산업', '금융', '기술', '시황', '정책', '글로벌'];
+
+    const html = rows
+      .map((item, index) => {
+        const title = item.title || '제목 없음';
+        const description = item.description || '내용 없음';
+        const pubDate = item.pubDate || '';
+        const timeStr = getTimeAgo(pubDate);
+        const category = categories[index % categories.length];
+        const source = item.source || '뉴스';
+        const thumb = (item.img_url || '').trim();
+        const imgBlock = thumb
+          ? `<div class="news-image news-image--thumb"><img src="${escapeHtml(thumb)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" /></div>`
+          : `<div class="news-image">뉴스</div>`;
+
+        return (
+          `<button type="button" class="news-item news-card--interactive" data-news-idx="${index}">` +
+          imgBlock +
+          '<div class="news-content">' +
+          `<div class="news-category">${escapeHtml(category)}</div>` +
+          `<div class="news-headline">${escapeHtml(truncateText(title, 120))}</div>` +
+          `<div class="news-summary">${escapeHtml(truncateText(stripHTML(description), 220))}</div>` +
+          '<div class="news-meta">' +
+          `<div class="news-time">${escapeHtml(timeStr)}</div>` +
+          `<div class="news-source">${escapeHtml(source)}</div>` +
+          '</div>' +
+          '</div>' +
+          '</button>'
+        );
+      })
+      .join('');
+
+    newsList.innerHTML = html || '<p class="news-empty">불러온 뉴스가 없습니다. 잠시 후 다시 시도해 주세요.</p>';
+    console.log('[RSS-NEWS-PAGE] 완료', rows.length);
+  } catch (err) {
+    console.error('[RSS-NEWS-PAGE] 실패:', err && err.message);
+    newsList.innerHTML = '<p class="news-empty">뉴스를 불러오지 못했습니다. 백엔드가 켜져 있는지 확인해 주세요.</p>';
+  }
 }
 
 // 슬라이더 뉴스 로드 함수
@@ -621,6 +651,7 @@ function initializeRSSFeeds() {
   console.log('[RSS-LOADER] 초기화 함수 호출 - 뉴스 로드 시작');
   loadSliderNews();
   loadNewsFromRSS();
+  loadNewsListPage();
 }
 
 // 페이지 로드 완료 후 실행

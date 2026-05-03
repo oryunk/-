@@ -92,7 +92,7 @@
     setText('label[for="tradeQuantity"]', '매수 수량');
     setAttr('#tradeQuantity', 'placeholder', '수량');
     setText('label[for="tradeLimitPrice"]', '매수 가격');
-    setAttr('#tradeLimitPrice', 'placeholder', '비우면 시세 체결');
+    setAttr('#tradeLimitPrice', 'placeholder', '');
     setAttr('#tradeLimitPricePlus', 'aria-label', '가격 한 단계 올림');
     setAttr('#tradeLimitPriceMinus', 'aria-label', '가격 한 단계 내림');
     var buyBtn = document.querySelector('.trading-form .btn-trade');
@@ -102,7 +102,7 @@
     setText('label[for="tradeSellQuantity"]', '매도 수량');
     setAttr('#tradeSellQuantity', 'placeholder', '수량');
     setText('label[for="tradeSellLimitPrice"]', '매도 가격');
-    setAttr('#tradeSellLimitPrice', 'placeholder', '비우면 시세 체결');
+    setAttr('#tradeSellLimitPrice', 'placeholder', '');
     setAttr('#tradeSellLimitPricePlus', 'aria-label', '매도가격 한 단계 올림');
     setAttr('#tradeSellLimitPriceMinus', 'aria-label', '매도가격 한 단계 내림');
     var sellBtn = document.getElementById('tradeSellBtn');
@@ -110,7 +110,6 @@
 
     setText('.order-status-title', '주문/체결 현황');
     setText('#orderStatusSummary', '아직 주문 상태가 없습니다.');
-    setText('.order-status-empty', '주문 상태가 여기에 표시됩니다.');
     setText('.history-title', '체결 내역');
     setText('.history-date-label', '날짜');
     setText('#historyClearDisplay', '비우기');
@@ -168,7 +167,154 @@
 
   function updateTradeTickHint() {}
 
+  function isBuyMarketMode() {
+    var b = document.getElementById('tradeBuyPriceTypeMarket');
+    return !!(b && b.classList.contains('active'));
+  }
+
+  function buyReferencePrice() {
+    var h = document.getElementById('tradeStockCode');
+    var code = h && h.value ? String(h.value).trim() : '';
+    if (/^\d{6}$/.test(code)) {
+      var byCode = Number(marketPriceByCode[code]);
+      if (byCode > 0) return byCode;
+    }
+    if (typeof window.lastDiscoveryQuotePrice === 'number' && window.lastDiscoveryQuotePrice > 0) {
+      return window.lastDiscoveryQuotePrice;
+    }
+    return 0;
+  }
+
+  async function tryRefreshBuyDisplayPriceAsync() {
+    if (!isBuyMarketMode()) return;
+    var h = document.getElementById('tradeStockCode');
+    var code = h && h.value ? String(h.value).trim() : '';
+    if (!isSixDigitCode(code)) return;
+    try {
+      var d = await fetchAskingPriceWithGuard(code, { force: false });
+      if (d && d.success) {
+        var ep = Number(d.expected_exec_price || 0);
+        if (ep > 0) {
+          rememberMarketQuote(code, '', ep);
+          var inp = document.getElementById('tradeLimitPrice');
+          if (inp && isBuyMarketMode()) inp.value = String(Math.round(ep));
+        }
+      }
+    } catch (e) { /* ignore */ }
+  }
+
+  function setBuyPriceType(market) {
+    var mBtn = document.getElementById('tradeBuyPriceTypeMarket');
+    var lBtn = document.getElementById('tradeBuyPriceTypeLimit');
+    var inp = document.getElementById('tradeLimitPrice');
+    var plus = document.getElementById('tradeLimitPricePlus');
+    var minus = document.getElementById('tradeLimitPriceMinus');
+    var cell = document.getElementById('tradeLimitPriceCell');
+    if (mBtn && lBtn) {
+      mBtn.classList.toggle('active', market);
+      lBtn.classList.toggle('active', !market);
+      mBtn.setAttribute('aria-pressed', market ? 'true' : 'false');
+      lBtn.setAttribute('aria-pressed', market ? 'false' : 'true');
+    }
+    if (inp) {
+      inp.disabled = !!market;
+      if (plus) plus.disabled = !!market;
+      if (minus) minus.disabled = !!market;
+      if (cell) cell.classList.toggle('is-market-mode', !!market);
+      if (market) {
+        var rpM = buyReferencePrice();
+        if (rpM > 0) {
+          inp.value = String(Math.round(rpM));
+        } else {
+          inp.value = '';
+          void tryRefreshBuyDisplayPriceAsync();
+        }
+      } else {
+        var cur = inp.value !== '' ? parseInt(inp.value, 10) : NaN;
+        if (Number.isNaN(cur) || cur <= 0) {
+          var rp = buyReferencePrice();
+          if (rp > 0) inp.value = String(Math.round(rp));
+        }
+      }
+    }
+    updateTradeTickHint();
+  }
+
+  function isSellMarketMode() {
+    var b = document.getElementById('tradeSellPriceTypeMarket');
+    return !!(b && b.classList.contains('active'));
+  }
+
+  function sellReferencePrice() {
+    var sel = document.getElementById('tradeSellStock');
+    var key = sel && sel.value ? String(sel.value) : '';
+    if (!key || !portfolio.holdings[key]) return 0;
+    var h = portfolio.holdings[key];
+    var cp = Number(h.currentPrice || 0);
+    if (cp > 0) return cp;
+    var code = h.code && String(h.code).trim();
+    if (code && marketPriceByCode[code]) return Number(marketPriceByCode[code]);
+    return 0;
+  }
+
+  async function tryRefreshSellDisplayPriceAsync() {
+    if (!isSellMarketMode()) return;
+    var sel = document.getElementById('tradeSellStock');
+    var key = sel && sel.value ? String(sel.value) : '';
+    if (!key || !portfolio.holdings[key]) return;
+    var code = portfolio.holdings[key].code && String(portfolio.holdings[key].code).trim();
+    if (!isSixDigitCode(code)) return;
+    try {
+      var d = await fetchAskingPriceWithGuard(code, { force: false });
+      if (d && d.success) {
+        var ep = Number(d.expected_exec_price || 0);
+        if (ep > 0) {
+          rememberMarketQuote(code, '', ep);
+          var inp = document.getElementById('tradeSellLimitPrice');
+          if (inp && isSellMarketMode()) inp.value = String(Math.round(ep));
+        }
+      }
+    } catch (e) { /* ignore */ }
+  }
+
+  function setSellPriceType(market) {
+    var mBtn = document.getElementById('tradeSellPriceTypeMarket');
+    var lBtn = document.getElementById('tradeSellPriceTypeLimit');
+    var inp = document.getElementById('tradeSellLimitPrice');
+    var plus = document.getElementById('tradeSellLimitPricePlus');
+    var minus = document.getElementById('tradeSellLimitPriceMinus');
+    var cell = document.getElementById('tradeSellLimitPriceCell');
+    if (mBtn && lBtn) {
+      mBtn.classList.toggle('active', market);
+      lBtn.classList.toggle('active', !market);
+      mBtn.setAttribute('aria-pressed', market ? 'true' : 'false');
+      lBtn.setAttribute('aria-pressed', market ? 'false' : 'true');
+    }
+    if (inp) {
+      inp.disabled = !!market;
+      if (plus) plus.disabled = !!market;
+      if (minus) minus.disabled = !!market;
+      if (cell) cell.classList.toggle('is-market-mode', !!market);
+      if (market) {
+        var rpM = sellReferencePrice();
+        if (rpM > 0) {
+          inp.value = String(Math.round(rpM));
+        } else {
+          inp.value = '';
+          void tryRefreshSellDisplayPriceAsync();
+        }
+      } else {
+        var cur = inp.value !== '' ? parseInt(inp.value, 10) : NaN;
+        if (Number.isNaN(cur) || cur <= 0) {
+          var rp = sellReferencePrice();
+          if (rp > 0) inp.value = String(Math.round(rp));
+        }
+      }
+    }
+  }
+
   function bumpTradeLimitPrice(direction) {
+    if (isBuyMarketMode()) return;
     var inp = document.getElementById('tradeLimitPrice');
     if (!inp) return;
     var cur = inp.value !== '' ? parseInt(inp.value, 10) : NaN;
@@ -215,6 +361,41 @@
   let pendingOrderSeq = 1;
   let pendingOrderProcessing = false;
   let orderStatusEvents = [];
+  const LS_MOCK_PENDING = 'jurinMockPendingOrdersV1';
+  const LS_MOCK_EVENTS = 'jurinMockOrderStatusEventsV1';
+  const LS_MOCK_PENDING_SEQ = 'jurinMockPendingOrderSeqV1';
+
+  function saveOrderBoardState() {
+    try {
+      localStorage.setItem(LS_MOCK_PENDING, JSON.stringify(pendingOrders));
+      localStorage.setItem(LS_MOCK_EVENTS, JSON.stringify(orderStatusEvents));
+      localStorage.setItem(LS_MOCK_PENDING_SEQ, String(pendingOrderSeq));
+    } catch (e) { /* ignore */ }
+  }
+
+  function restoreOrderBoardState() {
+    try {
+      var rawP = localStorage.getItem(LS_MOCK_PENDING);
+      if (rawP) {
+        var arr = JSON.parse(rawP);
+        if (Array.isArray(arr)) pendingOrders = arr;
+      }
+      var rawE = localStorage.getItem(LS_MOCK_EVENTS);
+      if (rawE) {
+        var evs = JSON.parse(rawE);
+        if (Array.isArray(evs)) orderStatusEvents = evs;
+      }
+      var rawS = localStorage.getItem(LS_MOCK_PENDING_SEQ);
+      if (rawS) {
+        var n = parseInt(rawS, 10);
+        if (!Number.isNaN(n) && n > 0) pendingOrderSeq = n;
+      }
+      pendingOrders.forEach(function (o) {
+        if (o && typeof o.id === 'number' && o.id >= pendingOrderSeq) pendingOrderSeq = o.id + 1;
+      });
+    } catch (e) { /* ignore */ }
+  }
+
   let marketPriceByCode = Object.create(null);
   let marketPriceByName = Object.create(null);
   let askingPriceCacheByCode = Object.create(null);
@@ -251,7 +432,10 @@
   function renderOrderStatusBoard() {
     var listEl = document.getElementById('orderStatusList');
     var sumEl = document.getElementById('orderStatusSummary');
-    if (!listEl || !sumEl) return;
+    if (!listEl || !sumEl) {
+      saveOrderBoardState();
+      return;
+    }
 
     var waitCnt = pendingOrders.length;
     var doneCnt = orderStatusEvents.filter(function (e) { return e.status === 'executed'; }).length;
@@ -263,14 +447,15 @@
     sumEl.textContent = '미체결 ' + waitCnt + '건 · 체결완료 ' + doneCnt + '건' + lastTxt;
 
     if (orderStatusEvents.length === 0 && waitCnt === 0) {
-      listEl.innerHTML = '<div class="order-status-empty">주문을 넣으면 대기/체결 상태가 여기에 표시됩니다.</div>';
+      listEl.innerHTML = '';
+      saveOrderBoardState();
       return;
     }
 
     var pendingRows = pendingOrders.map(function (o) {
       var side = o.side === 'SELL' ? '매도' : '매수';
       return (
-        '<div class="order-status-item">' +
+        '<div class="order-status-item order-status-item--wait">' +
           '<div class="order-status-top">' +
             '<span class="order-status-stock">' + escapeHtml(o.stock || o.stockRef || '-') + ' · ' + side + ' ' + Number(o.quantity || 0).toLocaleString() + '주</span>' +
             '<span class="order-status-badge wait">미체결</span>' +
@@ -309,6 +494,7 @@
     }).join('');
 
     listEl.innerHTML = pendingRows + eventRows;
+    saveOrderBoardState();
   }
 
   function rememberMarketQuote(code, name, price) {
@@ -535,7 +721,7 @@
         throw new Error('호가 서버 제한으로 잠시 후 다시 시도됩니다.');
       }
       renderOrderbookTable(data);
-      if (meta) meta.textContent = '호가를 눌러 지정가를 빠르게 입력할 수 있습니다.';
+      if (meta) meta.textContent = '';
     } catch (err) {
       if (meta) meta.textContent = (err && err.message) ? String(err.message) : '호가를 불러오지 못했습니다.';
       if (!(cached && cached.data)) wrap.innerHTML = '';
@@ -590,6 +776,7 @@
     if (Number.isNaN(p) || p <= 0) return;
     var sd = String(side || '').toLowerCase();
     if (sd === 'buy') {
+      setBuyPriceType(false);
       var inp = document.getElementById('tradeLimitPrice');
       if (inp) inp.value = String(p);
       updateTradeTickHint();
@@ -599,6 +786,7 @@
       lastOrderbookPick = { code: code, price: p, atMs: Date.now() };
     }
     if (sd === 'sell') {
+      setSellPriceType(false);
       var quickSellInp = document.getElementById('tradeSellLimitPrice');
       if (quickSellInp) quickSellInp.value = String(p);
       var sellLim = document.getElementById('sellModalLimitPrice');
@@ -702,6 +890,7 @@
 
   // 페이지 로드 시 초기화 (로그인 여부와 관계없이 화면 표시; 미로그인 시 API는 빈 자산·매매 시 로그인 필요 안내)
   document.addEventListener('DOMContentLoaded', async function() {
+    restoreOrderBoardState();
     localizeSimulationUi();
     if (typeof refreshAuthNav === 'function') refreshAuthNav();
 
@@ -764,9 +953,13 @@
           qEl.max = String(Number(h.quantity || 0));
           if (!qEl.value || Number(qEl.value) < 1) qEl.value = '1';
         }
-        if (pEl && !pEl.value) {
-          var cp = Number(h.currentPrice || 0);
-          if (cp > 0) pEl.value = String(Math.round(cp));
+        if (pEl) {
+          if (isSellMarketMode()) {
+            setSellPriceType(true);
+          } else if (!pEl.value) {
+            var cp = Number(h.currentPrice || 0);
+            if (cp > 0) pEl.value = String(Math.round(cp));
+          }
         }
       });
     }
@@ -807,6 +1000,16 @@
     var qslpu = document.getElementById('tradeSellLimitPricePlus');
     if (qslm) qslm.addEventListener('click', function () { bumpQuickSellLimitPrice(-1); });
     if (qslpu) qslpu.addEventListener('click', function () { bumpQuickSellLimitPrice(1); });
+    var typM = document.getElementById('tradeBuyPriceTypeMarket');
+    var typL = document.getElementById('tradeBuyPriceTypeLimit');
+    if (typM) typM.addEventListener('click', function () { setBuyPriceType(true); });
+    if (typL) typL.addEventListener('click', function () { setBuyPriceType(false); });
+    setBuyPriceType(true);
+    var sellTypM = document.getElementById('tradeSellPriceTypeMarket');
+    var sellTypL = document.getElementById('tradeSellPriceTypeLimit');
+    if (sellTypM) sellTypM.addEventListener('click', function () { setSellPriceType(true); });
+    if (sellTypL) sellTypL.addEventListener('click', function () { setSellPriceType(false); });
+    setSellPriceType(true);
     var obClose = document.getElementById('orderbookCloseBtn');
     if (obClose) obClose.addEventListener('click', closeOrderbookOverlay);
     updateTradeTickHint();
@@ -848,6 +1051,7 @@
     updatePortfolio();
     renderHoldings();
     renderHistory();
+    if (isSellMarketMode()) setSellPriceType(true);
     renderOrderStatusBoard();
     loadTradedValueBoard();
     setInterval(loadTradedValueBoard, 25000);
@@ -922,7 +1126,11 @@
     var tlpEl = document.getElementById('tradeLimitPrice');
     var pNum = Number(price);
     if (tlpEl && Number.isFinite(pNum) && pNum > 0) {
-      tlpEl.value = String(Math.round(pNum));
+      var rounded = Math.round(pNum);
+      tlpEl.value = String(rounded);
+      if (isBuyMarketMode() && /^\d{6}$/.test(codeStr)) {
+        rememberMarketQuote(codeStr, nameStr, rounded);
+      }
     }
     updateTradeTickHint();
     var buyBlock = document.querySelector('.trading-section .trading-form');
@@ -1089,8 +1297,14 @@
     if (qtyLine) qtyLine.textContent = quantity.toLocaleString() + '주';
     if (priceLine) {
       var limOk = limP > 0 && !Number.isNaN(limP);
-      var effPx = limOk ? limP : referencePriceForTick();
-      priceLine.textContent = formatCurrency(effPx) + (limOk ? ' (지정가)' : ' (시세 기준)');
+      if (isBuyMarketMode()) {
+        var refM = limOk ? limP : buyReferencePrice();
+        priceLine.textContent =
+          refM > 0 ? '시장가 (참고 ' + formatCurrency(refM) + ')' : '시장가 (현재 시세 부근에서 체결)';
+      } else {
+        var effPx = limOk ? limP : referencePriceForTick();
+        priceLine.textContent = formatCurrency(effPx) + (limOk ? ' (지정가)' : ' (시세 기준)');
+      }
     }
     const modal = document.getElementById('buyModal');
     if (!modal) return;
@@ -1123,6 +1337,7 @@
     var limEl2 = document.getElementById('tradeLimitPrice');
     var limPx = limEl2 && limEl2.value ? parseInt(limEl2.value, 10) : 0;
     if (Number.isNaN(limPx) || limPx < 0) limPx = 0;
+    if (isBuyMarketMode()) limPx = 0;
     try {
       if (limPx > 0) {
         const refPx = await getLatestMarketPrice(stock);
@@ -1288,11 +1503,18 @@
     updateSellModalEst();
   }
 
+  function quickSellReferenceForTick() {
+    var rp = sellReferencePrice();
+    if (rp > 0) return rp;
+    return 50000;
+  }
+
   function bumpQuickSellLimitPrice(direction) {
+    if (isSellMarketMode()) return;
     var inp = document.getElementById('tradeSellLimitPrice');
     if (!inp) return;
     var cur = inp.value !== '' ? parseInt(inp.value, 10) : NaN;
-    var ref = referencePriceForTick();
+    var ref = quickSellReferenceForTick();
     var tick = krxTickSize(!Number.isNaN(cur) && cur > 0 ? cur : ref);
     var next;
     if (!Number.isNaN(cur) && cur > 0) {
@@ -1328,6 +1550,7 @@
     }
     var sellPx = limEl && limEl.value ? parseInt(limEl.value, 10) : 0;
     if (Number.isNaN(sellPx) || sellPx < 0) sellPx = 0;
+    if (isSellMarketMode()) sellPx = 0;
 
     var stockRef = found.code && String(found.code).trim() ? String(found.code).trim() : key;
     try {
