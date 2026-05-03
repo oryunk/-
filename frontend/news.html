@@ -6,6 +6,7 @@
 <title>경제 뉴스 - 주린닷컴</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css?v=20260428">
+<link rel="stylesheet" href="css/news-overlay.css">
 <style>
   .market-container {
     min-height: 100vh;
@@ -236,6 +237,42 @@
     color: inherit;
   }
 
+  button.news-item {
+    width: 100%;
+    box-sizing: border-box;
+    margin: 0;
+    text-align: left;
+    font: inherit;
+    color: inherit;
+    background: #ffffff;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  button.news-item:focus-visible {
+    outline: 2px solid var(--accent, #4f9eff);
+    outline-offset: 2px;
+  }
+
+  .news-image.news-image--thumb {
+    padding: 0;
+    overflow: hidden;
+  }
+
+  .news-image.news-image--thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .news-empty {
+    margin: 0;
+    padding: 24px;
+    text-align: center;
+    color: #5b7566;
+    font-weight: 600;
+  }
+
   .news-item:hover {
     background: #f7fcf9;
     border-color: rgba(47, 143, 95, 0.45);
@@ -369,11 +406,11 @@
   </a>
   <ul class="nav-menu">
     <li><a href="guide.html">가이드</a></li>
-    <li><a href="analysis.html">AI 분석</a></li>
+    <li><a href="analysis.html">AI 분석 <span class="nav-badge">AI</span></a></li>
     <li><a href="ai-chart-prediction.html">AI 차트 예측 <span class="nav-badge">AI</span></a></li>
     <li><a href="glossary.html">용어 검색</a></li>
     <li><a class="jurin-simulation-link" href="http://127.0.0.1:5000/simulation.html">모의 투자</a></li>
-    <li><a href="market.html">시장 <span class="nav-badge">LIVE</span></a></li>
+    <li><a href="market.html">시장</a></li>
   </ul>
   <div class="nav-right">
     <button type="button" class="btn-ghost" id="navLoginBtn">로그인</button>
@@ -400,80 +437,34 @@
   </div>
 </div>
 
-<script>
-  // 뉴스 데이터
-  const newsData = [
-    {
-      category: '경제',
-      headline: '반도체 슈퍼사이클 재개? 2025년 하반기 전망 분석',
-      summary: '메모리 반도체 가격 상승과 AI 수요 증가로 반도체 업계에 새로운 성장 기회가 찾아올 전망입니다.',
-      time: '2시간 전',
-      source: '매일경제',
-      link: 'https://www.mk.co.kr/news/economy/'
-    },
-    {
-      category: '증권',
-      headline: '개인 투자자들의 ETF 투자 증가세... "안정적 수익 추구"',
-      summary: '코로나19 이후 개인 투자자들의 ETF 투자 비중이 크게 증가하며 안정적인 수익을 추구하는 투자 패턴이 확산되고 있습니다.',
-      time: '4시간 전',
-      source: '한국경제',
-      link: 'https://www.hankyung.com/finance'
-    },
-    {
-      category: '산업',
-      headline: '전기차 시장 경쟁 심화... 현대차·기아의 대응 전략은?',
-      summary: '글로벌 전기차 시장에서 현대차와 기아의 점유율 확대를 위한 기술 개발과 시장 전략에 대한 분석입니다.',
-      time: '6시간 전',
-      source: '아시아경제',
-      link: 'https://www.asiae.co.kr/list/industry-IT'
-    },
-    {
-      category: '금융',
-      headline: '금리 인상 사이클 종료 임박... 주식시장에 미칠 영향은?',
-      summary: '연준의 금리 정책 변화가 주식시장에 미칠 영향을 분석하고 투자 전략을 제시합니다.',
-      time: '8시간 전',
-      source: '서울경제',
-      link: 'https://www.sedaily.com/NewsList/GA'
-    },
-    {
-      category: '기술',
-      headline: 'AI 투자 열풍... 관련주 주가 급등세 지속',
-      summary: 'ChatGPT 이후 AI 관련 기업들의 주가가 급등하며 투자자들의 관심이 집중되고 있습니다.',
-      time: '12시간 전',
-      source: '전자신문',
-      link: 'https://www.etnews.com/news/section.html?id1=02'
-    }
-  ];
+<div id="newsReaderOverlay" class="news-reader-overlay" aria-hidden="true">
+  <div class="news-reader-backdrop" id="newsReaderBackdrop" aria-hidden="true"></div>
+  <div class="news-reader-panel" role="dialog" aria-modal="true" aria-labelledby="newsReaderTitle">
+    <button type="button" class="news-reader-close" id="newsReaderCloseBtn" aria-label="닫기">×</button>
+    <div class="news-reader-header">
+      <span class="news-reader-source" id="newsReaderSource"></span>
+      <span class="news-reader-date" id="newsReaderDate"></span>
+    </div>
+    <h2 class="news-reader-title" id="newsReaderTitle"></h2>
+    <div class="news-reader-image-wrap" id="newsReaderImageWrap">
+      <img id="newsReaderImage" class="news-reader-image" src="" alt="" style="display:none;">
+      <div class="news-reader-image-placeholder" id="newsReaderImagePlaceholder" style="display:none;" aria-hidden="true">
+        <span class="news-reader-image-placeholder-graphic" aria-hidden="true"></span>
+        <span class="news-reader-image-placeholder-label">대표 이미지가 없는 기사입니다</span>
+        <span class="news-reader-image-placeholder-source" id="newsReaderImagePlaceholderSource"></span>
+      </div>
+    </div>
+    <div class="news-reader-lead" id="newsReaderLead"></div>
+    <div class="news-reader-digest-section">
+      <h3>쉬운 설명</h3>
+      <div class="news-reader-digest" id="newsReaderDigest"></div>
+    </div>
+    <a class="news-reader-original" id="newsReaderOriginal" href="#" target="_blank" rel="noopener noreferrer">원문 기사 보기 →</a>
+  </div>
+</div>
 
-  // 페이지 로드 시 초기화
-  document.addEventListener('DOMContentLoaded', function() {
-    renderNews();
-  });
-
-  // 뉴스 렌더링
-  function renderNews() {
-    const newsList = document.getElementById('newsList');
-
-    const newsHtml = newsData.map(news => `
-      <a class="news-item news-link" href="${news.link}" target="_blank" rel="noopener noreferrer">
-        <div class="news-image">뉴스</div>
-        <div class="news-content">
-          <div class="news-category">${news.category}</div>
-          <div class="news-headline">${news.headline}</div>
-          <div class="news-summary">${news.summary}</div>
-          <div class="news-meta">
-            <div class="news-time">${news.time}</div>
-            <div class="news-source">${news.source}</div>
-          </div>
-        </div>
-      </a>
-    `).join('');
-
-    newsList.innerHTML = newsHtml;
-  }
-
-</script>
 <script src="js/api-base.js"></script>
+<script src="js/rss-loader.js"></script>
 <script src="js/common-auth.js"></script>
 
 </body>

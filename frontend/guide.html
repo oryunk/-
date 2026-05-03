@@ -208,6 +208,109 @@
     border-color: rgba(47, 143, 95, 0.5);
     box-shadow: 0 10px 26px rgba(47, 143, 95, 0.14);
   }
+  .guide-mode-landing {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    min-height: calc(100vh - 80px - 64px);
+    padding: 24px 16px 48px;
+    box-sizing: border-box;
+  }
+  .guide-mode-landing.is-hidden {
+    display: none !important;
+  }
+  .guide-mode-title {
+    font-size: clamp(26px, 4.5vw, 38px);
+    font-weight: 900;
+    color: var(--text-primary);
+    margin: 0 0 36px;
+    letter-spacing: -0.02em;
+  }
+  .guide-mode-choices {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    justify-content: center;
+    width: 100%;
+    max-width: 720px;
+  }
+  .guide-mode-pick {
+    flex: 1 1 260px;
+    max-width: 340px;
+    min-height: 200px;
+    padding: 28px 24px 32px;
+    border-radius: 20px;
+    border: 2px solid rgba(47, 143, 95, 0.28);
+    background: #fff;
+    box-shadow: 0 14px 40px rgba(31, 107, 69, 0.08);
+    font-family: inherit;
+    cursor: pointer;
+    text-align: center;
+    transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+  }
+  .guide-mode-pick:hover {
+    border-color: rgba(47, 143, 95, 0.5);
+    background: #f8fdf9;
+    box-shadow: 0 18px 48px rgba(31, 107, 69, 0.12);
+    transform: translateY(-2px);
+  }
+  .guide-mode-pick:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(47, 143, 95, 0.35), 0 14px 40px rgba(31, 107, 69, 0.08);
+  }
+  .guide-mode-pick-title {
+    display: block;
+    font-size: clamp(28px, 5vw, 40px);
+    font-weight: 900;
+    color: #1f2f26;
+    margin-bottom: 10px;
+    letter-spacing: -0.02em;
+  }
+  .guide-mode-pick-desc {
+    display: block;
+    font-size: 14px;
+    font-weight: 600;
+    color: #4b6658;
+    line-height: 1.55;
+  }
+  .guide-main-content.is-hidden {
+    display: none !important;
+  }
+  .guide-back-row {
+    margin-bottom: 20px;
+  }
+  .guide-back-btn {
+    border: none;
+    background: transparent;
+    color: #2d5a45;
+    font-size: 14px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    padding: 6px 0;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  .guide-back-btn:hover {
+    color: var(--accent);
+  }
+  .guide-track-panel.is-hidden {
+    display: none !important;
+  }
+  .guide-beta-tag {
+    display: inline-block;
+    margin-left: 6px;
+    font-size: 11px;
+    font-weight: 800;
+    color: #7b5f17;
+    background: #fff5d8;
+    border: 1px solid rgba(123, 95, 23, 0.28);
+    border-radius: 999px;
+    padding: 3px 10px;
+    vertical-align: middle;
+  }
 </style>
 </head>
 <body>
@@ -232,44 +335,76 @@
 
 <main class="guide-page">
   <div class="guide-wrap">
+    <div id="guideModeLanding" class="guide-mode-landing" aria-label="가이드 난이도 선택">
+      <h1 class="guide-mode-title">어디부터 시작할까요?</h1>
+      <div class="guide-mode-choices">
+        <button type="button" class="guide-mode-pick" id="guidePickBeginner" aria-describedby="guidePickBeginnerDesc">
+          <span class="guide-mode-pick-title">초보</span>
+          <span class="guide-mode-pick-desc" id="guidePickBeginnerDesc">주식 입문·기초 전용 코스</span>
+        </button>
+        <button type="button" class="guide-mode-pick" id="guidePickExpert" aria-describedby="guidePickExpertDesc">
+          <span class="guide-mode-pick-title">고수</span>
+          <span class="guide-mode-pick-desc" id="guidePickExpertDesc">차트·그래프 심화 학습 코스</span>
+        </button>
+      </div>
+    </div>
+
+    <div id="guideMainContent" class="guide-main-content is-hidden" hidden aria-hidden="true">
+    <div class="guide-back-row">
+      <button type="button" class="guide-back-btn" id="guideBackToMode">← 돌아가기</button>
+    </div>
     <div class="guide-head">
-      <h1>단계별 주식 학습 가이드</h1>
-      <p>초보자를 위한 5단계 학습 흐름입니다. 원하는 단계를 선택해 바로 시작하세요.</p>
-      <div class="guide-head-actions">
+      <h1 id="guidePageTitle">단계별 주식 학습 가이드</h1>
+      <p id="guidePageSubtitle">초보자를 위한 5단계 학습</p>
+    </div>
+
+    <div id="guideBeginnerPanel" class="guide-track-panel" aria-hidden="false">
+      <div class="guide-head-actions" style="margin-bottom: 18px;">
         <button type="button" class="btn-primary" id="guideTutorialExplainBtn">튜토리얼 설명</button>
         <div class="guide-progress-inline" id="guideStepProgressWrap" aria-live="polite">
-          <span class="guide-progress-label">튜토리얼 진행도 (1단계)</span>
+          <span class="guide-progress-label">튜토리얼 전체 진행도</span>
           <span class="guide-progress-bar"><span id="guideStepProgressBar"></span></span>
           <span class="guide-progress-value" id="guideStepProgressValue">0%</span>
         </div>
       </div>
+      <div class="guide-steps">
+        <section class="guide-card" data-step="1">
+          <h3>1단계: 시세 읽기</h3>
+          <p>지수·필터로 오늘 시장을 보고, 상세 카드와 뉴스·수급까지 이어서 읽습니다.</p>
+          <button class="btn-primary" type="button" onclick="location.href='주린닷컴홈피.html?tutorial=step1'">1단계 시작</button>
+        </section>
+        <section class="guide-card" data-step="2">
+          <h3>2단계: 거래 원리</h3>
+          <p>호가와 체결, 거래량이 실제로 어떻게 연결되는지 확인합니다.</p>
+          <button class="btn-ghost" type="button" id="guideDemoCaution">캐릭터 미리보기</button>
+        </section>
+        <section class="guide-card" data-step="3">
+          <h3>3단계: 종목 가치</h3>
+          <p>PER·PBR·ROE·배당 지표를 함께 보고 종목의 가격과 가치를 해석합니다.</p>
+          <button class="btn-ghost" type="button" id="guideDemoInfo">캐릭터 미리보기</button>
+        </section>
+        <section class="guide-card" data-step="4">
+          <h3>4단계: 시장 구조 이해</h3>
+          <p>ETF, 섹터, 테마, 코스피/코스닥의 차이와 역할을 쉽게 정리합니다.</p>
+          <button class="btn-ghost" type="button" id="guideDemoWelcome">캐릭터 미리보기</button>
+        </section>
+        <section class="guide-card" data-step="5">
+          <h3>5단계: 실전 투자</h3>
+          <p>예수금 범위 내 주문, 손절/분할 매수, 리스크 관리 흐름을 실제처럼 연습합니다.</p>
+          <button class="btn-ghost" type="button" id="guideDemoSuccess">캐릭터 미리보기</button>
+        </section>
+      </div>
     </div>
-    <div class="guide-steps">
-      <section class="guide-card" data-step="1">
-        <h3>1단계: 시세 읽기</h3>
-        <p>현재가·등락률·거래량을 먼저 읽고, 시가/고가/저가로 오늘 흐름을 판단합니다.</p>
-        <button class="btn-primary" type="button" onclick="location.href='주린닷컴홈피.html?tutorial=step1'">1단계 시작</button>
-      </section>
-      <section class="guide-card" data-step="2">
-        <h3>2단계: 거래 원리</h3>
-        <p>호가와 체결, 거래량이 실제로 어떻게 연결되는지 확인합니다.</p>
-        <button class="btn-ghost" type="button" id="guideDemoCaution">캐릭터 미리보기</button>
-      </section>
-      <section class="guide-card" data-step="3">
-        <h3>3단계: 종목 가치</h3>
-        <p>PER·PBR·ROE·배당 지표를 함께 보고 종목의 가격과 가치를 해석합니다.</p>
-        <button class="btn-ghost" type="button" id="guideDemoInfo">캐릭터 미리보기</button>
-      </section>
-      <section class="guide-card" data-step="4">
-        <h3>4단계: 시장 구조 이해</h3>
-        <p>ETF, 섹터, 테마, 코스피/코스닥의 차이와 역할을 쉽게 정리합니다.</p>
-        <button class="btn-ghost" type="button" id="guideDemoWelcome">캐릭터 미리보기</button>
-      </section>
-      <section class="guide-card" data-step="5">
-        <h3>5단계: 실전 투자</h3>
-        <p>예수금 범위 내 주문, 손절/분할 매수, 리스크 관리 흐름을 실제처럼 연습합니다.</p>
-        <button class="btn-ghost" type="button" id="guideDemoSuccess">캐릭터 미리보기</button>
-      </section>
+
+    <div id="guideExpertPanel" class="guide-track-panel is-hidden" hidden aria-hidden="true">
+      <div class="guide-steps" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));">
+        <section class="guide-card guide-card--expert-beta">
+          <h3>1단계 <span class="guide-beta-tag">베타버전</span></h3>
+          <p>고급 학습·심화 전략 코스를 준비 중입니다. 베타 기간에는 1단계만 열려 있으며, 이후 단계가 순차 공개됩니다.</p>
+          <button type="button" class="btn-ghost" onclick="location.href='market.html'">시장 화면에서 심화 보기</button>
+        </section>
+      </div>
+    </div>
     </div>
   </div>
 </main>
@@ -280,16 +415,124 @@
     var explainBtn = document.getElementById('guideTutorialExplainBtn');
     var progressBar = document.getElementById('guideStepProgressBar');
     var progressValue = document.getElementById('guideStepProgressValue');
-    var STEP1_DONE_KEY = 'jurinGuideStep1Done';
+    var landingEl = document.getElementById('guideModeLanding');
+    var mainContentEl = document.getElementById('guideMainContent');
+    var backToModeBtn = document.getElementById('guideBackToMode');
+    var pickBeginnerBtn = document.getElementById('guidePickBeginner');
+    var pickExpertBtn = document.getElementById('guidePickExpert');
+    var beginnerPanel = document.getElementById('guideBeginnerPanel');
+    var expertPanel = document.getElementById('guideExpertPanel');
+    var subtitleEl = document.getElementById('guidePageSubtitle');
+    var titleEl = document.getElementById('guidePageTitle');
+    /** 레거시 키·이전 마스크와 섞이지 않도록 별도 저장 (실제 클리어만 반영) */
+    var TUTORIAL_MASK_KEY = 'jurinGuideTutorialBits';
+    var TOTAL_GUIDE_TUTORIAL_STEPS = 5;
     var introIdx = 0;
     var introActive = false;
 
+    var SUB_BEGINNER = '초보자를 위한 5단계 학습';
+    var SUB_EXPERT = '고급 코스는 베타로 단계적으로 열립니다. 지금은 1단계(베타)만 이용할 수 있어요.';
+
+    /** 5단계 각각 클리어 시에만 % 반영. 예전 localStorage 플래그는 읽지 않음(잘못된 20% 방지). */
+    function readTutorialBitsMask() {
+      try {
+        var raw = localStorage.getItem(TUTORIAL_MASK_KEY);
+        if (raw !== null && raw !== '') {
+          var m = parseInt(raw, 10);
+          return isNaN(m) ? 0 : Math.min(31, Math.max(0, m));
+        }
+        localStorage.setItem(TUTORIAL_MASK_KEY, '0');
+        return 0;
+      } catch (e) {
+        return 0;
+      }
+    }
+
+    function markGuideTutorialStep(step1based) {
+      if (step1based < 1 || step1based > TOTAL_GUIDE_TUTORIAL_STEPS) return;
+      try {
+        var mask = readTutorialBitsMask();
+        mask |= 1 << (step1based - 1);
+        localStorage.setItem(TUTORIAL_MASK_KEY, String(mask));
+      } catch (e) { /* ignore */ }
+      renderGuideProgress();
+    }
+
     function renderGuideProgress() {
-      var done = localStorage.getItem(STEP1_DONE_KEY) === '1';
-      var percent = done ? 100 : 0;
+      var mask = readTutorialBitsMask();
+      var cleared = 0;
+      for (var i = 0; i < TOTAL_GUIDE_TUTORIAL_STEPS; i++) {
+        if (mask & (1 << i)) cleared += 1;
+      }
+      var percent = Math.round((cleared / TOTAL_GUIDE_TUTORIAL_STEPS) * 100);
       if (progressBar) progressBar.style.width = percent + '%';
       if (progressValue) progressValue.textContent = percent + '%';
     }
+
+    function showModeLanding() {
+      if (landingEl) {
+        landingEl.classList.remove('is-hidden');
+        landingEl.removeAttribute('hidden');
+        landingEl.setAttribute('aria-hidden', 'false');
+      }
+      if (mainContentEl) {
+        mainContentEl.classList.add('is-hidden');
+        mainContentEl.setAttribute('hidden', '');
+        mainContentEl.setAttribute('aria-hidden', 'true');
+      }
+    }
+
+    /**
+     * 메인 영역 안에서 초보/고수 패널 전환 (랜딩은 이미 숨긴 뒤 호출)
+     */
+    function setGuideTrack(track) {
+      var isBeginner = track === 'beginner';
+      if (beginnerPanel) {
+        beginnerPanel.classList.toggle('is-hidden', !isBeginner);
+        if (isBeginner) {
+          beginnerPanel.removeAttribute('hidden');
+          beginnerPanel.setAttribute('aria-hidden', 'false');
+        } else {
+          beginnerPanel.setAttribute('hidden', '');
+          beginnerPanel.setAttribute('aria-hidden', 'true');
+        }
+      }
+      if (expertPanel) {
+        expertPanel.classList.toggle('is-hidden', isBeginner);
+        if (isBeginner) {
+          expertPanel.setAttribute('hidden', '');
+          expertPanel.setAttribute('aria-hidden', 'true');
+        } else {
+          expertPanel.removeAttribute('hidden');
+          expertPanel.setAttribute('aria-hidden', 'false');
+        }
+      }
+      if (subtitleEl) subtitleEl.textContent = isBeginner ? SUB_BEGINNER : SUB_EXPERT;
+      if (titleEl) titleEl.textContent = isBeginner ? '단계별 주식 학습 가이드' : '고급 학습 가이드';
+      if (isBeginner) {
+        renderGuideProgress();
+      }
+    }
+
+    function openGuideTrack(track) {
+      if (landingEl) {
+        landingEl.classList.add('is-hidden');
+        landingEl.setAttribute('hidden', '');
+        landingEl.setAttribute('aria-hidden', 'true');
+      }
+      if (mainContentEl) {
+        mainContentEl.classList.remove('is-hidden');
+        mainContentEl.removeAttribute('hidden');
+        mainContentEl.setAttribute('aria-hidden', 'false');
+      }
+      setGuideTrack(track);
+    }
+
+    if (pickBeginnerBtn) pickBeginnerBtn.addEventListener('click', function () { openGuideTrack('beginner'); });
+    if (pickExpertBtn) pickExpertBtn.addEventListener('click', function () { openGuideTrack('expert'); });
+    if (backToModeBtn) backToModeBtn.addEventListener('click', showModeLanding);
+
+    showModeLanding();
 
     var tutorialIntroSteps = [
       {
@@ -308,7 +551,7 @@
         mood: 'info',
         title: '튜토리얼은 어떻게 진행되나요?',
         text:
-          '주린닷컴 튜토리얼은 루미가 말을 걸고, 화면에서 눌러 볼 곳을 알려 줘요. 예를 들어 시장 탭에서 상승·하락 필터를 눌러 보거나, 종목 상세를 열어 보며 화면을 익혀요. 확인을 누르면 다음 안내로 넘어가요.',
+          '루미가 말을 걸고, 지수·상승·하락·거래량 같은 버튼을 눌러 보며 시장 감을 잡아요. 종목 상세에서는 시가·고가·저가·상하한가·거래량 카드와 뉴스까지 같이 보며 시세 읽기를 익혀요. 확인을 누르면 다음 안내로 넘어가요.',
       },
       {
         mood: 'success',
@@ -364,6 +607,58 @@
     }
     renderGuideProgress();
 
+    window.addEventListener('storage', function (e) {
+      if (e.key === TUTORIAL_MASK_KEY) renderGuideProgress();
+    });
+    window.addEventListener('pageshow', function () {
+      renderGuideProgress();
+    });
+
+    document.getElementById('guideDemoSuccess')?.addEventListener('click', function () {
+      window.MascotCoach?.show({
+        mood: 'success',
+        title: '좋아! 잘하고 있어',
+        text: '지금처럼 원칙 지키면 수익을 더 안정적으로 지킬 수 있어. 천천히 계속 가보자!',
+        confirmLabel: '확인',
+        onConfirm: function () {
+          markGuideTutorialStep(5);
+        },
+      });
+    });
+    document.getElementById('guideDemoCaution')?.addEventListener('click', function () {
+      window.MascotCoach?.show({
+        mood: 'caution',
+        title: '잠깐, 여기선 조심!',
+        text: '변동성이 큰 구간이야. 지금은 추격 매수보다 거래량이랑 호가를 먼저 확인하자.',
+        confirmLabel: '확인',
+        onConfirm: function () {
+          markGuideTutorialStep(2);
+        },
+      });
+    });
+    document.getElementById('guideDemoWelcome')?.addEventListener('click', function () {
+      window.MascotCoach?.show({
+        mood: 'welcome',
+        title: '반가워! 같이 시작하자',
+        text: '처음이면 1단계부터 보는 게 제일 빨라. 내가 옆에서 하나씩 도와줄게.',
+        confirmLabel: '확인',
+        onConfirm: function () {
+          markGuideTutorialStep(4);
+        },
+      });
+    });
+    document.getElementById('guideDemoInfo')?.addEventListener('click', function () {
+      window.MascotCoach?.show({
+        mood: 'info',
+        title: '좋아, 핵심만 딱 보자',
+        text: 'PER, PBR, ROE 세 개만 같이 봐도 종목 가치 흐름이 훨씬 또렷해져.',
+        confirmLabel: '확인',
+        onConfirm: function () {
+          markGuideTutorialStep(3);
+        },
+      });
+    });
+
     document.addEventListener('keydown', function (e) {
       if (e.key !== 'Escape') return;
       var root = document.getElementById('mascotCoach');
@@ -373,35 +668,6 @@
       }
     });
   })();
-
-  document.getElementById('guideDemoSuccess')?.addEventListener('click', function () {
-    window.MascotCoach?.show({
-      mood: 'success',
-      title: '좋아! 잘하고 있어',
-      text: '지금처럼 원칙 지키면 수익을 더 안정적으로 지킬 수 있어. 천천히 계속 가보자!',
-    });
-  });
-  document.getElementById('guideDemoCaution')?.addEventListener('click', function () {
-    window.MascotCoach?.show({
-      mood: 'caution',
-      title: '잠깐, 여기선 조심!',
-      text: '변동성이 큰 구간이야. 지금은 추격 매수보다 거래량이랑 호가를 먼저 확인하자.',
-    });
-  });
-  document.getElementById('guideDemoWelcome')?.addEventListener('click', function () {
-    window.MascotCoach?.show({
-      mood: 'welcome',
-      title: '반가워! 같이 시작하자',
-      text: '처음이면 1단계부터 보는 게 제일 빨라. 내가 옆에서 하나씩 도와줄게.',
-    });
-  });
-  document.getElementById('guideDemoInfo')?.addEventListener('click', function () {
-    window.MascotCoach?.show({
-      mood: 'info',
-      title: '좋아, 핵심만 딱 보자',
-      text: 'PER, PBR, ROE 세 개만 같이 봐도 종목 가치 흐름이 훨씬 또렷해져.',
-    });
-  });
 </script>
 </body>
 </html>

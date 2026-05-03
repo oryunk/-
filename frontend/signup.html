@@ -28,6 +28,36 @@
     box-shadow: 0 20px 60px rgba(31, 47, 38, 0.1);
   }
 
+  .auth-back {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    margin-bottom: 16px;
+    border-radius: 12px;
+    border: 1px solid rgba(47, 143, 95, 0.35);
+    background: rgba(47, 143, 95, 0.08);
+    color: var(--accent);
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 1;
+    text-decoration: none;
+    font-family: inherit;
+    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  }
+
+  .auth-back:hover {
+    background: rgba(47, 143, 95, 0.14);
+    border-color: rgba(47, 143, 95, 0.55);
+    color: #166534;
+  }
+
+  .auth-back:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(47, 143, 95, 0.25);
+  }
+
   .auth-kicker {
     font-family: 'DM Mono', monospace;
     color: var(--accent);
@@ -38,15 +68,8 @@
 
   .auth-card h1 {
     font-size: 32px;
-    margin-bottom: 10px;
+    margin-bottom: 22px;
     color: var(--text-primary);
-  }
-
-  .auth-card p {
-    color: var(--gray-400);
-    line-height: 1.7;
-    font-size: 14px;
-    margin-bottom: 24px;
   }
 
   .auth-form {
@@ -138,9 +161,9 @@
 <body>
 <div class="auth-page">
   <div class="auth-card">
+    <a href="주린닷컴홈피.html" class="auth-back" aria-label="메인 홈으로 돌아가기" title="메인 홈으로">&#8592;</a>
     <div class="auth-kicker">JURIN.COM SIGN UP</div>
     <h1>회원가입</h1>
-    <p>닉네임, 이메일, 아이디, 비밀번호를 입력해 계정을 생성하세요. 비밀번호는 두 번 입력해야 하며, 두 값이 일치해야 가입이 완료됩니다.</p>
     <form class="auth-form" onsubmit="submitSignup(event)">
       <label class="auth-field">
         <span>닉네임</span>

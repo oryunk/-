@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>주린닷컴 - 주린이를 위한 주식 AI 분석</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=20260438">
+<link rel="stylesheet" href="css/style.css?v=20260504">
 <link rel="stylesheet" href="css/news-overlay.css">
 </head>
 <body>
@@ -90,28 +90,7 @@
     </div>
     <a class="section-more" href="glossary.html">전체 용어 사전 →</a>
   </div>
-  <div class="terms-grid">
-    <div class="term-card">
-      <div class="term-symbol">PER</div>
-      <div class="term-word">주가수익비율</div>
-      <div class="term-def">주가를 주당순이익(EPS)으로 나눈 값. 낮을수록 저평가 가능성이 있습니다.</div>
-    </div>
-    <div class="term-card">
-      <div class="term-symbol">EPS</div>
-      <div class="term-word">주당순이익</div>
-      <div class="term-def">기업의 순이익을 발행 주식수로 나눈 값. 주주 1주당 귀속 이익을 나타냅니다.</div>
-    </div>
-    <div class="term-card">
-      <div class="term-symbol">ROE</div>
-      <div class="term-word">자기자본이익률</div>
-      <div class="term-def">자기자본 대비 순이익의 비율. 경영 효율성을 나타내며 높을수록 좋습니다.</div>
-    </div>
-    <div class="term-card">
-      <div class="term-symbol">PBR</div>
-      <div class="term-word">주가순자산비율</div>
-      <div class="term-def">주가를 1주당 순자산으로 나눈 값. 1배 이하면 청산 가치보다 저평가된 것입니다.</div>
-    </div>
-  </div>
+  <div class="terms-grid" id="dailyTermsGrid" aria-live="polite"></div>
 </section>
 
 <div class="divider"></div>
@@ -180,44 +159,44 @@
       </tr>
     </thead>
     <tbody>
-      <tr>
+      <tr data-stock-code="005930" tabindex="0" role="button" aria-label="삼성전자 시장 정보 보기">
         <td><div class="stock-code">01</div></td>
         <td><div class="stock-name">삼성전자</div><div class="stock-code">005930</div></td>
-        <td><div class="stock-price">75,200</div></td>
-        <td><span class="badge-up">▲ +1.24%</span></td>
-        <td><div class="volume">28,741,200</div></td>
+        <td><div class="stock-price">…</div></td>
+        <td><span class="badge-flat">…</span></td>
+        <td><div class="volume">…</div></td>
         <td><span class="ai-badge ai-strong-buy">강력매수</span></td>
       </tr>
-      <tr>
+      <tr data-stock-code="000660" tabindex="0" role="button" aria-label="SK하이닉스 시장 정보 보기">
         <td><div class="stock-code">02</div></td>
         <td><div class="stock-name">SK하이닉스</div><div class="stock-code">000660</div></td>
-        <td><div class="stock-price">182,500</div></td>
-        <td><span class="badge-up">▲ +2.87%</span></td>
-        <td><div class="volume">12,384,500</div></td>
+        <td><div class="stock-price">…</div></td>
+        <td><span class="badge-flat">…</span></td>
+        <td><div class="volume">…</div></td>
         <td><span class="ai-badge ai-buy">매수</span></td>
       </tr>
-      <tr>
+      <tr data-stock-code="035420" tabindex="0" role="button" aria-label="NAVER 시장 정보 보기">
         <td><div class="stock-code">03</div></td>
         <td><div class="stock-name">NAVER</div><div class="stock-code">035420</div></td>
-        <td><div class="stock-price">201,000</div></td>
-        <td><span class="badge-down">▼ -0.49%</span></td>
-        <td><div class="volume">8,204,100</div></td>
+        <td><div class="stock-price">…</div></td>
+        <td><span class="badge-flat">…</span></td>
+        <td><div class="volume">…</div></td>
         <td><span class="ai-badge ai-hold">보유</span></td>
       </tr>
-      <tr>
+      <tr data-stock-code="035720" tabindex="0" role="button" aria-label="카카오 시장 정보 보기">
         <td><div class="stock-code">04</div></td>
         <td><div class="stock-name">카카오</div><div class="stock-code">035720</div></td>
-        <td><div class="stock-price">43,150</div></td>
-        <td><span class="badge-up">▲ +0.82%</span></td>
-        <td><div class="volume">6,917,800</div></td>
+        <td><div class="stock-price">…</div></td>
+        <td><span class="badge-flat">…</span></td>
+        <td><div class="volume">…</div></td>
         <td><span class="ai-badge ai-buy">매수</span></td>
       </tr>
-      <tr>
+      <tr data-stock-code="005380" tabindex="0" role="button" aria-label="현대차 시장 정보 보기">
         <td><div class="stock-code">05</div></td>
         <td><div class="stock-name">현대차</div><div class="stock-code">005380</div></td>
-        <td><div class="stock-price">238,000</div></td>
-        <td><span class="badge-down">▼ -1.05%</span></td>
-        <td><div class="volume">4,523,600</div></td>
+        <td><div class="stock-price">…</div></td>
+        <td><span class="badge-flat">…</span></td>
+        <td><div class="volume">…</div></td>
         <td><span class="ai-badge ai-hold">보유</span></td>
       </tr>
     </tbody>
@@ -277,17 +256,18 @@
       <span class="news-reader-date" id="newsReaderDate"></span>
     </div>
     <h2 class="news-reader-title" id="newsReaderTitle"></h2>
-    <div class="news-reader-image-wrap" id="newsReaderImageWrap" style="display:none;">
-      <img id="newsReaderImage" class="news-reader-image" src="" alt="뉴스 이미지">
+    <div class="news-reader-image-wrap" id="newsReaderImageWrap">
+      <img id="newsReaderImage" class="news-reader-image" src="" alt="" style="display:none;">
+      <div class="news-reader-image-placeholder" id="newsReaderImagePlaceholder" style="display:none;" aria-hidden="true">
+        <span class="news-reader-image-placeholder-graphic" aria-hidden="true"></span>
+        <span class="news-reader-image-placeholder-label">대표 이미지가 없는 기사입니다</span>
+        <span class="news-reader-image-placeholder-source" id="newsReaderImagePlaceholderSource"></span>
+      </div>
     </div>
     <div class="news-reader-lead" id="newsReaderLead"></div>
     <div class="news-reader-digest-section">
       <h3>쉬운 설명</h3>
       <div class="news-reader-digest" id="newsReaderDigest"></div>
-    </div>
-    <div class="news-reader-related" id="newsReaderRelated" style="display:none;">
-      <h3>관련 주가</h3>
-      <div class="news-reader-related-list" id="newsReaderRelatedList"></div>
     </div>
     <a class="news-reader-original" id="newsReaderOriginal" href="#" target="_blank" rel="noopener noreferrer">원문 기사 보기 →</a>
   </div>
@@ -296,6 +276,7 @@
 <div class="tutorial-overlay" id="tutorialOverlay" aria-hidden="true"></div>
 
 <script src="js/api-base.js"></script>
+<script src="js/daily-stock-terms.js"></script>
 <script src="js/ticker-strip.js"></script>
 <script src="js/slider.js"></script>
 <script src="js/rss-loader.js"></script>

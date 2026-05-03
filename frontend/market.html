@@ -101,7 +101,11 @@
   }
   .index-change.up   { color: var(--market-up); }
   .index-change.down { color: var(--market-down); }
-  .index-change.flat { color: var(--gray-400); }
+  .index-change.flat {
+    color: var(--quote-flat);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
 
   .index-sub {
     margin-top: 6px;
@@ -293,6 +297,7 @@
   .stocks-table td {
     font-size: 15px;
     color: var(--text-primary);
+    vertical-align: middle;
   }
 
   /* td 기본 글자색보다 전일대비·등락 컬럼 색이 적용되도록 */
@@ -305,7 +310,9 @@
   }
 
   .stocks-table td.stock-change.flat {
-    color: var(--gray-400) !important;
+    color: var(--quote-flat) !important;
+    font-weight: 700 !important;
+    letter-spacing: -0.02em;
   }
 
   .stock-row {
@@ -326,6 +333,73 @@
     color: var(--text-primary);
   }
 
+  .stock-cell-toss {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+  }
+
+  .stock-cell-toss .stock-name {
+    min-width: 0;
+  }
+
+  .stock-logo-wrap {
+    flex: 0 0 auto;
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    overflow: hidden;
+    background: #ffffff;
+    border: 1px solid rgba(47, 143, 95, 0.18);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .stock-logo-img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    object-position: 50% 50%;
+    display: block;
+    padding: 2px;
+    background: transparent;
+    box-sizing: border-box;
+  }
+
+  .stock-logo-img.stock-logo-img--squareish {
+    padding: 6px;
+  }
+
+  .stock-logo-img[data-logo-file="005930"] {
+    object-fit: cover;
+    object-position: 50% 50%;
+    padding: 0;
+    border-radius: 22%;
+    transform: scale(1.08);
+    transform-origin: center center;
+  }
+
+  .stock-logo-wrap--placeholder {
+    font-size: 15px;
+    font-weight: 800;
+    color: #2f6a4e;
+    line-height: 1;
+  }
+
+  .stock-detail-identity {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-width: 0;
+  }
+
+  .stock-logo-wrap--detail {
+    width: 60px;
+    height: 60px;
+  }
+
   .stock-price {
     font-weight: 700;
     color: var(--accent);
@@ -340,7 +414,8 @@
   }
 
   .stock-price.flat {
-    color: var(--gray-300);
+    color: var(--quote-flat);
+    font-weight: 700;
   }
 
   .stock-change {
@@ -356,7 +431,9 @@
   }
 
   .stock-change.flat {
-    color: var(--gray-400);
+    color: var(--quote-flat);
+    font-weight: 700;
+    letter-spacing: -0.02em;
   }
 
   .live-badge {
@@ -605,13 +682,6 @@
     color: var(--text-primary);
   }
 
-  .stock-detail-code {
-    margin-top: 4px;
-    font-size: 13px;
-    color: var(--gray-400);
-    font-family: 'DM Mono', monospace;
-  }
-
   .stock-detail-price {
     margin-top: 18px;
     display: flex;
@@ -642,7 +712,9 @@
   }
 
   .detail-price-sub.flat {
-    color: var(--gray-400);
+    color: var(--quote-flat);
+    font-weight: 700;
+    letter-spacing: -0.02em;
   }
 
   .detail-chip {
@@ -666,9 +738,9 @@
   }
 
   .detail-chip.flat {
-    background: rgba(255, 255, 255, 0.07);
-    border-color: rgba(255, 255, 255, 0.18);
-    color: var(--gray-200);
+    background: var(--quote-flat-bg);
+    border-color: var(--quote-flat-border);
+    color: var(--quote-flat);
   }
 
   .stock-detail-body {
@@ -769,7 +841,9 @@
   }
 
   .detail-value.quote-flat {
-    color: var(--gray-400);
+    color: var(--quote-flat);
+    font-weight: 700;
+    letter-spacing: -0.02em;
   }
 
   .detail-cta {
@@ -792,13 +866,21 @@
   }
 
   .detail-buy {
-    background: linear-gradient(135deg, #1f9fff, #00c2ff);
-    color: #05162e;
+    background: linear-gradient(135deg, #1f9fff, #0d7ee0);
+    color: #fff;
+  }
+
+  .detail-buy:hover {
+    filter: brightness(1.06);
   }
 
   .detail-sell {
     background: linear-gradient(135deg, #ff5f64, #ff8157);
     color: #fff;
+  }
+
+  .detail-sell:hover {
+    filter: brightness(1.06);
   }
 
   .mock-trade-modal {
@@ -849,7 +931,7 @@
   }
 
   .mock-trade-panel--buy .mock-trade-title {
-    color: var(--accent);
+    color: #0d7ee0;
   }
 
   .mock-trade-panel--sell .mock-trade-title {
@@ -943,13 +1025,21 @@
   }
 
   .mock-trade-btn.submit.buy {
-    background: linear-gradient(135deg, #1f9fff, #00c2ff);
-    color: #04142a;
+    background: linear-gradient(135deg, #1f9fff, #0d7ee0);
+    color: #fff;
+  }
+
+  .mock-trade-btn.submit.buy:hover {
+    filter: brightness(1.06);
   }
 
   .mock-trade-btn.submit.sell {
     background: linear-gradient(135deg, #ff5f64, #ff8157);
     color: #fff;
+  }
+
+  .mock-trade-btn.submit.sell:hover {
+    filter: brightness(1.06);
   }
 
   .detail-foot {
@@ -1287,6 +1377,18 @@
     pointer-events: none;
     transition: background 0.2s ease;
   }
+  /* 루미 말풍선(600) 위에 퀘스트만 — wrapper는 display:contents로 전체 화면 덮지 않음(CLEAR·딤 스택 유지) */
+  .market-step1-quest-hud {
+    display: none;
+  }
+  .market-step1-quest-hud.is-open {
+    display: contents;
+  }
+  .market-step1-quest-hud .market-step1-banner,
+  .market-step1-quest-hud .market-step1-panel {
+    z-index: 650;
+    pointer-events: auto;
+  }
   .market-step1-overlay.is-open {
     display: block;
   }
@@ -1319,6 +1421,9 @@
     left: 50%;
     top: 86px;
     transform: translateX(-50%);
+    /* .market-content inner 폭(1200 - 40*2) 안에서만 넓어지도록 — 본문 카드와 겹침 완화 */
+    max-width: min(1120px, calc(100vw - 48px));
+    box-sizing: border-box;
     min-width: 260px;
     border: 1px solid rgba(93, 168, 126, 0.5);
     background: linear-gradient(180deg, rgba(246, 255, 250, 0.98), rgba(230, 247, 238, 0.98));
@@ -1349,9 +1454,12 @@
   }
   .market-step1-panel {
     position: fixed;
+    /* 본문(.market-content) inner 오른쪽 끝 + 간격 — gutter 안에만 두어 카드 가림 방지 */
+    left: calc(min((100vw + 1200px) / 2 - 40px, 100vw - 40px) + 12px);
     right: 22px;
     top: 92px;
-    width: min(92vw, 340px);
+    width: auto;
+    max-width: 340px;
     min-height: 196px;
     border-radius: 14px;
     border: 1px solid rgba(47, 143, 95, 0.25);
@@ -1389,20 +1497,137 @@
     font-weight: 800;
     color: #2e6b4b;
     font-family: 'DM Mono', monospace;
+    letter-spacing: -0.02em;
   }
   .market-step1-title {
     display: none;
   }
-  .market-step1-objective {
-    border: 1px solid rgba(47, 143, 95, 0.2);
-    border-radius: 10px;
-    background: #f6fcf8;
-    padding: 11px 12px;
+  .market-step1-quest-body {
+    border: 1px solid rgba(47, 143, 95, 0.18);
+    border-radius: 12px;
+    background: linear-gradient(180deg, #f8fdf9 0%, #ffffff 100%);
+    padding: 12px 12px 10px;
     margin-bottom: 10px;
-    font-size: 14px;
+  }
+  .market-step1-quest-section-label {
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: 0.12em;
+    color: #3d7a5c;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+  .market-step1-quest-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .market-step1-quest-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin: 0;
+    padding: 8px 8px 8px 6px;
+    border-radius: 10px;
+    border: 1px solid transparent;
+    background: rgba(255, 255, 255, 0.65);
+    transition: background 0.2s ease, border-color 0.2s ease, opacity 0.25s ease;
+  }
+  .market-step1-quest-item.is-current {
+    border-color: rgba(47, 143, 95, 0.35);
+    background: #ffffff;
+    box-shadow: 0 0 0 1px rgba(47, 143, 95, 0.08);
+  }
+  .market-step1-quest-item.is-current .market-step1-quest-text {
+    font-weight: 800;
+    color: #153526;
+  }
+  .market-step1-quest-check {
+    flex: 0 0 22px;
+    width: 22px;
+    height: 22px;
+    margin-top: 1px;
+    border-radius: 999px;
+    border: 2px solid rgba(47, 143, 95, 0.45);
+    background: #ffffff;
+    box-sizing: border-box;
+    transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+  }
+  .market-step1-quest-item.is-done .market-step1-quest-check {
+    border-color: #2a9d5f;
+    background: linear-gradient(145deg, #34b86f, #238a52);
+    box-shadow: 0 2px 6px rgba(35, 138, 82, 0.35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .market-step1-quest-item.is-done .market-step1-quest-check::after {
+    content: '';
+    display: block;
+    width: 5px;
+    height: 9px;
+    margin-bottom: 2px;
+    border: solid #ffffff;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+  }
+  .market-step1-quest-strike-wrap {
+    flex: 1;
+    min-width: 0;
+    position: relative;
+    padding: 0 2px;
+  }
+  .market-step1-quest-text {
+    display: inline;
+    font-size: 13px;
+    font-weight: 600;
+    color: #2a4a3a;
+    line-height: 1.45;
+    transition: color 0.2s ease, opacity 0.25s ease;
+  }
+  .market-step1-quest-item.is-done {
+    opacity: 0.62;
+    background: rgba(248, 252, 249, 0.85);
+  }
+  .market-step1-quest-item.is-done .market-step1-quest-text {
+    text-decoration: line-through;
+    text-decoration-thickness: 1px;
+    text-decoration-color: rgba(42, 74, 58, 0.45);
+    color: #5a7568;
+    font-weight: 600;
+  }
+  .market-step1-quest-item.is-done .market-step1-quest-strike-wrap::before,
+  .market-step1-quest-item.is-done .market-step1-quest-strike-wrap::after {
+    content: '—';
+    font-size: 11px;
+    font-weight: 700;
+    color: rgba(42, 138, 90, 0.35);
+    margin: 0 3px;
+    text-decoration: none;
+    vertical-align: 0.05em;
+  }
+  .market-step1-now {
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px dashed rgba(47, 143, 95, 0.22);
+  }
+  .market-step1-now-label {
+    display: block;
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: 0.1em;
+    color: #5a8a72;
+    margin-bottom: 4px;
+  }
+  .market-step1-now-text {
+    margin: 0;
+    font-size: 13px;
     font-weight: 700;
     color: #234936;
-    line-height: 1.55;
+    line-height: 1.5;
   }
   .market-step1-actions {
     display: flex;
@@ -1476,10 +1701,16 @@
       font-size: 32px;
     }
 
+    .market-step1-banner {
+      min-width: 0;
+      max-width: calc(100vw - 24px);
+    }
+
     .market-step1-panel {
       left: 12px;
       right: 12px;
       width: auto;
+      max-width: none;
       padding: 22px 18px 20px;
     }
   }
@@ -1494,7 +1725,7 @@
   </a>
   <ul class="nav-menu">
     <li><a href="guide.html">가이드</a></li>
-    <li><a href="analysis.html">AI 분석</a></li>
+    <li><a href="analysis.html">AI 분석 <span class="nav-badge">AI</span></a></li>
     <li><a href="ai-chart-prediction.html">AI 차트 예측 <span class="nav-badge">AI</span></a></li>
     <li><a href="glossary.html">용어 검색</a></li>
     <li><a class="jurin-simulation-link" href="http://127.0.0.1:5000/simulation.html">모의 투자</a></li>
@@ -1511,7 +1742,7 @@
     <div class="market-header-content">
       <a href="주린닷컴홈피.html" class="btn-back">← 돌아가기</a>
       <div class="market-title">시장 정보</div>
-      <div class="market-sub">실시간 시장 지표와 주요 종목을 확인하세요 · <a href="glossary.html" style="color:var(--accent);font-weight:600;">주린이 용어 모음</a>에서 표시와 같은 말을 미리 익혀 보세요.</div>
+      <div class="market-sub">실시간 시장 지표와 주요 종목을 확인하세요</div>
     </div>
   </div>
 
@@ -1547,10 +1778,11 @@
             </label>
             <button type="button" class="stocks-search-reset hidden" id="stocksSearchReset" onclick="clearStockSearch()">전체 목록 보기</button>
           </div>
-          <div class="stocks-filter-btns" id="stocksFilterBtns" aria-label="등락 필터">
+          <div class="stocks-filter-btns" id="stocksFilterBtns" aria-label="목록 필터">
             <button type="button" class="filter-btn active" data-filter="all" onclick="filterStocks('all', event)">전체</button>
             <button type="button" class="filter-btn" data-filter="up" onclick="filterStocks('up', event)">상승</button>
             <button type="button" class="filter-btn" data-filter="down" onclick="filterStocks('down', event)">하락</button>
+            <button type="button" class="filter-btn" data-filter="volume" onclick="filterStocks('volume', event)">거래량</button>
           </div>
         </div>
       </div>
@@ -1598,9 +1830,14 @@
       </div>
       <div class="stock-detail-head">
         <div class="stock-detail-top">
-          <div>
-            <div class="stock-detail-name" id="detailName">종목 선택</div>
-            <div class="stock-detail-code" id="detailCode">-</div>
+          <div class="stock-detail-identity">
+            <span class="stock-logo-wrap stock-logo-wrap--detail" id="detailLogoWrap" aria-hidden="true">
+              <img id="detailLogoImg" class="stock-logo-img" alt="" width="60" height="60" style="display:none" decoding="async">
+              <span id="detailLogoPh" class="stock-logo-wrap--placeholder" style="display:none"></span>
+            </span>
+            <div>
+              <div class="stock-detail-name" id="detailName">종목 선택</div>
+            </div>
           </div>
         </div>
         <div class="stock-detail-price">
@@ -1621,28 +1858,44 @@
           <div class="chart-note" id="chartNote" style="display:none;"></div>
           <p class="detail-section-lead chart-term-lead" id="chartTermLead" aria-live="polite"></p>
         </div>
-        <div class="detail-grid">
-          <div class="detail-card">
-            <div class="detail-label">거래량</div>
-            <div class="detail-value" id="detailVolume">-</div>
-          </div>
-          <div class="detail-card">
-            <div class="detail-label">시작가</div>
+        <div class="detail-grid" id="detailGrid">
+          <div class="detail-card" id="detailCardOpen" data-detail-term="open">
+            <div class="detail-label">시가</div>
             <div class="detail-value" id="detailOpen">-</div>
           </div>
-          <div class="detail-card">
+          <div class="detail-card" id="detailCardHigh" data-detail-term="high">
+            <div class="detail-label">고가</div>
+            <div class="detail-value" id="detailHigh">-</div>
+          </div>
+          <div class="detail-card" id="detailCardLow" data-detail-term="low">
+            <div class="detail-label">저가</div>
+            <div class="detail-value" id="detailLow">-</div>
+          </div>
+          <div class="detail-card" id="detailCardPrevClose" data-detail-term="prev_close">
             <div class="detail-label">전일 종가</div>
             <div class="detail-value" id="detailPrevClose">-</div>
           </div>
-          <div class="detail-card">
+          <div class="detail-card" id="detailCardUpperLimit" data-detail-term="upper_limit">
+            <div class="detail-label">상한가</div>
+            <div class="detail-value" id="detailUpperLimit">-</div>
+          </div>
+          <div class="detail-card" id="detailCardLowerLimit" data-detail-term="lower_limit">
+            <div class="detail-label">하한가</div>
+            <div class="detail-value" id="detailLowerLimit">-</div>
+          </div>
+          <div class="detail-card" id="detailCardVolume" data-detail-term="volume">
+            <div class="detail-label">거래량</div>
+            <div class="detail-value" id="detailVolume">-</div>
+          </div>
+          <div class="detail-card" id="detailCardTradedValue" data-detail-term="traded_value">
             <div class="detail-label">거래대금</div>
             <div class="detail-value" id="detailTradedValue">-</div>
           </div>
-          <div class="detail-card">
+          <div class="detail-card" id="detailCardDelta" data-detail-term="delta">
             <div class="detail-label">전일대비</div>
             <div class="detail-value" id="detailDelta">-</div>
           </div>
-          <div class="detail-card">
+          <div class="detail-card" id="detailCardRate" data-detail-term="rate">
             <div class="detail-label">등락률</div>
             <div class="detail-value" id="detailRate">-</div>
           </div>
@@ -1717,6 +1970,9 @@
 </div>
 
 <div class="market-step1-overlay" id="marketStep1Overlay" aria-hidden="true">
+  <div class="market-step1-clear" id="marketStep1Clear">CLEAR</div>
+</div>
+<div class="market-step1-quest-hud" id="marketStep1QuestHud" aria-hidden="true">
   <div class="market-step1-banner">
     <span>튜토리얼 1단계</span>
     <strong>시세 읽기</strong>
@@ -1724,15 +1980,40 @@
   <aside class="market-step1-panel">
     <div class="market-step1-quest-head">
       <span class="market-step1-quest-tag">QUEST</span>
-      <span class="market-step1-quest-progress" id="marketStep1Progress">1/3</span>
+      <span class="market-step1-quest-progress" id="marketStep1Progress">완료 0/3</span>
     </div>
     <div class="market-step1-title" id="marketStep1Title">미션</div>
-    <div class="market-step1-objective" id="marketStep1Objective">목표: 상승/하락 버튼 중 하나를 눌러 필터를 바꿔보세요.</div>
+    <div class="market-step1-quest-body">
+      <div class="market-step1-quest-section-label">할 일</div>
+      <ul class="market-step1-quest-list" role="list" aria-label="1단계 퀘스트">
+        <li class="market-step1-quest-item" data-quest-index="0" role="listitem">
+          <span class="market-step1-quest-check" aria-hidden="true"></span>
+          <span class="market-step1-quest-strike-wrap">
+            <span class="market-step1-quest-text">지수·상승·하락·거래량으로 시장 목록 익히기</span>
+          </span>
+        </li>
+        <li class="market-step1-quest-item" data-quest-index="1" role="listitem">
+          <span class="market-step1-quest-check" aria-hidden="true"></span>
+          <span class="market-step1-quest-strike-wrap">
+            <span class="market-step1-quest-text">종목을 눌러 상세 화면 열기</span>
+          </span>
+        </li>
+        <li class="market-step1-quest-item" data-quest-index="2" role="listitem">
+          <span class="market-step1-quest-check" aria-hidden="true"></span>
+          <span class="market-step1-quest-strike-wrap">
+            <span class="market-step1-quest-text">시세 카드·뉴스까지 따라 보기</span>
+          </span>
+        </li>
+      </ul>
+      <div class="market-step1-now">
+        <span class="market-step1-now-label">지금</span>
+        <p class="market-step1-now-text" id="marketStep1Now">—</p>
+      </div>
+    </div>
     <div class="market-step1-actions">
       <button type="button" class="btn-ghost" id="marketStep1Close">종료</button>
     </div>
   </aside>
-  <div class="market-step1-clear" id="marketStep1Clear">CLEAR</div>
 </div>
 
 <div class="mock-trade-modal" id="mockTradeModal" aria-hidden="true">
@@ -1830,6 +2111,60 @@
   let detailLastRenderedPrice = null;
   let mockTradeState = { side: 'BUY', code: '', name: '', currentPrice: 0 };
 
+  function getStockDeepLinkCodeFromUrl() {
+    try {
+      const p = new URLSearchParams(window.location.search);
+      const raw = p.get('stock') || p.get('code');
+      if (!raw) return null;
+      const c = String(raw).replace(/\s/g, '');
+      if (!/^\d{6}$/.test(c)) return null;
+      return c;
+    } catch (_) {
+      return null;
+    }
+  }
+  const stockDeepLinkFromUrl = getStockDeepLinkCodeFromUrl();
+
+  function stripStockDeepLinkParamsFromUrl() {
+    try {
+      const url = new URL(window.location.href);
+      if (!url.searchParams.has('stock') && !url.searchParams.has('code')) return;
+      url.searchParams.delete('stock');
+      url.searchParams.delete('code');
+      const q = url.searchParams.toString();
+      window.history.replaceState({}, '', `${url.pathname}${q ? `?${q}` : ''}${url.hash}`);
+    } catch (_) {}
+  }
+
+  async function primeStockByCodeSync(code) {
+    const name = stockNameByCode[code] || '';
+    try {
+      const namesParam = encodeURIComponent(`${code}:${name}`);
+      const res = await fetch(
+        `${BACKEND}/api/live-prices?codes=${encodeURIComponent(code)}&names=${namesParam}&page=1&page_size=1&filter=all&sync_refresh=1`
+      );
+      const data = await res.json();
+      if (!data.success || !Array.isArray(data.stocks)) return;
+      mergeIncomingStocksIntoCache(data.stocks);
+    } catch (e) {
+      console.warn('[stock deep-link]', e.message);
+    }
+  }
+
+  async function applyStockDeepLinkFromUrl() {
+    if (!stockDeepLinkFromUrl) return;
+    const code = stockDeepLinkFromUrl;
+    if (!getStockByCode(code)) {
+      await primeStockByCodeSync(code);
+    }
+    if (!getStockByCode(code)) {
+      console.warn('[stock deep-link] 종목을 열 수 없습니다:', code);
+      return;
+    }
+    openStockDetail(code);
+    stripStockDeepLinkParamsFromUrl();
+  }
+
   document.addEventListener('DOMContentLoaded', () => {
     if (window.JurinStockTerms && typeof JurinStockTerms.initMarketDetailHints === 'function') {
       JurinStockTerms.initMarketDetailHints();
@@ -1847,8 +2182,11 @@
         }
       });
     }
-    fetchLivePrices();               // 즉시 1회
-    refreshSearchUniverse();         // 검색용 전체 목록 프라임
+    (async () => {
+      await fetchLivePrices();
+      await refreshSearchUniverse();
+      await applyStockDeepLinkFromUrl();
+    })();
     setInterval(tickMarketStocks, POLL_INTERVAL);
 
     document.addEventListener('keydown', (event) => {
@@ -2057,6 +2395,98 @@
     return 'flat';
   }
 
+  /** `frontend/assets/stock-logos/{코드}.png` 실제 파일이 있는 종목 (폴더 내용과 동기화) */
+  const STOCK_LOGO_FILE_CODES = new Set([
+    '000100', '000270', '000660', '004020', '005380', '005490', '005930', '010130', '010950', '011170', '011200',
+    '012330', '015760', '030200', '033780', '034020', '035420', '035720', '036570', '042670', '055550', '066570',
+    '068270', '078930', '086790', '090430', '105560', '161390', '251270', '259960', '271560', '316140', '352820',
+  ]);
+
+  /** 계열사·우선주 → 위 세트의 PNG 파일명(6자리) */
+  const STOCK_LOGO_ALIAS_TO_FILE = {
+    '005935': '005930', '000810': '005930', '028260': '005930', '009150': '005930', '010140': '005930',
+    '032830': '005930', '018260': '005930', '016360': '005930', '207940': '005930', '006400': '005930',
+    '003550': '066570', '051910': '066570', '034220': '066570', '373220': '066570', '011070': '066570', '032640': '066570',
+    '003670': '005490', '047050': '005490',
+    '329180': '042670', '267250': '042670',
+    '096770': '000660', '017670': '000660', '302440': '000660', '034730': '000660',
+    '001740': '000660', '018670': '000660', '326030': '000660', '285130': '000660',
+    '000150': '034020',
+  };
+
+  function resolveStockLogoFileCode(code) {
+    const c = String(code || '').trim();
+    if (!c || c.length !== 6) return '';
+    const mapped = STOCK_LOGO_ALIAS_TO_FILE[c] || c;
+    return STOCK_LOGO_FILE_CODES.has(mapped) ? mapped : '';
+  }
+
+  function stockLogoUrlForCode(code) {
+    const fileCode = resolveStockLogoFileCode(code);
+    if (!fileCode) return '';
+    return 'assets/stock-logos/' + fileCode + '.png';
+  }
+
+  function bindStockLogoIntrinsicFit(img) {
+    if (!img || !img.classList.contains('stock-logo-img')) return;
+    const run = () => {
+      img.classList.remove('stock-logo-img--squareish');
+      if (img.getAttribute('data-logo-file') === '005930') return;
+      const w = img.naturalWidth;
+      const h = img.naturalHeight;
+      if (!w || !h) return;
+      const r = w / h;
+      if (r >= 0.88 && r <= 1.14) img.classList.add('stock-logo-img--squareish');
+    };
+    if (img.complete && img.naturalWidth) run();
+    else img.addEventListener('load', run, { once: true });
+  }
+
+  function applyStockLogoIntrinsicFit(container) {
+    if (!container || !container.querySelectorAll) return;
+    container.querySelectorAll('img.stock-logo-img').forEach(bindStockLogoIntrinsicFit);
+  }
+
+  function stockNameCellHtml(stock) {
+    const name = escapeHtml(stock.name || '');
+    const code = String(stock.code || '').trim();
+    const url = stockLogoUrlForCode(code);
+    let initial = (stock.name && String(stock.name).trim().charAt(0)) || '?';
+    initial = escapeHtml(initial);
+    if (url) {
+      const fileCode = resolveStockLogoFileCode(code);
+      const dataFile = fileCode ? ' data-logo-file="' + escapeHtml(fileCode) + '"' : '';
+      return '<div class="stock-cell-toss"><span class="stock-logo-wrap"><img class="stock-logo-img"' + dataFile + ' src="' + escapeHtml(url) + '" alt="" loading="lazy" decoding="async"/></span><span class="stock-name">' + name + '</span></div>';
+    }
+    return '<div class="stock-cell-toss"><span class="stock-logo-wrap stock-logo-wrap--placeholder" aria-hidden="true">' + initial + '</span><span class="stock-name">' + name + '</span></div>';
+  }
+
+  function syncDetailHeaderLogo(stock) {
+    const code = String(stock.code || '').trim();
+    const url = stockLogoUrlForCode(code);
+    const img = document.getElementById('detailLogoImg');
+    const ph = document.getElementById('detailLogoPh');
+    if (!img || !ph) return;
+    if (url) {
+      const fileCode = resolveStockLogoFileCode(code);
+      img.classList.remove('stock-logo-img--squareish');
+      if (fileCode) img.setAttribute('data-logo-file', fileCode);
+      else img.removeAttribute('data-logo-file');
+      img.src = url;
+      img.style.display = 'block';
+      ph.style.display = 'none';
+      ph.textContent = '';
+      bindStockLogoIntrinsicFit(img);
+    } else {
+      img.removeAttribute('src');
+      img.removeAttribute('data-logo-file');
+      img.classList.remove('stock-logo-img--squareish');
+      img.style.display = 'none';
+      ph.style.display = 'flex';
+      ph.textContent = (stock.name && String(stock.name).trim().charAt(0)) || '?';
+    }
+  }
+
   // ── 종목 테이블 렌더링 ───────────────────────────────
   function renderStocks() {
     const tbody = document.getElementById('stocksTableBody');
@@ -2102,10 +2532,7 @@
       if (stock.loading) {
         return `
           <tr id="row-${stock.code}">
-            <td>
-              <div class="stock-name">${stock.name}</div>
-              <div style="font-size:12px;color:var(--gray-500)">${stock.code}</div>
-            </td>
+            <td>${stockNameCellHtml(stock)}</td>
             <td colspan="4" style="color:var(--gray-400)">시세 불러오는 중...</td>
           </tr>`;
       }
@@ -2113,10 +2540,7 @@
       if (stock.error && (stock.price === undefined || stock.price === null)) {
         return `
           <tr id="row-${stock.code}">
-            <td>
-              <div class="stock-name">${stock.name}</div>
-              <div style="font-size:12px;color:var(--gray-500)">${stock.code}</div>
-            </td>
+            <td>${stockNameCellHtml(stock)}</td>
             <td colspan="4" style="color:var(--gray-400)">조회 지연 (${stock.error})</td>
           </tr>`;
       }
@@ -2132,10 +2556,7 @@
 
       return `
         <tr id="row-${stock.code}" class="stock-row ${flashClass} ${selectedStockCode === stock.code ? 'active' : ''}" onclick="openStockDetail('${stock.code}')">
-          <td>
-            <div class="stock-name">${stock.name}</div>
-            <div style="font-size:12px;color:var(--gray-500)">${stock.code}</div>
-          </td>
+          <td>${stockNameCellHtml(stock)}</td>
           <td class="stock-price ${changeClass}">${formatCurrency(stock.price)}</td>
           <td class="stock-change ${changeClass}">${arrow} ${formatCurrency(Math.abs(stock.change))}</td>
           <td class="stock-change ${changeClass}">${changeSign}${Number(stock.rate || 0).toFixed(2)}%</td>
@@ -2144,6 +2565,7 @@
     }).join('');
 
     tbody.innerHTML = rowsHtml;
+    applyStockLogoIntrinsicFit(tbody);
     if (q) {
       pagination.innerHTML = '';
     } else {
@@ -2161,7 +2583,7 @@
       if (!s || s.code !== code || s.loading) return null;
       return s;
     };
-    if (stockSearchQuery.trim()) {
+      if (stockSearchQuery.trim()) {
       const s = pick(searchUniverseList.find(stock => stock && stock.code === code));
       if (s) return s;
     } else {
@@ -2288,7 +2710,7 @@
     const sign = dir === 'up' ? '+' : (dir === 'down' ? '-' : '');
 
     document.getElementById('detailName').textContent = stock.name || stock.code;
-    document.getElementById('detailCode').textContent = stock.code;
+    syncDetailHeaderLogo(stock);
 
     const priceEl = document.getElementById('detailPrice');
     const newPrice = stock.price;
@@ -2304,9 +2726,13 @@
     changeEl.className = `detail-price-sub ${changeClass}`;
     changeEl.innerHTML = `${arrow} ${formatCurrency(changeAbs)} <span class="detail-chip ${changeClass}">${sign}${Math.abs(signedRate).toFixed(2)}%</span>`;
 
+    document.getElementById('detailOpen').textContent = formatPriceOrDash(stock.open);
+    document.getElementById('detailHigh').textContent = formatPriceOrDash(stock.high);
+    document.getElementById('detailLow').textContent = formatPriceOrDash(stock.low);
+    document.getElementById('detailPrevClose').textContent = formatPriceOrDash(stock.previous_close);
+    document.getElementById('detailUpperLimit').textContent = formatPriceOrDash(stock.upper_limit);
+    document.getElementById('detailLowerLimit').textContent = formatPriceOrDash(stock.lower_limit);
     document.getElementById('detailVolume').textContent = formatNumber(stock.volume || 0);
-    document.getElementById('detailOpen').textContent = formatCurrency(stock.open || 0);
-    document.getElementById('detailPrevClose').textContent = formatCurrency(stock.previous_close || 0);
     document.getElementById('detailTradedValue').textContent = formatCurrencyCompact(stock.traded_value || 0);
     const deltaEl = document.getElementById('detailDelta');
     deltaEl.textContent = `${arrow} ${formatCurrency(changeAbs)}`;
@@ -2449,6 +2875,12 @@
 
   // ── 포맷 유틸 ────────────────────────────────────────
   function formatCurrency(v) { return '₩' + Number(v).toLocaleString(); }
+
+  function formatPriceOrDash(v) {
+    const n = Number(v);
+    if (!Number.isFinite(n) || n <= 0) return '-';
+    return formatCurrency(n);
+  }
 
   function formatCurrencyCompact(v) {
     const n = Number(v || 0);
@@ -2902,7 +3334,7 @@
     }).observe(container);
   }
 </script>
-<script src="js/mascot-coach.js?v=20260450"></script>
+<script src="js/mascot-coach.js?v=20260502"></script>
 <script src="js/market-step1-tutorial.js"></script>
 <script src="js/common-auth.js"></script>
 

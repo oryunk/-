@@ -6,21 +6,21 @@
 <title>모의 투자 - 주린닷컴</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css?v=20260428">
-<link rel="stylesheet" href="css/simulation.css?v=20260428">
+<link rel="stylesheet" href="css/simulation.css?v=20260511">
 </head>
 <body>
 
 <nav>
   <a href="주린닷컴홈피.html" class="nav-logo">
-    <div class="logo-icon">J</div>
+    <div class="logo-icon">주</div>
     <div class="logo-text">주린<span>닷컴</span></div>
   </a>
   <ul class="nav-menu">
     <li><a href="guide.html">가이드</a></li>
-    <li><a href="analysis.html">AI 분석</a></li>
+    <li><a href="analysis.html">AI 분석 <span class="nav-badge">AI</span></a></li>
     <li><a href="ai-chart-prediction.html">AI 차트 예측 <span class="nav-badge">AI</span></a></li>
-    <li><a href="glossary.html">주식 용어</a></li>
-    <li><a href="simulation.html" class="active">모의 투자 <span class="nav-badge">NEW</span></a></li>
+    <li><a href="glossary.html">용어 검색</a></li>
+    <li><a class="jurin-simulation-link active" href="http://127.0.0.1:5000/simulation.html">모의 투자</a></li>
     <li><a href="market.html">시장</a></li>
   </ul>
   <div class="nav-right">
@@ -138,10 +138,16 @@
                 <label class="form-label" for="tradeQuantity">매수 수량</label>
                 <input type="number" class="form-input" id="tradeQuantity" placeholder="수량" min="1">
               </div>
-              <div class="qty-price-cell">
-                <label class="form-label" for="tradeLimitPrice">매수 단가</label>
+              <div class="qty-price-cell" id="tradeLimitPriceCell">
+                <div class="trade-price-label-row">
+                  <label class="form-label" for="tradeLimitPrice">매수 가격</label>
+                  <div class="trade-inline-price-type" role="radiogroup" aria-label="매수 가격 유형">
+                    <button type="button" class="trade-price-type-btn active" id="tradeBuyPriceTypeMarket" aria-pressed="true">시장가</button>
+                    <button type="button" class="trade-price-type-btn" id="tradeBuyPriceTypeLimit" aria-pressed="false">지정가</button>
+                  </div>
+                </div>
                 <div class="price-stepper">
-                  <input type="text" class="form-input input-price-plain price-stepper-input" id="tradeLimitPrice" placeholder="지정가 입력 또는 자동" inputmode="numeric" autocomplete="off">
+                  <input type="text" class="form-input input-price-plain price-stepper-input" id="tradeLimitPrice" placeholder="" inputmode="numeric" autocomplete="off">
                   <div class="price-stepper-side">
                     <button type="button" class="btn-step" id="tradeLimitPricePlus" aria-label="매수가 1틱 올리기">+</button>
                     <button type="button" class="btn-step" id="tradeLimitPriceMinus" aria-label="매수가 1틱 내리기">&#8722;</button>
@@ -167,10 +173,16 @@
                 <label class="form-label" for="tradeSellQuantity">매도 수량</label>
                 <input type="number" class="form-input" id="tradeSellQuantity" placeholder="수량" min="1" value="1">
               </div>
-              <div class="qty-price-cell">
-                <label class="form-label" for="tradeSellLimitPrice">매도 단가</label>
+              <div class="qty-price-cell" id="tradeSellLimitPriceCell">
+                <div class="trade-price-label-row">
+                  <label class="form-label" for="tradeSellLimitPrice">매도 가격</label>
+                  <div class="trade-inline-price-type" role="radiogroup" aria-label="매도 가격 유형">
+                    <button type="button" class="trade-price-type-btn active" id="tradeSellPriceTypeMarket" aria-pressed="true">시장가</button>
+                    <button type="button" class="trade-price-type-btn" id="tradeSellPriceTypeLimit" aria-pressed="false">지정가</button>
+                  </div>
+                </div>
                 <div class="price-stepper">
-                  <input type="text" class="form-input input-price-plain price-stepper-input" id="tradeSellLimitPrice" placeholder="지정가 입력 또는 자동" inputmode="numeric" autocomplete="off">
+                  <input type="text" class="form-input input-price-plain price-stepper-input" id="tradeSellLimitPrice" placeholder="" inputmode="numeric" autocomplete="off">
                   <div class="price-stepper-side">
                     <button type="button" class="btn-step" id="tradeSellLimitPricePlus" aria-label="매도가 1틱 올리기">+</button>
                     <button type="button" class="btn-step" id="tradeSellLimitPriceMinus" aria-label="매도가 1틱 내리기">&#8722;</button>
@@ -193,9 +205,7 @@
             <h3 class="order-status-title">주문/체결 현황</h3>
             <div class="order-status-summary" id="orderStatusSummary">아직 주문 내역이 없습니다.</div>
           </div>
-          <div class="order-status-list" id="orderStatusList">
-            <div class="order-status-empty">표시할 주문 기록이 없습니다.</div>
-          </div>
+          <div class="order-status-list" id="orderStatusList"></div>
         </div>
 
         <div class="trading-history">
@@ -266,7 +276,7 @@
 
 <script src="js/api-base.js"></script>
 <script src="js/common-auth.js"></script>
-<script src="js/simulation-page.js"></script>
+<script src="js/simulation-page.js?v=20260510"></script>
 
 </body>
 </html>
