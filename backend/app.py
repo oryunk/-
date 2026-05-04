@@ -1973,17 +1973,12 @@ def _clip_hist_to_requested_range(hist: pd.DataFrame, range_param: str, intraday
     if intraday and rp == '1d':
         return _trim_intraday_to_last_session_day(hist)
 
-    # 1d + 일봉 폴백: yfinance가 5d/1mo 일봉을 주면 그대로 두면 '1일'인데 한 달 칼이 됨 → 마지막 거래일 1봉만
-    if rp == '1d' and not intraday:
-        try:
-            return hist.iloc[-1:].copy()
-        except Exception:
-            return hist
-
+    # Toss 스타일 일·주·월·년봉: 최근 달력 구간만 유지 (과다 데이터 방지)
     keep_days_map = {
-        '1w': 8,
-        '1m': 32,
-        '1y': 370,
+        '1d': 800,
+        '1w': 2200,
+        '1m': 4000,
+        '1y': 50 * 365,
     }
     keep_days = keep_days_map.get(rp)
     if not keep_days:
@@ -2000,6 +1995,36 @@ def _clip_hist_to_requested_range(hist: pd.DataFrame, range_param: str, intraday
     except Exception:
         pass
     return hist
+
+
+def _hist_aggregate_to_yearly(hist: pd.DataFrame) -> pd.DataFrame:
+    """yfinance 3개월봉 등 → 연도별 OHLC 1봉 (토스 년봉 폴백)."""
+    if hist is None or getattr(hist, 'empty', True):
+        return hist
+    try:
+        parts = []
+        for _year, grp in hist.groupby(hist.index.year):
+            if grp is None or getattr(grp, 'empty', True):
+                continue
+            idx = grp.index[-1]
+            parts.append(
+                (
+                    idx,
+                    {
+                        'Open': float(grp['Open'].iloc[0]),
+                        'High': float(grp['High'].max()),
+                        'Low': float(grp['Low'].min()),
+                        'Close': float(grp['Close'].iloc[-1]),
+                    },
+                )
+            )
+        if not parts:
+            return hist
+        idxs = [p[0] for p in parts]
+        data = {k: [p[1][k] for p in parts] for k in ('Open', 'High', 'Low', 'Close')}
+        return pd.DataFrame(data, index=pd.DatetimeIndex(idxs)).sort_index()
+    except Exception:
+        return hist
 
 
 def _build_chart_payload_from_hist(hist: pd.DataFrame, intraday: bool):
@@ -2042,46 +2067,89 @@ def _build_chart_payload_from_hist(hist: pd.DataFrame, intraday: bool):
     }
 
 
+def _build_chart_payload_from_candles(candles, intraday):
+    """OHLC dict 리스트 → 차트용 캔들·이동평균 (_build_chart_payload_from_hist 와 동일 계산)."""
+    if not candles:
+        return None
+    cleaned = []
+    for c in candles:
+        try:
+            o = float(c.get('open'))
+            h = float(c.get('high'))
+            l = float(c.get('low'))
+            cl = float(c.get('close'))
+        except (TypeError, ValueError):
+            continue
+        if o <= 0 or h <= 0 or l <= 0 or cl <= 0:
+            continue
+        tv = c.get('time')
+        if tv is None:
+            continue
+        cleaned.append({
+            'time': tv,
+            'open': round(o, 2),
+            'high': round(h, 2),
+            'low': round(l, 2),
+            'close': round(cl, 2),
+        })
+    if not cleaned:
+        return None
+    closes = [x['close'] for x in cleaned]
+    ma5, ma20 = [], []
+    for i in range(len(closes)):
+        if i >= 4:
+            ma5.append({'time': cleaned[i]['time'], 'value': round(sum(closes[i - 4:i + 1]) / 5, 2)})
+        if i >= 19:
+            ma20.append({'time': cleaned[i]['time'], 'value': round(sum(closes[i - 19:i + 1]) / 20, 2)})
+    return {
+        'success': True,
+        'candles': cleaned,
+        'ma5': ma5,
+        'ma20': ma20,
+        'intraday': intraday,
+    }
+
+
 @app.route('/api/chart-data/<code>', methods=['GET'])
 def chart_data(code):
-    """종목 차트 (yfinance)."""
+    """종목 차트: 토스 스타일(일/주/월/년봉). KIS+DB 우선, 실패 시 yfinance."""
     range_param = str(request.args.get('range', '1d') or '1d').strip().lower()
     if range_param not in ('1d', '1w', '1m', '1y'):
         range_param = '1d'
 
+    if _CHART_USE_KIS and _KIS_KEY and _KIS_SECRET:
+        try:
+            payload = _try_period_chart(code, range_param)
+            if payload:
+                payload['code'] = code
+                payload['requested_range'] = range_param
+                return jsonify(payload)
+        except Exception:
+            pass
+
+    # (period, interval, 연도집계여부)
     range_attempts = {
-        '1d': [
-            ('1d', '5m', True, False),
-            ('2d', '5m', True, True),
-            ('5d', '5m', True, True),
-            ('1d', '15m', True, False),
-            ('2d', '15m', True, True),
-            ('5d', '15m', True, True),
-            ('5d', '60m', True, True),
-            ('2d', '1d', False, False),
-            ('5d', '1d', False, False),
-            ('1mo', '1d', False, False),
-        ],
-        '1w': [('5d', '1d', False, False), ('7d', '1d', False, False), ('1mo', '1d', False, False)],
-        '1m': [('1mo', '1d', False, False), ('3mo', '1d', False, False)],
-        '1y': [('1y', '1d', False, False), ('2y', '1d', False, False)],
+        '1d': [('2y', '1d', False), ('5y', '1d', False)],
+        '1w': [('5y', '1wk', False), ('10y', '1wk', False), ('max', '1wk', False)],
+        '1m': [('10y', '1mo', False), ('max', '1mo', False)],
+        '1y': [('max', '3mo', True)],
     }
-    attempts = range_attempts.get(range_param, [('1d', '5m', True, False)])
+    attempts = range_attempts.get(range_param, [('2y', '1d', False)])
 
     for ticker_code in _candidate_yahoo_tickers(code):
-        for period, interval, intraday, trim_last in attempts:
+        for period, interval, agg_year in attempts:
             try:
                 hist = yf.Ticker(ticker_code).history(
                     period=period, interval=interval, auto_adjust=False, actions=False
                 )
                 if hist.empty:
                     continue
-                if intraday and trim_last:
-                    hist = _trim_intraday_to_last_session_day(hist)
-                hist = _clip_hist_to_requested_range(hist, range_param, intraday)
+                if agg_year:
+                    hist = _hist_aggregate_to_yearly(hist)
+                hist = _clip_hist_to_requested_range(hist, range_param, False)
                 if hist.empty:
                     continue
-                payload = _build_chart_payload_from_hist(hist, intraday)
+                payload = _build_chart_payload_from_hist(hist, False)
                 if not payload:
                     continue
                 payload['code'] = code
@@ -2134,6 +2202,12 @@ _LIVE_OFFHOURS_STALE_DAYS = max(0, int(os.getenv('LIVE_PRICE_OFFHOURS_STALE_DAYS
 # stock_price_daily 의 close_price 를 "마지막 동기화 시점 가격" 이 아닌 "거래소 공식 종가" 로 덮음.
 _LIVE_EOD_FIX_ENABLED = os.getenv('LIVE_PRICE_EOD_FIX_ENABLED', 'true').strip().lower() in {'1', 'true', 'y', 'yes', 'on'}
 _LIVE_EOD_FIX_HHMM = int(os.getenv('LIVE_PRICE_EOD_FIX_HHMM', '1535'))
+# 차트: 토스 스타일 — range=1d/1w/1m/1y → 일/주/월/년봉. KIS 우선, 실패 시 yfinance. D 는 DB 캐시 우선.
+_CHART_USE_KIS = os.getenv('CHART_USE_KIS', 'true').strip().lower() in {'1', 'true', 'y', 'yes', 'on'}
+_CHART_PERIOD_MAP = {'1d': 'D', '1w': 'W', '1m': 'M', '1y': 'Y'}
+_CHART_TARGET_BARS = {'D': 500, 'W': 260, 'M': 120, 'Y': 30}
+_CHART_MIN_BARS = {'D': 60, 'W': 30, 'M': 12, 'Y': 5}
+_CHART_WINDOW_CAL_DAYS = {'D': 100, 'W': 700, 'M': 3000, 'Y': 36500}
 _KIS_TOKEN_USE_DB = os.getenv('KIS_TOKEN_USE_DB', 'true').strip().lower() in {'1', 'true', 'y', 'yes', 'on'}
 _KR_MARKET_OPEN_HHMM = int(os.getenv('KR_MARKET_OPEN_HHMM', '900'))
 _KR_MARKET_CLOSE_HHMM = int(os.getenv('KR_MARKET_CLOSE_HHMM', '1530'))
@@ -2235,6 +2309,330 @@ def _to_float(value):
         return float((value or '').replace(',', '').strip())
     except ValueError:
         return 0.0
+
+
+def _chart_base_code(code: str) -> str:
+    return str(code or '').strip().split('.')[0].strip()
+
+
+def _kis_chart_base_url() -> str:
+    """KIS 기간별시세 차트는 실전 도메인이 표준(모의 키로 read-only 호출 시도)."""
+    return 'https://openapi.koreainvestment.com:9443'
+
+
+def _kis_tr_daily_chart() -> str:
+    return 'FHKST03010100'
+
+
+def _kis_chart_get_json(token: str, tr_id: str, url: str, params: dict):
+    try:
+        res = requests.get(
+            url,
+            headers={
+                'Content-Type': 'application/json; charset=utf-8',
+                'authorization': f'Bearer {token}',
+                'appkey': _KIS_KEY,
+                'appsecret': _KIS_SECRET,
+                'tr_id': tr_id,
+                'custtype': 'P',
+            },
+            params=params,
+            timeout=12,
+        )
+        if res.status_code != 200:
+            return None
+        body = res.json()
+    except Exception:
+        return None
+    rt = body.get('rt_cd')
+    if rt not in ('0', 0, None):
+        return None
+    return body
+
+
+def _kis_parse_daily_output2_row(row: dict) -> dict | None:
+    if not isinstance(row, dict):
+        return None
+    d_raw = row.get('stck_bsop_date') or row.get('stck_bsop_dt') or row.get('date')
+    if d_raw is None:
+        return None
+    ds = str(d_raw).strip().replace('-', '')
+    if len(ds) == 8:
+        date_str = f'{ds[:4]}-{ds[4:6]}-{ds[6:8]}'
+    else:
+        return None
+    o = _to_int(row.get('stck_oprc') or row.get('oprc') or 0)
+    h = _to_int(row.get('stck_hgpr') or row.get('hgpr') or 0)
+    l = _to_int(row.get('stck_lwpr') or row.get('lwpr') or 0)
+    c = _to_int(row.get('stck_clpr') or row.get('clpr') or row.get('stck_prpr') or 0)
+    v = _to_int(row.get('acml_vol') or row.get('cntg_vol') or row.get('vol') or 0)
+    if c <= 0:
+        return None
+    if o <= 0:
+        o = c
+    if h <= 0:
+        h = c
+    if l <= 0:
+        l = c
+    return {'date': date_str, 'open': float(o), 'high': float(h), 'low': float(l), 'close': float(c), 'volume': max(0, v)}
+
+
+def _kis_fetch_daily_chunk(token: str, code: str, d_start: date, d_end: date, period_code: str = 'D') -> list[dict]:
+    """기간별 시세 한 구간 (KIS 최대 약 100봉). period_code: D|W|M|Y."""
+    base = _chart_base_code(code)
+    if not base:
+        return []
+    url = f'{_kis_chart_base_url()}/uapi/domestic-stock/v1/quotations/inquire-daily-itemchartprice'
+    params = {
+        'fid_cond_mrkt_div_code': 'J',
+        'fid_input_iscd': base,
+        'fid_input_date_1': d_start.strftime('%Y%m%d'),
+        'fid_input_date_2': d_end.strftime('%Y%m%d'),
+        'fid_period_div_code': period_code,
+        'fid_org_adj_prc': '0',
+    }
+    body = _kis_chart_get_json(token, _kis_tr_daily_chart(), url, params)
+    if not body:
+        return []
+    raw = body.get('output2')
+    if not isinstance(raw, list) or not raw:
+        params_sw = {
+            **params,
+            'fid_input_date_1': d_end.strftime('%Y%m%d'),
+            'fid_input_date_2': d_start.strftime('%Y%m%d'),
+        }
+        body2 = _kis_chart_get_json(token, _kis_tr_daily_chart(), url, params_sw)
+        raw = (body2 or {}).get('output2') if body2 else None
+    if not isinstance(raw, list) or not raw:
+        return []
+    out = []
+    for row in raw:
+        parsed = _kis_parse_daily_output2_row(row)
+        if parsed:
+            out.append(parsed)
+    return out
+
+
+def _kis_fetch_daily_chart(token: str, code: str, period_code: str) -> list[dict]:
+    """KIS 기간별 시세(D/W/M/Y)를 거슬러 올라가며 병합. 목표 봉 수까지 페이지."""
+    merged: dict[str, dict] = {}
+    end_d = date.today()
+    target = _CHART_TARGET_BARS.get(period_code, 500)
+    win_days = _CHART_WINDOW_CAL_DAYS.get(period_code, 100)
+    guard = 0
+    while guard < 20 and len(merged) < target:
+        guard += 1
+        start_d = end_d - timedelta(days=win_days)
+        chunk = _kis_fetch_daily_chunk(token, code, start_d, end_d, period_code)
+        if not chunk:
+            if guard == 1:
+                chunk = _kis_fetch_daily_chunk(token, code, date(1990, 1, 1), end_d, period_code)
+            if not chunk:
+                break
+        before = len(merged)
+        for r in chunk:
+            merged[r['date']] = r
+        if len(merged) == before:
+            break
+        try:
+            oldest = min(datetime.strptime(r['date'], '%Y-%m-%d').date() for r in chunk)
+        except Exception:
+            break
+        if oldest >= end_d:
+            break
+        end_d = oldest - timedelta(days=1)
+        if len(merged) >= target:
+            break
+    rows = sorted(merged.values(), key=lambda x: x['date'])
+    if len(rows) > target:
+        rows = rows[-target:]
+    return rows
+
+
+def _chart_resolve_stock_id(code: str) -> int | None:
+    base = _chart_base_code(code)
+    if not base:
+        return None
+    conn = None
+    try:
+        conn = get_db_connection()
+        with conn.cursor() as cur:
+            cur.execute('SELECT stock_id FROM stocks WHERE symbol = %s LIMIT 1', (base,))
+            row = cur.fetchone()
+            return int(row['stock_id']) if row and row.get('stock_id') else None
+    except Exception:
+        return None
+    finally:
+        if conn:
+            conn.close()
+
+
+def _chart_ensure_stock_id(code: str) -> int | None:
+    sid = _chart_resolve_stock_id(code)
+    if sid:
+        return sid
+    base = _chart_base_code(code)
+    if not base:
+        return None
+    name = LIVE_PRICE_STOCKS.get(base) or PRICE_STOCKS.get(base) or base
+    conn = None
+    try:
+        conn = get_db_connection()
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO stocks (symbol, name_ko, created_at, updated_at)
+                VALUES (%s, %s, NOW(), NOW())
+                ON DUPLICATE KEY UPDATE updated_at = VALUES(updated_at)
+                """,
+                (base, str(name)[:100]),
+            )
+            cur.execute('SELECT stock_id FROM stocks WHERE symbol = %s LIMIT 1', (base,))
+            row = cur.fetchone()
+            sid = int(row['stock_id']) if row and row.get('stock_id') else None
+        conn.commit()
+        return sid
+    except Exception:
+        if conn:
+            conn.rollback()
+        return None
+    finally:
+        if conn:
+            conn.close()
+
+
+def _db_load_daily_candles(stock_id: int, target_rows: int) -> list[dict] | None:
+    """최근 target_rows 개 일봉 (오름차순). _CHART_MIN_BARS['D'] 미만이면 None."""
+    min_need = _CHART_MIN_BARS['D']
+    lim = max(int(target_rows), min_need)
+    conn = None
+    rows = []
+    try:
+        conn = get_db_connection()
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT date, open_price, high_price, low_price, close_price, volume
+                FROM stock_price_daily
+                WHERE stock_id = %s
+                ORDER BY date DESC
+                LIMIT %s
+                """,
+                (stock_id, lim),
+            )
+            rows = list(reversed(cur.fetchall() or []))
+    except Exception:
+        return None
+    finally:
+        if conn:
+            conn.close()
+    out = []
+    for row in rows:
+        try:
+            d = row.get('date')
+            if hasattr(d, 'strftime'):
+                ds = d.strftime('%Y-%m-%d')
+            else:
+                ds = str(d)[:10]
+            o = row.get('open_price')
+            h = row.get('high_price')
+            l = row.get('low_price')
+            c = row.get('close_price')
+            v = row.get('volume') or 0
+            if o is None or h is None or l is None or c is None:
+                continue
+            fv = float(c)
+            if fv <= 0:
+                continue
+            out.append({
+                'date': ds,
+                'open': float(o),
+                'high': float(h),
+                'low': float(l),
+                'close': fv,
+                'volume': int(v or 0),
+            })
+        except Exception:
+            continue
+    if len(out) < min_need:
+        return None
+    return out
+
+
+def _upsert_daily_candles_to_db(stock_id: int, rows: list[dict]) -> None:
+    if not stock_id or not rows:
+        return
+    conn = None
+    try:
+        conn = get_db_connection()
+        with conn.cursor() as cur:
+            prev_close = None
+            for r in sorted(rows, key=lambda x: x['date']):
+                close_p = int(round(float(r['close'])))
+                if close_p <= 0:
+                    prev_close = None
+                    continue
+                open_p = int(round(float(r['open']))) or close_p
+                high_p = int(round(float(r['high']))) or close_p
+                low_p = int(round(float(r['low']))) or close_p
+                volume = int(r.get('volume') or 0)
+                cur.execute(
+                    """
+                    INSERT INTO stock_price_daily (
+                        stock_id, date,
+                        open_price, high_price, low_price,
+                        close_price, prev_close, volume, created_at
+                    )
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NOW())
+                    ON DUPLICATE KEY UPDATE
+                        open_price  = COALESCE(NULLIF(VALUES(open_price), 0),  open_price),
+                        high_price  = COALESCE(NULLIF(VALUES(high_price), 0),  high_price),
+                        low_price   = COALESCE(NULLIF(VALUES(low_price), 0),   low_price),
+                        close_price = COALESCE(NULLIF(VALUES(close_price), 0), close_price),
+                        prev_close  = COALESCE(NULLIF(VALUES(prev_close), 0),  prev_close),
+                        volume      = COALESCE(NULLIF(VALUES(volume), 0),      volume),
+                        created_at  = NOW()
+                    """,
+                    (stock_id, r['date'], open_p, high_p, low_p, close_p, prev_close, volume),
+                )
+                prev_close = close_p
+        conn.commit()
+    except Exception:
+        if conn:
+            conn.rollback()
+    finally:
+        if conn:
+            conn.close()
+
+
+def _daily_candles_to_chart_rows(candles: list[dict]) -> list[dict]:
+    return [{'time': c['date'], 'open': c['open'], 'high': c['high'], 'low': c['low'], 'close': c['close']} for c in candles]
+
+
+def _try_period_chart(code: str, range_param: str) -> dict | None:
+    """토스 스타일: range → D/W/M/Y 봉. D 는 DB 우선, 전 구간은 KIS 후 yfinance 폴백."""
+    pc = _CHART_PERIOD_MAP.get(range_param, 'D')
+    if pc == 'D':
+        stock_id = _chart_resolve_stock_id(code)
+        daily = stock_id and _db_load_daily_candles(stock_id, _CHART_TARGET_BARS['D'])
+        if daily:
+            return _build_chart_payload_from_candles(_daily_candles_to_chart_rows(daily), False)
+    token = _kis_get_token()
+    if not token:
+        return None
+    rows = _kis_fetch_daily_chart(token, code, pc)
+    min_need = _CHART_MIN_BARS.get(pc, 5)
+    if not rows or len(rows) < min_need:
+        return None
+    if pc == 'D':
+        sid = _chart_resolve_stock_id(code) or _chart_ensure_stock_id(code)
+        if sid:
+            _upsert_daily_candles_to_db(sid, rows)
+    tgt = _CHART_TARGET_BARS.get(pc, 500)
+    rows_sorted = sorted(rows, key=lambda x: x['date'])
+    if len(rows_sorted) > tgt:
+        rows_sorted = rows_sorted[-tgt:]
+    return _build_chart_payload_from_candles(_daily_candles_to_chart_rows(rows_sorted), False)
 
 
 def _normalize_percent(value):
