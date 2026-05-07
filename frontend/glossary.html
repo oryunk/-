@@ -188,6 +188,33 @@
     font-size: 14px;
     line-height: 1.8;
     color: var(--text-primary);
+    text-align: left;
+  }
+
+  .important-line {
+    display: inline;
+    background-repeat: no-repeat;
+    background-size: 100% 0.82em;
+    background-position: 0 92%;
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+    padding: 0 2px;
+  }
+
+  .important-line.brush-1 {
+    background-image: linear-gradient(transparent 52%, rgba(157, 222, 189, 0.72) 52%);
+  }
+
+  .important-line.brush-2 {
+    background-image: linear-gradient(transparent 52%, rgba(156, 201, 229, 0.72) 52%);
+  }
+
+  .important-line.brush-3 {
+    background-image: linear-gradient(transparent 52%, rgba(196, 174, 220, 0.72) 52%);
+  }
+
+  .important-line.brush-4 {
+    background-image: linear-gradient(transparent 52%, rgba(236, 187, 182, 0.72) 52%);
   }
 
   .term-examples {
@@ -352,7 +379,7 @@
     <div class="glossary-header-content">
       <a href="주린닷컴홈피.html" class="btn-back">← 돌아가기</a>
       <div class="glossary-title">용어 사전</div>
-      <div class="glossary-sub">주식 용어를 쉽게 찾아보세요 · 증권사 화면 흐름에 맞춘 <strong>주린이 모음</strong>은 아래에서 카드로 먼저 읽을 수 있어요.</div>
+      <div class="glossary-sub">주식 용어를 쉽게 찾아보세요.</div>
     </div>
   </div>
 
@@ -509,14 +536,44 @@
     s = s.replace(/^용어의 의미:\s*/gim, '');
     s = s.replace(/^특징:\s*/gim, '');
     s = s.replace(/^실제 투자 활용 예시:\s*/gim, '');
+    s = s.replace(/^\s+/gm, '');
     return s.replace(/\n{3,}/g, '\n\n').trim();
+  }
+
+  function renderImportantSummaryHtml(raw) {
+    const text = normalizeTermAnswerText(raw);
+    if (!text) return '';
+    const brushClass = ['brush-1', 'brush-2', 'brush-3', 'brush-4'];
+    const keywordPattern = /(핵심|중요|위험|주의|활용|예시|의미|지표|수익|손실|변동성|비율|목표|추세|매수|매도|보유|%|원)/;
+    const sentenceRegex = /[^.!?\n]+(?:[.!?…]+|$)/g;
+    const lines = text.split('\n').map(function (line) {
+      const sentences = (line.match(sentenceRegex) || [line]).map(function (s) { return s.trim(); }).filter(Boolean);
+      if (!sentences.length) return '';
+      const pickCount = Math.min(3, Math.max(1, Math.round(sentences.length / 3)));
+      const ranked = sentences.map(function (sentence, idx) {
+        let score = 0;
+        if (keywordPattern.test(sentence)) score += 3;
+        if (/\d/.test(sentence)) score += 2;
+        if (sentence.length >= 20 && sentence.length <= 88) score += 1;
+        return { idx: idx, score: score, rand: Math.random() };
+      });
+      ranked.sort(function (a, b) { return (b.score - a.score) || (a.rand - b.rand); });
+      const selected = new Set(ranked.slice(0, pickCount).map(function (r) { return r.idx; }));
+      return sentences.map(function (sentence, idx) {
+        const safe = escapeHtml(sentence);
+        if (!selected.has(idx)) return safe;
+        const cls = brushClass[Math.floor(Math.random() * brushClass.length)];
+        return '<span class="important-line ' + cls + '">' + safe + '</span>';
+      }).join(' ');
+    });
+    return lines.join('<br>');
   }
 
   function renderAnswer(termName, answer) {
     const resultContainer = document.getElementById('resultContainer');
     resultContainer.classList.remove('loading');
 
-    const safeAnswer = escapeHtml(normalizeTermAnswerText(answer)).replace(/\n/g, '<br>');
+    const safeAnswer = renderImportantSummaryHtml(answer);
     resultContainer.innerHTML = `
       <div class="term-definition">
         <div class="term-title">${escapeHtml(termName)}</div>

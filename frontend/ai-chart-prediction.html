@@ -110,11 +110,11 @@
   }
 
   .prediction-chart-title {
-    font-size: 14px;
-    color: var(--gray-400);
-    margin-bottom: 10px;
-    font-weight: 600;
-    display: none;
+    font-size: 15px;
+    color: var(--text-primary);
+    margin-bottom: 12px;
+    font-weight: 700;
+    display: block;
   }
 
   #predictionChart {
@@ -126,9 +126,194 @@
     background: #f6faf7;
   }
 
+  .chart-loading,
+  .chart-error {
+    text-align: center;
+    padding: 48px 18px;
+    color: var(--gray-400);
+  }
+
+  .chart-error {
+    color: #8d3a3a;
+    font-weight: 600;
+  }
+
+  .prediction-result-wrap {
+    width: 100%;
+    color: var(--text-primary);
+  }
+
+  .prediction-result-title {
+    margin-bottom: 16px;
+    font-size: 22px;
+    line-height: 1.4;
+    color: var(--text-primary);
+  }
+
+  .prediction-metric-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 10px;
+  }
+
+  .prediction-metric-card {
+    padding: 14px;
+    border-radius: 10px;
+    border: 1px solid rgba(47, 143, 95, 0.16);
+    background: #f7fcf9;
+  }
+
+  .prediction-metric-label {
+    color: var(--gray-400);
+    font-size: 12px;
+    margin-bottom: 6px;
+  }
+
+  .prediction-metric-value {
+    font-size: 22px;
+    line-height: 1.35;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+
+  .prediction-metric-sub {
+    font-size: 13px;
+    margin-top: 6px;
+    color: var(--gray-400);
+  }
+
+  .prediction-metric-card.price {
+    background: rgba(79, 158, 255, 0.12);
+    border-color: rgba(79, 158, 255, 0.28);
+  }
+
+  .prediction-metric-card.opinion {
+    border-width: 2px;
+  }
+
+  .prediction-news-box {
+    background: #f7fcf9;
+    border: 1px solid rgba(47, 143, 95, 0.2);
+    padding: 14px;
+    border-radius: 10px;
+    margin-bottom: 12px;
+  }
+
+  .prediction-news-meta {
+    font-size: 12px;
+    color: var(--gray-400);
+    margin-bottom: 6px;
+  }
+
+  .prediction-news-title {
+    font-size: 15px;
+    color: var(--text-primary);
+    line-height: 1.6;
+    margin-bottom: 4px;
+    font-weight: 600;
+  }
+
+  .prediction-news-rationale {
+    font-size: 13px;
+    color: var(--gray-400);
+    line-height: 1.6;
+    text-align: left;
+  }
+
+  .prediction-summary {
+    background: #f7fcf9;
+    border: 1px solid rgba(47, 143, 95, 0.2);
+    padding: 18px;
+    border-radius: 10px;
+    font-size: 16px;
+    line-height: 1.9;
+    color: var(--text-primary);
+    white-space: pre-wrap;
+    text-align: left;
+  }
+  .term-hint-row {
+    margin-top: 12px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .term-hint-chip {
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid rgba(47, 143, 95, 0.25);
+    background: #f2faf6;
+    color: #2d5a45;
+    border-radius: 999px;
+    padding: 6px 10px;
+    font-size: 12px;
+    font-weight: 700;
+    text-decoration: none;
+  }
+
+  .important-line {
+    display: inline;
+    background-repeat: no-repeat;
+    background-size: 100% 0.82em;
+    background-position: 0 92%;
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+    padding: 0 2px;
+  }
+
+  .important-line.brush-1 {
+    background-image: linear-gradient(transparent 52%, rgba(157, 222, 189, 0.72) 52%);
+  }
+
+  .important-line.brush-2 {
+    background-image: linear-gradient(transparent 52%, rgba(156, 201, 229, 0.72) 52%);
+  }
+
+  .important-line.brush-3 {
+    background-image: linear-gradient(transparent 52%, rgba(196, 174, 220, 0.72) 52%);
+  }
+
+  .important-line.brush-4 {
+    background-image: linear-gradient(transparent 52%, rgba(236, 187, 182, 0.72) 52%);
+  }
+
   @media (max-width: 640px) {
+    .chart-content {
+      padding: 24px 16px;
+    }
+
+    .stock-input-section,
+    .chart-display {
+      padding: 20px;
+    }
+
+    .input-group {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 10px;
+    }
+
+    .btn-predict {
+      width: 100%;
+    }
+
+    .prediction-result-title {
+      font-size: 20px;
+    }
+
+    .prediction-metric-grid {
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+
     #predictionChart {
-      height: 320px;
+      height: 340px;
+    }
+
+    .prediction-summary {
+      font-size: 15px;
+      line-height: 1.85;
+      padding: 14px;
     }
   }
 </style>
@@ -181,11 +366,69 @@
 
 <script src="js/api-base.js"></script>
 <script>
+  function renderImportantSummaryHtml(raw) {
+    const text = normalizeDisplayText(raw);
+    if (!text) return '';
+    const brushClass = ['brush-1', 'brush-2', 'brush-3', 'brush-4'];
+    const keywordPattern = /(매수|보유|약세|강세|목표가|리스크|위험|변동성|상승|하락|추세|저항|지지|실적|수급|거래량|현재가|%|원)/;
+    const sentenceRegex = /[^.!?\n]+(?:[.!?…]+|$)/g;
+    const lines = text.split('\n').map(function (line) {
+      const sentences = (line.match(sentenceRegex) || [line]).map(function (s) { return s.trim(); }).filter(Boolean);
+      if (!sentences.length) return '';
+      const pickCount = Math.min(3, Math.max(1, Math.round(sentences.length / 3)));
+      const ranked = sentences.map(function (sentence, idx) {
+        let score = 0;
+        if (keywordPattern.test(sentence)) score += 3;
+        if (/\d/.test(sentence)) score += 2;
+        if (sentence.length >= 24 && sentence.length <= 80) score += 1;
+        return { idx: idx, score: score, rand: Math.random() };
+      });
+      ranked.sort(function (a, b) { return (b.score - a.score) || (a.rand - b.rand); });
+      const selected = new Set(ranked.slice(0, pickCount).map(function (r) { return r.idx; }));
+      return sentences.map(function (sentence, idx) {
+        const safe = escapeHtml(sentence);
+        if (!selected.has(idx)) return safe;
+        const cls = brushClass[Math.floor(Math.random() * brushClass.length)];
+        return '<span class="important-line ' + cls + '">' + safe + '</span>';
+      }).join(' ');
+    });
+    return lines.join('<br>');
+  }
+
+  function normalizeDisplayText(raw) {
+    let s = String(raw || '')
+      .replace(/\r\n/g, '\n')
+      .replace(/^\s+/gm, '')
+      .trim();
+    for (let i = 0; i < 4; i += 1) {
+      if (s.length >= 6 && s.startsWith('"""') && s.endsWith('"""')) {
+        s = s.slice(3, -3).trim();
+        continue;
+      }
+      if (s.length >= 6 && s.startsWith("'''") && s.endsWith("'''")) {
+        s = s.slice(3, -3).trim();
+        continue;
+      }
+      break;
+    }
+    s = s.replace(/^```(?:\w+)?\s*/i, '').replace(/```$/i, '').trim();
+    return s.replace(/\n{3,}/g, '\n\n').trim();
+  }
+
   function escapeHtml(text) {
     if (text == null) return '';
     const d = document.createElement('div');
     d.textContent = String(text);
     return d.innerHTML;
+  }
+
+  function renderContextTermHints(terms) {
+    const list = Array.isArray(terms) ? terms : [];
+    if (!list.length) return '';
+    return '<div class="term-hint-row">' + list.map(function (term) {
+      const q = encodeURIComponent(term);
+      return '<a class="term-hint-chip" href="glossary.html?term=' + q + '">' + escapeHtml(term) + '</a>';
+    }).join('') + '</div>';
   }
 
   function predictionParseChartTime(candle, intraday) {
@@ -455,7 +698,7 @@
           y: forecast.upper,
           mode: 'lines',
           name: '예측 상단(80%)',
-          line: { color: 'rgba(196, 167, 255, 0.10)', width: 1.2, shape: 'spline', smoothing: 1.05 },
+          line: { color: 'rgba(164, 126, 240, 0.65)', width: 1.5, shape: 'spline', smoothing: 1.05 },
           hoverinfo: 'skip',
         },
         {
@@ -463,9 +706,9 @@
           y: forecast.lower,
           mode: 'lines',
           name: '예측 하단(20%)',
-          line: { color: 'rgba(196, 167, 255, 0.10)', width: 1.2, shape: 'spline', smoothing: 1.05 },
+          line: { color: 'rgba(164, 126, 240, 0.65)', width: 1.5, shape: 'spline', smoothing: 1.05 },
           fill: 'tonexty',
-          fillcolor: 'rgba(196, 167, 255, 0.10)',
+          fillcolor: 'rgba(164, 126, 240, 0.22)',
           hoverinfo: 'skip',
         },
         {
@@ -500,8 +743,8 @@
       const layout = {
         paper_bgcolor: 'transparent',
         plot_bgcolor: '#f6faf7',
-        font: { color: '#5f7c6c', size: 11, family: 'Noto Sans KR, sans-serif' },
-        margin: { t: 32, r: 56, b: 44, l: 8 },
+        font: { color: '#355845', size: 12, family: 'Noto Sans KR, sans-serif' },
+        margin: { t: 34, r: 56, b: 44, l: 10 },
         dragmode: 'pan',
         xaxis: xaxisConfig,
         yaxis: {
@@ -513,7 +756,7 @@
         },
         legend: {
           orientation: 'h',
-          y: 1.06,
+          y: 1.1,
           x: 0,
           bgcolor: 'rgba(0,0,0,0)',
           font: { color: '#1f2f26', size: 12 },
@@ -521,7 +764,7 @@
         showlegend: true,
       };
 
-      await Plotly.newPlot(el, traces, layout, { responsive: true, displayModeBar: true, scrollZoom: true });
+      await Plotly.newPlot(el, traces, layout, { responsive: true, displayModeBar: false, scrollZoom: true });
     } catch (err) {
       console.error(err);
     }
@@ -537,7 +780,7 @@
     const chartArea = document.getElementById('chartArea');
     chartArea.className = '';
     chartArea.innerHTML =
-      '<div style="text-align:center;padding:48px;color:var(--gray-400);">분석·차트 데이터를 불러오는 중…</div>';
+      '<div class="chart-loading">분석·차트 데이터를 불러오는 중…</div>';
 
     try {
       const apiBase = window.JURIN_API_BASE || 'http://localhost:5000';
@@ -555,7 +798,7 @@
 
       if (!data.success) {
         chartArea.innerHTML =
-          '<div class="chart-placeholder" style="flex-direction:column;gap:12px;"><span>안내</span><span>' +
+          '<div class="chart-placeholder" style="flex-direction:column;gap:12px;"><span>안내</span><span class="chart-error">' +
           escapeHtml(data.message || '분석에 실패했습니다.') +
           '</span></div>';
         return;
@@ -571,34 +814,39 @@
       const repNews = data.representative_news || null;
       const newsTone = Number(data.news_sentiment_score || 0);
       const newsToneLabel = newsTone > 0.05 ? '긍정' : (newsTone < -0.05 ? '부정' : '중립');
-      const newsRationale = data.news_sentiment_rationale ? String(data.news_sentiment_rationale) : '';
+      const newsRationale = normalizeDisplayText(data.news_sentiment_rationale || '');
+      const summaryText = normalizeDisplayText(data.summary || '');
+      const summaryHtml = renderImportantSummaryHtml(summaryText);
+      const rationaleHtml = renderImportantSummaryHtml(newsRationale);
 
       chartArea.innerHTML =
-        '<div style="width:100%;color:var(--text-primary);">' +
-        '<h3 style="margin-bottom:16px;font-size:20px;">' +
+        '<div class="prediction-result-wrap">' +
+        '<h3 class="prediction-result-title">' +
         escapeHtml(data.stock_name) +
         ' · 차트 예측</h3>' +
-        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:8px;">' +
-        '<div style="background:rgba(79,158,255,0.1);padding:14px;border-radius:10px;">' +
-        '<div style="color:var(--gray-400);font-size:12px;margin-bottom:6px;">현재가</div>' +
-        '<div style="font-size:22px;font-weight:700;">' +
+        '<div class="prediction-metric-grid">' +
+        '<div class="prediction-metric-card price">' +
+        '<div class="prediction-metric-label">현재가</div>' +
+        '<div class="prediction-metric-value">' +
         Number(data.current_price).toLocaleString() +
         '원</div>' +
-        '<div style="font-size:13px;margin-top:6px;color:' +
+        '<div class="prediction-metric-sub" style="color:' +
         (data.change_rate >= 0 ? '#00D084' : '#FF6B6B') +
-        ';">' +
+        ';font-weight:700;">' +
         (data.change_rate >= 0 ? '▲' : '▼') +
         ' ' +
         Math.abs(Number(data.change_rate)).toFixed(2) +
         '%</div></div>' +
-        '<div style="background:rgba(255,255,255,0.04);padding:14px;border-radius:10px;border:1px solid rgba(79,158,255,0.25);">' +
-        '<div style="color:var(--gray-400);font-size:12px;margin-bottom:6px;">AI 투자의견 · 목표가</div>' +
-        '<div style="font-size:20px;font-weight:700;color:' +
+        '<div class="prediction-metric-card opinion" style="background:rgba(79,158,255,0.08);border-color:' +
+        color +
+        ';">' +
+        '<div class="prediction-metric-label">AI 투자의견 · 목표가</div>' +
+        '<div class="prediction-metric-value" style="font-size:20px;color:' +
         color +
         ';">' +
         escapeHtml(data.opinion) +
         '</div>' +
-        '<div style="font-size:12px;margin-top:6px;color:var(--gray-300);">목표가 ' +
+        '<div class="prediction-metric-sub">목표가 ' +
         Number(data.target_price).toLocaleString() +
         '원</div></div></div>' +
         '<div class="prediction-chart-wrap">' +
@@ -606,15 +854,16 @@
         '<div id="predictionChart"></div>' +
         '</div>' +
         (repNews ? (
-          '<div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);padding:12px;border-radius:10px;margin-bottom:12px;">' +
-          '<div style="font-size:12px;color:var(--gray-400);margin-bottom:6px;">대표 뉴스 반영 (' + newsToneLabel + ' · 점수 ' + Number(newsTone).toFixed(2) + ')</div>' +
-          '<div style="font-size:14px;color:var(--gray-200);margin-bottom:4px;">' + escapeHtml(repNews.title || '') + '</div>' +
-          '<div style="font-size:12px;color:var(--gray-400);">' + escapeHtml(newsRationale) + '</div>' +
+          '<div class="prediction-news-box">' +
+          '<div class="prediction-news-meta">대표 뉴스 반영 (' + newsToneLabel + ' · 점수 ' + Number(newsTone).toFixed(2) + ')</div>' +
+          '<div class="prediction-news-title">' + escapeHtml(repNews.title || '') + '</div>' +
+          '<div class="prediction-news-rationale">' + rationaleHtml + '</div>' +
           '</div>'
         ) : '') +
-        '<div style="background:rgba(0,0,0,0.2);padding:16px;border-radius:10px;font-size:15px;line-height:1.8;color:var(--gray-300);white-space:pre-wrap;">' +
-        escapeHtml(data.summary || '') +
+        '<div class="prediction-summary">' +
+        summaryHtml +
         '</div>' +
+        renderContextTermHints(['지지선', '저항선', '이동평균선', '변동성', '레버리지', '인버스']) +
         '</div>';
 
       setTimeout(function () {
@@ -623,7 +872,7 @@
     } catch (error) {
       console.error(error);
       chartArea.innerHTML =
-        '<div class="chart-placeholder" style="flex-direction:column;gap:12px;"><span>❌</span><span>' +
+        '<div class="chart-placeholder" style="flex-direction:column;gap:12px;"><span>❌</span><span class="chart-error">' +
         escapeHtml(error.message || '백엔드 서버 연결을 확인해 주세요.') +
         '</span></div>';
     }

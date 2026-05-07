@@ -161,6 +161,147 @@
     font-size: 15px;
     color: var(--gray-400);
   }
+
+  .ai-result-wrap {
+    width: 100%;
+    color: var(--text-primary);
+  }
+
+  .ai-result-title {
+    margin-bottom: 20px;
+    font-size: 22px;
+    line-height: 1.4;
+    color: var(--text-primary);
+  }
+
+  .ai-result-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 20px;
+  }
+
+  .ai-result-card {
+    border-radius: 12px;
+    padding: 16px;
+    border: 1px solid rgba(47, 143, 95, 0.16);
+    background: #f7fcf9;
+  }
+
+  .ai-result-card-label {
+    color: var(--gray-400);
+    font-size: 13px;
+    margin-bottom: 8px;
+  }
+
+  .ai-result-card-value {
+    font-size: 24px;
+    line-height: 1.35;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+
+  .ai-result-card-sub {
+    font-size: 14px;
+    margin-top: 6px;
+    color: var(--gray-400);
+  }
+
+  .ai-result-card-price {
+    background: rgba(79, 158, 255, 0.12);
+    border-color: rgba(79, 158, 255, 0.3);
+  }
+
+  .ai-result-card-opinion {
+    border-width: 2px;
+  }
+
+  .ai-result-summary {
+    background: #f7fcf9;
+    border: 1px solid rgba(47, 143, 95, 0.2);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+    font-size: 16px;
+    line-height: 1.9;
+    color: var(--text-primary);
+    white-space: pre-wrap;
+    text-align: left;
+  }
+  .term-hint-row {
+    margin-top: 12px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .term-hint-chip {
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid rgba(47, 143, 95, 0.25);
+    background: #f2faf6;
+    color: #2d5a45;
+    border-radius: 999px;
+    padding: 6px 10px;
+    font-size: 12px;
+    font-weight: 700;
+    text-decoration: none;
+  }
+
+  .important-line {
+    display: inline;
+    background-repeat: no-repeat;
+    background-size: 100% 0.82em;
+    background-position: 0 92%;
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+    padding: 0 2px;
+  }
+
+  .important-line.brush-1 {
+    background-image: linear-gradient(transparent 52%, rgba(157, 222, 189, 0.72) 52%);
+  }
+
+  .important-line.brush-2 {
+    background-image: linear-gradient(transparent 52%, rgba(156, 201, 229, 0.72) 52%);
+  }
+
+  .important-line.brush-3 {
+    background-image: linear-gradient(transparent 52%, rgba(196, 174, 220, 0.72) 52%);
+  }
+
+  .important-line.brush-4 {
+    background-image: linear-gradient(transparent 52%, rgba(236, 187, 182, 0.72) 52%);
+  }
+
+  @media (max-width: 768px) {
+    .analysis-content {
+      padding: 24px 16px;
+    }
+
+    .stock-input-section,
+    .analysis-result {
+      padding: 20px;
+    }
+
+    .ai-result-grid {
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+
+    .ai-result-title {
+      font-size: 20px;
+    }
+
+    .ai-result-card-value {
+      font-size: 21px;
+    }
+
+    .ai-result-summary {
+      font-size: 15px;
+      line-height: 1.85;
+      padding: 16px;
+    }
+  }
 </style>
 </head>
 <body>
@@ -217,6 +358,74 @@
 
 <script src="js/api-base.js"></script>
 <script>
+  function escapeHtml(text) {
+    if (text == null) return '';
+    return String(text)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function normalizeDisplayText(raw) {
+    let s = String(raw || '')
+      .replace(/\r\n/g, '\n')
+      .replace(/^\s+/gm, '')
+      .trim();
+    for (let i = 0; i < 4; i += 1) {
+      if (s.length >= 6 && s.startsWith('"""') && s.endsWith('"""')) {
+        s = s.slice(3, -3).trim();
+        continue;
+      }
+      if (s.length >= 6 && s.startsWith("'''") && s.endsWith("'''")) {
+        s = s.slice(3, -3).trim();
+        continue;
+      }
+      break;
+    }
+    s = s.replace(/^```(?:\w+)?\s*/i, '').replace(/```$/i, '').trim();
+    return s.replace(/\n{3,}/g, '\n\n').trim();
+  }
+
+  function renderImportantSummaryHtml(raw) {
+    const text = normalizeDisplayText(raw);
+    if (!text) return '';
+    const brushClass = ['brush-1', 'brush-2', 'brush-3', 'brush-4'];
+    const keywordPattern = /(매수|보유|약세|강세|목표가|리스크|위험|변동성|상승|하락|추세|저항|지지|실적|수급|거래량|현재가|%|원)/;
+    const sentenceRegex = /[^.!?\n]+(?:[.!?…]+|$)/g;
+    const lines = text.split('\n').map(function (line) {
+      const sentences = (line.match(sentenceRegex) || [line]).map(function (s) { return s.trim(); }).filter(Boolean);
+      if (!sentences.length) return '';
+      const pickCount = Math.min(3, Math.max(1, Math.round(sentences.length / 3)));
+      const ranked = sentences.map(function (sentence, idx) {
+        let score = 0;
+        if (keywordPattern.test(sentence)) score += 3;
+        if (/\d/.test(sentence)) score += 2;
+        if (sentence.length >= 24 && sentence.length <= 80) score += 1;
+        return { idx: idx, score: score, rand: Math.random() };
+      });
+      ranked.sort(function (a, b) { return (b.score - a.score) || (a.rand - b.rand); });
+      const selected = new Set(ranked.slice(0, pickCount).map(function (r) { return r.idx; }));
+      return sentences.map(function (sentence, idx) {
+        const safe = escapeHtml(sentence);
+        if (!selected.has(idx)) return safe;
+        const cls = brushClass[Math.floor(Math.random() * brushClass.length)];
+        return '<span class="important-line ' + cls + '">' + safe + '</span>';
+      }).join(' ');
+    });
+    return lines.join('<br>');
+  }
+
+  function renderContextTermHints(terms) {
+    const list = Array.isArray(terms) ? terms : [];
+    if (!list.length) return '';
+    return '<div class="term-hint-row">' + list.map(function (term) {
+      const q = encodeURIComponent(term);
+      return '<a class="term-hint-chip" href="glossary.html?term=' + q + '">' + escapeHtml(term) + '</a>';
+    }).join('') + '</div>';
+  }
+
   // AI 분석 함수
   async function performAnalysis() {
     const stockName = document.getElementById('analysisStockInput').value.trim();
@@ -252,7 +461,8 @@
       resultContainer.classList.remove('loading');
       
       if (data.success) {
-        const finalSummary = String(data.summary || '').trim();
+        const finalSummary = normalizeDisplayText(data.summary);
+        const summaryHtml = renderImportantSummaryHtml(finalSummary);
         // AI 분석 결과 표시
         const opinionColor = {
           '강력매수': '#00D084',
@@ -272,32 +482,31 @@
         const bg = opinionBg[data.opinion] || 'rgba(79, 158, 255, 0.05)';
         
         resultContainer.innerHTML = `
-          <div style="width: 100%; color: var(--text-primary);">
-            <h3 style="margin-bottom: 20px; font-size: 20px;">${data.stock_name} 분석 결과</h3>
+          <div class="ai-result-wrap">
+            <h3 class="ai-result-title">${data.stock_name} 분석 결과</h3>
             
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
-              <div style="background: rgba(79, 158, 255, 0.1); padding: 16px; border-radius: 10px;">
-                <div style="color: var(--gray-400); font-size: 13px; margin-bottom: 8px;">현재가</div>
-                <div style="font-size: 24px; font-weight: 700; color: var(--text-primary);">${Number(data.current_price).toLocaleString()}원</div>
-                <div style="font-size: 14px; margin-top: 6px;">
-                  <span style="color: ${data.change_rate >= 0 ? '#00D084' : '#FF6B6B'};">
+            <div class="ai-result-grid">
+              <div class="ai-result-card ai-result-card-price">
+                <div class="ai-result-card-label">현재가</div>
+                <div class="ai-result-card-value">${Number(data.current_price).toLocaleString()}원</div>
+                <div class="ai-result-card-sub">
+                  <span style="color: ${data.change_rate >= 0 ? '#00D084' : '#FF6B6B'}; font-weight: 700;">
                     ${data.change_rate >= 0 ? '▲' : '▼'} ${Math.abs(data.change_rate).toFixed(2)}%
                   </span>
                 </div>
               </div>
               
-              <div style="background: ${bg}; padding: 16px; border-radius: 10px; border: 1px solid ${color};">
-                <div style="color: var(--gray-400); font-size: 13px; margin-bottom: 8px;">AI 투자의견</div>
-                <div style="font-size: 24px; font-weight: 700; color: ${color};">${data.opinion}</div>
-                <div style="font-size: 13px; margin-top: 6px; color: var(--gray-300);">
+              <div class="ai-result-card ai-result-card-opinion" style="background: ${bg}; border-color: ${color};">
+                <div class="ai-result-card-label">AI 투자의견</div>
+                <div class="ai-result-card-value" style="color: ${color};">${data.opinion}</div>
+                <div class="ai-result-card-sub">
                   목표가: ${Number(data.target_price).toLocaleString()}원
                 </div>
               </div>
             </div>
 
-            <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(79, 158, 255, 0.15); border-radius: 12px; padding: 20px; margin-bottom: 20px; font-size: 14px; line-height: 1.8; color: var(--gray-200); white-space: pre-wrap;">
-              ${finalSummary || '요약 데이터를 불러오지 못했습니다.'}
-            </div>
+            <div class="ai-result-summary">${summaryHtml || '요약 데이터를 불러오지 못했습니다.'}</div>
+            ${renderContextTermHints(['PER', 'PBR', 'ROE', 'ETF', '채권', 'ELW'])}
           </div>
         `;
       } else {

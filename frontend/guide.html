@@ -114,60 +114,26 @@
   .guide-card button {
     margin-top: 12px;
   }
-  .guide-step1-detail {
-    margin-top: 22px;
-    border: 1px solid rgba(47, 143, 95, 0.2);
-    border-radius: 16px;
-    background: #ffffff;
-    padding: 18px;
-  }
-  .guide-step1-detail h2 {
-    font-size: 22px;
-    color: #1f2f26;
-    margin-bottom: 8px;
-  }
-  .guide-step1-detail > p {
-    font-size: 14px;
-    color: #4b6658;
-    line-height: 1.6;
-    margin-bottom: 14px;
-  }
-  .guide-chip-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-bottom: 14px;
-  }
-  .guide-chip {
-    border-radius: 999px;
-    border: 1px solid rgba(47, 143, 95, 0.24);
-    background: #f2faf6;
-    color: #2d5a45;
-    font-size: 12px;
-    font-weight: 700;
-    padding: 5px 10px;
-  }
-  .guide-step1-grid {
+  .guide-checklist {
+    margin-top: 10px;
+    border: 1px solid rgba(47, 143, 95, 0.18);
+    border-radius: 10px;
+    background: #f8fcf9;
+    padding: 10px;
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-    gap: 12px;
-    margin-bottom: 12px;
+    gap: 8px;
   }
-  .guide-step1-box {
-    border: 1px solid rgba(47, 143, 95, 0.16);
-    border-radius: 12px;
-    background: #fbfefc;
-    padding: 12px;
-  }
-  .guide-step1-box h3 {
-    font-size: 15px;
-    color: #1f2f26;
-    margin-bottom: 6px;
-  }
-  .guide-step1-box p {
+  .guide-check-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
     font-size: 13px;
-    color: #496253;
-    line-height: 1.6;
+    color: #355645;
+  }
+  .guide-check-item input {
+    accent-color: #2f8f5f;
+    width: 14px;
+    height: 14px;
   }
   .guide-term-list {
     list-style: none;
@@ -374,24 +340,24 @@
           <button class="btn-primary" type="button" onclick="location.href='주린닷컴홈피.html?tutorial=step1'">1단계 시작</button>
         </section>
         <section class="guide-card" data-step="2">
-          <h3>2단계: 거래 원리</h3>
-          <p>호가와 체결, 거래량이 실제로 어떻게 연결되는지 확인합니다.</p>
-          <button class="btn-ghost" type="button" id="guideDemoCaution">캐릭터 미리보기</button>
+          <h3>2단계: 차트 기초</h3>
+          <p>주요 종목 <strong>두 개</strong>를 골라 차트에서 기간·추세·지지·저항·이평을 익힙니다.</p>
+          <button class="btn-primary" type="button" onclick="location.href='market.html?tutorial=step2'">2단계 시작</button>
         </section>
         <section class="guide-card" data-step="3">
           <h3>3단계: 종목 가치</h3>
-          <p>PER·PBR·ROE·배당 지표를 함께 보고 종목의 가격과 가치를 해석합니다.</p>
-          <button class="btn-ghost" type="button" id="guideDemoInfo">캐릭터 미리보기</button>
+          <p>PER·PBR·ROE·배당수익률을 읽고, 숫자로 종목의 가성비/체력/배당 매력을 판단합니다.</p>
+          <button class="btn-primary" type="button" onclick="location.href='market.html?tutorial=step3'">3단계 시작</button>
         </section>
         <section class="guide-card" data-step="4">
-          <h3>4단계: 시장 구조 이해</h3>
-          <p>ETF, 섹터, 테마, 코스피/코스닥의 차이와 역할을 쉽게 정리합니다.</p>
-          <button class="btn-ghost" type="button" id="guideDemoWelcome">캐릭터 미리보기</button>
+          <h3>4단계: 시장 종류</h3>
+          <p>ETF·섹터·테마의 차이와 ELW·채권 기초 개념을 익혀, 상품 성격에 맞는 선택 기준을 만듭니다.</p>
+          <button class="btn-ghost" type="button" onclick="location.href='market.html'">시장 화면 보기</button>
         </section>
         <section class="guide-card" data-step="5">
           <h3>5단계: 실전 투자</h3>
-          <p>예수금 범위 내 주문, 손절/분할 매수, 리스크 관리 흐름을 실제처럼 연습합니다.</p>
-          <button class="btn-ghost" type="button" id="guideDemoSuccess">캐릭터 미리보기</button>
+          <p>예수금 기준으로 주문하고, 미수 위험을 피하며, 분할매수·손절 원칙까지 실전 루틴을 익힙니다.</p>
+          <button class="btn-ghost" type="button" onclick="location.href='simulation.html'">실전 연습 가기</button>
         </section>
       </div>
     </div>
@@ -551,7 +517,7 @@
         mood: 'info',
         title: '튜토리얼은 어떻게 진행되나요?',
         text:
-          '루미가 말을 걸고, 지수·상승·하락·거래량 같은 버튼을 눌러 보며 시장 감을 잡아요. 종목 상세에서는 시가·고가·저가·상하한가·거래량 카드와 뉴스까지 같이 보며 시세 읽기를 익혀요. 확인을 누르면 다음 안내로 넘어가요.',
+          '1단계는 시황판 읽기, 2단계는 주요 종목 두 개로 차트 읽기(기간·추세·지지·저항·이평), 3단계는 종목 가치(PER·PBR·ROE·배당), 4단계는 시장 종류(ETF·ELW·채권), 5단계는 실전 투자 순서로 이어져요.',
       },
       {
         mood: 'success',
@@ -605,6 +571,7 @@
     if (explainBtn) {
       explainBtn.addEventListener('click', openTutorialExplain);
     }
+
     renderGuideProgress();
 
     window.addEventListener('storage', function (e) {
@@ -612,51 +579,6 @@
     });
     window.addEventListener('pageshow', function () {
       renderGuideProgress();
-    });
-
-    document.getElementById('guideDemoSuccess')?.addEventListener('click', function () {
-      window.MascotCoach?.show({
-        mood: 'success',
-        title: '좋아! 잘하고 있어',
-        text: '지금처럼 원칙 지키면 수익을 더 안정적으로 지킬 수 있어. 천천히 계속 가보자!',
-        confirmLabel: '확인',
-        onConfirm: function () {
-          markGuideTutorialStep(5);
-        },
-      });
-    });
-    document.getElementById('guideDemoCaution')?.addEventListener('click', function () {
-      window.MascotCoach?.show({
-        mood: 'caution',
-        title: '잠깐, 여기선 조심!',
-        text: '변동성이 큰 구간이야. 지금은 추격 매수보다 거래량이랑 호가를 먼저 확인하자.',
-        confirmLabel: '확인',
-        onConfirm: function () {
-          markGuideTutorialStep(2);
-        },
-      });
-    });
-    document.getElementById('guideDemoWelcome')?.addEventListener('click', function () {
-      window.MascotCoach?.show({
-        mood: 'welcome',
-        title: '반가워! 같이 시작하자',
-        text: '처음이면 1단계부터 보는 게 제일 빨라. 내가 옆에서 하나씩 도와줄게.',
-        confirmLabel: '확인',
-        onConfirm: function () {
-          markGuideTutorialStep(4);
-        },
-      });
-    });
-    document.getElementById('guideDemoInfo')?.addEventListener('click', function () {
-      window.MascotCoach?.show({
-        mood: 'info',
-        title: '좋아, 핵심만 딱 보자',
-        text: 'PER, PBR, ROE 세 개만 같이 봐도 종목 가치 흐름이 훨씬 또렷해져.',
-        confirmLabel: '확인',
-        onConfirm: function () {
-          markGuideTutorialStep(3);
-        },
-      });
     });
 
     document.addEventListener('keydown', function (e) {
