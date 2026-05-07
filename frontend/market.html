@@ -989,6 +989,21 @@
     color: var(--gray-400);
   }
 
+  .mock-trade-mechanism-hint {
+    border: 1px dashed rgba(47, 143, 95, 0.35);
+    border-radius: 10px;
+    background: #f6fcf8;
+    padding: 8px 10px;
+    font-size: 12px;
+    color: #355645;
+    line-height: 1.5;
+  }
+  .mock-trade-mechanism-hint a {
+    color: #1f6b45;
+    font-weight: 700;
+    text-decoration: underline;
+  }
+
   .mock-trade-input {
     border-radius: 10px;
     border: 1px solid rgba(47, 143, 95, 0.2);
@@ -1368,6 +1383,15 @@
     transform: translateX(-50%) translateY(0);
   }
 
+  /* 2단계 튜토리얼 중에는 토스트가 딤(overlay) 위로 뜨지 않게 비활성화 */
+  body.market-step2-active .sector-toast,
+  body.market-step2-clear-phase .sector-toast {
+    opacity: 0 !important;
+    pointer-events: none !important;
+    transform: translateX(-50%) translateY(20px) !important;
+    z-index: 350 !important;
+  }
+
   .market-step1-overlay {
     position: fixed;
     inset: 0;
@@ -1392,9 +1416,7 @@
   .market-step1-overlay.is-open {
     display: block;
   }
-  .market-step1-overlay.is-dim {
-    background: rgba(18, 29, 24, 0.42);
-  }
+  /* dim 톤은 style.css의 tutorial-fx 공용 레이어에서 통합 관리 */
   .market-step1-overlay.is-clear-dim {
     background: rgba(9, 18, 14, 0.62);
   }
@@ -1653,6 +1675,553 @@
     transform: translate(-50%, -50%) scale(1);
   }
 
+﻿  /* 튜토리얼 2단계 (거래 원리): 1단계와 동일 레이아웃 */
+  .market-step2-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 470;
+    display: none;
+    background: transparent;
+    pointer-events: none;
+    transition: background 0.2s ease;
+  }
+  .market-step2-quest-hud {
+    display: none;
+  }
+  .market-step2-quest-hud.is-open {
+    display: contents;
+  }
+  .market-step2-quest-hud .market-step2-banner,
+  .market-step2-quest-hud .market-step2-panel {
+    z-index: 650;
+    pointer-events: auto;
+  }
+  .market-step2-overlay.is-open {
+    display: block;
+  }
+  /* 2단계는 이 규칙만으로도 딤이 보이게 백업 (공용 tutorial-fx 규칙 누락 대비) */
+  .market-step2-overlay.is-dim {
+    background: rgba(4, 8, 6, 0.68);
+    z-index: 400;
+    pointer-events: none;
+  }
+  .market-step2-overlay.is-clear-dim {
+    background: rgba(9, 18, 14, 0.62);
+  }
+  /* CLEAR 연출: 1단계와 동일 — 퀘스트 UI 숨기고 배경만 강하게 어둡게 */
+  body.market-step2-clear-phase .market-step2-panel,
+  body.market-step2-clear-phase .market-step2-banner {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.2s ease, visibility 0.2s ease;
+  }
+
+  body.market-step2-clear-phase .market-step2-overlay.is-clear-dim {
+    /* 강조 카드(500)·토스트(999)·모의창(680) 위로 — 클리어 딤이 전체를 덮도록 */
+    z-index: 1200;
+    background: rgba(2, 6, 4, 0.9);
+  }
+
+  body.market-step2-clear-phase .market-step2-clear {
+    position: fixed;
+    z-index: 1;
+  }
+  .market-step2-banner {
+    position: fixed;
+    left: 50%;
+    top: 86px;
+    transform: translateX(-50%);
+    max-width: min(1120px, calc(100vw - 48px));
+    box-sizing: border-box;
+    min-width: 260px;
+    border: 1px solid rgba(93, 168, 126, 0.5);
+    background: linear-gradient(180deg, rgba(246, 255, 250, 0.98), rgba(230, 247, 238, 0.98));
+    border-radius: 12px;
+    text-align: center;
+    padding: 10px 14px;
+    box-shadow: 0 16px 28px rgba(23, 44, 33, 0.22);
+    transition: opacity 0.35s ease, transform 0.35s ease;
+  }
+  .market-step2-banner.is-hide {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-10px);
+  }
+  .market-step2-banner span {
+    display: block;
+    font-size: 11px;
+    color: #3f6751;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+  }
+  .market-step2-banner strong {
+    display: block;
+    font-size: 24px;
+    color: #1f5f3f;
+    font-weight: 900;
+    letter-spacing: -0.03em;
+    margin-top: 2px;
+  }
+  .market-step2-panel {
+    position: fixed;
+    left: calc(min((100vw + 1200px) / 2 - 40px, 100vw - 40px) + 12px);
+    right: 22px;
+    top: 92px;
+    width: auto;
+    max-width: 340px;
+    min-height: 196px;
+    border-radius: 14px;
+    border: 1px solid rgba(47, 143, 95, 0.25);
+    background: linear-gradient(180deg, rgba(247, 252, 249, 0.98) 0%, rgba(255, 255, 255, 0.98) 100%);
+    box-shadow: 0 18px 42px rgba(18, 34, 27, 0.16);
+    padding: 14px;
+    pointer-events: auto;
+  }
+  body.market-step2-active #marketOverviewView .stocks-section {
+    overflow-x: auto;
+  }
+  .market-step2-quest-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .market-step2-quest-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border-radius: 999px;
+    border: 1px solid rgba(47, 143, 95, 0.3);
+    background: #edf8f1;
+    color: #1f5d3f;
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: 0.04em;
+    padding: 4px 10px;
+  }
+  .market-step2-quest-progress {
+    font-size: 12px;
+    font-weight: 800;
+    color: #2e6b4b;
+    font-family: 'DM Mono', monospace;
+    letter-spacing: -0.02em;
+  }
+  .market-step2-title {
+    display: none;
+  }
+  .market-step2-quest-body {
+    border: 1px solid rgba(47, 143, 95, 0.18);
+    border-radius: 12px;
+    background: linear-gradient(180deg, #f8fdf9 0%, #ffffff 100%);
+    padding: 12px 12px 10px;
+    margin-bottom: 10px;
+  }
+  .market-step2-quest-section-label {
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: 0.12em;
+    color: #3d7a5c;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+  .market-step2-quest-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .market-step2-quest-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin: 0;
+    padding: 8px 8px 8px 6px;
+    border-radius: 10px;
+    border: 1px solid transparent;
+    background: rgba(255, 255, 255, 0.65);
+    transition: background 0.2s ease, border-color 0.2s ease, opacity 0.25s ease;
+  }
+  .market-step2-quest-item.is-current {
+    border-color: rgba(47, 143, 95, 0.35);
+    background: #ffffff;
+    box-shadow: 0 0 0 1px rgba(47, 143, 95, 0.08);
+  }
+  .market-step2-quest-item.is-current .market-step2-quest-text {
+    font-weight: 800;
+    color: #153526;
+  }
+  .market-step2-quest-check {
+    flex: 0 0 22px;
+    width: 22px;
+    height: 22px;
+    margin-top: 1px;
+    border-radius: 999px;
+    border: 2px solid rgba(47, 143, 95, 0.45);
+    background: #ffffff;
+    box-sizing: border-box;
+    transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+  }
+  .market-step2-quest-item.is-done .market-step2-quest-check {
+    border-color: #2a9d5f;
+    background: linear-gradient(145deg, #34b86f, #238a52);
+    box-shadow: 0 2px 6px rgba(35, 138, 82, 0.35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .market-step2-quest-item.is-done .market-step2-quest-check::after {
+    content: '';
+    display: block;
+    width: 5px;
+    height: 9px;
+    margin-bottom: 2px;
+    border: solid #ffffff;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+  }
+  .market-step2-quest-strike-wrap {
+    flex: 1;
+    min-width: 0;
+    position: relative;
+    padding: 0 2px;
+  }
+  .market-step2-quest-text {
+    display: inline;
+    font-size: 13px;
+    font-weight: 600;
+    color: #2a4a3a;
+    line-height: 1.45;
+    transition: color 0.2s ease, opacity 0.25s ease;
+  }
+  .market-step2-quest-item.is-done {
+    opacity: 0.62;
+    background: rgba(248, 252, 249, 0.85);
+  }
+  .market-step2-quest-item.is-done .market-step2-quest-text {
+    text-decoration: line-through;
+    text-decoration-thickness: 1px;
+    text-decoration-color: rgba(42, 74, 58, 0.45);
+    color: #5a7568;
+    font-weight: 600;
+  }
+  .market-step2-quest-item.is-done .market-step2-quest-strike-wrap::before,
+  .market-step2-quest-item.is-done .market-step2-quest-strike-wrap::after {
+    content: '—';
+    font-size: 11px;
+    font-weight: 700;
+    color: rgba(42, 138, 90, 0.35);
+    margin: 0 3px;
+    text-decoration: none;
+    vertical-align: 0.05em;
+  }
+  .market-step2-now {
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px dashed rgba(47, 143, 95, 0.22);
+  }
+  .market-step2-now-label {
+    display: block;
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: 0.1em;
+    color: #5a8a72;
+    margin-bottom: 4px;
+  }
+  .market-step2-now-text {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 700;
+    color: #234936;
+    line-height: 1.5;
+  }
+  .market-step2-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+  .market-step2-clear {
+    position: fixed;
+    left: 50%;
+    top: 46%;
+    transform: translate(-50%, -50%) scale(0.7);
+    font-size: min(13vw, 88px);
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    color: #d8ffeb;
+    text-shadow: 0 0 24px rgba(111, 234, 175, 0.8), 0 0 36px rgba(111, 234, 175, 0.36);
+    opacity: 0;
+    transition: all 0.24s ease;
+    pointer-events: none;
+  }
+  .market-step2-clear.is-show {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+
+  /* 튜토리얼 3단계 (매매 판단 루틴) */
+  .market-step3-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 470;
+    display: none;
+    background: transparent;
+    pointer-events: none;
+    transition: background 0.2s ease;
+  }
+  .market-step3-quest-hud {
+    display: none;
+  }
+  .market-step3-quest-hud.is-open {
+    display: contents;
+  }
+  .market-step3-quest-hud .market-step3-banner,
+  .market-step3-quest-hud .market-step3-panel {
+    z-index: 650;
+    pointer-events: auto;
+  }
+  .market-step3-overlay.is-open {
+    display: block;
+  }
+  /* dim 톤은 style.css의 tutorial-fx 공용 레이어에서 통합 관리 */
+  .market-step3-overlay.is-clear-dim {
+    background: rgba(9, 18, 14, 0.62);
+  }
+  body.market-step3-clear-phase .market-step3-panel,
+  body.market-step3-clear-phase .market-step3-banner {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.2s ease, visibility 0.2s ease;
+  }
+  body.market-step3-clear-phase .market-step3-overlay.is-clear-dim {
+    background: rgba(2, 6, 4, 0.9);
+  }
+  body.market-step3-clear-phase .market-step3-clear {
+    position: fixed;
+    z-index: 1;
+  }
+  .market-step3-banner {
+    position: fixed;
+    left: 50%;
+    top: 86px;
+    transform: translateX(-50%);
+    max-width: min(1120px, calc(100vw - 48px));
+    box-sizing: border-box;
+    min-width: 260px;
+    border: 1px solid rgba(93, 168, 126, 0.5);
+    background: linear-gradient(180deg, rgba(246, 255, 250, 0.98), rgba(230, 247, 238, 0.98));
+    border-radius: 12px;
+    text-align: center;
+    padding: 10px 14px;
+    box-shadow: 0 16px 28px rgba(23, 44, 33, 0.22);
+    transition: opacity 0.35s ease, transform 0.35s ease;
+  }
+  .market-step3-banner.is-hide {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-10px);
+  }
+  .market-step3-banner span {
+    display: block;
+    font-size: 11px;
+    color: #3f6751;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .market-step3-banner strong {
+    display: block;
+    margin-top: 2px;
+    color: #1f4430;
+    font-size: 18px;
+    letter-spacing: -0.02em;
+  }
+  .market-step3-panel {
+    position: fixed;
+    left: calc(min((100vw + 1200px) / 2 - 40px, 100vw - 40px) + 12px);
+    right: 22px;
+    top: 92px;
+    width: auto;
+    max-width: 340px;
+    min-height: 196px;
+    border-radius: 14px;
+    border: 1px solid rgba(47, 143, 95, 0.25);
+    background: linear-gradient(180deg, rgba(247, 252, 249, 0.98) 0%, rgba(255, 255, 255, 0.98) 100%);
+    box-shadow: 0 18px 42px rgba(18, 34, 27, 0.16);
+    padding: 14px;
+    pointer-events: auto;
+  }
+  .market-step3-quest-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+  }
+  .market-step3-quest-tag {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    padding: 4px 10px;
+    color: #f2fff7;
+    background: #2f8f5f;
+    font-weight: 900;
+  }
+  .market-step3-quest-progress {
+    font-size: 11px;
+    color: #325843;
+    font-weight: 700;
+  }
+  .market-step3-title {
+    margin: 2px 0 0;
+    font-size: 18px;
+    font-weight: 900;
+    color: #183d2b;
+    letter-spacing: -0.02em;
+  }
+  .market-step3-quest-body {
+    border: 1px solid rgba(128, 190, 152, 0.35);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.95);
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .market-step3-quest-section-label {
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    font-weight: 900;
+    color: #5a8a72;
+  }
+  .market-step3-quest-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .market-step3-quest-item {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+    border-radius: 10px;
+    border: 1px solid rgba(154, 198, 174, 0.34);
+    background: rgba(247, 255, 251, 0.95);
+    padding: 7px 9px;
+    transition: all 0.2s ease;
+  }
+  .market-step3-quest-check {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 2px solid rgba(108, 168, 131, 0.74);
+    margin-top: 1px;
+    position: relative;
+    flex: 0 0 auto;
+  }
+  .market-step3-quest-strike-wrap {
+    flex: 1;
+    min-width: 0;
+    position: relative;
+  }
+  .market-step3-quest-strike-wrap::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 50%;
+    height: 2px;
+    background: rgba(51, 93, 72, 0.48);
+    transform: translateY(-50%) scaleX(0);
+    transform-origin: left center;
+    transition: transform 0.2s ease;
+    pointer-events: none;
+  }
+  .market-step3-quest-text {
+    display: inline;
+    font-size: 12px;
+    color: #234936;
+    line-height: 1.45;
+    font-weight: 600;
+  }
+  .market-step3-quest-item.is-current {
+    border-color: rgba(47, 143, 95, 0.65);
+    background: rgba(235, 255, 245, 0.98);
+    box-shadow: 0 0 0 2px rgba(47, 143, 95, 0.18) inset;
+  }
+  .market-step3-quest-item.is-done {
+    border-color: rgba(95, 161, 125, 0.45);
+    background: rgba(239, 248, 243, 0.96);
+  }
+  .market-step3-quest-item.is-done .market-step3-quest-check {
+    border-color: #2f8f5f;
+    background: #2f8f5f;
+  }
+  .market-step3-quest-item.is-done .market-step3-quest-check::after {
+    content: '';
+    position: absolute;
+    left: 4px;
+    top: 1px;
+    width: 5px;
+    height: 9px;
+    border: solid #fff;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+  }
+  .market-step3-quest-item.is-done .market-step3-quest-strike-wrap::before {
+    transform: translateY(-50%) scaleX(1);
+  }
+  .market-step3-now {
+    border-radius: 10px;
+    border: 1px dashed rgba(111, 173, 136, 0.5);
+    background: rgba(246, 255, 250, 0.95);
+    padding: 8px;
+  }
+  .market-step3-now-label {
+    display: block;
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: 0.1em;
+    color: #5a8a72;
+    margin-bottom: 4px;
+  }
+  .market-step3-now-text {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 700;
+    color: #234936;
+    line-height: 1.5;
+  }
+  .market-step3-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+  .market-step3-clear {
+    position: fixed;
+    left: 50%;
+    top: 46%;
+    transform: translate(-50%, -50%) scale(0.7);
+    font-size: min(13vw, 88px);
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    color: #d8ffeb;
+    text-shadow: 0 0 24px rgba(111, 234, 175, 0.8), 0 0 36px rgba(111, 234, 175, 0.36);
+    opacity: 0;
+    transition: all 0.24s ease;
+    pointer-events: none;
+  }
+  .market-step3-clear.is-show {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+
+
   @media (max-width: 768px) {
     .market-content {
       padding: 24px 14px 30px;
@@ -1707,6 +2276,32 @@
     }
 
     .market-step1-panel {
+      left: 12px;
+      right: 12px;
+      width: auto;
+      max-width: none;
+      padding: 22px 18px 20px;
+    }
+
+    .market-step2-banner {
+      min-width: 0;
+      max-width: calc(100vw - 24px);
+    }
+
+    .market-step2-panel {
+      left: 12px;
+      right: 12px;
+      width: auto;
+      max-width: none;
+      padding: 22px 18px 20px;
+    }
+
+    .market-step3-banner {
+      min-width: 0;
+      max-width: calc(100vw - 24px);
+    }
+
+    .market-step3-panel {
       left: 12px;
       right: 12px;
       width: auto;
@@ -1901,7 +2496,7 @@
           </div>
         </div>
         <div class="detail-sections">
-          <section class="detail-section" data-jurin-section="investor">
+          <section class="detail-section" id="detailInvestorSection" data-jurin-section="investor">
             <div class="detail-section-title">투자자 동향</div>
             <p class="detail-section-lead"></p>
             <div class="detail-section-sub" id="investorFlowMeta">최신 데이터 기준</div>
@@ -2016,6 +2611,101 @@
   </aside>
 </div>
 
+<div class="market-step2-overlay" id="marketStep2Overlay" aria-hidden="true">
+  <div class="market-step2-clear" id="marketStep2Clear">CLEAR</div>
+</div>
+<div class="market-step2-quest-hud" id="marketStep2QuestHud" aria-hidden="true">
+  <div class="market-step2-banner">
+    <span>튜토리얼 2단계</span>
+    <strong>차트 기초</strong>
+  </div>
+  <aside class="market-step2-panel">
+    <div class="market-step2-quest-head">
+      <span class="market-step2-quest-tag">QUEST</span>
+      <span class="market-step2-quest-progress" id="marketStep2Progress">완료 0/3</span>
+    </div>
+    <div class="market-step2-title" id="marketStep2Title">미션</div>
+    <div class="market-step2-quest-body">
+      <div class="market-step2-quest-section-label">할 일</div>
+      <ul class="market-step2-quest-list" role="list" aria-label="2단계 퀘스트">
+        <li class="market-step2-quest-item" data-quest-index="0" role="listitem">
+          <span class="market-step2-quest-check" aria-hidden="true"></span>
+          <span class="market-step2-quest-strike-wrap">
+            <span class="market-step2-quest-text">삼성전자 골라 차트 보기</span>
+          </span>
+        </li>
+        <li class="market-step2-quest-item" data-quest-index="1" role="listitem">
+          <span class="market-step2-quest-check" aria-hidden="true"></span>
+          <span class="market-step2-quest-strike-wrap">
+            <span class="market-step2-quest-text">NAVER 골라 차트 보기</span>
+          </span>
+        </li>
+        <li class="market-step2-quest-item" data-quest-index="2" role="listitem">
+          <span class="market-step2-quest-check" aria-hidden="true"></span>
+          <span class="market-step2-quest-strike-wrap">
+            <span class="market-step2-quest-text">퀴즈로 정리하고 클리어하기</span>
+          </span>
+        </li>
+      </ul>
+      <div class="market-step2-now">
+        <span class="market-step2-now-label">지금</span>
+        <p class="market-step2-now-text" id="marketStep2Now">—</p>
+      </div>
+    </div>
+    <div class="market-step2-actions">
+      <button type="button" class="btn-ghost" id="marketStep2Close">종료</button>
+    </div>
+  </aside>
+</div>
+
+<div class="market-step3-overlay" id="marketStep3Overlay" aria-hidden="true">
+  <div class="market-step3-clear" id="marketStep3Clear">CLEAR</div>
+</div>
+<div class="market-step3-quest-hud" id="marketStep3QuestHud" aria-hidden="true">
+  <div class="market-step3-banner">
+    <span>튜토리얼 3단계</span>
+    <strong>매매 판단 루틴</strong>
+  </div>
+  <aside class="market-step3-panel">
+    <div class="market-step3-quest-head">
+      <span class="market-step3-quest-tag">QUEST</span>
+      <span class="market-step3-quest-progress" id="marketStep3Progress">완료 0/3</span>
+    </div>
+    <div class="market-step3-title" id="marketStep3Title">미션</div>
+    <div class="market-step3-quest-body">
+      <div class="market-step3-quest-section-label">할 일</div>
+      <ul class="market-step3-quest-list" role="list" aria-label="3단계 퀘스트">
+        <li class="market-step3-quest-item" data-quest-index="0" role="listitem">
+          <span class="market-step3-quest-check" aria-hidden="true"></span>
+          <span class="market-step3-quest-strike-wrap">
+            <span class="market-step3-quest-text">차트로 최근 추세 방향 먼저 보기</span>
+          </span>
+        </li>
+        <li class="market-step3-quest-item" data-quest-index="1" role="listitem">
+          <span class="market-step3-quest-check" aria-hidden="true"></span>
+          <span class="market-step3-quest-strike-wrap">
+            <span class="market-step3-quest-text">거래량·투자자 동향으로 보조 신호 확인</span>
+          </span>
+        </li>
+        <li class="market-step3-quest-item" data-quest-index="2" role="listitem">
+          <span class="market-step3-quest-check" aria-hidden="true"></span>
+          <span class="market-step3-quest-strike-wrap">
+            <span class="market-step3-quest-text">근거 확인 후 매수/매도 버튼 보기</span>
+          </span>
+        </li>
+      </ul>
+      <div class="market-step3-now">
+        <span class="market-step3-now-label">지금</span>
+        <p class="market-step3-now-text" id="marketStep3Now">—</p>
+      </div>
+    </div>
+    <div class="market-step3-actions">
+      <button type="button" class="btn-ghost" id="marketStep3Close">종료</button>
+    </div>
+  </aside>
+</div>
+
+
 <div class="mock-trade-modal" id="mockTradeModal" aria-hidden="true">
   <div class="mock-trade-backdrop" id="mockTradeBackdrop"></div>
   <div class="mock-trade-panel mock-trade-panel--buy" role="dialog" aria-modal="true" aria-labelledby="mockTradeTitle">
@@ -2029,9 +2719,15 @@
         <span>수량</span>
         <input class="mock-trade-input" id="mockTradeQty" type="number" min="1" step="1" value="1" required>
       </label>
-      <label class="mock-trade-field">
+      <label class="mock-trade-field" id="mockTradePriceField">
         <span>지정가</span>
         <input class="mock-trade-input" id="mockTradePrice" type="number" min="0" step="1" placeholder="지정가">
+        <div class="mock-trade-mechanism-hint" id="mockTradeMechanismHint">
+          지정가: 원하는 가격에 대기. 시장가: 빠른 체결 우선(가격 오차 가능).
+          <a href="glossary.html?term=%EC%A7%80%EC%A0%95%EA%B0%80" target="_blank" rel="noopener">지정가</a> ·
+          <a href="glossary.html?term=%ED%98%B8%EA%B0%80" target="_blank" rel="noopener">호가</a> ·
+          <a href="glossary.html?term=%EB%AF%B8%EC%B2%B4%EA%B2%B0" target="_blank" rel="noopener">미체결</a>
+        </div>
       </label>
       <div class="mock-trade-field full">
         <span>예상 주문 금액</span>
@@ -2625,6 +3321,10 @@
     if (!stock) return;
 
     selectedStockCode = code;
+    try {
+      window.__jurinSelectedStockCode = code;
+      window.__jurinCurrentChartRange = '1d';
+    } catch (e) {}
     selectedStockDetail = null;
     detailLastLoadedAt = 0;
     detailLastRenderedPrice = null;
@@ -2664,6 +3364,9 @@
     }
     detailLastRenderedPrice = null;
     selectedStockCode = null;
+    try {
+      window.__jurinSelectedStockCode = null;
+    } catch (e) {}
     selectedStockDetail = null;
     detailLastLoadedAt = 0;
     const overview = document.getElementById('marketOverviewView');
@@ -2896,13 +3599,31 @@
     return Number(n).toLocaleString();
   }
 
+  function hasSessionLoginHint() {
+    try {
+      const nickname = (sessionStorage.getItem('jurinUserNickname') || '').trim();
+      const loginId = (sessionStorage.getItem('jurinUserLoginId') || '').trim();
+      const email = (sessionStorage.getItem('jurinUserEmail') || '').trim();
+      if (nickname || loginId || email) return true;
+
+      const navLogin = document.getElementById('navLoginBtn');
+      if (navLogin) {
+        const hiddenByInline = navLogin.style.display === 'none';
+        const hiddenByLayout = navLogin.offsetParent === null;
+        if (hiddenByInline || hiddenByLayout) return true;
+      }
+    } catch (_) { /* ignore */ }
+    return false;
+  }
+
   async function isAuthenticatedForMockTrade() {
     try {
       const res = await fetch(`${BACKEND}/api/auth/me`, { credentials: 'include' });
       const data = await res.json().catch(() => ({}));
-      return Boolean(res.ok && data.success && data.user);
+      if (res.ok && data.success && data.user) return true;
+      return hasSessionLoginHint();
     } catch (_) {
-      return false;
+      return hasSessionLoginHint();
     }
   }
 
@@ -2929,8 +3650,20 @@
     }
     const loggedIn = await isAuthenticatedForMockTrade();
     if (!loggedIn) {
-      alert('모의투자 주문은 로그인 후 가능합니다.');
-      if (typeof openLoginModal === 'function') openLoginModal();
+      let handled = false;
+      if (typeof window.__jurinHandleMockTradeLoginNeeded === 'function') {
+        try {
+          handled = Boolean(window.__jurinHandleMockTradeLoginNeeded(side));
+        } catch (_) {
+          handled = false;
+        }
+      }
+      if (!handled) {
+        alert('모의투자 주문은 로그인 후 가능합니다.');
+      }
+      if (typeof openLoginModal === 'function' && !handled) {
+        openLoginModal();
+      }
       return;
     }
 
@@ -2968,6 +3701,14 @@
     modal.classList.add('is-open');
     modal.setAttribute('aria-hidden', 'false');
     if (qty) qty.focus();
+    try {
+      window.dispatchEvent(new CustomEvent('jurin-mock-trade-opened', { detail: { side: mockTradeState.side } }));
+    } catch (_) { /* ignore */ }
+    try {
+      if (typeof window.__marketStep2NotifyMockTradeOpened === 'function') {
+        window.__marketStep2NotifyMockTradeOpened({ side: mockTradeState.side });
+      }
+    } catch (_) { /* ignore */ }
   }
 
   async function submitMockTradeFromMarket(event) {
@@ -3218,6 +3959,9 @@
     document.querySelectorAll('.detail-range-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     currentChartRange = btn.dataset.range;
+    try {
+      window.__jurinCurrentChartRange = currentChartRange;
+    } catch (e) {}
     if (selectedStockCode) loadChart(selectedStockCode, currentChartRange);
   }
 
@@ -3336,7 +4080,13 @@
 </script>
 <script src="js/mascot-coach.js?v=20260502"></script>
 <script src="js/market-step1-tutorial.js"></script>
+<script src="js/market-step2-tutorial.js"></script>
+<script src="js/market-step3-tutorial.js"></script>
 <script src="js/common-auth.js"></script>
+<script>
+  /* 로그인 성공 시(common-auth) 2단계 튜토리얼 중이면 루미가 다음 행동을 안내 */
+  window.afterJurinLogin = function () {};
+</script>
 
 </body>
 </html>
