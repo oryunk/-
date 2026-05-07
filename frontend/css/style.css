@@ -37,6 +37,32 @@ body {
   overflow-x: hidden;
 }
 
+.important-line {
+  display: inline;
+  background-repeat: no-repeat;
+  background-size: 100% 0.82em;
+  background-position: 0 92%;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  padding: 0 2px;
+}
+
+.important-line.brush-1 {
+  background-image: linear-gradient(transparent 52%, rgba(157, 222, 189, 0.72) 52%);
+}
+
+.important-line.brush-2 {
+  background-image: linear-gradient(transparent 52%, rgba(156, 201, 229, 0.72) 52%);
+}
+
+.important-line.brush-3 {
+  background-image: linear-gradient(transparent 52%, rgba(196, 174, 220, 0.72) 52%);
+}
+
+.important-line.brush-4 {
+  background-image: linear-gradient(transparent 52%, rgba(236, 187, 182, 0.72) 52%);
+}
+
 /* NAVBAR */
 nav {
   position: fixed;
@@ -592,6 +618,34 @@ body.market-step1-detail-term-mode .stock-detail-view .detail-grid .detail-card.
   opacity: 1;
 }
 
+/* 용어 단계: 강조 카드 안 라벨이 gray-400이라 딤 위에서 연해 보임 → 대비 보강 */
+body.market-step1-detail-term-mode .stock-detail-view .detail-grid .detail-card.tutorial-callout-target .detail-label,
+body.market-step2-detail-term-mode .stock-detail-view .detail-grid .detail-card.tutorial-callout-target .detail-label {
+  color: #174a36;
+  font-weight: 800;
+  opacity: 1;
+}
+
+body.market-step1-detail-term-mode .stock-detail-view .detail-grid .detail-card.tutorial-callout-target .detail-value,
+body.market-step2-detail-term-mode .stock-detail-view .detail-grid .detail-card.tutorial-callout-target .detail-value {
+  font-weight: 800;
+}
+
+body.market-step1-detail-term-mode .stock-detail-view .detail-grid .detail-card.tutorial-callout-target .detail-value.quote-flat,
+body.market-step2-detail-term-mode .stock-detail-view .detail-grid .detail-card.tutorial-callout-target .detail-value.quote-flat {
+  color: #0f1f16;
+}
+
+body.market-step1-detail-term-mode .stock-detail-view .detail-grid .detail-card.tutorial-callout-target .detail-value.quote-up,
+body.market-step2-detail-term-mode .stock-detail-view .detail-grid .detail-card.tutorial-callout-target .detail-value.quote-up {
+  color: #b91c1c;
+}
+
+body.market-step1-detail-term-mode .stock-detail-view .detail-grid .detail-card.tutorial-callout-target .detail-value.quote-down,
+body.market-step2-detail-term-mode .stock-detail-view .detail-grid .detail-card.tutorial-callout-target .detail-value.quote-down {
+  color: #1d4ed8;
+}
+
 /* 전체 그리드 소개: 카드별 딤 없음(그리드 전체에만 콜아웃) */
 body.market-step1-detail-overview .stock-detail-view .detail-grid .detail-card {
   opacity: 1;
@@ -820,20 +874,389 @@ body.mascot-coach-spotlight-dim::before {
   100% { box-shadow: 0 0 0 0 rgba(47, 143, 95, 0); }
 }
 
+/* 공용 튜토리얼 이펙트 레이어 (step1~5 공통 재사용) */
+body.tutorial-fx-active:not(.tutorial-fx-clear) .market-step1-overlay.is-dim,
+body.tutorial-fx-active:not(.tutorial-fx-clear) .market-step2-overlay.is-dim,
+body.tutorial-fx-active:not(.tutorial-fx-clear) .market-step3-overlay.is-dim,
+body.tutorial-fx-active:not(.tutorial-fx-clear) .market-step4-overlay.is-dim,
+body.tutorial-fx-active:not(.tutorial-fx-clear) .market-step5-overlay.is-dim {
+  z-index: 400;
+  background: rgba(4, 8, 6, 0.68);
+  pointer-events: none;
+}
+
+body.tutorial-fx-active .mascot-coach.is-open:not(.mascot-coach--spotlight) {
+  z-index: 600;
+}
+
+body.tutorial-fx-active .mascot-coach-dock {
+  z-index: 590;
+}
+
+body.tutorial-fx-active.tutorial-fx-clear .mascot-coach.is-open {
+  z-index: 600;
+}
+
+body.tutorial-fx-active .tutorial-callout-target,
+body.market-step4-active .tutorial-callout-target,
+body.market-step5-active .tutorial-callout-target {
+  position: relative;
+  z-index: 500;
+  border-radius: 8px;
+  background:
+    radial-gradient(ellipse 92% 88% at 50% 38%, rgba(246, 252, 248, 0.99) 0%, #ffffff 58%);
+  color: #12442c;
+  box-shadow:
+    0 0 0 2px rgba(47, 143, 95, 0.9),
+    0 0 18px rgba(47, 143, 95, 0.5),
+    0 0 42px rgba(246, 252, 248, 0.75);
+  animation: tutorialTargetPulse 1.1s infinite;
+}
+
 body.tutorial-step1-active nav {
   z-index: 390;
 }
 
-/* 루미 가이드: 시장 탭·시장 페이지 등 동일한 “눌러 주세요” 강조 */
+/* 루미 가이드·시장 1·2단계: 홈 「시장 탭」 안내와 같은 조명(방사 그라데이션 + 링) — 글자 대비는 아래 후손 규칙 */
 body.tutorial-step1-active .tutorial-callout-target,
-body.market-step1-active .tutorial-callout-target {
+body.market-step1-active .tutorial-callout-target,
+body.market-step2-active .tutorial-callout-target,
+body.market-step3-active .tutorial-callout-target {
+  /* 1단계 홈 가이드 포함: 공용 조명 톤 유지 */
   position: relative;
   z-index: 500;
   border-radius: 8px;
-  background: #ffffff;
+  background:
+    radial-gradient(ellipse 92% 88% at 50% 38%, rgba(246, 252, 248, 0.99) 0%, #ffffff 58%);
   color: #12442c;
-  box-shadow: 0 0 0 2px rgba(47, 143, 95, 0.9), 0 0 18px rgba(47, 143, 95, 0.5);
+  box-shadow:
+    0 0 0 2px rgba(47, 143, 95, 0.9),
+    0 0 18px rgba(47, 143, 95, 0.5),
+    0 0 42px rgba(246, 252, 248, 0.75);
   animation: tutorialTargetPulse 1.1s infinite;
+}
+
+/* 시장 2단계: 차트 기간 버튼 — 선택(.active)과 겹쳐도 튜토 링이 또렷히 보이도록 */
+body.market-step2-active #stockDetailView .detail-range-btn.tutorial-callout-target {
+  position: relative;
+  z-index: 501;
+  outline: 3px solid rgba(255, 255, 255, 0.95);
+  outline-offset: 2px;
+  box-shadow:
+    0 0 0 2px rgba(47, 143, 95, 1),
+    0 0 0 6px rgba(255, 255, 255, 0.85),
+    0 0 20px rgba(47, 143, 95, 0.5),
+    0 0 40px rgba(246, 252, 248, 0.7);
+  animation: tutorialTargetPulse 1.1s infinite;
+}
+
+body.market-step2-active #stockDetailView .detail-range-btn.tutorial-callout-target.active {
+  background: var(--accent, #2f8f5f);
+  border-color: var(--accent, #2f8f5f);
+  color: #ffffff;
+}
+
+/* 시장 1·2단계: 강조 박스 안 자식이 gray-400·gray-200 등이라 글씨만 연해 보이는 경우 — 라벨·보조문 대비 보강 */
+body.market-step1-active .indices-grid.tutorial-callout-target .index-sub,
+body.market-step2-active .indices-grid.tutorial-callout-target .index-sub {
+  color: #2d5a45;
+  font-weight: 600;
+}
+
+body.market-step1-active .indices-grid.tutorial-callout-target .indices-live-badge,
+body.market-step2-active .indices-grid.tutorial-callout-target .indices-live-badge {
+  color: #2d5a45;
+  font-weight: 600;
+}
+
+body.market-step1-active .detail-grid.tutorial-callout-target .detail-label,
+body.market-step2-active .detail-grid.tutorial-callout-target .detail-label {
+  color: #174a36;
+  font-weight: 800;
+  opacity: 1;
+}
+
+body.market-step1-active .detail-grid.tutorial-callout-target .detail-value,
+body.market-step2-active .detail-grid.tutorial-callout-target .detail-value {
+  font-weight: 800;
+}
+
+body.market-step1-active .detail-grid.tutorial-callout-target .detail-value.quote-flat,
+body.market-step2-active .detail-grid.tutorial-callout-target .detail-value.quote-flat {
+  color: #0f1f16;
+}
+
+body.market-step1-active .detail-grid.tutorial-callout-target .detail-card-hint,
+body.market-step2-active .detail-grid.tutorial-callout-target .detail-card-hint {
+  color: #2d5a45;
+  font-weight: 600;
+}
+
+body.market-step1-active .filter-btn.tutorial-callout-target,
+body.market-step2-active .filter-btn.tutorial-callout-target {
+  color: #0f291c;
+  font-weight: 700;
+}
+
+body.market-step1-active .filter-btn.tutorial-callout-target.active,
+body.market-step2-active .filter-btn.tutorial-callout-target.active {
+  color: #fff;
+}
+
+body.market-step1-active .detail-section.tutorial-callout-target .detail-section-sub,
+body.market-step2-active .detail-section.tutorial-callout-target .detail-section-sub {
+  color: #2d5a45;
+  font-weight: 700;
+}
+
+body.market-step1-active .detail-section.tutorial-callout-target .detail-section-lead,
+body.market-step2-active .detail-section.tutorial-callout-target .detail-section-lead {
+  color: #1a3d2e;
+  font-weight: 600;
+}
+
+body.market-step1-active .detail-section.tutorial-callout-target .detail-news-meta,
+body.market-step2-active .detail-section.tutorial-callout-target .detail-news-meta {
+  color: #355848;
+  font-weight: 600;
+}
+
+body.market-step1-active .detail-section.tutorial-callout-target .investor-flow-label,
+body.market-step2-active .detail-section.tutorial-callout-target .investor-flow-label {
+  color: #0f291c;
+  font-weight: 800;
+}
+
+body.market-step1-active .detail-section.tutorial-callout-target .investor-flow-value,
+body.market-step2-active .detail-section.tutorial-callout-target .investor-flow-value {
+  color: #12442c;
+  font-weight: 700;
+}
+
+body.market-step1-active .detail-section.tutorial-callout-target .empty-state,
+body.market-step2-active .detail-section.tutorial-callout-target .empty-state {
+  color: #2d5a45;
+  font-weight: 600;
+}
+
+/* 상세 매수/매도: 튜토리얼 강조 시 원래 버튼 색 유지(흰 배경 덮어쓰기 방지) */
+body.market-step1-active .stock-detail-view .detail-buy.tutorial-callout-target,
+body.market-step2-active .stock-detail-view .detail-buy.tutorial-callout-target {
+  background: linear-gradient(135deg, #1f9fff, #0d7ee0);
+  color: #fff;
+  animation: tutorialDetailCtaPulse 1.15s ease-in-out infinite;
+  box-shadow:
+    0 0 0 2px rgba(255, 255, 255, 0.95),
+    0 0 0 5px rgba(47, 143, 95, 0.82),
+    0 8px 22px rgba(13, 126, 224, 0.4);
+}
+
+body.market-step1-active .stock-detail-view .detail-sell.tutorial-callout-target,
+body.market-step2-active .stock-detail-view .detail-sell.tutorial-callout-target {
+  background: linear-gradient(135deg, #ff5f64, #ff8157);
+  color: #fff;
+  animation: tutorialDetailCtaPulseSell 1.15s ease-in-out infinite;
+  box-shadow:
+    0 0 0 2px rgba(255, 255, 255, 0.95),
+    0 0 0 5px rgba(47, 143, 95, 0.82),
+    0 8px 22px rgba(255, 95, 100, 0.35);
+}
+
+@keyframes tutorialDetailCtaPulse {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 2px rgba(255, 255, 255, 0.95),
+      0 0 0 5px rgba(47, 143, 95, 0.82),
+      0 8px 22px rgba(13, 126, 224, 0.4);
+  }
+  50% {
+    box-shadow:
+      0 0 0 2px rgba(255, 255, 255, 1),
+      0 0 0 5px rgba(47, 143, 95, 0.45),
+      0 0 0 14px rgba(47, 143, 95, 0),
+      0 10px 28px rgba(13, 126, 224, 0.5);
+  }
+}
+
+@keyframes tutorialDetailCtaPulseSell {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 2px rgba(255, 255, 255, 0.95),
+      0 0 0 5px rgba(47, 143, 95, 0.82),
+      0 8px 22px rgba(255, 95, 100, 0.35);
+  }
+  50% {
+    box-shadow:
+      0 0 0 2px rgba(255, 255, 255, 1),
+      0 0 0 5px rgba(47, 143, 95, 0.45),
+      0 0 0 14px rgba(47, 143, 95, 0),
+      0 10px 28px rgba(255, 95, 100, 0.45);
+  }
+}
+
+/* 시장 2단계: 본문 위 전체 딤(강조 카드 z-index 500·루미 700 아래) */
+body.market-step2-active:not(.market-step2-clear-phase) .market-step2-overlay.is-dim {
+  z-index: 400;
+  background: rgba(4, 8, 6, 0.68);
+  pointer-events: none;
+}
+
+/* 시장 2단계 튜토리얼: 상세 구간 오버레이 스택 */
+body.market-step2-detail-spotlight:not(.market-step2-clear-phase) .market-step2-overlay {
+  z-index: 400;
+}
+
+/* 시장 2단계 목록 강조도 공용 tutorial-fx 규칙만 사용 */
+
+body.market-step2-detail-term-mode .stock-detail-view .detail-grid .detail-card:not(.tutorial-callout-target) {
+  opacity: 0.38;
+  transition: opacity 0.2s ease;
+}
+
+body.market-step2-detail-term-mode .stock-detail-view .detail-grid .detail-card.tutorial-callout-target {
+  position: relative;
+  z-index: 500;
+  opacity: 1;
+}
+
+body.market-step2-detail-overview .stock-detail-view .detail-grid .detail-card {
+  opacity: 1;
+}
+
+body.market-step2-active .mascot-coach.is-open:not(.mascot-coach--spotlight) {
+  z-index: 600;
+}
+
+body.market-step2-active .mascot-coach-dock {
+  z-index: 590;
+}
+
+body.market-step2-clear-phase .mascot-coach.is-open {
+  z-index: 600;
+}
+
+/* 2단계 CLEAR 동안 비필수 상위 UI는 모두 딤 아래로 봉인 */
+body.market-step2-clear-phase .sector-toast,
+body.market-step2-clear-phase .mock-trade-modal,
+body.market-step2-clear-phase .login-modal {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+/* clear-phase에서 오버레이/clear 텍스트를 강제로 고정(레이어 충돌/깜빡임 방지) */
+body.market-step2-clear-phase #marketStep2Overlay {
+  display: block !important;
+  opacity: 1 !important;
+  z-index: 1200 !important;
+  background: rgba(2, 6, 4, 0.9) !important;
+}
+
+body.market-step2-clear-phase #marketStep2Clear {
+  z-index: 1210 !important;
+}
+
+body.market-step2-clear-phase #marketStep2QuestHud,
+body.market-step2-clear-phase .mascot-coach-dock {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+body.market-step2-active .mock-trade-modal.is-open {
+  z-index: 680;
+}
+
+/* 2단계 튜토리얼 중: 모달 백드롭을 오버레이 딤과 비슷한 톤으로(모달이 튜토리얼 딤을 덮어 밝아 보이는 현상 완화) */
+body.market-step2-active .mock-trade-modal.is-open .mock-trade-backdrop {
+  background: rgba(4, 8, 6, 0.72);
+}
+
+/* 2단계 튜토리얼 중 로그인 모달도 같은 레이어 체계로 정렬 */
+body.market-step2-active .login-modal.is-open {
+  z-index: 690;
+}
+
+body.market-step2-active .login-modal.is-open .login-modal-backdrop {
+  background: rgba(4, 8, 6, 0.72);
+}
+
+body.market-step2-active .mock-trade-panel .tutorial-callout-target {
+  position: relative;
+  z-index: 5;
+}
+
+/* 시장 2단계 핵심 클릭 유도(삼성/NAVER/뒤로가기): 행/버튼 강조를 1·3단계 체감으로 보강 */
+body.market-step2-action-spotlight #stocksTableBody tr.stock-row.tutorial-callout-target td {
+  position: relative;
+  z-index: 501;
+  background:
+    radial-gradient(ellipse 88% 84% at 50% 40%, rgba(246, 252, 248, 0.99) 0%, #ffffff 58%);
+  box-shadow:
+    inset 0 0 0 2px rgba(47, 143, 95, 0.92),
+    0 0 0 2px rgba(255, 255, 255, 0.92),
+    0 0 18px rgba(47, 143, 95, 0.46),
+    0 0 36px rgba(246, 252, 248, 0.62);
+  animation: tutorialTargetPulse 1.05s infinite;
+}
+
+body.market-step2-action-spotlight #stockDetailView .btn-back.tutorial-callout-target {
+  position: relative;
+  z-index: 501;
+  outline: 3px solid rgba(255, 255, 255, 0.96);
+  outline-offset: 2px;
+  box-shadow:
+    0 0 0 2px rgba(47, 143, 95, 0.95),
+    0 0 0 6px rgba(255, 255, 255, 0.85),
+    0 0 20px rgba(47, 143, 95, 0.5),
+    0 0 40px rgba(246, 252, 248, 0.68);
+  animation: tutorialTargetPulse 1.05s infinite;
+}
+
+/* 시장 3단계: 본문 위 전체 딤(강조 카드 z-index 500·루미 700 아래) */
+body.market-step3-active:not(.market-step3-clear-phase) .market-step3-overlay.is-dim {}
+
+/* 시장 3단계 튜토리얼: 상세 구간 오버레이 스택 */
+body.market-step3-detail-spotlight:not(.market-step3-clear-phase) .market-step3-overlay {
+  z-index: 400;
+}
+
+body.market-step3-active .mascot-coach.is-open:not(.mascot-coach--spotlight) {}
+
+body.market-step3-active .mascot-coach-dock {}
+
+body.market-step3-clear-phase .mascot-coach.is-open {
+  z-index: 600;
+}
+
+body.market-step3-active .detail-grid.tutorial-callout-target .detail-label {
+  color: #174a36;
+  font-weight: 800;
+}
+
+body.market-step3-active .detail-grid.tutorial-callout-target .detail-value {
+  font-weight: 800;
+}
+
+/* 3단계 삼성전자 유도: 화면 딤 없이 초록 강조만 지속 */
+body.market-step3-pick-lock #row-005930 {
+  position: relative;
+  z-index: 501;
+}
+
+body.market-step3-pick-lock #row-005930 td {
+  position: relative;
+  z-index: 501;
+  background:
+    radial-gradient(ellipse 88% 84% at 50% 40%, rgba(246, 252, 248, 0.99) 0%, #ffffff 58%);
+  box-shadow:
+    inset 0 0 0 2px rgba(47, 143, 95, 0.92),
+    0 0 0 2px rgba(255, 255, 255, 0.92),
+    0 0 18px rgba(47, 143, 95, 0.46),
+    0 0 36px rgba(246, 252, 248, 0.62);
+  animation: tutorialTargetPulse 1.05s infinite;
 }
 
 /* 시장 탭(홈)만 클릭 아이콘 — 시장 페이지 상승·하락 강조에는 미표시 */
@@ -842,6 +1265,7 @@ body.market-step1-clear-phase .mascot-coach.is-open {
   z-index: 600;
 }
 
+/* 1단계 시작(시장 탭 클릭 유도) 전용 클릭 아이콘 */
 body.tutorial-step1-active .tutorial-callout-target::after {
   content: '';
   position: absolute;
