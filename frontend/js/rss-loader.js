@@ -224,7 +224,107 @@ function cleanGptProse(raw) {
     const idx = t.indexOf(marker);
     if (idx !== -1) t = t.slice(0, idx).trim();
   }
+  // 마크다운 강조 기호 제거(내용은 유지)
+  for (let i = 0; i < 3; i++) {
+    const before = t;
+    t = t
+      .replace(/\*\*([\s\S]*?)\*\*/g, '$1')
+      .replace(/__([\s\S]*?)__/g, '$1')
+      .replace(/\*([^*\n]+)\*/g, '$1')
+      .replace(/_([^_\n]+)_/g, '$1');
+    if (before === t) break;
+  }
+  t = t.replace(/\*+/g, '');
   return t;
+}
+
+function renderImportantSummaryHtml(raw) {
+  const rawText = String(raw || '');
+  const text = cleanGptProse(rawText);
+  if (!text) return '';
+  const brushClass = ['brush-1', 'brush-2', 'brush-3', 'brush-4'];
+  const keywordPattern = /(핵심|중요|위험|주의|전망|변동성|수혜|악재|호재|상승|하락|추세|매수|매도|보유|금리|물가|환율|실적|수급|%|원)/;
+  const sentenceRegex = /[^.!?\n]+(?:[.!?…]+|$)/g;
+  const markerRegex = /"""([\s\S]*?)"""|'''([\s\S]*?)'''/g;
+
+  function renderScoredFallback(cleanedText) {
+    const lines = cleanedText.split('\n');
+    const sentenceGrid = lines.map((line) =>
+      (line.match(sentenceRegex) || [line]).map((s) => s.trim()).filter(Boolean)
+    );
+    const candidates = [];
+
+    sentenceGrid.forEach((sentences, lineIdx) => {
+      sentences.forEach((sentence, sentenceIdx) => {
+        let score = 0;
+        if (keywordPattern.test(sentence)) score += 4;
+        if (/\d/.test(sentence)) score += 1;
+        if (sentence.length >= 24 && sentence.length <= 90) score += 2;
+        if (/(핵심|요약|중요|주의|관건|리스크|기회)/.test(sentence)) score += 1;
+        candidates.push({ lineIdx, sentenceIdx, score, rand: Math.random() });
+      });
+    });
+
+    const totalSentences = candidates.length;
+    if (totalSentences === 0) return '';
+
+    // 자동 강조 과다 방지: 전역 기준 최대 2문장 + 비율 상한
+    const ratioCap = Math.floor(totalSentences * 0.18);
+    const pickCount = Math.min(2, Math.max(1, ratioCap || 1));
+    const minScore = 5;
+
+    const ranked = candidates
+      .filter((c) => c.score >= minScore)
+      .sort((a, b) => (b.score - a.score) || (a.rand - b.rand));
+    const picked = ranked.slice(0, pickCount);
+    const selected = new Set(picked.map((c) => `${c.lineIdx}:${c.sentenceIdx}`));
+
+    if (selected.size === 0) {
+      return lines.map((line) => escapeHtml(line)).join('<br>');
+    }
+
+    return sentenceGrid
+      .map((sentences, lineIdx) => sentences.map((sentence, sentenceIdx) => {
+        const safe = escapeHtml(sentence);
+        if (!selected.has(`${lineIdx}:${sentenceIdx}`)) return safe;
+        const cls = brushClass[Math.floor(Math.random() * brushClass.length)];
+        return `<span class="important-line ${cls}">${safe}</span>`;
+      }).join(' '))
+      .join('<br>');
+  }
+
+  // 1) 마커("""..."""/'''...''')가 있을 때: 해당 구간만 강조
+  const tokenHtmlMap = [];
+  let markerCount = 0;
+  const tokenizedText = rawText.replace(markerRegex, (_, d1, d2) => {
+    const inner = String(d1 || d2 || '').trim();
+    if (!inner) return '';
+    const token = `__HIGHLIGHT_TOKEN_${tokenHtmlMap.length}__`;
+    const safe = escapeHtml(inner);
+    const cls = brushClass[Math.floor(Math.random() * brushClass.length)];
+    tokenHtmlMap.push({ token, html: `<span class="important-line ${cls}">${safe}</span>` });
+    markerCount += 1;
+    return token;
+  });
+
+  if (markerCount > 0) {
+    const cleanedWithMarkers = cleanGptProse(tokenizedText);
+    if (!cleanedWithMarkers) return '';
+
+    return cleanedWithMarkers
+      .split('\n')
+      .map((line) => {
+        let safeLine = escapeHtml(line);
+        tokenHtmlMap.forEach(({ token, html }) => {
+          safeLine = safeLine.split(token).join(html);
+        });
+        return safeLine;
+      })
+      .join('<br>');
+  }
+
+  // 2) 마커가 없을 때: 기존 점수 기반 자동 강조 폴백
+  return renderScoredFallback(text);
 }
 
 function formatNewsDateLabel(pd) {
@@ -317,7 +417,7 @@ function openNewsReader(item) {
   digestEl.classList.remove('is-muted');
 
   if (item.reader_digest) {
-    digestEl.textContent = cleanGptProse(item.reader_digest);
+    digestEl.innerHTML = renderImportantSummaryHtml(item.reader_digest);
     return;
   }
 
@@ -332,7 +432,7 @@ function openNewsReader(item) {
           setNewsReaderHeroImage(img, art.title || item.title || '', item.source || '');
         }
         if (data && data.success && art && art.reader_digest) {
-          digestEl.textContent = cleanGptProse(art.reader_digest);
+          digestEl.innerHTML = renderImportantSummaryHtml(art.reader_digest);
           return;
         }
         if (art && art.digest_error) {

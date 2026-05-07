@@ -5,6 +5,100 @@
   var backHandler = null;
   var dismissHandler = null;
   var lastPayload = null;
+
+  /** 도크 재오픈 시 여러 모듈이 덮어쓰지 않도록 우선순위 체인 (숫자 클수록 먼저 시도) */
+  var dockFilterEntries = [];
+  var DOCK_TUTORIAL_MASK_KEY = 'jurinGuideTutorialBits';
+
+  function registerDockFilter(id, fn, priority) {
+    if (!id || typeof fn !== 'function') return;
+    var p = typeof priority === 'number' ? priority : 0;
+    unregisterDockFilter(id);
+    dockFilterEntries.push({ id: String(id), fn: fn, priority: p });
+  }
+
+  function unregisterDockFilter(id) {
+    if (!id) return;
+    var s = String(id);
+    dockFilterEntries = dockFilterEntries.filter(function (e) {
+      return e.id !== s;
+    });
+  }
+
+  function tryDockFiltersChained(lastPl, fromDock) {
+    if (!fromDock) return null;
+    var list = dockFilterEntries.slice().sort(function (a, b) {
+      return b.priority - a.priority;
+    });
+    for (var i = 0; i < list.length; i++) {
+      try {
+        var r = list[i].fn(lastPl, fromDock);
+        if (r != null) return r;
+      } catch (e) { /* ignore */ }
+    }
+    return null;
+  }
+
+  function registerDefaultMarketDockCompletion() {
+    registerDockFilter(
+      'jurin-market-tutorial-completion',
+      function (lastPl, fromDock) {
+        if (!fromDock) return null;
+        if (
+          document.body.classList.contains('market-step1-active') ||
+          document.body.classList.contains('market-step2-active') ||
+          document.body.classList.contains('market-step3-active')
+        ) {
+          return null;
+        }
+        var m = 0;
+        try {
+          m = parseInt(localStorage.getItem(DOCK_TUTORIAL_MASK_KEY), 10);
+          if (isNaN(m) || m < 0) m = 0;
+        } catch (e) {
+          m = 0;
+        }
+        if ((m & (1 << 2)) !== 0) {
+          return {
+            mood: 'wink',
+            title: '루미',
+            text: '3단계 종목 가치 루틴까지 연습했구나! 가이드로 돌아갈까?',
+            confirmLabel: '돌아가기',
+            dismissLabel: '취소',
+            onConfirm: function () {
+              window.location.href = 'guide.html';
+            },
+          };
+        }
+        if ((m & (1 << 1)) !== 0) {
+          return {
+            mood: 'wink',
+            title: '루미',
+            text: '2단계 차트 기초까지 해봤구나! 가이드로 돌아갈까?',
+            confirmLabel: '돌아가기',
+            dismissLabel: '취소',
+            onConfirm: function () {
+              window.location.href = 'guide.html';
+            },
+          };
+        }
+        if ((m & 1) !== 0) {
+          return {
+            mood: 'wink',
+            title: '루미',
+            text: '고생했어 이제 돌아갈까?',
+            confirmLabel: '돌아가기',
+            dismissLabel: '취소',
+            onConfirm: function () {
+              window.location.href = 'guide.html';
+            },
+          };
+        }
+        return null;
+      },
+      0
+    );
+  }
   var MASCOT_ASSET_VERSION = '20260430q';
   var dockImage = 'assets/mascot/mascot-dock.png?v=' + MASCOT_ASSET_VERSION;
 
@@ -138,9 +232,8 @@
   }
 
   function tryDockReopenPayload() {
-    if (typeof window.__mascotDockReopenFilter !== 'function') return null;
     try {
-      return window.__mascotDockReopenFilter(lastPayload, true);
+      return tryDockFiltersChained(lastPayload, true);
     } catch (e) {
       return null;
     }
@@ -209,7 +302,18 @@
       }[mood];
     }
     if (titleEl) titleEl.textContent = title;
-    if (textEl) typewrite(textEl, text);
+    if (textEl) {
+      if (payload && payload.instantText) {
+        typingToken += 1;
+        if (typingTimer) {
+          clearTimeout(typingTimer);
+          typingTimer = null;
+        }
+        textEl.textContent = text;
+      } else {
+        typewrite(textEl, text);
+      }
+    }
     lastPayload = payload ? Object.assign({}, payload) : null;
     dismissHandler = (payload && typeof payload.onDismiss === 'function') ? payload.onDismiss : null;
     confirmHandler = (payload && typeof payload.onConfirm === 'function') ? payload.onConfirm : null;
@@ -257,6 +361,8 @@
     if (dock) dock.style.display = 'none';
   }
 
+  registerDefaultMarketDockCompletion();
+
   window.MascotCoach = {
     show: show,
     reopen: function () {
@@ -269,5 +375,7 @@
     },
     close: innerCloseCoach,
     hideDock: hideDock,
+    registerDockFilter: registerDockFilter,
+    unregisterDockFilter: unregisterDockFilter,
   };
 })();
