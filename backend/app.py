@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, session, send_from_directory, abort
+from flask import Flask, request, jsonify, session, send_from_directory, abort, current_app
 import yfinance as yf
 import pandas as pd
 from datetime import date, datetime, timedelta
@@ -6,6 +6,7 @@ import os
 import time
 import json
 import re
+from urllib.parse import quote
 import threading
 import requests
 import logging
@@ -2067,6 +2068,118 @@ def _build_chart_payload_from_hist(hist: pd.DataFrame, intraday: bool):
     }
 
 
+def _compute_daily_ma_aligned_to_candles(cleaned: list, daily: list[dict]) -> tuple[list, list] | None:
+    """일봉 종가 SMA(5)·SMA(20)을 각 기간봉의 기준일(해당 일까지의 일봉)에 맞춤. cleaned.time 은 YYYY-MM-DD."""
+    if not cleaned or not daily or len(daily) < 20:
+        return None
+    dates: list = []
+    closes: list[float] = []
+    for r in daily:
+        ds = r.get('date') or r.get('time')
+        if not isinstance(ds, str) or len(ds) < 10:
+            continue
+        try:
+            dates.append(datetime.strptime(ds[:10], '%Y-%m-%d').date())
+        except ValueError:
+            continue
+        try:
+            closes.append(float(r['close']))
+        except (TypeError, ValueError):
+            continue
+    if len(dates) < 20 or len(dates) != len(closes):
+        return None
+    ma5: list = []
+    ma20: list = []
+    j = 0
+    n = len(dates)
+    for c in cleaned:
+        t = c.get('time')
+        if not isinstance(t, str) or len(t) < 10:
+            continue
+        try:
+            ct = datetime.strptime(t[:10], '%Y-%m-%d').date()
+        except ValueError:
+            continue
+        while j < n and dates[j] <= ct:
+            j += 1
+        if j >= 5:
+            ma5.append({'time': t, 'value': round(sum(closes[j - 5:j]) / 5, 2)})
+        if j >= 20:
+            ma20.append({'time': t, 'value': round(sum(closes[j - 20:j]) / 20, 2)})
+    if not ma5 and not ma20:
+        return None
+    return ma5, ma20
+
+
+def _daily_close_list_for_ma(code: str, token: str | None) -> list[dict] | None:
+    """차트 이평 정합용 일봉 종가 (오름차순). DB → KIS D."""
+    stock_id = _chart_resolve_stock_id(code)
+    lim = max(_CHART_TARGET_BARS.get('D', 500), 900)
+    if stock_id:
+        rows = _db_load_daily_candles(stock_id, lim)
+        if rows and len(rows) >= 20:
+            return [{'date': r['date'], 'close': float(r['close'])} for r in rows]
+    if token:
+        dr = _kis_fetch_daily_chart(token, code, 'D')
+        if dr and len(dr) >= 20:
+            return [{'date': r['date'], 'close': float(r['close'])} for r in sorted(dr, key=lambda x: x['date'])]
+    return None
+
+
+def _merge_daily_ma_into_chart_payload(payload: dict, code: str, token: str | None) -> None:
+    """주·월·연봉 응답의 ma5/ma20을 일봉 기준 5·20일 이평으로 덮어쓴다. 실패 시 기존(봉 기준) 유지."""
+    candles = payload.get('candles') or []
+    if not candles:
+        return
+    daily = _daily_close_list_for_ma(code, token)
+    if not daily:
+        return
+    merged = _compute_daily_ma_aligned_to_candles(candles, daily)
+    if not merged:
+        return
+    ma5, ma20 = merged
+    payload['ma5'] = ma5
+    payload['ma20'] = ma20
+
+
+def _yf_fetch_daily_closes_for_ma(ticker_code: str) -> list[dict] | None:
+    """yfinance 일봉 종가 (오름차순 date, close)."""
+    try:
+        tkr = yf.Ticker(ticker_code)
+        hist = tkr.history(period='10y', interval='1d', auto_adjust=False, actions=False)
+        if hist is None or getattr(hist, 'empty', True):
+            hist = tkr.history(period='max', interval='1d', auto_adjust=False, actions=False)
+        if hist is None or getattr(hist, 'empty', True):
+            return None
+        out: list[dict] = []
+        for ts, row in hist.iterrows():
+            c = row.get('Close')
+            if pd.isna(c) or float(c) <= 0:
+                continue
+            ds = ts.strftime('%Y-%m-%d') if hasattr(ts, 'strftime') else str(ts)[:10]
+            out.append({'date': ds, 'close': float(c)})
+        return out if len(out) >= 20 else None
+    except Exception:
+        return None
+
+
+def _merge_daily_ma_into_chart_payload_yf(payload: dict, yahoo_ticker: str) -> None:
+    if not yahoo_ticker:
+        return
+    candles = payload.get('candles') or []
+    if not candles:
+        return
+    daily = _yf_fetch_daily_closes_for_ma(yahoo_ticker)
+    if not daily:
+        return
+    merged = _compute_daily_ma_aligned_to_candles(candles, daily)
+    if not merged:
+        return
+    ma5, ma20 = merged
+    payload['ma5'] = ma5
+    payload['ma20'] = ma20
+
+
 def _build_chart_payload_from_candles(candles, intraday):
     """OHLC dict 리스트 → 차트용 캔들·이동평균 (_build_chart_payload_from_hist 와 동일 계산)."""
     if not candles:
@@ -2152,6 +2265,8 @@ def chart_data(code):
                 payload = _build_chart_payload_from_hist(hist, False)
                 if not payload:
                     continue
+                if range_param in ('1w', '1m', '1y'):
+                    _merge_daily_ma_into_chart_payload_yf(payload, ticker_code)
                 payload['code'] = code
                 payload['requested_range'] = range_param
                 return jsonify(payload)
@@ -2159,6 +2274,62 @@ def chart_data(code):
                 continue
 
     return jsonify({'success': False, 'message': '차트 데이터를 불러올 수 없습니다.'}), 404
+
+
+@app.route('/api/tutorial/chart-coach', methods=['POST'])
+def tutorial_chart_coach():
+    """2단계 튜토리얼: 차트 봉 요약 기반 짧은 교육 멘트(GPT). 투자 조언 금지."""
+    body = request.get_json(force=True, silent=True) or {}
+    code = str(body.get('code') or '').strip()
+    range_param = str(body.get('range') or '1d').strip().lower()
+    stock_name = str(body.get('stock_name') or '').strip()
+    if not code:
+        return jsonify({'success': False, 'message': 'code가 필요합니다.'}), 400
+    if range_param not in ('1d', '1w', '1m', '1y'):
+        range_param = '1d'
+
+    try:
+        with current_app.test_client() as client:
+            resp = client.get(
+                f'/api/chart-data/{quote(code, safe="")}?range={quote(range_param, safe="")}'
+            )
+            payload = resp.get_json(silent=True) or {}
+            status = resp.status_code
+    except Exception as err:
+        return jsonify({'success': False, 'message': f'차트 조회 실패: {err}'}), 200
+
+    if status >= 400 or not payload.get('success') or not payload.get('candles'):
+        msg = (payload.get('message') or '차트 데이터를 불러올 수 없습니다.').strip()
+        return jsonify({'success': False, 'message': msg}), 200
+
+    candles = payload['candles'][-40:]
+    tail = candles[-10:]
+    lines = []
+    for c in tail:
+        lines.append(
+            'time=%s O=%s H=%s L=%s C=%s'
+            % (c.get('time'), c.get('open'), c.get('high'), c.get('low'), c.get('close'))
+        )
+    blob = '\n'.join(lines)
+    label = stock_name or code
+    prompt = (
+        '당신은 모의투자 앱의 차트 튜토리얼 도우미입니다.\n'
+        '규칙: 투자 권유·매수·매도 조언 금지. 제공된 봉 숫자 요약만 근거로 말할 것.\n'
+        '초보에게 한국어로 1~2문장만. "~처럼 읽을 수 있다"처럼 부드럽게.\n'
+        '불확실하면 횡보·혼조 가능성을 언급.\n\n'
+        f'종목: {label}, 차트 범위: {range_param}\n'
+        f'최근 봉 요약:\n{blob}\n\n'
+        '위만 보고 짧게 답하세요.'
+    )
+
+    result = call_gpt(prompt, model=DEFAULT_GPT_MODEL)
+    if not result.get('success'):
+        return jsonify({'success': False, 'message': result.get('message') or ''}), 200
+    text = (result.get('text') or '').strip()
+    if not text:
+        return jsonify({'success': False, 'message': '응답이 비었습니다.'}), 200
+    return jsonify({'success': True, 'text': text})
+
 
 
 _KIS_KEY    = os.getenv('KIS_APP_KEY')
@@ -2229,6 +2400,7 @@ _LIVE_UPDATER_RUNNING = False
 _LIVE_LAST_UPDATE_AT = 0.0
 _LIVE_BG_WORKER_STARTED = False
 _LIVE_EOD_WORKER_STARTED = False
+_LIVE_EOD_PYKRX_SKIP_DATE = None
 _SECTOR_FULL_REFRESH_GUARD = threading.Lock()
 _KIS_TOKEN_CACHE = None
 _KIS_TOKEN_SAVED_AT = 0.0
@@ -2632,7 +2804,10 @@ def _try_period_chart(code: str, range_param: str) -> dict | None:
     rows_sorted = sorted(rows, key=lambda x: x['date'])
     if len(rows_sorted) > tgt:
         rows_sorted = rows_sorted[-tgt:]
-    return _build_chart_payload_from_candles(_daily_candles_to_chart_rows(rows_sorted), False)
+    payload = _build_chart_payload_from_candles(_daily_candles_to_chart_rows(rows_sorted), False)
+    if payload and pc in ('W', 'M', 'Y'):
+        _merge_daily_ma_into_chart_payload(payload, code, token)
+    return payload
 
 
 def _normalize_percent(value):
@@ -3534,13 +3709,29 @@ def _run_eod_close_fix():
     토스의 거래소 공식 종가와 작게는 몇 호가, 크게는 시간외 단일가 차이가 날 수 있다.
     EOD 작업은 그 격차를 없애기 위함.
     """
+    global _LIVE_EOD_PYKRX_SKIP_DATE
     if pykrx_stock is None or not sync_live_price_batch:
         print('[EOD_FIX] pykrx 또는 sync_live_price_batch 미가용. 스킵.')
         return
 
     today = datetime.now().strftime('%Y%m%d')
+    if _LIVE_EOD_PYKRX_SKIP_DATE == today:
+        print('[EOD_FIX] pykrx 실패 이력으로 오늘 EOD 동기화 스킵.')
+        return
     items = list(LIVE_PRICE_STOCKS.items())
     if not items:
+        return
+
+    probe_code = str(items[0][0])
+    try:
+        probe_df = pykrx_stock.get_market_ohlcv(today, today, probe_code, adjusted=False)
+        if probe_df is None or getattr(probe_df, 'empty', True):
+            _LIVE_EOD_PYKRX_SKIP_DATE = today
+            print('[EOD_FIX] pykrx 일봉 응답 없음(비거래일/장마감 미확정 가능). 오늘 EOD 동기화 스킵.')
+            return
+    except Exception as e:
+        _LIVE_EOD_PYKRX_SKIP_DATE = today
+        print(f'[EOD_FIX] pykrx 프리체크 실패: {e}')
         return
 
     payloads = []
