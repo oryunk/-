@@ -1,4 +1,4 @@
-/* 홈페이지 뉴스 인라인 리더 (전역 오버레이) */
+/* 파일: 뉴스 리더 오버레이·홈/뉴스 공통. 설명( rss-loader 가 .news-reader-overlay 를 제어. ) */
 .news-reader-overlay {
   position: fixed;
   inset: 0;

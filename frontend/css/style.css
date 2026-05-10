@@ -1,3 +1,4 @@
+/* 파일: 전역 테마·레이아웃·네비·홈/시장 공통. 설명( 대부분 HTML이 이 파일을 참조. ) */
 :root {
   --navy: #143226;
   --blue-dark: #1d4d38;
@@ -1802,6 +1803,17 @@ body.tutorial-step1-active .tutorial-callout-target::after {
   transition: all 0.2s;
 }
 
+a.term-card {
+  text-decoration: none;
+  color: inherit;
+  display: block;
+}
+
+a.term-card:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 .term-card:hover {
   background: #f7fcf9;
   border-color: rgba(47, 143, 95, 0.35);
@@ -1821,6 +1833,14 @@ body.tutorial-step1-active .tutorial-callout-target::after {
   font-weight: 700;
   color: #335342;
   margin-bottom: 6px;
+}
+
+.term-glossary-hint {
+  margin-top: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
+  letter-spacing: -0.02em;
 }
 
 .term-def {
@@ -2247,4 +2267,92 @@ footer {
   .login-modal-header h2 {
     font-size: 26px;
   }
+}
+
+/* 종목·용어 자동완성 (stock-autocomplete.js) — 래퍼 삽입 후에도 입력란 폭·버튼 배치가 이전과 동일하도록 */
+.jurin-ac-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+.jurin-ac-wrap > .stock-input-field,
+.jurin-ac-wrap > .input-field,
+.jurin-ac-wrap > .term-input-field {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  flex: none;
+}
+
+.jurin-ac-dd {
+  display: none;
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 50;
+  max-height: 260px;
+  overflow-y: auto;
+  background: var(--white);
+  border: 1px solid rgba(47, 143, 95, 0.28);
+  border-radius: 10px;
+  box-shadow: 0 10px 28px rgba(31, 47, 38, 0.12);
+  padding: 6px;
+}
+
+.jurin-ac-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--text-primary);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.jurin-ac-item:hover,
+.jurin-ac-item:focus {
+  background: var(--gray-100);
+  outline: none;
+}
+
+.jurin-ac-name {
+  font-weight: 600;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.jurin-ac-code {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--gray-400);
+  font-family: 'DM Mono', ui-monospace, monospace;
+  flex-shrink: 0;
+}
+
+.jurin-ac-item--term .jurin-ac-name {
+  font-weight: 600;
+}
+
+/* 모의투자 좁은 사이드바: 제안 줄 한 줄·글자 소폭 축소 */
+.jurin-ac-dd--compact .jurin-ac-item {
+  font-size: 12px;
+  padding: 8px 10px;
+  gap: 6px;
+}
+
+.jurin-ac-dd--compact .jurin-ac-code {
+  font-size: 11px;
 }

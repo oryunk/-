@@ -1,4 +1,4 @@
-/* 모의투자 페이지 전용 (simulation.html) */
+/* 파일: simulation.html 전용 레이아웃·모달·사이드바. 설명( style.css 와 함께 로드. ) */
 
   .mock-portfolio-hint {
     margin-bottom: 20px;
@@ -75,13 +75,13 @@
     color: var(--gray-400);
   }
 
-  /* 좌측 시세 · 우측 자산/매매 */
+  /* 좌측 순위 · 중앙 자산/매매 · 우측 관심 종목 */
   .simulation-layout {
     display: flex;
     flex-direction: row;
     align-items: flex-start;
-    gap: 28px;
-    max-width: 1440px;
+    gap: 24px;
+    max-width: min(1760px, 100%);
     margin: 0 auto;
     padding: 32px 24px 48px;
     box-sizing: border-box;
@@ -119,7 +119,7 @@
     flex: 1 1 auto;
     display: flex;
     flex-direction: column;
-    min-height: min(520px, calc(100vh - 180px));
+    min-height: min(580px, calc(100vh - 168px));
   }
 
   .sim-sidebar-rank {
@@ -260,16 +260,50 @@
     padding: 0 4px;
   }
 
+  .market-sidebar-head {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 2px;
+    flex-shrink: 0;
+  }
+
   .market-sidebar-title {
     font-size: 17px;
     font-weight: 700;
     color: var(--text-primary);
-    margin: 0 0 6px 0;
+    margin: 0;
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 10px;
+    flex-wrap: nowrap;
+  }
+
+  .market-rank-toolbar {
+    display: flex;
+    align-items: stretch;
     gap: 8px;
-    flex-wrap: wrap;
+    width: 100%;
+  }
+
+  .market-rank-search {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    padding: 8px 10px;
+    font-size: 12px;
+    border-radius: 8px;
+    border: 1px solid rgba(47, 143, 95, 0.28);
+    background: var(--gray-100);
+    color: var(--text-primary);
+    font-family: inherit;
+  }
+
+  .market-rank-search:focus {
+    outline: none;
+    border-color: var(--accent);
+    background: #fff;
   }
 
   .market-sidebar .discovery-table {
@@ -294,18 +328,718 @@
     gap: 0;
   }
 
+  .sim-watchlist-aside {
+    flex: 0 0 280px;
+    width: 280px;
+    max-width: 100%;
+    align-self: flex-start;
+    position: relative;
+    z-index: 1;
+  }
+
+  .sim-watchlist-sticky {
+    position: sticky;
+    top: 88px;
+    padding: 16px 14px 18px;
+    background: var(--gray-50, #f8faf8);
+    border: 1px solid rgba(47, 143, 95, 0.22);
+    border-radius: 14px;
+    max-height: calc(100vh - 100px);
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .sim-watchlist-head {
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--text-primary);
+    margin: 0 0 12px 0;
+    letter-spacing: -0.02em;
+  }
+
+  .sim-watchlist-panel-body {
+    min-height: 0;
+    flex: 1;
+    overflow: auto;
+  }
+
+  .sim-watchlist-empty {
+    margin: 0;
+    font-size: 12px;
+    color: var(--gray-400);
+    line-height: 1.5;
+  }
+
+  /* 시장 화면 관심 칩과 동일한 형태 (simulation HTML / JS에서 동일 클래스 사용) */
+  .sim-watchlist-aside .watchlist-chip-scroller--aside {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: min(58vh, 480px);
+    overflow-y: auto;
+    padding-right: 2px;
+  }
+
+  .sim-watchlist-aside .watchlist-chip--aside {
+    display: block;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    border: 1px solid rgba(47, 143, 95, 0.28);
+    border-radius: 12px;
+    background: #fff;
+    cursor: pointer;
+    font: inherit;
+    text-align: left;
+    transition: background 0.15s ease, border-color 0.15s ease;
+  }
+
+  .sim-watchlist-aside .watchlist-chip--aside:hover {
+    background: rgba(47, 143, 95, 0.06);
+    border-color: rgba(47, 143, 95, 0.45);
+  }
+
+  .sim-watchlist-aside .watchlist-chip-inner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    min-width: 0;
+  }
+
+  .sim-watchlist-aside .watchlist-chip-logo.stock-logo-wrap {
+    flex: 0 0 auto;
+    width: 36px;
+    height: 36px;
+    border-radius: 999px;
+    overflow: hidden;
+    background: var(--gray-100, #f3f4f6);
+  }
+
+  .sim-watchlist-aside .watchlist-chip-logo.stock-logo-wrap--placeholder {
+    width: 36px;
+    height: 36px;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    color: var(--gray-500, #6b7280);
+  }
+
+  .sim-watchlist-aside .watchlist-chip-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .sim-watchlist-aside .watchlist-chip-name {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .sim-watchlist-aside .watchlist-chip-code {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--gray-500);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .sim-watchlist-aside .stock-logo-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
   .portfolio-section {
+    position: relative;
     background: #ffffff;
     border: 1px solid rgba(47, 143, 95, 0.18);
     border-radius: 16px;
     padding: 32px;
     margin-bottom: 28px;
+    overflow: visible;
+  }
+
+  /*
+   * 종목 상세: 카드 상단에 붙이되 높이는 내용만큼만(min-height 100%로 최소한 카드만큼 덮음).
+   * 거래내역은 탭 패널에서 표시. 매수/매도 블록은 시트 밖(아래).
+   */
+  .portfolio-section > .sim-holding-detail-sheet {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: auto;
+    min-height: 100%;
+    height: auto;
+    z-index: 20;
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.98);
+    box-shadow: inset 0 0 0 1px rgba(47, 143, 95, 0.18);
+    display: flex;
+    flex-direction: column;
+    overflow: visible;
+  }
+
+  .sim-holding-detail-sheet[hidden] {
+    display: none !important;
+  }
+
+  .sim-holding-detail-inner {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    flex: 0 0 auto;
+    padding: 20px 22px 22px;
+    overflow: visible;
+  }
+
+  .sim-holding-detail-close {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    width: 36px;
+    height: 36px;
+    border: none;
+    border-radius: 10px;
+    background: var(--gray-100);
+    color: var(--text-primary);
+    font-size: 22px;
+    line-height: 1;
+    cursor: pointer;
+    font-family: inherit;
+    z-index: 2;
+  }
+
+  .sim-holding-detail-close:hover {
+    background: rgba(47, 143, 95, 0.12);
+  }
+
+  .sim-holding-detail-head {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding-right: 44px;
+    margin-bottom: 18px;
+    flex-wrap: wrap;
+    flex-shrink: 0;
+  }
+
+  .sim-holding-detail-logo {
+    flex-shrink: 0;
+  }
+
+  .sim-holding-detail-titles {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .sim-holding-detail-name {
+    font-size: 20px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: var(--text-primary);
+    line-height: 1.25;
+  }
+
+  .sim-holding-detail-code {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--gray-400);
+    margin-top: 4px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .sim-holding-sheet-tabs {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 4px;
+    margin-bottom: 14px;
+    padding-bottom: 2px;
+    border-bottom: 1px solid rgba(47, 143, 95, 0.15);
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    flex-shrink: 0;
+  }
+
+  .sim-holding-sheet-tab {
+    flex: 0 0 auto;
+    padding: 10px 14px;
+    font-size: 14px;
+    font-weight: 700;
+    font-family: inherit;
+    border: none;
+    border-radius: 8px 8px 0 0;
+    background: transparent;
+    color: var(--gray-400);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: color 0.15s ease, background 0.15s ease;
+  }
+
+  .sim-holding-sheet-tab:hover {
+    color: var(--text-primary);
+    background: rgba(47, 143, 95, 0.06);
+  }
+
+  .sim-holding-sheet-tab.active {
+    color: var(--text-primary);
+    box-shadow: inset 0 -2px 0 var(--accent);
+  }
+
+  .sim-holding-sheet-panel {
+    display: flex;
+    flex-direction: column;
+    flex: 0 0 auto;
+    min-height: 0;
+  }
+
+  .sim-holding-sheet-panel[hidden] {
+    display: none !important;
+  }
+
+  .sim-holding-info-metrics {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+
+  .sim-holding-metric-btn {
+    padding: 8px 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(47, 143, 95, 0.28);
+    background: #fff;
+    font-size: 13px;
+    font-weight: 700;
+    font-family: inherit;
+    color: var(--text-primary);
+    cursor: pointer;
+  }
+
+  .sim-holding-metric-btn.active {
+    background: rgba(47, 143, 95, 0.16);
+    border-color: var(--accent);
+    color: #1d4d38;
+  }
+
+  .sim-holding-info-block {
+    flex: 0 0 auto;
+  }
+
+  .sim-holding-per-row {
+    margin-bottom: 14px;
+  }
+
+  .sim-holding-per-row:last-child {
+    margin-bottom: 0;
+  }
+
+  .sim-holding-per-label {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 6px;
+  }
+
+  .sim-holding-per-label span:last-child {
+    font-variant-numeric: tabular-nums;
+    color: var(--accent);
+  }
+
+  .sim-holding-per-track {
+    height: 10px;
+    border-radius: 6px;
+    background: var(--gray-100);
+    overflow: hidden;
+  }
+
+  .sim-holding-per-fill {
+    height: 100%;
+    border-radius: 6px;
+    min-width: 2px;
+    transition: width 0.25s ease;
+  }
+
+  .sim-holding-per-fill--stock {
+    background: linear-gradient(90deg, #3182f6, #5b9cf9);
+  }
+
+  .sim-holding-per-fill--avg {
+    background: rgba(47, 143, 95, 0.35);
+  }
+
+  .sim-holding-per-empty {
+    font-size: 13px;
+    color: var(--gray-400);
+    padding: 12px 0;
+    line-height: 1.45;
+  }
+
+  .sim-holding-fund-chart {
+    width: 100%;
+    height: 240px;
+    min-height: 200px;
+    border-radius: 12px;
+    overflow: hidden;
+    background: var(--gray-100);
+  }
+
+  .sim-holding-fund-footnote {
+    font-size: 12px;
+    color: var(--gray-400);
+    margin-top: 10px;
+    line-height: 1.45;
+  }
+
+  .sim-holding-options-panel {
+    padding: 8px 4px 16px;
+  }
+
+  .sim-holding-options-lead {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0 0 10px;
+    line-height: 1.5;
+  }
+
+  .sim-holding-options-sub {
+    font-size: 14px;
+    color: var(--gray-400);
+    margin: 0 0 14px;
+    line-height: 1.5;
+  }
+
+  .sim-holding-options-link {
+    font-size: 14px;
+    margin: 0;
+  }
+
+  .sim-holding-options-link a {
+    color: var(--accent);
+    font-weight: 700;
+    text-decoration: none;
+  }
+
+  .sim-holding-options-link a:hover {
+    text-decoration: underline;
+  }
+
+  .sim-holding-detail-main {
+    display: flex;
+    flex-direction: column;
+    flex: 0 0 auto;
+    gap: 0;
+    overflow: visible;
+  }
+
+  #simHoldingPanelChart {
+    display: flex;
+    flex-direction: column;
+    flex: 0 0 auto;
+    min-height: 0;
+  }
+
+  .sim-holding-panel-history:not([hidden]) {
+    flex: 1 1 auto;
+    min-height: 220px;
+    max-height: min(72vh, 620px);
+  }
+
+  .sim-holding-panel-history .sim-holding-stock-history-panel:not([hidden]) {
+    flex: 1 1 auto;
+    min-height: 120px;
+    height: min(var(--sim-history-h, 280px), var(--sim-history-max, 9999px));
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .sim-holding-order-panel:not([hidden]) {
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 16px 0 12px;
+  }
+
+  .sim-holding-order-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .sim-holding-order-actions--solo {
+    justify-content: center;
+    width: 100%;
+  }
+
+  .sim-holding-detail-chart-wrap {
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    overflow: visible;
+  }
+
+  .sim-holding-detail-ranges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .sim-holding-range-btn {
+    padding: 8px 14px;
+    border-radius: 8px;
+    border: 1px solid rgba(47, 143, 95, 0.28);
+    background: #fff;
+    color: var(--text-primary);
+    font-size: 13px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+  }
+
+  .sim-holding-range-btn:hover {
+    border-color: rgba(47, 143, 95, 0.45);
+    background: rgba(47, 143, 95, 0.06);
+  }
+
+  .sim-holding-range-btn.active {
+    background: rgba(47, 143, 95, 0.16);
+    border-color: var(--accent);
+    color: #1d4d38;
+  }
+
+  .sim-holding-chart-skeleton {
+    font-size: 14px;
+    color: var(--gray-400);
+    padding: 48px 16px;
+    text-align: center;
+    border-radius: 12px;
+    background: var(--gray-100);
+    border: 1px dashed rgba(47, 143, 95, 0.2);
+  }
+
+  .sim-holding-chart-note {
+    font-size: 14px;
+    color: var(--gray-400);
+    padding: 16px;
+    text-align: center;
+  }
+
+  .sim-holding-stock-chart {
+    width: 100%;
+    height: 300px;
+    min-height: 300px;
+    max-height: 300px;
+    flex: 0 0 auto;
+    min-width: 0;
+    margin-bottom: 6px;
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .sim-holding-stock-history {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .sim-holding-stock-history-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    letter-spacing: -0.02em;
+    margin-bottom: 10px;
+    flex-shrink: 0;
+  }
+
+  .sim-stock-history-list {
+    overflow-y: auto;
+    flex: 1;
+    min-height: 0;
+    padding-right: 4px;
+  }
+
+  .sim-stock-history-group {
+    margin-bottom: 16px;
+    padding: 0 0 10px;
+  }
+
+  .sim-stock-history-group:last-child {
+    margin-bottom: 0;
+    padding-bottom: 0;
+  }
+
+  .sim-stock-history-date {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--gray-400);
+    letter-spacing: -0.01em;
+    padding: 12px 0 10px;
+    margin: 0 0 8px;
+    background: none;
+    border: none;
+    border-top: 2px solid #1a1a1a;
+    border-radius: 0;
+  }
+
+  .sim-stock-history-group:first-child .sim-stock-history-date {
+    border-top: none;
+    padding-top: 2px;
+  }
+
+  .sim-stock-history-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 10px 4px;
+  }
+
+  .sim-stock-history-row {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  .sim-stock-history-row--inline {
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .sim-stock-history-sub {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--gray-400);
+    line-height: 1.35;
+  }
+
+  .sim-stock-history-item .history-badge {
+    margin-left: 0;
+    align-self: flex-start;
+    font-size: 13px;
+    font-weight: 800;
+    padding: 3px 10px;
+    border-radius: 6px;
+  }
+
+  .sim-stock-history-item .history-badge.buy {
+    color: #0d47a1;
+    background: rgba(25, 118, 210, 0.18);
+  }
+
+  .sim-stock-history-item .history-badge.sell {
+    color: #e53935;
+    background: rgba(229, 115, 115, 0.22);
+  }
+
+  .sim-stock-history-amt {
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  .sim-stock-history-total {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--accent);
+    letter-spacing: -0.02em;
+  }
+
+  .sim-stock-history-time {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--gray-500);
+    margin-top: 4px;
+  }
+
+  .sim-stock-history-empty {
+    text-align: center;
+    color: var(--gray-400);
+    font-size: 13px;
+    padding: 16px 8px;
+  }
+
+  /* 시장과 동일 토스형 로고 (simulation 전용 보강) */
+  .portfolio-section .stock-logo-wrap {
+    flex: 0 0 auto;
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    overflow: hidden;
+    background: #ffffff;
+    border: 1px solid rgba(47, 143, 95, 0.18);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .portfolio-section .stock-logo-wrap--detail {
+    width: 60px;
+    height: 60px;
+  }
+
+  .portfolio-section .stock-logo-img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    object-position: 50% 50%;
+    display: block;
+    padding: 2px;
+    box-sizing: border-box;
+  }
+
+  .portfolio-section .stock-logo-img.stock-logo-img--squareish {
+    padding: 6px;
+  }
+
+  .portfolio-section .stock-logo-img[data-logo-file="005930"] {
+    object-fit: cover;
+    object-position: 50% 50%;
+    padding: 0;
+    border-radius: 22%;
+    transform: scale(1.08);
+    transform-origin: center center;
+  }
+
+  .portfolio-section .stock-logo-wrap--placeholder {
+    font-size: 15px;
+    font-weight: 800;
+    color: #2f6a4e;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
   }
 
   .portfolio-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 16px 24px;
+    flex-wrap: wrap;
     margin-bottom: 24px;
   }
 
@@ -317,6 +1051,7 @@
 
   .portfolio-balance {
     text-align: right;
+    margin-left: auto;
   }
 
   .balance-label {
@@ -329,6 +1064,27 @@
     font-size: 24px;
     font-weight: 700;
     color: var(--accent);
+  }
+
+  /* 총 자산 바로 아래: 대비 시작 자금 누적 손익(토스 스타일 한 줄) */
+  .balance-pl {
+    font-size: 15px;
+    font-weight: 600;
+    margin-top: 6px;
+    line-height: 1.35;
+    letter-spacing: -0.01em;
+  }
+
+  .balance-pl.flat {
+    color: var(--gray-400);
+  }
+
+  .balance-pl.up {
+    color: #ff7a7a;
+  }
+
+  .balance-pl.down {
+    color: #6eb6ff;
   }
 
   .portfolio-split {
@@ -346,6 +1102,18 @@
     font-weight: 700;
     color: var(--text-primary);
     margin-top: 4px;
+  }
+
+  .balance-holding-pl.flat {
+    color: var(--gray-400);
+  }
+
+  .balance-holding-pl.up {
+    color: #ff7a7a;
+  }
+
+  .balance-holding-pl.down {
+    color: #6eb6ff;
   }
 
   .holding-row {
@@ -497,6 +1265,149 @@
 
   .trade-confirm-panel--sell .sell-modal-title {
     color: #c44;
+  }
+
+  .holding-trade-panel.trade-confirm-panel--sell .sell-modal-title {
+    color: var(--text-primary);
+  }
+
+  .holding-modal-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+
+  .holding-modal-tab {
+    flex: 1;
+    min-width: 100px;
+    padding: 10px 14px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, filter 0.15s ease;
+    border: 2px solid transparent;
+  }
+
+  /* 매도 탭: 코랄/레드 톤 (.btn-trade.sell 과 동일 #ff5a5f) */
+  .holding-modal-tab--sell {
+    background: rgba(255, 90, 95, 0.12);
+    border-color: rgba(255, 90, 95, 0.45);
+    color: #c42e33;
+  }
+
+  .holding-modal-tab--sell:hover {
+    background: rgba(255, 90, 95, 0.2);
+    border-color: rgba(255, 90, 95, 0.65);
+    color: #a82529;
+  }
+
+  .holding-modal-tab--sell.active {
+    background: #ff5a5f;
+    border-color: #ff5a5f;
+    color: #fff;
+  }
+
+  .holding-modal-tab--sell.active:hover {
+    filter: brightness(1.06);
+    background: #ff5a5f;
+    border-color: #ff5a5f;
+    color: #fff;
+  }
+
+  /* 매수 탭: 파랑 톤 (.btn-trade 매수 와 동일 #3182f6) */
+  .holding-modal-tab--buy {
+    background: rgba(49, 130, 246, 0.12);
+    border-color: rgba(49, 130, 246, 0.45);
+    color: #1e6ad2;
+  }
+
+  .holding-modal-tab--buy:hover {
+    background: rgba(49, 130, 246, 0.2);
+    border-color: rgba(49, 130, 246, 0.65);
+    color: #1557b0;
+  }
+
+  .holding-modal-tab--buy.active {
+    background: #3182f6;
+    border-color: #3182f6;
+    color: #fff;
+  }
+
+  .holding-modal-tab--buy.active:hover {
+    filter: brightness(1.06);
+    background: #3182f6;
+    border-color: #3182f6;
+    color: #fff;
+  }
+
+  .holding-trade-panel .holding-modal-actions {
+    justify-content: stretch;
+  }
+
+  .holding-trade-panel .holding-modal-actions .btn-trade {
+    flex: 1;
+    min-width: 0;
+    border: none;
+    font-size: 15px;
+    padding: 14px 18px;
+    border-radius: 10px;
+  }
+
+  .holding-trade-panel .holding-modal-cta-sell {
+    background: #ff5a5f;
+    color: #fff;
+  }
+
+  .holding-trade-panel .holding-modal-cta-sell:hover {
+    filter: brightness(1.06);
+    background: #ff5a5f;
+  }
+
+  .holding-trade-panel .holding-modal-cta-buy,
+  .holding-trade-panel .holding-buy-confirm.holding-modal-cta-buy {
+    background: #3182f6;
+    color: #fff;
+  }
+
+  .holding-trade-panel .holding-modal-cta-buy:hover,
+  .holding-trade-panel .holding-buy-confirm.holding-modal-cta-buy:hover {
+    filter: brightness(1.06);
+    background: #3182f6;
+  }
+
+  .holding-modal-pane {
+    margin-top: 4px;
+  }
+
+  .holding-buy-price-head {
+    margin-bottom: 8px;
+  }
+
+  .holding-buy-price-head .form-label {
+    margin-bottom: 0;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--gray-400);
+  }
+
+  #holdingBuyLimitPriceCell.is-market-mode .price-stepper-side,
+  #sellModalLimitPriceCell.is-market-mode .price-stepper-side {
+    visibility: hidden;
+    pointer-events: none;
+  }
+
+  .holding-sell-price-head {
+    margin-bottom: 8px;
+  }
+
+  .holding-sell-price-head .form-label {
+    margin-bottom: 0;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--gray-400);
   }
 
   .sell-modal-stock {
@@ -783,6 +1694,21 @@
     margin-bottom: 12px;
   }
 
+  /* 자동완성 래퍼(.jurin-ac-wrap) + .form-input은 style.css에 100% 규칙 없음 → 판매 select보다 좁아짐 */
+  .trading-section .tf-stock .jurin-ac-wrap {
+    position: relative;
+    width: 100%;
+    max-width: 100%;
+    flex: 0 0 auto;
+    min-width: 0;
+  }
+
+  .trading-section .tf-stock .jurin-ac-wrap > .form-input {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
   .tf-qty-price {
     display: flex;
     flex-direction: column;
@@ -1015,10 +1941,10 @@
     border-color: rgba(47, 143, 95, 0.35);
   }
 
-  /* 시장 정보 매수·매도와 동일: 매수 파랑 + 흰 글씨, 매도 코랄 그라데이션 */
+  /* 시장 정보 매수·매도와 동일 톤: 단색(토스 스타일) */
   .form-group--buy .btn-trade:not(.sell),
   .trade-confirm-panel--buy .sell-modal-actions .btn-trade {
-    background: linear-gradient(135deg, #1f9fff, #0d7ee0);
+    background: #3182f6;
     border: none;
     color: #fff;
   }
@@ -1026,18 +1952,18 @@
   .form-group--buy .btn-trade:not(.sell):hover,
   .trade-confirm-panel--buy .sell-modal-actions .btn-trade:hover {
     filter: brightness(1.06);
-    background: linear-gradient(135deg, #1f9fff, #0d7ee0);
+    background: #3182f6;
   }
 
   .btn-trade.sell {
-    background: linear-gradient(135deg, #ff5f64, #ff8157);
+    background: #ff5a5f;
     border: none;
     color: #fff;
   }
 
   .btn-trade.sell:hover {
     filter: brightness(1.06);
-    background: linear-gradient(135deg, #ff5f64, #ff8157);
+    background: #ff5a5f;
   }
 
   .trade-feedback {
@@ -1081,6 +2007,56 @@
     border-top: 1px solid rgba(47, 143, 95, 0.15);
   }
 
+  .mock-trade-cost-box {
+    margin-top: 12px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: rgba(47, 143, 95, 0.06);
+    border: 1px solid rgba(47, 143, 95, 0.14);
+    font-size: 13px;
+  }
+
+  .mock-trade-cost-box--inline {
+    grid-column: 1 / -1;
+    margin-top: 4px;
+    margin-bottom: 2px;
+  }
+
+  .trade-confirm-panel .mock-trade-cost-box {
+    margin-top: 10px;
+  }
+
+  .mock-cost-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    padding: 6px 0;
+    border-bottom: 1px solid rgba(47, 143, 95, 0.08);
+    color: var(--text-primary);
+  }
+
+  .mock-cost-row:last-child {
+    border-bottom: none;
+  }
+
+  .mock-cost-row span:first-child {
+    color: var(--gray-400);
+    font-weight: 600;
+  }
+
+  .mock-cost-row--emph {
+    font-weight: 800;
+    margin-top: 4px;
+    padding-top: 10px;
+    border-top: 1px dashed rgba(47, 143, 95, 0.22);
+    border-bottom: none;
+  }
+
+  .mock-cost-row--emph span:first-child {
+    color: var(--text-primary);
+  }
+
   .order-status-board {
     background: var(--gray-100);
     border: 1px solid rgba(47, 143, 95, 0.14);
@@ -1106,7 +2082,38 @@
   }
 
   .order-status-summary {
-    font-size: 12px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    line-height: 1.45;
+  }
+
+  .order-status-sum {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+
+  .order-status-sum--done {
+    color: #1565c0;
+  }
+
+  .order-status-sum--wait {
+    color: #b8860b;
+  }
+
+  .order-status-sum--failcount {
+    color: #c62828;
+  }
+
+  .order-status-sum-sep {
+    font-weight: 600;
+    color: var(--gray-400);
+  }
+
+  .order-status-sum-meta {
+    font-size: 13px;
+    font-weight: 600;
     color: var(--gray-400);
   }
 
@@ -1130,12 +2137,82 @@
     border-color: rgba(220, 60, 60, 0.22);
   }
 
+  .order-status-item--pending-open {
+    background: rgba(255, 213, 79, 0.22);
+    border-color: rgba(212, 175, 55, 0.45);
+  }
+
+  .order-status-name--pending {
+    color: #b8860b;
+    font-weight: 700;
+  }
+
+  .order-status-wait-suffix {
+    font-weight: 800;
+    color: #c9a227;
+    margin-left: 2px;
+  }
+
+  .order-status-sideqty--pending {
+    color: #a67c00;
+  }
+
+  .order-status-limit-label {
+    font-weight: 600;
+    color: #8d6e00;
+  }
+
+  .order-status-badge--pending-open {
+    background: rgba(255, 213, 79, 0.85);
+    color: #5d4a00;
+    border: 1px solid rgba(180, 140, 0, 0.35);
+  }
+
   .order-status-top {
     display: flex;
     justify-content: space-between;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 4px;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 6px;
+  }
+
+  .order-status-stockblock {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+    flex: 1;
+  }
+
+  .order-status-name {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-primary);
+    letter-spacing: -0.02em;
+    line-height: 1.3;
+  }
+
+  .order-status-sideqty {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--gray-400);
+  }
+
+  .order-status-qtyparen {
+    font-weight: 500;
+    color: var(--gray-400);
+  }
+
+  .order-status-action {
+    font-weight: 800;
+  }
+
+  .order-status-action--buy {
+    color: #0d47a1;
+  }
+
+  .order-status-action--sell {
+    color: #e53935;
   }
 
   .order-status-stock {
@@ -1168,7 +2245,13 @@
 
   .order-status-badge.fail {
     background: rgba(255, 142, 142, 0.2);
-    color: #ff9f9f;
+    color: #c62828;
+  }
+
+  .order-status-badge.done {
+    background: rgba(25, 118, 210, 0.2);
+    color: #0d47a1;
+    border: 1px solid rgba(25, 118, 210, 0.35);
   }
 
   .order-status-detail {
@@ -1177,6 +2260,21 @@
     display: flex;
     gap: 10px;
     flex-wrap: wrap;
+  }
+
+  .order-status-detail--dateonly {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--gray-400);
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+
+  .order-status-fail-note {
+    font-size: 12px;
+    font-weight: 500;
+    color: #b71c1c;
   }
 
   .trading-history {
@@ -1222,6 +2320,10 @@
     gap: 8px;
     font-size: 13px;
     color: var(--gray-400);
+  }
+
+  .history-date-wrap.history-date-muted {
+    opacity: 0.55;
   }
 
   .history-date-label {
@@ -1311,13 +2413,18 @@
   }
 
   .history-badge.buy {
-    background: rgba(47, 143, 95, 0.18);
-    color: var(--accent);
+    background: rgba(25, 118, 210, 0.2);
+    color: #0d47a1;
   }
 
   .history-badge.sell {
-    background: rgba(255, 107, 107, 0.18);
-    color: #ff9a9a;
+    background: rgba(239, 83, 80, 0.18);
+    color: #e53935;
+  }
+
+  .history-badge.wait {
+    background: rgba(107, 114, 128, 0.2);
+    color: var(--gray-400);
   }
 
   .history-code {
@@ -1329,13 +2436,41 @@
   .history-item {
     display: flex;
     justify-content: space-between;
-    align-items: center;
-    padding: 12px 0;
-    border-bottom: 1px solid rgba(47, 143, 95, 0.1);
+    align-items: flex-start;
+    padding: 10px 4px;
+    border-bottom: none;
+    text-decoration: none;
   }
 
-  .history-item:last-child {
-    border-bottom: none;
+  .history-item--pending {
+    background: rgba(255, 213, 79, 0.12);
+    border-radius: 10px;
+    padding: 12px 10px;
+    margin-bottom: 8px;
+    border: 1px solid rgba(212, 175, 55, 0.35);
+  }
+
+  .history-pending-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: #b8860b;
+  }
+
+  .history-pending-suffix {
+    font-weight: 800;
+    color: #c9a227;
+    margin-left: 2px;
+  }
+
+  .history-pending-sub {
+    margin-top: 6px;
+    color: #a67c00;
+    font-weight: 500;
+  }
+
+  .history-pending-value {
+    color: #8d6e00;
+    font-weight: 700;
   }
 
   .history-info {
@@ -1353,6 +2488,43 @@
     gap: 8px;
   }
 
+  .history-stock--stacked {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+
+  .history-stock-name {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-primary);
+    letter-spacing: -0.02em;
+    line-height: 1.3;
+  }
+
+  .history-side-line {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--gray-400);
+  }
+
+  .history-qtyparen {
+    font-weight: 500;
+    color: var(--gray-400);
+  }
+
+  .history-action {
+    font-weight: 800;
+  }
+
+  .history-action--buy {
+    color: #0d47a1;
+  }
+
+  .history-action--sell {
+    color: #e53935;
+  }
+
   .history-details {
     font-size: 13px;
     color: var(--gray-400);
@@ -1367,10 +2539,12 @@
     font-weight: 600;
     color: var(--accent);
     margin-bottom: 4px;
+    letter-spacing: -0.02em;
   }
 
   .history-time {
     font-size: 12px;
+    font-weight: 500;
     color: var(--gray-500);
   }
 
@@ -1412,8 +2586,30 @@
       max-height: none;
     }
 
+    .sim-watchlist-aside {
+      width: 100%;
+      flex: none;
+    }
+
+    .sim-watchlist-sticky {
+      position: static;
+      max-height: none;
+    }
+
+    .sim-watchlist-aside .watchlist-chip-scroller--aside {
+      flex-direction: row;
+      flex-wrap: wrap;
+      max-height: none;
+    }
+
+    .sim-watchlist-aside .watchlist-chip--aside {
+      flex: 0 1 auto;
+      min-width: 200px;
+      max-width: 320px;
+    }
+
     .sim-rank-wrap {
-      min-height: min(420px, 55vh);
+      min-height: min(480px, 58vh);
     }
   }
 
