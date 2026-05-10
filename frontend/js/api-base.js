@@ -1,4 +1,7 @@
 /**
+ * 파일: Flask API 베이스 URL·모의투자 링크 href 보정
+ * 설명( 반드시 먼저 로드한다. window.JURIN_API_BASE 설정 후 jurinApiBase()로 읽는다. )
+ *
  * 백엔드 URL: 브라우저가 열린 호스트(localhost / 127.0.0.1)와 맞춰야
  * 세션 쿠키가 로그인·/api/auth/me·모의투자 API에 일관되게 전달된다.
  *
@@ -22,9 +25,21 @@
 })();
 
 /**
+ * 현재 페이지 기준 API 오리진 (끝 슬래시 제거).
+ * 설명( api-base IIFE 실행 뒤에만 호출할 것. file:// 등에서는 폴백 URL. )
+ */
+function jurinApiBase() {
+  if (typeof window !== 'undefined' && window.JURIN_API_BASE) {
+    return String(window.JURIN_API_BASE).replace(/\/$/, '');
+  }
+  return 'http://localhost:5000';
+}
+
+/**
  * 모의투자 페이지 전체 URL (file://·다른 포트에서도 API 호스트 :5000 기준으로 통일)
  */
 (function () {
+  // simulation.html 절대 URL (모의투자 진입 링크용)
   function jurinSimulationUrl() {
     try {
       var base = window.JURIN_API_BASE || 'http://127.0.0.1:5000';
@@ -35,6 +50,7 @@
   }
   window.jurinSimulationUrl = jurinSimulationUrl;
 
+  // a.jurin-simulation-link 의 href 를 API 호스트 기준으로 맞춘다.
   function upgradeSimulationLinks() {
     var links = document.querySelectorAll('a.jurin-simulation-link');
     for (var i = 0; i < links.length; i++) {

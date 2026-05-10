@@ -1,10 +1,23 @@
-// RSS 피드 설정
+/**
+ * 파일: RSS·백엔드 뉴스 API 연동, 홈 슬라이더/그리드, 뉴스 리더 오버레이
+ * 설명( api-base.js 가 먼저 로드되어야 jurinApiBase() 를 쓸 수 있다. URL ?debug=1 일 때만 진행 로그 출력. )
+ */
+
+// RSS 피드 설정 (직접 fetch 폴백 경로용)
 const rssFeeds = [
   'https://www.mk.co.kr/rss/50200011/'
 ];
 
-function jurinNewsApiBase() {
-  return (typeof window !== 'undefined' && window.JURIN_API_BASE) || 'http://localhost:5000';
+function jurinRssDebug() {
+  try {
+    return new URLSearchParams(window.location.search).get('debug') === '1';
+  } catch (_) {
+    return false;
+  }
+}
+
+function rssLog() {
+  if (jurinRssDebug()) console.log.apply(console, arguments);
 }
 
 // CORS 프록시 목록
@@ -14,8 +27,6 @@ const corsProxies = [
   'https://cors.bridged.cc/',
   'https://cors-anywhere.herokuapp.com/'
 ];
-
-console.log('[RSS-LOADER] 파일 로드 시작 - loadSliderNews, loadNewsFromRSS 함수 정의 중...');
 
 const RSS_CACHE_KEY = 'jurin:rss:mk:daily:v1';
 const RSS_CACHE_MAX_AGE_MS = 5 * 60 * 1000;
@@ -84,13 +95,13 @@ function parseRssItems(xmlDoc) {
 
 async function fetchRssItemsFromNetwork() {
   try {
-    const apiRes = await fetch(`${jurinNewsApiBase()}/api/rss/news?limit=20`);
+    const apiRes = await fetch(`${jurinApiBase()}/api/rss/news?limit=20`);
     if (apiRes.ok) {
       const apiData = await apiRes.json().catch(() => ({}));
       if (apiData.success && Array.isArray(apiData.items) && apiData.items.length > 0) {
         const hasIds = hasDbNewsIds(apiData.items);
         if (apiData.from_db && hasIds) {
-          console.log(`[RSS] 백엔드(DB) 로드 성공: ${apiData.items.length}개`);
+          rssLog(`[RSS] 백엔드(DB) 로드 성공: ${apiData.items.length}개`);
           writeRssCache(apiData.items);
           return apiData.items;
         }
@@ -116,7 +127,7 @@ async function getRssItemsDaily() {
   );
 
   if (todayDbCacheOk && isFreshCache(cache)) {
-    console.log('[RSS] 최신 DB 캐시 사용');
+    rssLog('[RSS] 최신 DB 캐시 사용');
     return cache.items;
   }
 
@@ -423,7 +434,7 @@ function openNewsReader(item) {
 
   if (hasNewsId) {
     digestEl.textContent = '쉬운 설명을 준비하는 중…';
-    fetch(`${jurinNewsApiBase()}/api/news/${encodeURIComponent(item.news_id)}?digest=1`)
+    fetch(`${jurinApiBase()}/api/news/${encodeURIComponent(item.news_id)}?digest=1`)
       .then((r) => r.json().catch(() => ({})))
       .then((data) => {
         const art = data && data.article;
@@ -509,7 +520,7 @@ function getTimeAgo(dateString) {
 
 // 뉴스 그리드 로드 함수
 async function loadNewsFromRSS() {
-  console.log('[RSS-NEWS] 시작');
+  rssLog('[RSS-NEWS] 시작');
   const newsGrid = document.querySelector('.news-grid');
   if (!newsGrid) {
     console.warn('[RSS-NEWS] newsGrid 요소를 찾을 수 없습니다.');
@@ -549,7 +560,7 @@ async function loadNewsFromRSS() {
       });
       
       newsGrid.innerHTML = newsCards.join('');
-      console.log('[RSS-NEWS] 완료');
+      rssLog('[RSS-NEWS] 완료');
       return;
   } catch (error) {
     console.error('[RSS-NEWS] 실패:', error.message);
@@ -601,7 +612,7 @@ async function loadNewsListPage() {
       .join('');
 
     newsList.innerHTML = html || '<p class="news-empty">불러온 뉴스가 없습니다. 잠시 후 다시 시도해 주세요.</p>';
-    console.log('[RSS-NEWS-PAGE] 완료', rows.length);
+    rssLog('[RSS-NEWS-PAGE] 완료', rows.length);
   } catch (err) {
     console.error('[RSS-NEWS-PAGE] 실패:', err && err.message);
     newsList.innerHTML = '<p class="news-empty">뉴스를 불러오지 못했습니다. 백엔드가 켜져 있는지 확인해 주세요.</p>';
@@ -610,7 +621,7 @@ async function loadNewsListPage() {
 
 // 슬라이더 뉴스 로드 함수
 async function loadSliderNews() {
-  console.log('[RSS-SLIDER] 시작');
+  rssLog('[RSS-SLIDER] 시작');
   const sliderContainer = document.getElementById('sliderContainer');
   if (!sliderContainer) {
     console.warn('[RSS-SLIDER] sliderContainer을 찾을 수 없습니다.');
@@ -647,7 +658,7 @@ async function loadSliderNews() {
       sliderContainer.innerHTML = slides.join('');
       updateSliderDots();
       restartSliderAutoPlay();
-      console.log('[RSS-SLIDER] 완료');
+      rssLog('[RSS-SLIDER] 완료');
       return;
   } catch (error) {
     console.error('[RSS-SLIDER] 실패:', error.message);
@@ -660,7 +671,7 @@ async function loadSliderNews() {
 
 // 기본 슬라이더 뉴스
 function loadDefaultSliderNews() {
-  console.log('[DEFAULT] 기본 슬라이더 로드');
+  rssLog('[DEFAULT] 기본 슬라이더 로드');
   const sliderContainer = document.getElementById('sliderContainer');
   if (!sliderContainer) return;
   
@@ -692,7 +703,7 @@ function loadDefaultSliderNews() {
 
 // 기본 뉴스
 function loadDefaultNews() {
-  console.log('[DEFAULT] 기본 뉴스 로드');
+  rssLog('[DEFAULT] 기본 뉴스 로드');
   const newsGrid = document.querySelector('.news-grid');
   if (!newsGrid) return;
   
@@ -744,11 +755,11 @@ function restartSliderAutoPlay() {
 // 초기화 - RSS 뉴스 자동 로드
 function initializeRSSFeeds() {
   if (window.__rssInitDone) {
-    console.log('[RSS-LOADER] 이미 초기화됨 - 중복 실행 방지');
+    rssLog('[RSS-LOADER] 이미 초기화됨 - 중복 실행 방지');
     return;
   }
   window.__rssInitDone = true;
-  console.log('[RSS-LOADER] 초기화 함수 호출 - 뉴스 로드 시작');
+  rssLog('[RSS-LOADER] 초기화 함수 호출 - 뉴스 로드 시작');
   loadSliderNews();
   loadNewsFromRSS();
   loadNewsListPage();
@@ -757,11 +768,11 @@ function initializeRSSFeeds() {
 // 페이지 로드 완료 후 실행
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', initializeRSSFeeds);
-  console.log('[RSS-LOADER] DOMContentLoaded 리스너 등록');
+  rssLog('[RSS-LOADER] DOMContentLoaded 리스너 등록');
 } else {
   // 이미 로드된 경우
   initializeRSSFeeds();
-  console.log('[RSS-LOADER] 즉시 초기화 실행');
+  rssLog('[RSS-LOADER] 즉시 초기화 실행');
 }
 
-console.log('[RSS-LOADER] 모든 함수 정의 완료. loadSliderNews와 loadNewsFromRSS 준비됨');
+rssLog('[RSS-LOADER] 모든 함수 정의 완료. loadSliderNews와 loadNewsFromRSS 준비됨');

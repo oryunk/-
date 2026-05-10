@@ -1,11 +1,9 @@
-/** api-base.js가 늦게 로드되어도 되도록 매 요청 시점에 호스트를 읽는다. */
-function jurinApiBase() {
-  if (typeof window !== 'undefined' && window.JURIN_API_BASE) {
-    return window.JURIN_API_BASE;
-  }
-  return 'http://localhost:5000';
-}
+/**
+ * 파일: 공통 로그인 모달·네비 세션 표시 (/api/auth/*)
+ * 설명( api-base.js 다음에 로드. 홈은 주린닷컴홈피.html 에서도 이 파일을 포함한다. )
+ */
 
+// 사용자 객체에서 네비에 쓸 표시 이름 추출
 function displayNameFromUser(u) {
   if (!u) return null;
   const nickname = (u.nickname || '').trim();
@@ -14,6 +12,7 @@ function displayNameFromUser(u) {
   return nickname || loginId || email || null;
 }
 
+// /me 실패 시에도 직전 로그인 표시를 유지하기 위한 sessionStorage 백업
 function displayNameFromSessionStorage() {
   const nickname = (sessionStorage.getItem('jurinUserNickname') || '').trim();
   const loginId = (sessionStorage.getItem('jurinUserLoginId') || '').trim();
@@ -21,6 +20,7 @@ function displayNameFromSessionStorage() {
   return nickname || loginId || email || null;
 }
 
+// 로그인/로그아웃에 따라 상단 버튼·환영 문구 토글
 function setAuthNavVisible(displayName) {
   const loginBtn = document.getElementById('navLoginBtn');
   const logoutBtn = document.getElementById('navLogoutBtn');
@@ -42,12 +42,15 @@ function setAuthNavVisible(displayName) {
   }
 }
 
+// 로그인·뉴스 오버레이 열릴 때 body 스크롤 잠금
 function updateBodyScrollLock() {
-  const loginModal = document.getElementById('loginModal');
-  const isOpen = Boolean(loginModal && loginModal.classList.contains('is-open'));
-  document.body.style.overflow = isOpen ? 'hidden' : '';
+  const hasOpen = Boolean(
+    document.querySelector('.login-modal.is-open, .news-modal.is-open'),
+  );
+  document.body.style.overflow = hasOpen ? 'hidden' : '';
 }
 
+// HTML에 모달이 없을 때만 주입 (홈은 이미 마크업 있음)
 function ensureLoginModal() {
   if (document.getElementById('loginModal')) return;
 
@@ -84,6 +87,7 @@ function ensureLoginModal() {
   document.body.insertAdjacentHTML('beforeend', modalHtml);
 }
 
+// /api/auth/me 로 세션 반영, 실패 시 sessionStorage 폴백
 async function refreshAuthNav() {
   const loginBtn = document.getElementById('navLoginBtn');
   const emailEl = document.getElementById('navUserEmail');
@@ -103,6 +107,8 @@ async function refreshAuthNav() {
       if (loginId) sessionStorage.setItem('jurinUserLoginId', loginId);
       displayName = displayNameFromUser(u);
     }
+    /* 로그인 직후 /api/auth/me가 401이어도 sessionStorage를 지우지 않음.
+       설명( 포트/쿠키 이슈로 세션 쿠키가 안 붙을 때 방금 로그인 정보가 날아가던 버그 방지 ) */
   } catch (_) {
     displayName = displayNameFromSessionStorage();
   }
@@ -124,6 +130,13 @@ async function submitLogout() {
   sessionStorage.removeItem('jurinUserEmail');
   sessionStorage.removeItem('jurinUserNickname');
   sessionStorage.removeItem('jurinUserLoginId');
+  if (typeof window.afterJurinLogout === "function") {
+    try {
+      window.afterJurinLogout();
+    } catch (_) {
+      /* ignore */
+    }
+  }
   refreshAuthNav();
 }
 
@@ -197,7 +210,7 @@ async function submitLogin(event) {
     }
   } catch (err) {
     showLoginError(
-      `서버에 연결할 수 없습니다. (${jurinApiBase()}) Flask가 실행 중인지, 주소가 맞는지 확인하세요.`
+      `서버에 연결할 수 없습니다. (${jurinApiBase()}) Flask가 실행 중인지, 주소가 맞는지 확인하세요.`,
     );
   } finally {
     if (submitBtn) submitBtn.disabled = false;
@@ -220,6 +233,7 @@ function jurinNavigateSignup() {
   window.location.href = 'signup.html';
 }
 
+// .nav-right 버튼에 id·리스너 부여 (인라인 onclick 제거)
 function setupAuthNav() {
   const navRight = document.querySelector('.nav-right');
   if (!navRight) return;
@@ -267,7 +281,7 @@ function setupAuthNav() {
   logoutBtn.addEventListener('click', submitLogout);
 }
 
-document.addEventListener('keydown', event => {
+document.addEventListener('keydown', (event) => {
   if (event.key === 'Escape') {
     closeLoginModal();
   }

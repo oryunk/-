@@ -1,4 +1,8 @@
-﻿(function () {
+﻿/**
+ * 파일: market.html 2단계 차트·체크리스트 튜토리얼
+ * 설명( market.html 전용. 1단계 클리어 후 진행. )
+ */
+(function () {
   function clamp(v, min, max) {
     return Math.min(max, Math.max(min, v));
   }

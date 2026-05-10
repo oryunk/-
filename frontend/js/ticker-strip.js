@@ -1,5 +1,6 @@
 /**
- * 홈 상단 티커: 주요 종목 + KOSPI/KOSDAQ + USD/KRW (시장 페이지보다 느린 주기로 갱신)
+ * 파일: 홈 상단 티커(주요 종목·지수·환율)
+ * 설명( /api/live-prices 등 백엔드와 폴링. 인기 종목 표가 있으면 갱신 주기 단축. )
  */
 (function () {
   const BACKEND = window.JURIN_API_BASE || 'http://localhost:5000';

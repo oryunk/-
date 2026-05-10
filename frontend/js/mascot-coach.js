@@ -1,3 +1,7 @@
+/**
+ * 파일: 루미 마스코트 코치(모달·도크·튜토리얼 연동)
+ * 설명( 여러 페이지에서 로드. Dock 필터 체인으로 튜토리얼 완료 문구를 우선한다. )
+ */
 (function () {
   var typingTimer = null;
   var typingToken = 0;

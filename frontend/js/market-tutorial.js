@@ -1,3 +1,7 @@
+/**
+ * 파일: 주린닷컴 홈에서 시장 튜토리얼(step1) 진입 유도
+ * 설명( mascot-coach 와 tutorialOverlay 로 시장 탭 클릭을 안내한다. )
+ */
 (function () {
   function initStep1Tutorial() {
     const startBtn = document.getElementById('tutorialStep1Start');

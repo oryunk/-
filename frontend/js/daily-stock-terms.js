@@ -1,5 +1,6 @@
 /**
- * 홈 「오늘의 주식 용어」 — 한국 날짜(KST) 기준으로 하루 동안 같은 4개가 나오도록 선택
+ * 파일: 홈 「오늘의 주식 용어」 카드
+ * 설명( KST 날짜 시드로 같은 날에는 동일 4개 용어. 주린닷컴홈피.html 전용. )
  */
 (function () {
   'use strict';
@@ -96,6 +97,18 @@
       .replace(/"/g, '&quot;');
   }
 
+  /** 용어 사전 검색어: 약어·숫자·슬래시만 있으면 symbol, 아니면 한글 풀이(word) */
+  function glossarySearchQuery(t) {
+    var sym = String(t.symbol || '').trim();
+    if (/^[A-Za-z0-9./]+$/.test(sym)) return sym;
+    var w = String(t.word || '').trim();
+    return w || sym;
+  }
+
+  function glossaryHref(t) {
+    return 'glossary.html?term=' + encodeURIComponent(glossarySearchQuery(t));
+  }
+
   function render() {
     var grid = document.getElementById('dailyTermsGrid');
     if (!grid) return;
@@ -104,8 +117,13 @@
     var picked = pickDailyTerms(TERMINOLOGY_POOL, 4, seed);
     grid.innerHTML = picked
       .map(function (t) {
+        var label = escapeHtml(t.symbol) + ' ' + escapeHtml(t.word) + ' 용어 사전에서 검색';
         return (
-          '<div class="term-card">' +
+          '<a class="term-card" href="' +
+          glossaryHref(t) +
+          '" aria-label="' +
+          escapeHtml(label) +
+          '">' +
           '<div class="term-symbol">' +
           escapeHtml(t.symbol) +
           '</div>' +
@@ -115,7 +133,8 @@
           '<div class="term-def">' +
           escapeHtml(t.def) +
           '</div>' +
-          '</div>'
+          '<div class="term-glossary-hint">용어 사전에서 보기 →</div>' +
+          '</a>'
         );
       })
       .join('');

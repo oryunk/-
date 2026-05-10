@@ -1,3 +1,7 @@
+/**
+ * 파일: market.html 1단계 시세 튜토리얼(퀘스트·스포트라이트)
+ * 설명( market.html 에서만 로드. 가이드 진행 비트와 localStorage 연동. )
+ */
 (function () {
   function clamp(v, min, max) {
     return Math.min(max, Math.max(min, v));
@@ -201,6 +205,33 @@
     return document.getElementById(id);
   }
 
+  function scrollTutorialTargetsIntoViewIfNeeded(elements) {
+    if (!elements || !elements.length) return;
+    var primary = elements[0];
+    if (!primary || typeof primary.getBoundingClientRect !== 'function') return;
+    window.requestAnimationFrame(function () {
+      window.requestAnimationFrame(function () {
+        var r = primary.getBoundingClientRect();
+        var vh = window.innerHeight || document.documentElement.clientHeight;
+        var vw = window.innerWidth || document.documentElement.clientWidth;
+        var topMargin = 100;
+        var bottomMargin = 40;
+        var sideMargin = 8;
+        var clipped =
+          r.top < topMargin ||
+          r.bottom > vh - bottomMargin ||
+          r.left < sideMargin ||
+          r.right > vw - sideMargin;
+        if (!clipped) return;
+        try {
+          primary.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+        } catch (e) {
+          primary.scrollIntoView(true);
+        }
+      });
+    });
+  }
+
   function init() {
     var overlay = getEl('marketStep1Overlay');
     var questHud = getEl('marketStep1QuestHud');
@@ -250,6 +281,7 @@
           activeTargets.push(el);
         }
       });
+      scrollTutorialTargetsIntoViewIfNeeded(activeTargets);
     }
 
     function updateQuestChecklist() {
@@ -299,6 +331,7 @@
         document.body.classList.remove('market-step1-detail-overview');
         document.body.classList.remove('market-step1-detail-term-mode');
         document.body.classList.remove('market-step1-detail-spotlight');
+        document.body.classList.remove('tutorial-fx-spotlight');
         return;
       }
       var inDetailSpotlight = current >= STEP_GRID_INTRO && current <= STEP_WRAP;
@@ -313,6 +346,12 @@
         'market-step1-detail-term-mode',
         current >= STEP_TERM_OPEN && current <= STEP_TERM_VOL
       );
+      var commonSpot =
+        started &&
+        ((current === STEP_FILTER && !interaction.clickedFilter) ||
+          (current === STEP_VOLUME && !interaction.clickedVolumeFilter) ||
+          (current >= STEP_GRID_INTRO && current <= STEP_WRAP));
+      document.body.classList.toggle('tutorial-fx-spotlight', commonSpot);
     }
 
     function showFilterMisclickCoach() {
@@ -504,6 +543,7 @@
         clearTargets();
         pendingPersistStep1Complete = true;
         document.body.classList.add('market-step1-clear-phase');
+        document.body.classList.add('tutorial-fx-clear');
         overlay.classList.remove('is-dim');
         overlay.classList.add('is-clear-dim');
         clearEl.classList.add('is-show');
@@ -539,6 +579,10 @@
       overlay.classList.remove('is-clear-dim');
       document.body.classList.remove('market-step1-clear-phase');
       document.body.classList.remove('market-step1-active');
+      document.body.classList.remove('tutorial-fx-active');
+      document.body.classList.remove('tutorial-fx-spotlight');
+      document.body.classList.remove('tutorial-fx-clear');
+      document.body.classList.remove('tutorial-fx-pick-pulse');
       document.body.classList.remove('market-step1-spotlight');
       document.body.classList.remove('market-step1-spotlight-volume');
       document.body.classList.remove('market-step1-detail-overview');
@@ -575,6 +619,7 @@
       questHud.classList.add('is-open');
       questHud.setAttribute('aria-hidden', 'false');
       document.body.classList.add('market-step1-active');
+      document.body.classList.add('tutorial-fx-active');
       if (bannerEl) {
         bannerEl.classList.remove('is-hide');
         window.setTimeout(function () {
@@ -613,27 +658,6 @@
     if (tutorial === 'step1' || tutorial === '1') {
       showIntro();
     }
-
-    window.__mascotDockReopenFilter = function (lastPayload, fromDock) {
-      if (!fromDock) return null;
-      if (document.body.classList.contains('market-step1-active')) return null;
-      try {
-        var m = parseInt(localStorage.getItem(TUTORIAL_MASK_KEY), 10);
-        if (isNaN(m) || (m & 1) === 0) return null;
-      } catch (e) {
-        return null;
-      }
-      return {
-        mood: 'wink',
-        title: '루미',
-        text: '고생했어 이제 돌아갈까?',
-        confirmLabel: '돌아가기',
-        dismissLabel: '취소',
-        onConfirm: function () {
-          window.location.href = 'guide.html';
-        },
-      };
-    };
   }
 
   if (document.readyState === 'loading') {

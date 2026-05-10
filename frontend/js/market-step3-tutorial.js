@@ -1,3 +1,7 @@
+/**
+ * 파일: market.html 3단계 튜토리얼
+ * 설명( 시장 화면 후속 퀘스트·OX 퀴즈. )
+ */
 (function () {
   function clamp(v, min, max) {
     return Math.min(max, Math.max(min, v));
