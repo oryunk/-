@@ -87,7 +87,8 @@ CREATE TABLE virtual_orders (
   price       DECIMAL(18,2)      NOT NULL,               -- 주문 가격
   quantity    INT                NOT NULL,               -- 주문 수량
   status      ENUM('EXECUTED','CANCELED') NOT NULL,      -- 주문 상태
-  fee_amount  DECIMAL(18, 2) NOT NULL,                   -- 수수료
+  fee_amount  DECIMAL(18, 2) NOT NULL,                   -- 매매 수수료
+  tax_amount  DECIMAL(18, 2) NOT NULL DEFAULT 0,       -- 증권거래세(매도 시 등)
   executed_at DATETIME NOT NULL,                         -- 체결 일시
   created_at  DATETIME NOT NULL,                         -- 주문 생성 일시
   FOREIGN KEY (account_id) REFERENCES virtual_accounts(account_id),

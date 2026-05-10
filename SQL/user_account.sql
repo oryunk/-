@@ -1,6 +1,8 @@
 Use stock_db;
 
 -- [1] 회원 가입 시 자동 계좌 생성 트리거
+DROP TRIGGER IF EXISTS trg_after_user_insert;
+
 DELIMITER //
 
 CREATE TRIGGER trg_after_user_insert
@@ -68,12 +70,12 @@ BEGIN
         -- 6. 주문 이력(virtual_orders) 남기기
         -- 스키마에 정의된 status('EXECUTED')와 fee_amount를 명확히 기록
         INSERT INTO virtual_orders (
-            account_id, stock_id, side, price, quantity, 
-            status, fee_amount, executed_at, created_at
+            account_id, stock_id, side, price, quantity,
+            status, fee_amount, tax_amount, executed_at, created_at
         )
         VALUES (
-            v_account_id, p_stock_id, 'BUY', p_price, p_quantity, 
-            'EXECUTED', 0.00, NOW(), NOW()
+            v_account_id, p_stock_id, 'BUY', p_price, p_quantity,
+            'EXECUTED', 0.00, 0.00, NOW(), NOW()
         );
         
     END IF;
