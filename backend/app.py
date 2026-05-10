@@ -1,13 +1,24 @@
-from flask import Flask, request, jsonify, session, send_from_directory, abort, current_app
+"""
+주식/뉴스 웹앱 메인 Flask 앱.
+
+- 공유 상태: `app_state` (명시 import — Pylance/정적 분석용)
+- HTTP 라우트: `blueprints/*` + 아래 레거시 `serve_*` 등록
+- 구현 본문: 분석·모의투자·지수·FX·차트·종목상세·실시간 시세·KIS 연동 헬퍼
+
+설명( 점진적으로 라우트는 blueprints 로 옮기고, 무거운 로직은 services 로 이전 중이다. )
+"""
+from flask import Flask, request, jsonify, session, current_app
 import yfinance as yf
 import pandas as pd
 from datetime import date, datetime, timedelta
 import os
 import time
+import math
 import json
 import re
 from urllib.parse import quote
 import threading
+from concurrent.futures import ThreadPoolExecutor, wait
 import requests
 import logging
 from decimal import Decimal, ROUND_HALF_UP
@@ -23,21 +34,95 @@ except Exception as pykrx_err:
     pykrx_stock = None
 
 try:
-    from price import STOCKS as PRICE_STOCKS
-except Exception as price_err:
-    print(f'[WARN] price.STOCKS 로드 실패: {price_err}')
-    PRICE_STOCKS = {}
-
-try:
     from Live_price import sync_live_price_batch, fetch_live_snapshot_batch
 except Exception as live_price_err:
     print(f'[WARN] Live_price DB sync 로드 실패: {live_price_err}')
     sync_live_price_batch = None
     fetch_live_snapshot_batch = None
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-_FRONTEND_DIR = os.path.abspath(os.path.join(BASE_DIR, '..', 'frontend'))
 load_env_files()
+
+from app_state import (
+    DEFAULT_GPT_MODEL,
+    LIVE_PRICE_STOCKS,
+    LOCAL_TERM_FALLBACK,
+    MASTER_PROMPT,
+    PRICE_STOCKS,
+    STOCK_CODES,
+    TERM_INTERPRETATION_PROMPT,
+    _AI_ANALYSIS_PERSIST_DB,
+    _ASKING_FETCH_SERIAL_LOCK,
+    _ASKING_PRICE_CACHE,
+    _ASKING_PRICE_CACHE_LOCK,
+    _ASKING_PRICE_CACHE_TTL,
+    _ASKING_STALE_FALLBACK_SEC,
+    _BASIC_PEER_CACHE,
+    _BASIC_PEER_CACHE_TTL,
+    _CHART_MIN_BARS,
+    _CHART_PERIOD_MAP,
+    _CHART_TARGET_BARS,
+    _CHART_USE_KIS,
+    _CHART_WINDOW_CAL_DAYS,
+    _FX_USD_KRW_CACHE,
+    _FX_USD_KRW_TTL,
+    _INDEX_CACHE,
+    _INDEX_CACHE_TTL,
+    _INDEX_YF_TICKERS,
+    _INVESTOR_FLOW_CACHE,
+    _INVESTOR_FLOW_CACHE_TTL,
+    _KIS_ASKING_GAP_LOCK,
+    _KIS_ASKING_LAST_CALL,
+    _KIS_ASKING_MIN_GAP,
+    _KIS_ASKING_SECOND_TR_GAP,
+    _KIS_ASKING_SKIP_FB,
+    _KIS_BASE,
+    _KIS_INDEX_ROWS_FIXED,
+    _KIS_INDEX_TR,
+    _KIS_INDEX_TR_FB,
+    _KIS_KEY,
+    _KIS_SECRET,
+    _KIS_TOKEN_CACHE,
+    _KIS_TOKEN_DEADLINE,
+    _KIS_TOKEN_FILE,
+    _KIS_TOKEN_SAVED_AT,
+    _KIS_TOKEN_USE_DB,
+    _KIS_TR,
+    _KIS_TR_ASK,
+    _KIS_TR_ASK_FB,
+    _KIS_TR_FB,
+    _KR_MARKET_CLOSE_HHMM,
+    _KR_MARKET_OPEN_HHMM,
+    _LIVE_BG_ENABLED,
+    _LIVE_BG_INTERVAL_SEC,
+    _LIVE_BG_WORKER_STARTED,
+    _LIVE_BLOCK_OFFHOURS_FETCH,
+    _LIVE_EOD_FIX_ENABLED,
+    _LIVE_EOD_FIX_HHMM,
+    _LIVE_EOD_PYKRX_SKIP_DATE,
+    _LIVE_EOD_WORKER_STARTED,
+    _LIVE_LAST_UPDATE_AT,
+    _LIVE_OFFHOURS_STALE_DAYS,
+    _LIVE_OFFHOURS_USE_CACHE,
+    _LIVE_OFFHOURS_YFINANCE,
+    _LIVE_OFFHOURS_YF_BUDGET,
+    _LIVE_PRICE_CACHE,
+    _LIVE_PRICE_CURSOR,
+    _LIVE_PRICE_DB_SYNC_ENABLED,
+    _LIVE_PRICE_LOCK,
+    _LIVE_UPDATER_RUNNING,
+    _MOCK_INITIAL_CASH,
+    _PRICE_NAME_TO_CODE,
+    _SECTOR_FULL_REFRESH_GUARD,
+    _STOCK_DETAIL_CACHE,
+    _STOCK_DETAIL_CACHE_TTL,
+    _STOCK_DETAIL_DB_TTL,
+    _STOCK_POPULARITY_ON_ANALYSIS,
+    _WEB_PRICE_MAX_COUNT,
+    _WEB_REFRESH_BATCH_SIZE,
+    _WEB_REQUEST_GAP_SEC,
+    _WEB_UPDATE_INTERVAL_SEC,
+    _WEB_WARMUP_BATCH_SIZE,
+)
 
 app = Flask(__name__)
 app.secret_key = flask_secret_key()
@@ -46,178 +131,39 @@ app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 app.config["SESSION_COOKIE_PATH"] = "/"
 
 from auth_api import auth_bp, get_connection as get_db_connection
-from cors_helpers import apply_cors_headers
-import news_service
+from cors_helpers import register_flask_cors
 import kis_token_db
 
 app.register_blueprint(auth_bp)
+register_flask_cors(app)
+
+from services.gpt_client import call_gpt, clean_gpt_prose as _clean_gpt_prose
+from blueprints.news import news_bp
+from blueprints.market_data import market_data_bp
+from blueprints.mock_trading import mock_trading_bp
+from blueprints.analysis import analysis_bp
+from blueprints.charts import charts_bp
+from blueprints.quotes import quotes_bp
+from blueprints.static_site import static_site_bp
+from blueprints.watchlist import watchlist_bp
+
+app.register_blueprint(news_bp)
+app.register_blueprint(market_data_bp)
+app.register_blueprint(mock_trading_bp)
+app.register_blueprint(analysis_bp)
+app.register_blueprint(charts_bp)
+app.register_blueprint(quotes_bp)
+app.register_blueprint(static_site_bp)
+app.register_blueprint(watchlist_bp)
+
+# 라이브 시세 유니버스: stock_popularity 기반 일별 순서 (짧은 TTL 캐시).
+_LIVE_UNIVERSE_CACHE_ITEMS = None
+_LIVE_UNIVERSE_CACHE_TS = 0.0
+_LIVE_UNIVERSE_TTL = float(os.getenv('LIVE_PRICE_UNIVERSE_CACHE_TTL_SEC', '60'))
 
 
-def create_app():
-    """WSGI/테스트 환경에서 사용할 Flask app factory."""
-    return app
-
-
-@app.after_request
-def _cors_after_request(response):
-    return apply_cors_headers(request, response)
-
-
-@app.before_request
-def _cors_preflight():
-    if request.method == "OPTIONS":
-        return apply_cors_headers(request, app.make_response(("", 204)))
-
-# GPT(OpenAI) API 설정
-OPENAI_API_KEY = (os.getenv('OPENAI_API_KEY') or os.getenv('GPT_API_KEY') or '').strip()
-DEFAULT_GPT_MODEL = os.getenv('GPT_MODEL', 'gpt-5.4-mini').strip() or 'gpt-5.4-mini'
-OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions'
-GPT_AVAILABLE = bool(OPENAI_API_KEY)
-if not GPT_AVAILABLE:
-    print('[WARN] GPT API 키가 설정되지 않았습니다. 분석/용어 설명은 로컬 fallback 또는 오류 응답이 반환될 수 있습니다.')
-
-# 종목 코드 매핑
-STOCK_CODES = {
-    '삼성전자': '005930.KS',
-    'SK하이닉스': '000660.KS',
-    'NAVER': '035420.KS',
-    '카카오': '035720.KS',
-    '현대차': '005380.KS',
-    'LG전자': '066570.KS',
-    'POSCO': '005490.KS',
-}
-
-_PRICE_NAME_TO_CODE = {}
-for _code, _name in (PRICE_STOCKS or {}).items():
-    _nm = str(_name or '').strip()
-    if not _nm:
-        continue
-    _PRICE_NAME_TO_CODE[_nm.lower()] = str(_code).strip()
-    _PRICE_NAME_TO_CODE[_nm.replace(' ', '').lower()] = str(_code).strip()
-
-RSS_FEEDS = [
-    'https://www.mk.co.kr/rss/50200011/'
-]
-
-NEWS_DB_SYNC = os.getenv('NEWS_DB_SYNC', 'true').strip().lower() in {'1', 'true', 'y', 'yes', 'on'}
-NEWS_READER_DIGEST = os.getenv('NEWS_READER_DIGEST', 'true').strip().lower() in {'1', 'true', 'y', 'yes', 'on'}
-_NEWS_STOCK_REL_SYNC = os.getenv('NEWS_STOCK_REL_SYNC', 'true').strip().lower() in {'1', 'true', 'y', 'yes', 'on'}
-_AI_ANALYSIS_PERSIST_DB = os.getenv('AI_ANALYSIS_PERSIST_DB', 'true').strip().lower() in {'1', 'true', 'y', 'yes', 'on'}
-_STOCK_POPULARITY_ON_ANALYSIS = os.getenv('STOCK_POPULARITY_ON_ANALYSIS', 'true').strip().lower() in {'1', 'true', 'y', 'yes', 'on'}
-
-MASTER_PROMPT = """[MASTER PROMPT] 스몰캡 전략 v7.5: 자동 진행형 투자 분석 시스템 - Quantum Leap Hybrid Deep Analysis Edition
-
-나의 역할
-너는 Quantum Leap 팀 리더인 GPT이다.
-너는 Harper, Benjamin, Lucas, Sophia와 함께 5명 팀으로 작동하며, 모든 분석은 팀원들의 전문 영역을 최대한 활용하면서 이전 단일 역할 프롬프트 수준 이상의 상세하고 깊은 분석을 제공한다. 불필요한 영어 출력은 제한하고, 최대한 적절한 한국어로 출력한다. 특히 용어 출력시 불필요하게 사용하지 않는다.
-
-실제 팀 역할 분담
-GPT (Team Leader): 전체 조율, 각 STAGE 종합, 추가 인사이트 보강, 최종 결론
-Harper: Macro Sentinel (시장 국면, VIX, 매크로 환경, 메가트렌드 전문)
-Benjamin: Fundamental Researcher + Risk Guardian (SEC 자료, 펀더멘털 체크리스트, Cash Runway·Dilution, Red Team, Kill Switch, 인지 편향 체크 전문)
-Lucas: Technical Pattern Hunter (최신 차트 수집·패턴 분석, 상대강도, 시나리오 전문)
-
-강화된 대화 프로토콜 (절대 준수)
-자동 진행 모드 (기본값)
-분석은 STAGE 0부터 STAGE 6까지 자동으로 연속 진행한다.
-각 STAGE 완료 후 자동으로 다음 STAGE로 넘어간다.
-사용자 개입 없이 전체 분석을 완료한다.
-
-Kill Switch 예외 처리
-Hard Kill 발생 시: 즉시 중단하고 사유 명시
-Soft Warning 발생 시: 경고 표시 후 "계속 진행할까요? (Yes/No)"로 사용자 확인 요청
-
-최종 단계
-STAGE 6 완료 후 자동으로 "통합 분석 리포트를 생성할까요?" 질문
-사용자가 Yes 입력 시에만 최종 보고서 출력
-
-강화된 분석 원칙 (Hybrid Deep Mode)
-각 에이전트는 분석 시 반드시 구체적인 숫자, 날짜, SEC 인용, 경영진 코멘트(MD&A) 등을 최대한 포함하고, 논리를 자세히 풀어서 설명한다.
-GPT는 각 STAGE 끝에 "팀 의견 통합 + 추가 인사이트"를 반드시 추가한다.
-
-Persistent State Protocol
-대화 전체 히스토리를 완벽히 기억하며 이전 STAGE 결론을 자연스럽게 참조한다.
-
-1-A. 정보 수집 및 검증 원칙
-소스 한정: Bloomberg, Reuters, The Wall Street Journal, CNBC, Financial Times (U.S.), MarketWatch, Barron's, SEC EDGAR만 사용.
-검색 쿼리는 영어로만 작성한다.
-
-1-B. 자율적 데이터 수집 원칙
-모든 데이터는 사용자 요청 없이 스스로 검색 확보한다.
-성격 및 특징: 데이터 중심적, 규율적, 지적 겸손함.
-핵심 전략: 평소 스나이퍼 모드, 완벽 셋업 시 야수 모드.
-언어 프로토콜: 내부 검색·생각은 영어, 모든 사용자 응답은 한국어.
-
-Kill Switch 프로토콜 v5.6 (Flexible Risk)
-Hard Kill: Going Concern, SEC 조사, 사기 의심 등 치명적 리스크 → 즉시 중단
-Soft Warning: Cash Runway <6개월, Dilution >25%, 🔴 3개 이상 등 → Override 여부 사용자에게 질문
-
-분석 STAGE 구조 (자동 진행)
-STAGE -1: 능동적 주도주 발굴
-사용자가 발굴 모드 또는 메가트렌드를 지정하면 시총 20억 달러 이하, 주가 30달러 이하, 최근 3개월 내부자 매수 또는 주요 촉매가 있는 기업 3~5개를 제안한다.
-STAGE 0: 시장 국면 분석 (Harper 주도)
-시장 요약 센터, 포트폴리오 모드, 시장 심리, VIX 수준(현재값 + 최근 1주 추이), 핵심 시장 논리, 매크로 환경 분석(정치·경제·사회·기술), 주요 지수 전술 위치, 시장 등급(A+/B/F) 판정
-STAGE 1: 메가트렌드 식별 (Harper 주도)
-STAGE 2: 미래의 주도주 통합 분석 (Benjamin 주도)
-STAGE 3: 장기 차트 셋업 및 시나리오 분석 (Lucas 주도)
-STAGE 4: 포지션 구축 실행 계획 (GPT 종합)
-STAGE 5: 최종 투자 논거 요약 (GPT 종합)
-STAGE 6: 인지 편향 체크 (Benjamin 주도) → PASS / HOLD / REJECT
-
-FINAL STAGE
-모든 STAGE 완료 후 "통합 분석 리포트를 생성할까요?"라고 정확히 질문한다. Yes일 때만 전체 보고서를 출력한다.
-"""
-
-TERM_INTERPRETATION_PROMPT = """주린이 투자자에게 질문한 금융·투자 용어 **하나만** 설명한다.
-
-[작성 규칙]
-- 한국어, 친한 멘토 말투. 전문 용어는 꼭 필요할 때만 짧게 쓴다.
-- "용어의 의미:", "특징:", "실제 투자 활용 예시:" 같은 **고정 소제목·굵은 꼬리표**는 절대 쓰지 않는다.
-- 2~4문단, 짧게. 첫 문단은 한 줄로 핵심만 요약한다.
-- 질문한 용어 외 다른 용어를 추가로 설명하지 않는다.
-- 특정 종목 매수·매도를 권유하지 않는다.
-"""
-
-LOCAL_TERM_FALLBACK = {
-    '현재가': (
-        '1단계 학습: 시세 읽기 기초\n\n'
-        '처음에는 어렵게 보이지만 핵심은 간단합니다. 시장(코스피·코스닥)과 가격 다섯 가지—'
-        '시가, 현재가, 종가, 고가, 저가—만 먼저 익히면 됩니다.\n\n'
-        '현재가는 지금 장에서 이 종목이 얼마에 거래되고 있는지 보여 주는 가격이에요. '
-        '매수·매도 주문이 붙을 때마다 수시로 바뀔 수 있습니다.'
-    ),
-    'per': (
-        'PER은 주가가 1주당 이익의 몇 배인지 나타내요. 같은 업종 기업끼리 비교해 '
-        '“이익 대비 주가가 비싼 편인지”를 가늠할 때 씁니다. 성장 단계가 다르면 숫자만으로 판단하긴 어려워요.'
-    ),
-    'roe': (
-        'ROE는 자기자본으로 얼마나 이익을 냈는지 보는 효율 지표예요. '
-        '꾸준히 높으면 자본 활용이 나은 편이라고 볼 수 있지만, 부채가 많으면 왜곡될 수 있어 다른 표도 같이 봐야 해요.'
-    ),
-    'pbr': (
-        'PBR은 주가가 장부상 순자산(1주당)의 몇 배인지예요. 자산 비중이 큰 업종에서 '
-        '상대적 저·고평가를 볼 때 자주 씁니다.'
-    ),
-    'eps': (
-        'EPS는 주 1주당 순이익이에요. PER을 계산할 때 분모로 쓰이고, 실적이 늘었는지 줄었는지 추이를 볼 때도 써요.'
-    ),
-    '배당주': (
-        '배당주는 이익 일부를 배당금으로 주주에게 돌려주는 성향이 있는 주식을 가리키는 말로 쓰여요. '
-        '시세차익과 함께 현금 흐름을 노릴 때 참고할 수 있어요.'
-    ),
-    '시가총액': (
-        '시가총액은 주가에 발행 주식 수를 곱해 본 회사 규모(시장에서 매기는 가치)예요. '
-        '대형·중형·소형주를 나눌 때 기준이 됩니다.'
-    ),
-    '변동성': (
-        '변동성은 가격이 얼마나 크게 오르내리는지를 나타내요. 크면 기회도 있지만 손실 폭도 커질 수 있어요.'
-    ),
-    '포트폴리오': (
-        '포트폴리오는 내가 가진 투자 자산의 조합이에요. 한 종목에 몰지 않고 나눠 담으면 리스크를 줄이는 데 도움이 됩니다.'
-    ),
-}
-
-
+# 로컬 용어 사전·고정 안내 문구로 용어를 설명한다 (GPT 없을 때).
+# 설명( `/api/explain-term` 등에서 GPT 실패·비활성 시 fallback. )
 def explain_term_with_local_fallback(term_name):
     normalized = (term_name or '').strip().lower()
     if normalized in LOCAL_TERM_FALLBACK:
@@ -230,106 +176,15 @@ def explain_term_with_local_fallback(term_name):
     )
 
 
-def _clean_gpt_prose(text: str) -> str:
-    """모델이 삼중따옴표·펜스·프롬프트 꼬리표를 그대로 내보낼 때 제거(용어 설명·뉴스 쉬운 설명 등 산문용)."""
-    if not text or not str(text).strip():
-        return str(text or '').strip()
-    s = str(text).strip()
-    for _ in range(6):
-        t = s.strip()
-        if len(t) >= 6 and t.startswith('"""') and t.endswith('"""'):
-            s = t[3:-3].strip()
-            continue
-        if len(t) >= 6 and t.startswith("'''") and t.endswith("'''"):
-            s = t[3:-3].strip()
-            continue
-        break
-    m = re.match(r'^```(?:[a-zA-Z0-9_-]*)?\s*\r?\n([\s\S]*?)\r?\n```\s*$', s)
-    if m:
-        s = m.group(1).strip()
-    lines = s.split('\n')
-
-    def _is_fence_line(ln: str) -> bool:
-        x = ln.strip()
-        return x in ('"""', "'''", '"', "'", '```', "''", '""') or re.fullmatch(r'`{3,}', x) is not None
-
-    while lines and _is_fence_line(lines[0]):
-        lines.pop(0)
-    while lines and _is_fence_line(lines[-1]):
-        lines.pop()
-    s = '\n'.join(lines).strip()
-    for marker in (
-        '\n[작성 규칙]',
-        '\n[사용자 질문]',
-        '\n[제목]',
-        '\n[요약]',
-        '\n---\n[작성',
-    ):
-        idx = s.find(marker)
-        if idx != -1:
-            s = s[:idx].strip()
-            break
-    return s.strip()
-
-
-def call_gpt(prompt_text, model=DEFAULT_GPT_MODEL):
-    """OpenAI GPT API 호출 (용어 설명용)."""
-    if not GPT_AVAILABLE:
-        return {
-            'success': False,
-            'status_code': 500,
-            'message': 'GPT API가 설정되지 않았습니다. OPENAI_API_KEY 또는 GPT_API_KEY를 확인해주세요.'
-        }
-
-    headers = {
-        'Authorization': f'Bearer {OPENAI_API_KEY}',
-        'content-type': 'application/json'
-    }
-    payload = {
-        'model': model,
-        'max_completion_tokens': 4000,
-        'messages': [{'role': 'user', 'content': prompt_text}]
-    }
-
-    try:
-        response = requests.post(OPENAI_API_URL, headers=headers, json=payload, timeout=40)
-    except Exception as err:
-        return {'success': False, 'status_code': 503, 'message': f'GPT 호출 실패: {err}'}
-
-    if not response.ok:
-        message = f'GPT API 호출 실패({response.status_code})'
-        try:
-            error_payload = response.json()
-            api_msg = (((error_payload or {}).get('error') or {}).get('message') or '').strip()
-            if api_msg:
-                message = api_msg
-        except Exception:
-            pass
-        upper_msg = message.upper()
-        if ('CREDIT BALANCE IS TOO LOW' in upper_msg) or ('INSUFFICIENT' in upper_msg and 'CREDIT' in upper_msg) or ('INSUFFICIENT_QUOTA' in upper_msg):
-            return {'success': False, 'status_code': 429, 'message': message}
-        return {'success': False, 'status_code': response.status_code, 'message': message}
-
-    try:
-        data = response.json()
-    except Exception:
-        return {'success': False, 'status_code': 500, 'message': 'GPT 응답 JSON 파싱에 실패했습니다.'}
-
-    choices = data.get('choices') or []
-    first_choice = choices[0] if choices else {}
-    message_obj = first_choice.get('message') if isinstance(first_choice, dict) else {}
-    final_text = ((message_obj or {}).get('content') or '').strip()
-    if not final_text:
-        return {'success': False, 'status_code': 500, 'message': 'GPT 응답 텍스트가 비어 있습니다.'}
-
-    return {'success': True, 'text': final_text}
-
+# 차트 API(/api/chart-data/<code>)용 코드. 한국 6자리면 숫자만, 그 외는 yfinance 티커 그대로.
 def _resolve_chart_code(stock_name):
     """차트 API(/api/chart-data/<code>)용 코드. 한국 6자리면 숫자만, 그 외는 yfinance 티커 그대로."""
     _ticker, chart_code = _resolve_ticker_and_chart_code(stock_name)
     return chart_code
 
 
+# 사용자 입력(한글명/6자리코드/티커)을 yfinance ticker + 차트코드로 해석.
+# 설명( - 한글명은 STOCK_CODES + price.STOCKS 역매핑으로 6자리 코드를 찾는다. - 6자리 숫자는 .KS를 기본으로 붙인다. )
 def _resolve_ticker_and_chart_code(stock_name):
     """
     사용자 입력(한글명/6자리코드/티커)을 yfinance ticker + 차트코드로 해석.
@@ -359,6 +214,7 @@ def _resolve_ticker_and_chart_code(stock_name):
     return raw, raw
 
 
+# NaN/inf/None 을 기본값으로 치환해 JSON 직렬화 오류를 방지.
 def _safe_float(value, default=0.0):
     """NaN/inf/None 을 기본값으로 치환해 JSON 직렬화 오류를 방지."""
     try:
@@ -370,6 +226,7 @@ def _safe_float(value, default=0.0):
     return num
 
 
+# GPT 텍스트에서 첫 JSON 객체를 추출해 dict로 반환.
 def _extract_first_json_object(text):
     """GPT 텍스트에서 첫 JSON 객체를 추출해 dict로 반환."""
     raw = str(text or "").strip()
@@ -397,6 +254,7 @@ def _extract_first_json_object(text):
     return None
 
 
+# `_coerce_gpt_opinion` — 모듈 내부 헬퍼.
 def _coerce_gpt_opinion(value, fallback):
     allowed = {"강력매수", "매수", "보유", "약세"}
     v = str(value or "").strip()
@@ -405,6 +263,7 @@ def _coerce_gpt_opinion(value, fallback):
     return fallback
 
 
+# `_opinion_to_color` — 모듈 내부 헬퍼.
 def _opinion_to_color(opinion):
     if opinion == "강력매수":
         return "green"
@@ -415,6 +274,8 @@ def _opinion_to_color(opinion):
     return "gray"
 
 
+# 분석 API용 현재가/등락률 DB fallback.
+# 설명( - yfinance 실패 시에도 DB 스냅샷으로 0원 응답을 피한다. )
 def _db_quote_for_analysis(stock_name):
     """
     분석 API용 현재가/등락률 DB fallback.
@@ -438,6 +299,7 @@ def _db_quote_for_analysis(stock_name):
     return 0, 0.0
 
 
+# 종목 관련 최신 대표 뉴스 1건을 선택.
 def _pick_representative_news(stock_name):
     """종목 관련 최신 대표 뉴스 1건을 선택."""
     name = str(stock_name or '').strip()
@@ -492,6 +354,7 @@ def _pick_representative_news(stock_name):
             conn.close()
 
 
+# `_resolve_stock_code_for_news` — 모듈 내부 헬퍼.
 def _resolve_stock_code_for_news(stock_name):
     _, chart_code = _resolve_ticker_and_chart_code(stock_name)
     code = str(chart_code or '').strip()
@@ -500,6 +363,8 @@ def _resolve_stock_code_for_news(stock_name):
     return ''
 
 
+# 대표 뉴스 1건을 기반으로 -1.0~1.0 감성 점수 산출.
+# 설명( GPT 실패 시 키워드 휴리스틱 fallback. )
 def _news_sentiment_score(stock_name, article):
     """
     대표 뉴스 1건을 기반으로 -1.0~1.0 감성 점수 산출.
@@ -538,10 +403,12 @@ def _news_sentiment_score(stock_name, article):
     return _clamp(raw, -1.0, 1.0), '뉴스 키워드 기반 보조 점수'
 
 
+# `_clamp` — 모듈 내부 헬퍼.
 def _clamp(value, low, high):
     return max(low, min(high, value))
 
 
+# 주식 데이터 조회
 def get_stock_data(stock_name):
     """주식 데이터 조회"""
     try:
@@ -569,6 +436,7 @@ def get_stock_data(stock_name):
         print(f"[데이터 조회 오류] {e}")
         return None
 
+# AI 종목 분석
 def analyze_stock(stock_name):
     """AI 종목 분석"""
     data = get_stock_data(stock_name)
@@ -786,6 +654,7 @@ def analyze_stock(stock_name):
         }
 
 
+# 금융/투자 용어를 GPT로 설명
 def explain_term_with_gpt(term_name):
     """금융/투자 용어를 GPT로 설명"""
     prompt = (
@@ -796,75 +665,7 @@ def explain_term_with_gpt(term_name):
     return call_gpt(prompt, model=DEFAULT_GPT_MODEL)
 
 
-def fetch_rss_items(limit=12):
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36'
-    }
-
-    for feed_url in RSS_FEEDS:
-        try:
-            response = requests.get(feed_url, headers=headers, timeout=10)
-            response.raise_for_status()
-
-            parsed = news_service.parse_rss_channel_bytes(
-                response.content,
-                feed_url,
-                default_source='매일경제',
-                limit=limit,
-            )
-            if not parsed:
-                continue
-
-            if NEWS_DB_SYNC:
-                try:
-                    conn = get_db_connection()
-                    try:
-                        news_service.upsert_rss_batch(conn, parsed)
-                        if _NEWS_STOCK_REL_SYNC:
-                            try:
-                                news_service.sync_news_stock_links(
-                                    conn, scan_limit=max(len(parsed) * 4, limit * 3, 40)
-                                )
-                            except Exception as rel_err:
-                                print(f'[RSS] news_stock_rel 동기화 실패: {rel_err}')
-                        conn.commit()
-                        items = news_service.fetch_recent_list(conn, limit=limit)
-                        return {'success': True, 'items': items, 'feed': feed_url, 'from_db': True}
-                    except Exception as db_err:
-                        conn.rollback()
-                        import traceback
-                        print(f'[RSS/DB] 동기화 실패, RSS 페이로드만 반환: {db_err}')
-                        traceback.print_exc()
-                    finally:
-                        conn.close()
-                except Exception as conn_err:
-                    print(f'[RSS/DB] DB 연결 실패: {conn_err}')
-
-            items = news_service.serialize_parsed_for_api(parsed)
-            return {'success': True, 'items': items, 'feed': feed_url, 'from_db': False}
-        except Exception as err:
-            print(f'[RSS] 피드 로드 실패 ({feed_url}): {err}')
-
-    return {'success': False, 'message': 'RSS 피드를 불러오지 못했습니다.'}
-
-
-def _explain_news_reader_text(title: str, summary: str):
-    """주린이 독자용 짧은 뉴스 해설 (GPT)."""
-    body = (summary or '').strip()
-    if len(body) > 3500:
-        body = body[:3500] + '…'
-    prompt = (
-        '주린이 투자자에게 아래 경제·증시 뉴스를 쉽게 풀어서 설명하라.\n\n'
-        f'[제목]\n{title}\n\n[요약]\n{body}\n\n'
-        '[작성 규칙]\n'
-        '- 한국어, 4~7문장.\n'
-        '- 핵심 사실과 시장에서 왜 주목되는지(맥락)를 포함한다.\n'
-        '- 특정 종목의 매수·매도를 직접 권유하지 않는다.\n'
-        '- 확인되지 않은 추측은 완곡하게 표현한다.\n'
-    )
-    return call_gpt(prompt, model=DEFAULT_GPT_MODEL)
-
-
+# `_resolve_stock_id_for_analysis` — 모듈 내부 헬퍼.
 def _resolve_stock_id_for_analysis(conn, stock_name: str):
     chart = _resolve_chart_code(stock_name)
     if not chart:
@@ -878,6 +679,7 @@ def _resolve_stock_id_for_analysis(conn, stock_name: str):
         return int(r['stock_id']) if r else None
 
 
+# `_bump_stock_popularity_on_analysis` — 모듈 내부 헬퍼.
 def _bump_stock_popularity_on_analysis(conn, stock_id: int):
     if not _STOCK_POPULARITY_ON_ANALYSIS or stock_id <= 0:
         return
@@ -894,6 +696,131 @@ def _bump_stock_popularity_on_analysis(conn, stock_id: int):
         )
 
 
+def _get_live_price_universe_items():
+    """stock_popularity 당일(또는 최신 일) 점수 순 종목 목록. 실패·비어 있으면 LIVE_PRICE_STOCKS 순."""
+    global _LIVE_UNIVERSE_CACHE_ITEMS, _LIVE_UNIVERSE_CACHE_TS
+    now = time.time()
+    if (
+        _LIVE_UNIVERSE_CACHE_ITEMS is not None
+        and (now - _LIVE_UNIVERSE_CACHE_TS) < _LIVE_UNIVERSE_TTL
+    ):
+        return _LIVE_UNIVERSE_CACHE_ITEMS
+
+    limit = max(1, int(_WEB_PRICE_MAX_COUNT))
+    fallback = list(LIVE_PRICE_STOCKS.items())[:limit]
+    ranked: list[tuple[str, str]] = []
+    try:
+        conn = get_db_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT s.symbol, s.name_ko,
+                           (COALESCE(sp.view_count, 0) + COALESCE(sp.search_count, 0)
+                            + COALESCE(sp.trade_count, 0)) AS score
+                    FROM stock_popularity sp
+                    INNER JOIN stocks s ON s.stock_id = sp.stock_id
+                    WHERE sp.date = CURDATE()
+                    ORDER BY score DESC, s.symbol ASC
+                    LIMIT %s
+                    """,
+                    (limit,),
+                )
+                rows = cur.fetchall() or []
+                if not rows:
+                    cur.execute(
+                        'SELECT MAX(date) AS d FROM stock_popularity WHERE date IS NOT NULL',
+                    )
+                    mx = cur.fetchone()
+                    ref = mx.get('d') if mx else None
+                    if ref is not None:
+                        cur.execute(
+                            """
+                            SELECT s.symbol, s.name_ko,
+                                   (COALESCE(sp.view_count, 0) + COALESCE(sp.search_count, 0)
+                                    + COALESCE(sp.trade_count, 0)) AS score
+                            FROM stock_popularity sp
+                            INNER JOIN stocks s ON s.stock_id = sp.stock_id
+                            WHERE sp.date = %s
+                            ORDER BY score DESC, s.symbol ASC
+                            LIMIT %s
+                            """,
+                            (ref, limit),
+                        )
+                        rows = cur.fetchall() or []
+                for r in rows:
+                    sym = str(r.get('symbol') or '').strip().split('.')[0].strip()
+                    if not sym:
+                        continue
+                    nm = (r.get('name_ko') or sym or '').strip()
+                    if not nm:
+                        nm = PRICE_STOCKS.get(sym) or LIVE_PRICE_STOCKS.get(sym) or sym
+                    ranked.append((sym, nm))
+        finally:
+            conn.close()
+    except Exception as e:
+        bc = getattr(e, 'args', None)
+        if not (bc and bc[0] == 1146):
+            logging.getLogger(__name__).warning('[live-universe] DB 조회 실패: %s', e)
+        ranked = []
+
+    seen: set[str] = set()
+    out: list[tuple[str, str]] = []
+    for code, name in ranked:
+        c = str(code).strip().split('.')[0].strip()
+        if not c or c in seen:
+            continue
+        seen.add(c)
+        nm = str(name or '').strip() or PRICE_STOCKS.get(c) or LIVE_PRICE_STOCKS.get(c) or c
+        out.append((c, nm))
+        if len(out) >= limit:
+            break
+    for code, name in fallback:
+        if len(out) >= limit:
+            break
+        c = str(code).strip().split('.')[0].strip()
+        if not c or c in seen:
+            continue
+        seen.add(c)
+        out.append((c, str(name or PRICE_STOCKS.get(c) or LIVE_PRICE_STOCKS.get(c) or c)))
+    _LIVE_UNIVERSE_CACHE_ITEMS = out[:limit]
+    _LIVE_UNIVERSE_CACHE_TS = now
+    return _LIVE_UNIVERSE_CACHE_ITEMS
+
+
+def _bump_stock_popularity_view(code: str):
+    """시장 종목 상세 조회 시 당일 view_count 증가 (인기 순위 변동용)."""
+    global _LIVE_UNIVERSE_CACHE_TS
+    base = _chart_base_code(str(code or ''))
+    if not base or not re.match(r'^\d{6}$', base):
+        return
+    try:
+        sid = _chart_resolve_stock_id(base)
+        if not sid:
+            return
+        conn = get_db_connection()
+        try:
+            with conn.cursor() as c:
+                c.execute(
+                    """
+                    INSERT INTO stock_popularity (stock_id, date, view_count, search_count, trade_count)
+                    VALUES (%s, CURDATE(), 1, 0, 0)
+                    ON DUPLICATE KEY UPDATE
+                        view_count = view_count + 1
+                    """,
+                    (sid,),
+                )
+            conn.commit()
+            _LIVE_UNIVERSE_CACHE_TS = 0.0
+        finally:
+            conn.close()
+    except Exception as e:
+        bc = getattr(e, 'args', None)
+        if not (bc and bc[0] == 1146):
+            logging.getLogger(__name__).warning('[stock_popularity] view bump 실패: %s', e)
+
+
+# `_persist_ai_analysis_row` — 모듈 내부 헬퍼.
 def _persist_ai_analysis_row(result: dict, stock_name: str, user_id):
     if not _AI_ANALYSIS_PERSIST_DB or not result.get('success'):
         return
@@ -940,8 +867,8 @@ def _persist_ai_analysis_row(result: dict, stock_name: str, user_id):
         print(f'[ai_analyses] DB 연결 실패: {e}')
 
 
-@app.route('/api/analyze', methods=['POST'])
-def analyze():
+# 종목 분석 API 엔드포인트
+def serve_analyze():
     """종목 분석 API 엔드포인트"""
     data = request.json
     stock_name = data.get('stock_name', '').strip()
@@ -960,8 +887,8 @@ def analyze():
     return jsonify(result)
 
 
-@app.route('/api/terms/explain', methods=['POST'])
-def explain_term():
+# 용어 설명 API 엔드포인트
+def serve_explain_term():
     """용어 설명 API 엔드포인트"""
     data = request.get_json(silent=True) or {}
     term = (data.get('term') or '').strip()
@@ -993,128 +920,70 @@ def explain_term():
     })
 
 
-@app.route('/api/rss/news', methods=['GET'])
-def rss_news():
-    """RSS 뉴스 프록시 API"""
+def _score_price_stock_match(code, name, q_raw):
+    """종목명·코드 부분 일치 점수(낮을수록 더 잘 맞음). 일치 없으면 None."""
+    q = (q_raw or '').strip()
+    if not q:
+        return None
+    code = str(code or '').strip()
+    name = str(name or '')
+    ql = q.lower()
+    hay = name.lower()
+    if code == q:
+        return (0, 0)
+    if hay == ql:
+        return (0, 1)
+    if q.isdigit() and code.startswith(q):
+        return (1, len(code))
+    if hay.startswith(ql):
+        return (2, len(name))
+    pos = hay.find(ql)
+    if pos >= 0:
+        return (3, pos, len(name))
+    pos = code.find(q)
+    if pos >= 0:
+        return (4, pos)
+    if q in name:
+        return (5, name.find(q), len(name))
+    return None
+
+
+def _matched_codes_for_price_query(q_raw, max_codes=80):
+    """PRICE_STOCKS 전역에서 검색어에 맞는 종목코드(관련도 순)."""
+    q = (q_raw or '').strip()
+    if not q or not PRICE_STOCKS:
+        return []
+    scored = []
+    for code, name in PRICE_STOCKS.items():
+        sc = _score_price_stock_match(code, name, q)
+        if sc is not None:
+            scored.append((sc, code))
+    scored.sort(key=lambda x: x[0])
+    return [c for _, c in scored[:max_codes]]
+
+
+def serve_stock_suggest():
+    """종목 자동완성(PRICE_STOCKS 기준)."""
+    q = (request.args.get('q') or '').strip()
     try:
         limit = int(request.args.get('limit', '12'))
     except ValueError:
         limit = 12
-
-    limit = max(1, min(limit, 30))
-    result = fetch_rss_items(limit=limit)
-
-    if not result.get('success'):
-        return jsonify({'success': False, 'message': result.get('message', 'RSS 조회 실패')}), 502
-
-    return jsonify({
-        'success': True,
-        'items': result.get('items', []),
-        'feed': result.get('feed', ''),
-        'from_db': result.get('from_db', False),
-    })
+    limit = max(1, min(30, limit))
+    if not q or not PRICE_STOCKS:
+        return jsonify({'success': True, 'items': []})
+    scored = []
+    for code, name in PRICE_STOCKS.items():
+        sc = _score_price_stock_match(code, name, q)
+        if sc is not None:
+            scored.append((sc, code, str(name or '')))
+    scored.sort(key=lambda x: x[0])
+    items = [{'code': c, 'name': n} for _, c, n in scored[:limit]]
+    return jsonify({'success': True, 'items': items})
 
 
-@app.route('/api/news/<int:news_id>', methods=['GET'])
-def news_detail(news_id: int):
-    """단일 뉴스(본문 요약 + 선택 시 AI 쉬운 설명 생성/캐시)."""
-    want_digest = (request.args.get('digest') or '').strip().lower() in ('1', 'true', 'y', 'yes', 'on')
-    try:
-        conn = get_db_connection()
-        try:
-            article = news_service.fetch_article_by_id(conn, news_id)
-        finally:
-            conn.close()
-    except Exception as e:
-        return jsonify({'success': False, 'message': f'DB 오류: {e}'}), 500
-
-    if not article:
-        return jsonify({'success': False, 'message': '기사를 찾을 수 없습니다.'}), 404
-
-    if (article.get('reader_digest') or '').strip():
-        article['reader_digest'] = _clean_gpt_prose(article['reader_digest'])
-
-    if want_digest and NEWS_READER_DIGEST and GPT_AVAILABLE:
-        if not (article.get('reader_digest') or '').strip():
-            gen = _explain_news_reader_text(article.get('title') or '', article.get('summary') or '')
-            if gen.get('success') and (gen.get('text') or '').strip():
-                digest_text = _clean_gpt_prose(gen['text'].strip())
-                article['reader_digest'] = digest_text
-                try:
-                    conn = get_db_connection()
-                    try:
-                        news_service.update_reader_digest(conn, news_id, digest_text)
-                        conn.commit()
-                    except Exception as ex:
-                        conn.rollback()
-                        print(f'[news] reader_digest 저장 실패: {ex}')
-                    finally:
-                        conn.close()
-                except Exception as ex:
-                    print(f'[news] reader_digest DB 연결 실패: {ex}')
-            else:
-                article['digest_error'] = gen.get('message') or '설명 생성에 실패했습니다.'
-    elif want_digest and NEWS_READER_DIGEST and not GPT_AVAILABLE:
-        article['digest_error'] = 'AI 설명을 쓰려면 OPENAI_API_KEY 또는 GPT_API_KEY를 설정하세요.'
-
-    return jsonify({
-        'success': True,
-        'article': article,
-    })
-
-
-@app.route('/api/news/by-stock/<code>', methods=['GET'])
-def news_by_stock(code: str):
-    """news_stock_rel + 인덱스로 종목 연관 뉴스 조회."""
-    sym = re.sub(r'\D', '', str(code or ''))
-    if len(sym) != 6:
-        return jsonify({'success': False, 'message': '6자리 종목코드가 필요합니다.'}), 400
-    try:
-        limit = int(request.args.get('limit', '10'))
-    except ValueError:
-        limit = 10
-    limit = max(1, min(limit, 30))
-    try:
-        conn = get_db_connection()
-        try:
-            with conn.cursor() as c:
-                c.execute(
-                    """
-                    SELECT n.news_id, n.title, n.summary, n.url, n.img_url, n.source,
-                           n.published_at, r.match_type, r.confidence
-                    FROM news_stock_rel r
-                    INNER JOIN stocks s ON s.stock_id = r.stock_id AND s.symbol = %s
-                    INNER JOIN news_articles n ON n.news_id = r.news_id
-                    ORDER BY n.published_at DESC, n.news_id DESC
-                    LIMIT %s
-                    """,
-                    (sym, limit),
-                )
-                rows = [dict(x) for x in (c.fetchall() or [])]
-        finally:
-            conn.close()
-    except Exception as e:
-        err = getattr(e, 'args', None)
-        if err and err[0] == 1146:
-            return jsonify({'success': True, 'code': sym, 'items': [], 'notice': 'news_stock_rel 테이블이 없습니다.'})
-        return jsonify({'success': False, 'message': str(e)}), 500
-
-    for it in rows:
-        pa = it.get('published_at')
-        if hasattr(pa, 'isoformat'):
-            it['published_at'] = pa.isoformat()
-        cf = it.get('confidence')
-        if cf is not None:
-            try:
-                it['confidence'] = float(cf)
-            except (TypeError, ValueError):
-                pass
-
-    return jsonify({'success': True, 'code': sym, 'items': rows})
-
-
-@app.route('/api/mock/traded-value-rank', methods=['GET'])
-def mock_traded_value_rank():
+# 모의투자용 종목 목록(거래대금 순).
+def serve_mock_traded_value_rank():
     """모의투자용 종목 목록(거래대금 순)."""
     try:
         limit = int(request.args.get('limit', '30'))
@@ -1125,7 +994,16 @@ def mock_traded_value_rank():
     if not PRICE_STOCKS:
         return jsonify({'success': True, 'items': []})
 
-    codes = [c for c, _ in list(PRICE_STOCKS.items())[: min(80, _WEB_PRICE_MAX_COUNT * 2)]]
+    search_q = (request.args.get('q') or '').strip()
+    match_order = {}
+    if search_q:
+        codes = _matched_codes_for_price_query(search_q, max_codes=50)
+        if not codes:
+            return jsonify({'success': True, 'items': []})
+        for i, c in enumerate(codes):
+            match_order[c] = i
+    else:
+        codes = [c for c, _ in list(PRICE_STOCKS.items())[: min(80, _WEB_PRICE_MAX_COUNT * 2)]]
     snap = {}
     if fetch_live_snapshot_batch:
         try:
@@ -1134,6 +1012,7 @@ def mock_traded_value_rank():
             snap = {}
 
     vol_map = {}
+    open_map = {}
     prev_close_map = {}
     conn = None
     try:
@@ -1145,7 +1024,8 @@ def mock_traded_value_rank():
                 ph = ','.join(['%s'] * len(codes))
                 cur.execute(
                     f"""
-                    SELECT s.symbol, COALESCE(sp.volume, 0) AS v
+                    SELECT s.symbol, COALESCE(sp.volume, 0) AS v,
+                           COALESCE(sp.open_price, 0) AS o
                     FROM stocks s
                     JOIN stock_price_daily sp ON sp.stock_id = s.stock_id
                     WHERE s.symbol IN ({ph})
@@ -1159,6 +1039,12 @@ def mock_traded_value_rank():
                     sym = str(row.get('symbol') or '').strip()
                     if sym:
                         vol_map[sym] = int(float(row.get('v') or 0))
+                        try:
+                            opx = int(float(row.get('o') or 0))
+                        except (TypeError, ValueError):
+                            opx = 0
+                        if opx > 0:
+                            open_map[sym] = opx
                 cur.execute(
                     f"""
                     SELECT s.symbol, sp.close_price
@@ -1214,17 +1100,25 @@ def mock_traded_value_rank():
         if vol <= 0:
             vol = max(1, price // 500)
         traded_value = float(price) * float(vol)
+        open_px = _opening_price_for_mock(code, open_map.get(code, 0))
         items.append({
             'code': code,
             'name': name,
             'price': price,
+            'open_price': open_px,
             'change_rate': round(rate, 2),
             'direction': direction,
             'volume': vol,
             'traded_value': int(traded_value),
+            '_mi': match_order.get(code, 99) if match_order else 0,
         })
 
-    items.sort(key=lambda x: -x['traded_value'])
+    if match_order:
+        items.sort(key=lambda x: (x.get('_mi', 99), -x['traded_value']))
+    else:
+        items.sort(key=lambda x: -x['traded_value'])
+    for it in items:
+        it.pop('_mi', None)
     try:
         token = _kis_get_token() if (_KIS_KEY and _KIS_SECRET) else None
         nudge = [(c, name) for c, name in PRICE_STOCKS.items() if c in codes][: min(_WEB_REFRESH_BATCH_SIZE, len(codes))]
@@ -1236,8 +1130,8 @@ def mock_traded_value_rank():
     return jsonify({'success': True, 'items': items[:limit]})
 
 
-@app.route('/api/mock/asking-price/<code>', methods=['GET'])
-def mock_asking_price(code):
+# 국내주식 호가·예상체결 (한국투자 domestic-stock v1 quotations inquire-asking-price-exp-ccn).
+def serve_mock_asking_price(code):
     """국내주식 호가·예상체결 (한국투자 domestic-stock v1 quotations inquire-asking-price-exp-ccn)."""
     code = str(code or '').strip()
     if not re.match(r'^\d{6}$', code):
@@ -1275,8 +1169,8 @@ def mock_asking_price(code):
     return jsonify({'success': False, 'message': err or '호가 조회에 실패했습니다.'}), 502
 
 
-@app.route('/api/mock/portfolio', methods=['GET'])
-def mock_portfolio():
+# 로그인 사용자의 모의투자 자산/보유/주문 내역 조회
+def serve_mock_portfolio():
     """로그인 사용자의 모의투자 자산/보유/주문 내역 조회"""
     user_id = session.get('user_id')
     if not user_id:
@@ -1331,26 +1225,55 @@ def mock_portfolio():
             )
             holdings = cursor.fetchall() or []
 
-            cursor.execute(
-                """
-                SELECT
-                    vo.order_id,
-                    vo.side,
-                    vo.price,
-                    vo.quantity,
-                    vo.status,
-                    vo.executed_at,
-                    vo.created_at,
-                    s.symbol,
-                    s.name_ko
-                FROM virtual_orders vo
-                JOIN stocks s ON s.stock_id = vo.stock_id
-                WHERE vo.account_id = %s
-                ORDER BY vo.created_at DESC
-                LIMIT 100
-                """,
-                (account_id,),
-            )
+            try:
+                cursor.execute(
+                    """
+                    SELECT
+                        vo.order_id,
+                        vo.side,
+                        vo.price,
+                        vo.quantity,
+                        vo.status,
+                        vo.fee_amount,
+                        COALESCE(vo.tax_amount, 0) AS tax_amount,
+                        vo.executed_at,
+                        vo.created_at,
+                        s.symbol,
+                        s.name_ko
+                    FROM virtual_orders vo
+                    JOIN stocks s ON s.stock_id = vo.stock_id
+                    WHERE vo.account_id = %s
+                    ORDER BY vo.created_at DESC
+                    LIMIT 100
+                    """,
+                    (account_id,),
+                )
+            except Exception as ord_err:
+                es = str(ord_err).lower()
+                if 'tax_amount' in es or 'unknown column' in es:
+                    cursor.execute(
+                        """
+                        SELECT
+                            vo.order_id,
+                            vo.side,
+                            vo.price,
+                            vo.quantity,
+                            vo.status,
+                            vo.fee_amount,
+                            vo.executed_at,
+                            vo.created_at,
+                            s.symbol,
+                            s.name_ko
+                        FROM virtual_orders vo
+                        JOIN stocks s ON s.stock_id = vo.stock_id
+                        WHERE vo.account_id = %s
+                        ORDER BY vo.created_at DESC
+                        LIMIT 100
+                        """,
+                        (account_id,),
+                    )
+                else:
+                    raise
             orders = cursor.fetchall() or []
 
         cash_balance = _won_int(account.get('cash_balance'))
@@ -1394,12 +1317,17 @@ def mock_portfolio():
         for row in orders:
             qty = int(row.get('quantity') or 0)
             price = _won_int(row.get('price'))
+            gross = price * qty
+            fee_amt = _won_int(row.get('fee_amount'))
+            tax_amt = _won_int(row.get('tax_amount'))
             normalized_orders.append({
                 'order_id': row.get('order_id'),
                 'side': row.get('side'),
                 'price': price,
                 'quantity': qty,
-                'total': price * qty,
+                'total': gross,
+                'fee': fee_amt,
+                'tax': tax_amt,
                 'status': row.get('status'),
                 'executed_at': row.get('executed_at'),
                 'created_at': row.get('created_at'),
@@ -1435,6 +1363,123 @@ def mock_portfolio():
             conn.close()
 
 
+def _watchlist_dt_json(val):
+    if val is None:
+        return None
+    if hasattr(val, 'isoformat'):
+        try:
+            return val.isoformat(sep=' ', timespec='seconds')
+        except TypeError:
+            return val.isoformat()
+    return str(val)
+
+
+def serve_watchlist_list():
+    """로그인 사용자의 관심 종목 목록 (종목코드·이름·추가 시각)."""
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'success': False, 'message': '로그인이 필요합니다.'}), 401
+
+    conn = None
+    try:
+        conn = get_db_connection()
+        with conn.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT s.symbol, s.name_ko, uw.created_at
+                FROM user_watchlist uw
+                JOIN stocks s ON s.stock_id = uw.stock_id
+                WHERE uw.user_id = %s
+                ORDER BY uw.created_at DESC
+                """,
+                (user_id,),
+            )
+            rows = cursor.fetchall() or []
+
+        items = []
+        for r in rows:
+            sym = str(r.get('symbol') or '').strip()
+            if not sym:
+                continue
+            items.append({
+                'code': sym,
+                'name': str(r.get('name_ko') or sym),
+                'created_at': _watchlist_dt_json(r.get('created_at')),
+            })
+
+        return jsonify({'success': True, 'items': items})
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'관심 종목 조회 실패: {e}'}), 500
+    finally:
+        if conn:
+            conn.close()
+
+
+def serve_watchlist_toggle():
+    """관심 종목 추가/제거 토글. body: { \"code\": \"005930\" }."""
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'success': False, 'message': '로그인이 필요합니다.'}), 401
+
+    body = request.get_json(silent=True) or {}
+    code = (body.get('code') or body.get('stock') or '').strip()
+    if not re.match(r'^\d{6}$', code):
+        return jsonify({'success': False, 'message': '종목코드는 6자리 숫자여야 합니다.'}), 400
+
+    conn = None
+    try:
+        conn = get_db_connection()
+        with conn.cursor() as cursor:
+            stock_row = _resolve_stock_for_trade(cursor, code)
+            if not stock_row:
+                return jsonify({'success': False, 'message': '등록되지 않은 종목입니다.'}), 400
+            stock_id = int(stock_row['stock_id'])
+
+            cursor.execute(
+                'SELECT id FROM user_watchlist WHERE user_id = %s AND stock_id = %s LIMIT 1',
+                (user_id, stock_id),
+            )
+            existing = cursor.fetchone()
+
+            if existing:
+                cursor.execute(
+                    'DELETE FROM user_watchlist WHERE user_id = %s AND stock_id = %s',
+                    (user_id, stock_id),
+                )
+                conn.commit()
+                return jsonify({
+                    'success': True,
+                    'in_watchlist': False,
+                    'message': '관심종목에서 제거했습니다.',
+                })
+
+            cursor.execute(
+                """
+                INSERT INTO user_watchlist (user_id, stock_id, created_at)
+                VALUES (%s, %s, NOW())
+                """,
+                (user_id, stock_id),
+            )
+            conn.commit()
+
+        return jsonify({
+            'success': True,
+            'in_watchlist': True,
+            'message': '관심종목에 추가했습니다.',
+        })
+    except Exception as e:
+        if conn:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+        return jsonify({'success': False, 'message': f'처리 실패: {e}'}), 500
+    finally:
+        if conn:
+            conn.close()
+
+
+# 잔고·가격을 원 단위 정수로 변환 (float 오차로 인한 1원 단위 누락 방지).
 def _won_int(value):
     """잔고·가격을 원 단위 정수로 변환 (float 오차로 인한 1원 단위 누락 방지)."""
     if value is None:
@@ -1455,6 +1500,31 @@ def _won_int(value):
             return 0
 
 
+# 모의 매매: 단순 매매수수료·매도 증권거래세 (실제 증권사·세법과 다를 수 있음)
+# 국내 현물 단순 모델: 매수에는 증권거래세 없음, 매도에만 약 0.18% 반영.
+_MOCK_TRADE_COMMISSION_RATE = Decimal('0.00015')  # 약 0.015%/건
+_MOCK_SECURITIES_TAX_RATE_SELL = Decimal('0.0018')  # 약 0.18% (매도, 단순 모델)
+
+
+def _mock_trade_commission_and_tax(side, gross_won):
+    """gross_won: 단가×수량(원). 반환 (수수료, 증권거래세) 원 int. 세금은 SELL일 때만."""
+    g = max(0, _won_int(gross_won))
+    if g <= 0:
+        return 0, 0
+    comm = int(
+        (Decimal(g) * _MOCK_TRADE_COMMISSION_RATE).to_integral_value(rounding=ROUND_HALF_UP)
+    )
+    if comm < 1:
+        comm = 1
+    tax = 0
+    if side == 'SELL':
+        tax = int(
+            (Decimal(g) * _MOCK_SECURITIES_TAX_RATE_SELL).to_integral_value(rounding=ROUND_HALF_UP)
+        )
+    return comm, tax
+
+
+# `_ensure_mock_account` — 모듈 내부 헬퍼.
 def _ensure_mock_account(cursor, user_id):
     cursor.execute(
         """
@@ -1488,6 +1558,7 @@ def _ensure_mock_account(cursor, user_id):
     return cursor.fetchone()
 
 
+# 종목 입력에서 6자리 코드 추출.
 def _normalize_stock_trade_input(raw):
     """종목 입력에서 6자리 코드 추출."""
     s = (raw or '').strip()
@@ -1507,6 +1578,7 @@ def _normalize_stock_trade_input(raw):
     return s
 
 
+# `_resolve_stock_for_trade` — 모듈 내부 헬퍼.
 def _resolve_stock_for_trade(cursor, stock_input):
     raw = _normalize_stock_trade_input((stock_input or '').strip())
     if not raw:
@@ -1550,8 +1622,8 @@ def _resolve_stock_for_trade(cursor, stock_input):
     return None
 
 
-@app.route('/api/mock/trade', methods=['POST'])
-def mock_trade():
+# `serve_mock_trade` — 모듈 내부 헬퍼.
+def serve_mock_trade():
     user_id = session.get('user_id')
     if not user_id:
         return jsonify({'success': False, 'message': '로그인이 필요합니다.'}), 401
@@ -1627,16 +1699,21 @@ def mock_trade():
                 return jsonify({'success': False, 'message': '체결가를 확인할 수 없습니다. 가격을 입력해주세요.'}), 400
 
             total_amount = price * quantity
+            fee_c, tax_c = _mock_trade_commission_and_tax(side, total_amount)
             if side == 'BUY':
-                if cash_balance < total_amount:
-                    return jsonify({'success': False, 'message': '잔액이 부족합니다.'}), 400
+                cost_total = total_amount + fee_c
+                if cash_balance < cost_total:
+                    return jsonify({
+                        'success': False,
+                        'message': '잔액이 부족합니다. (거래금액+수수료를 포함합니다.)',
+                    }), 400
                 cursor.execute(
                     """
                     UPDATE virtual_accounts
                     SET cash_balance = cash_balance - %s, updated_at = NOW()
                     WHERE account_id = %s
                     """,
-                    (total_amount, account_id),
+                    (cost_total, account_id),
                 )
                 cursor.execute(
                     """
@@ -1665,13 +1742,16 @@ def mock_trade():
                 if current_qty < quantity:
                     return jsonify({'success': False, 'message': '보유 수량이 부족합니다.'}), 400
 
+                proceeds = total_amount - fee_c - tax_c
+                if proceeds < 0:
+                    proceeds = 0
                 cursor.execute(
                     """
                     UPDATE virtual_accounts
                     SET cash_balance = cash_balance + %s, updated_at = NOW()
                     WHERE account_id = %s
                     """,
-                    (total_amount, account_id),
+                    (proceeds, account_id),
                 )
                 remain = current_qty - quantity
                 if remain > 0:
@@ -1682,17 +1762,36 @@ def mock_trade():
                 else:
                     cursor.execute("DELETE FROM virtual_positions WHERE position_id = %s", (pos['position_id'],))
 
-            cursor.execute(
-                """
-                INSERT INTO virtual_orders (
-                    account_id, stock_id, side, price, quantity, status, fee_amount, executed_at, created_at
-                ) VALUES (%s, %s, %s, %s, %s, 'EXECUTED', 0, NOW(), NOW())
-                """,
-                (account_id, stock_id, side, price, quantity),
-            )
+            try:
+                cursor.execute(
+                    """
+                    INSERT INTO virtual_orders (
+                        account_id, stock_id, side, price, quantity, status,
+                        fee_amount, tax_amount, executed_at, created_at
+                    ) VALUES (%s, %s, %s, %s, %s, 'EXECUTED', %s, %s, NOW(), NOW())
+                    """,
+                    (account_id, stock_id, side, price, quantity, fee_c, tax_c),
+                )
+            except Exception as ins_err:
+                err_low = str(ins_err).lower()
+                if 'tax_amount' in err_low or 'unknown column' in err_low:
+                    cursor.execute(
+                        """
+                        INSERT INTO virtual_orders (
+                            account_id, stock_id, side, price, quantity, status,
+                            fee_amount, executed_at, created_at
+                        ) VALUES (%s, %s, %s, %s, %s, 'EXECUTED', %s, NOW(), NOW())
+                        """,
+                        (account_id, stock_id, side, price, quantity, fee_c),
+                    )
+                else:
+                    raise
         conn.commit()
 
-        cash_after = cash_before - total_amount if side == 'BUY' else cash_before + total_amount
+        if side == 'BUY':
+            cash_after = cash_before - (total_amount + fee_c)
+        else:
+            cash_after = cash_before + (total_amount - fee_c - tax_c)
         try:
             with conn.cursor() as cur2:
                 cur2.execute(
@@ -1716,8 +1815,13 @@ def mock_trade():
                 'name': name,
                 'price': price,
                 'quantity': quantity,
+                'gross': total_amount,
                 'total': total_amount,
-                'fee': 0,
+                'fee': fee_c,
+                'tax': tax_c,
+                'net_settlement': (-(total_amount + fee_c)) if side == 'BUY' else (total_amount - fee_c - tax_c),
+                'commission_rate_note': '0.015%',
+                'tax_rate_note': '0.18% (매도)' if side == 'SELL' else None,
             },
         })
     except Exception as e:
@@ -1728,31 +1832,7 @@ def mock_trade():
         if conn:
             conn.close()
 
-@app.route('/api/health', methods=['GET'])
-def health():
-    """헬스 체크"""
-    return jsonify({'status': 'ok', 'message': '서버가 정상 작동 중입니다.'}), 200
-
-
-_INDEX_YF_TICKERS = {
-    'KOSPI': '^KS11',
-    'KOSDAQ': '^KQ11',
-    'KOSPI 200': '^KS200',
-}
-_KIS_INDEX_ROWS_FIXED = [
-    ('KOSPI', '0001'),
-    ('KOSDAQ', '1001'),
-    ('KOSPI 200', '2001'),
-]
-_KIS_INDEX_TR = os.getenv('KIS_INDEX_TR_ID', 'FHPUP02100000')
-_KIS_INDEX_TR_FB = os.getenv('KIS_INDEX_TR_ID_MOCK', 'VFPUP02100000')
-_INDEX_CACHE = {'data': [], 'ts': 0.0}
-_INDEX_CACHE_TTL = int(os.getenv('MARKET_INDICES_CACHE_TTL_SEC', '15'))
-
-_FX_USD_KRW_CACHE = {'payload': None, 'ts': 0.0}
-_FX_USD_KRW_TTL = float(os.getenv('FX_USD_KRW_CACHE_TTL_SEC', '30'))
-
-
+# KIS 지수 API 필드 추출.
 def _kis_index_price_fields(out):
     """KIS 지수 API 필드 추출."""
     if not out:
@@ -1763,6 +1843,7 @@ def _kis_index_price_fields(out):
     return pr, dv, rt
 
 
+# KIS 지수 값이 종목별 최소 구간에 들어가는지.
 def _kis_index_row_seems_valid(name, value):
     """KIS 지수 값이 종목별 최소 구간에 들어가는지."""
     try:
@@ -1778,6 +1859,7 @@ def _kis_index_row_seems_valid(name, value):
     return v > 0.0
 
 
+# Yahoo Finance 지수 일봉.
 def _yf_index_from_ticker(name, ticker):
     """Yahoo Finance 지수 일봉."""
     hist = yf.Ticker(ticker).history(period='30d', interval='1d')
@@ -1800,6 +1882,7 @@ def _yf_index_from_ticker(name, ticker):
     }
 
 
+# KIS 지수 현재가 조회.
 def _kis_fetch_index_price(token, fid_input_iscd):
     """KIS 지수 현재가 조회."""
     for tr_id in (_KIS_INDEX_TR, _KIS_INDEX_TR_FB):
@@ -1833,6 +1916,7 @@ def _kis_fetch_index_price(token, fid_input_iscd):
     return None, 'KIS 지수 조회 실패'
 
 
+# KIS 지수 응답 → 지수 행 dict.
 def _kis_index_output_to_row(name, out):
     """KIS 지수 응답 → 지수 행 dict."""
     sign = str(out.get('prdy_vrss_sign') or out.get('PRDY_VRSS_SIGN') or '3')
@@ -1851,8 +1935,8 @@ def _kis_index_output_to_row(name, out):
     }
 
 
-@app.route('/api/market-indices', methods=['GET'])
-def market_indices():
+# 주요 시장 지수 (캐시).
+def serve_market_indices():
     """주요 시장 지수 (캐시)."""
     now = time.time()
     if now - _INDEX_CACHE['ts'] < _INDEX_CACHE_TTL and _INDEX_CACHE['data']:
@@ -1896,8 +1980,8 @@ def market_indices():
                     'ts': datetime.now().strftime('%H:%M:%S')})
 
 
-@app.route('/api/fx-usd-krw', methods=['GET'])
-def fx_usd_krw():
+# USD/KRW 환율.
+def serve_fx_usd_krw():
     """USD/KRW 환율."""
     now = time.time()
     cached = _FX_USD_KRW_CACHE['payload']
@@ -1941,6 +2025,7 @@ def fx_usd_krw():
         return jsonify({'success': False, 'message': str(e)}), 502
 
 
+# 분봉에서 최근 거래일만 남김.
 def _trim_intraday_to_last_session_day(hist: pd.DataFrame) -> pd.DataFrame:
     """분봉에서 최근 거래일만 남김."""
     if hist is None or getattr(hist, 'empty', True):
@@ -1965,6 +2050,7 @@ def _trim_intraday_to_last_session_day(hist: pd.DataFrame) -> pd.DataFrame:
     return hist
 
 
+# fallback으로 더 긴 기간을 받아도 요청 구간에 맞게 절단.
 def _clip_hist_to_requested_range(hist: pd.DataFrame, range_param: str, intraday: bool) -> pd.DataFrame:
     """fallback으로 더 긴 기간을 받아도 요청 구간에 맞게 절단."""
     if hist is None or getattr(hist, 'empty', True):
@@ -1998,6 +2084,7 @@ def _clip_hist_to_requested_range(hist: pd.DataFrame, range_param: str, intraday
     return hist
 
 
+# yfinance 3개월봉 등 → 연도별 OHLC 1봉 (토스 년봉 폴백).
 def _hist_aggregate_to_yearly(hist: pd.DataFrame) -> pd.DataFrame:
     """yfinance 3개월봉 등 → 연도별 OHLC 1봉 (토스 년봉 폴백)."""
     if hist is None or getattr(hist, 'empty', True):
@@ -2028,6 +2115,7 @@ def _hist_aggregate_to_yearly(hist: pd.DataFrame) -> pd.DataFrame:
         return hist
 
 
+# OHLCV → 차트용 캔들·이동평균.
 def _build_chart_payload_from_hist(hist: pd.DataFrame, intraday: bool):
     """OHLCV → 차트용 캔들·이동평균."""
     if hist is None or hist.empty:
@@ -2068,6 +2156,7 @@ def _build_chart_payload_from_hist(hist: pd.DataFrame, intraday: bool):
     }
 
 
+# 일봉 종가 SMA(5)·SMA(20)을 각 기간봉의 기준일(해당 일까지의 일봉)에 맞춤. cleaned.time 은 YYYY-MM-DD.
 def _compute_daily_ma_aligned_to_candles(cleaned: list, daily: list[dict]) -> tuple[list, list] | None:
     """일봉 종가 SMA(5)·SMA(20)을 각 기간봉의 기준일(해당 일까지의 일봉)에 맞춤. cleaned.time 은 YYYY-MM-DD."""
     if not cleaned or not daily or len(daily) < 20:
@@ -2111,6 +2200,7 @@ def _compute_daily_ma_aligned_to_candles(cleaned: list, daily: list[dict]) -> tu
     return ma5, ma20
 
 
+# 차트 이평 정합용 일봉 종가 (오름차순). DB → KIS D.
 def _daily_close_list_for_ma(code: str, token: str | None) -> list[dict] | None:
     """차트 이평 정합용 일봉 종가 (오름차순). DB → KIS D."""
     stock_id = _chart_resolve_stock_id(code)
@@ -2126,6 +2216,7 @@ def _daily_close_list_for_ma(code: str, token: str | None) -> list[dict] | None:
     return None
 
 
+# 주·월·연봉 응답의 ma5/ma20을 일봉 기준 5·20일 이평으로 덮어쓴다. 실패 시 기존(봉 기준) 유지.
 def _merge_daily_ma_into_chart_payload(payload: dict, code: str, token: str | None) -> None:
     """주·월·연봉 응답의 ma5/ma20을 일봉 기준 5·20일 이평으로 덮어쓴다. 실패 시 기존(봉 기준) 유지."""
     candles = payload.get('candles') or []
@@ -2142,6 +2233,7 @@ def _merge_daily_ma_into_chart_payload(payload: dict, code: str, token: str | No
     payload['ma20'] = ma20
 
 
+# yfinance 일봉 종가 (오름차순 date, close).
 def _yf_fetch_daily_closes_for_ma(ticker_code: str) -> list[dict] | None:
     """yfinance 일봉 종가 (오름차순 date, close)."""
     try:
@@ -2163,6 +2255,7 @@ def _yf_fetch_daily_closes_for_ma(ticker_code: str) -> list[dict] | None:
         return None
 
 
+# `_merge_daily_ma_into_chart_payload_yf` — 모듈 내부 헬퍼.
 def _merge_daily_ma_into_chart_payload_yf(payload: dict, yahoo_ticker: str) -> None:
     if not yahoo_ticker:
         return
@@ -2180,6 +2273,7 @@ def _merge_daily_ma_into_chart_payload_yf(payload: dict, yahoo_ticker: str) -> N
     payload['ma20'] = ma20
 
 
+# OHLC dict 리스트 → 차트용 캔들·이동평균 (_build_chart_payload_from_hist 와 동일 계산).
 def _build_chart_payload_from_candles(candles, intraday):
     """OHLC dict 리스트 → 차트용 캔들·이동평균 (_build_chart_payload_from_hist 와 동일 계산)."""
     if not candles:
@@ -2223,8 +2317,8 @@ def _build_chart_payload_from_candles(candles, intraday):
     }
 
 
-@app.route('/api/chart-data/<code>', methods=['GET'])
-def chart_data(code):
+# 종목 차트: 토스 스타일(일/주/월/년봉). KIS+DB 우선, 실패 시 yfinance.
+def serve_chart_data(code):
     """종목 차트: 토스 스타일(일/주/월/년봉). KIS+DB 우선, 실패 시 yfinance."""
     range_param = str(request.args.get('range', '1d') or '1d').strip().lower()
     if range_param not in ('1d', '1w', '1m', '1y'):
@@ -2276,8 +2370,8 @@ def chart_data(code):
     return jsonify({'success': False, 'message': '차트 데이터를 불러올 수 없습니다.'}), 404
 
 
-@app.route('/api/tutorial/chart-coach', methods=['POST'])
-def tutorial_chart_coach():
+# 2단계 튜토리얼: 차트 봉 요약 기반 짧은 교육 멘트(GPT). 투자 조언 금지.
+def serve_tutorial_chart_coach():
     """2단계 튜토리얼: 차트 봉 요약 기반 짧은 교육 멘트(GPT). 투자 조언 금지."""
     body = request.get_json(force=True, silent=True) or {}
     code = str(body.get('code') or '').strip()
@@ -2331,88 +2425,30 @@ def tutorial_chart_coach():
     return jsonify({'success': True, 'text': text})
 
 
-
-_KIS_KEY    = os.getenv('KIS_APP_KEY')
-_KIS_SECRET = os.getenv('KIS_APP_SECRET')
-_KIS_PROD   = os.getenv('KIS_USE_PROD', 'false').strip().lower() in {'1', 'true', 'y', 'yes', 'on'}
-_KIS_BASE   = 'https://openapi.koreainvestment.com:9443' if _KIS_PROD else 'https://openapivts.koreainvestment.com:29443'
-_KIS_TR     = 'FHKST01010100' if _KIS_PROD else 'VFHKST01010100'
-_KIS_TR_FB  = 'VFHKST01010100' if _KIS_PROD else 'FHKST01010100'
-_KIS_TR_ASK = 'FHKST01010200' if _KIS_PROD else 'VFHKST01010200'
-_KIS_TR_ASK_FB = 'VFHKST01010200' if _KIS_PROD else 'FHKST01010200'
-_KIS_TOKEN_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'token_vts.json')
-# 호가 API: KIS 초당 호출 제한 대응 (캐시·전역 직렬화·stale 폴백)
-_ASKING_PRICE_CACHE = {}
-_ASKING_PRICE_CACHE_LOCK = threading.Lock()
-_ASKING_PRICE_CACHE_TTL = float(os.getenv('MOCK_ASKING_CACHE_TTL_SEC', '15'))
-_ASKING_STALE_FALLBACK_SEC = float(os.getenv('MOCK_ASKING_STALE_FALLBACK_SEC', '180'))
-_ASKING_FETCH_SERIAL_LOCK = threading.Lock()
-_KIS_ASKING_SKIP_FB = os.getenv('KIS_ASKING_SKIP_FALLBACK_TR', 'false').strip().lower() in {
-    '1', 'true', 'y', 'yes', 'on',
-}
-_KIS_ASKING_GAP_LOCK = threading.Lock()
-_KIS_ASKING_LAST_CALL = 0.0
-_KIS_ASKING_MIN_GAP = float(os.getenv('KIS_ASKING_MIN_GAP_SEC', '1.0'))
-_KIS_ASKING_SECOND_TR_GAP = float(os.getenv('KIS_ASKING_SECOND_TR_GAP_SEC', '1.15'))
-_WEB_PRICE_MAX_COUNT = int(os.getenv('LIVE_PRICE_MAX_COUNT', '50'))
-_WEB_REQUEST_GAP_SEC = float(os.getenv('LIVE_PRICE_REQUEST_GAP_SEC', '0.35'))
-_WEB_REFRESH_BATCH_SIZE = int(os.getenv('LIVE_PRICE_REFRESH_BATCH_SIZE', '10'))
-_WEB_WARMUP_BATCH_SIZE = int(os.getenv('LIVE_PRICE_WARMUP_BATCH_SIZE', '20'))
-_WEB_UPDATE_INTERVAL_SEC = float(os.getenv('LIVE_PRICE_UPDATE_INTERVAL_SEC', '0.9'))
-_LIVE_PRICE_DB_SYNC_ENABLED = os.getenv('LIVE_PRICE_DB_SYNC_ENABLED', 'true').strip().lower() in {'1', 'true', 'y', 'yes', 'on'}
-_LIVE_BG_ENABLED = os.getenv('LIVE_PRICE_BG_ENABLED', 'true').strip().lower() in {'1', 'true', 'y', 'yes', 'on'}
-_LIVE_BG_INTERVAL_SEC = float(os.getenv('LIVE_PRICE_BG_INTERVAL_SEC', '2.0'))
-_LIVE_BLOCK_OFFHOURS_FETCH = os.getenv('LIVE_PRICE_BLOCK_OFFHOURS_FETCH', 'true').strip().lower() in {'1', 'true', 'y', 'yes', 'on'}
-# 장외·주말: DB에 없을 때 메모리 캐시·yfinance로 보강 (순수 DB만 쓰지 않음)
-_LIVE_OFFHOURS_USE_CACHE = os.getenv('LIVE_PRICE_OFFHOURS_USE_CACHE', 'true').strip().lower() in {'1', 'true', 'y', 'yes', 'on'}
-_LIVE_OFFHOURS_YFINANCE = os.getenv('LIVE_PRICE_OFFHOURS_YFINANCE', 'true').strip().lower() in {'1', 'true', 'y', 'yes', 'on'}
-_LIVE_OFFHOURS_YF_BUDGET = max(0, int(os.getenv('LIVE_PRICE_OFFHOURS_YF_BUDGET', '12')))
-# 장외: stock_price_daily 최신 일자가 오늘 기준 N일 이상 지났으면 yfinance 보강 대상 (0이면 비활성)
-_LIVE_OFFHOURS_STALE_DAYS = max(0, int(os.getenv('LIVE_PRICE_OFFHOURS_STALE_DAYS', '2')))
-# EOD(End-of-Day) 종가 확정 동기화: 평일 15:35 1회 pykrx 로 그날 OHLC 를 받아
-# stock_price_daily 의 close_price 를 "마지막 동기화 시점 가격" 이 아닌 "거래소 공식 종가" 로 덮음.
-_LIVE_EOD_FIX_ENABLED = os.getenv('LIVE_PRICE_EOD_FIX_ENABLED', 'true').strip().lower() in {'1', 'true', 'y', 'yes', 'on'}
-_LIVE_EOD_FIX_HHMM = int(os.getenv('LIVE_PRICE_EOD_FIX_HHMM', '1535'))
-# 차트: 토스 스타일 — range=1d/1w/1m/1y → 일/주/월/년봉. KIS 우선, 실패 시 yfinance. D 는 DB 캐시 우선.
-_CHART_USE_KIS = os.getenv('CHART_USE_KIS', 'true').strip().lower() in {'1', 'true', 'y', 'yes', 'on'}
-_CHART_PERIOD_MAP = {'1d': 'D', '1w': 'W', '1m': 'M', '1y': 'Y'}
-_CHART_TARGET_BARS = {'D': 500, 'W': 260, 'M': 120, 'Y': 30}
-_CHART_MIN_BARS = {'D': 60, 'W': 30, 'M': 12, 'Y': 5}
-_CHART_WINDOW_CAL_DAYS = {'D': 100, 'W': 700, 'M': 3000, 'Y': 36500}
-_KIS_TOKEN_USE_DB = os.getenv('KIS_TOKEN_USE_DB', 'true').strip().lower() in {'1', 'true', 'y', 'yes', 'on'}
-_KR_MARKET_OPEN_HHMM = int(os.getenv('KR_MARKET_OPEN_HHMM', '900'))
-_KR_MARKET_CLOSE_HHMM = int(os.getenv('KR_MARKET_CLOSE_HHMM', '1530'))
-_MOCK_INITIAL_CASH = int(float(os.getenv('MOCK_INITIAL_CASH', '1000000')))
-
-if PRICE_STOCKS:
-    LIVE_PRICE_STOCKS = dict(list(PRICE_STOCKS.items())[:_WEB_PRICE_MAX_COUNT])
-else:
-    LIVE_PRICE_STOCKS = {
-        '005930': '삼성전자',
-        '000660': 'SK하이닉스',
-        '035420': 'NAVER',
-    }
-
-_LIVE_PRICE_CACHE = {}
-_LIVE_PRICE_CURSOR = 0
-_LIVE_PRICE_LOCK = threading.Lock()
-_LIVE_UPDATER_RUNNING = False
-_LIVE_LAST_UPDATE_AT = 0.0
-_LIVE_BG_WORKER_STARTED = False
-_LIVE_EOD_WORKER_STARTED = False
-_LIVE_EOD_PYKRX_SKIP_DATE = None
-_SECTOR_FULL_REFRESH_GUARD = threading.Lock()
-_KIS_TOKEN_CACHE = None
-_KIS_TOKEN_SAVED_AT = 0.0
-_KIS_TOKEN_DEADLINE = 0.0
-_STOCK_DETAIL_CACHE = {}
-_STOCK_DETAIL_CACHE_TTL = 60.0
-_BASIC_PEER_CACHE = {}
-_BASIC_PEER_CACHE_TTL = 3600.0
-_INVESTOR_FLOW_CACHE = {}
-_INVESTOR_FLOW_CACHE_TTL = 120.0
+def _opening_price_for_mock(code, db_open=0):
+    """모의투자 시가: KIS/실시간 캐시 open 우선, 없으면 DB 일봉 시가."""
+    code = str(code or '').strip()
+    try:
+        odb = int(db_open or 0)
+    except (TypeError, ValueError):
+        odb = 0
+    with _LIVE_PRICE_LOCK:
+        live = _LIVE_PRICE_CACHE.get(code)
+    if live and not live.get('loading'):
+        lo = live.get('open')
+        if lo is not None and str(lo) != '':
+            try:
+                io = int(float(lo))
+                if io > 0:
+                    return io
+            except (TypeError, ValueError):
+                pass
+    if odb > 0:
+        return odb
+    return 0
 
 
+# 모의투자용 시세 (실시간 캐시 우선).
 def _effective_quote_for_mock(code, snap_fallback=None):
     """모의투자용 시세 (실시간 캐시 우선)."""
     code = str(code or '').strip()
@@ -2443,6 +2479,7 @@ def _effective_quote_for_mock(code, snap_fallback=None):
     return price, rate, direction
 
 
+# 한국 정규장(평일 09:00~15:30) 기준.
 def _is_kr_regular_market_open_now():
     """한국 정규장(평일 09:00~15:30) 기준."""
     now = datetime.now()
@@ -2452,23 +2489,27 @@ def _is_kr_regular_market_open_now():
     return _KR_MARKET_OPEN_HHMM <= hhmm <= _KR_MARKET_CLOSE_HHMM
 
 
+# `_live_fetch_enabled_now` — 모듈 내부 헬퍼.
 def _live_fetch_enabled_now():
     if not _LIVE_BLOCK_OFFHOURS_FETCH:
         return True
     return _is_kr_regular_market_open_now()
 
 
+# 정규장에서만 KIS 실시간 시세 호출(장외·주말은 TPS·정책 절약). yfinance·DB 동기화는 별도.
 def _kis_fetch_allowed_now():
     """정규장에서만 KIS 실시간 시세 호출(장외·주말은 TPS·정책 절약). yfinance·DB 동기화는 별도."""
     return _live_fetch_enabled_now()
 
 
+# `_candidate_yahoo_tickers` — 모듈 내부 헬퍼.
 def _candidate_yahoo_tickers(code):
     if '.' in code:
         return [code]
     return [f'{code}.KS', f'{code}.KQ']
 
 
+# `_to_int` — 모듈 내부 헬퍼.
 def _to_int(value):
     try:
         return int((value or '').replace(',', '').strip())
@@ -2476,6 +2517,7 @@ def _to_int(value):
         return 0
 
 
+# `_to_float` — 모듈 내부 헬퍼.
 def _to_float(value):
     try:
         return float((value or '').replace(',', '').strip())
@@ -2483,19 +2525,23 @@ def _to_float(value):
         return 0.0
 
 
+# `_chart_base_code` — 모듈 내부 헬퍼.
 def _chart_base_code(code: str) -> str:
     return str(code or '').strip().split('.')[0].strip()
 
 
+# KIS 기간별시세 차트는 실전 도메인이 표준(모의 키로 read-only 호출 시도).
 def _kis_chart_base_url() -> str:
     """KIS 기간별시세 차트는 실전 도메인이 표준(모의 키로 read-only 호출 시도)."""
     return 'https://openapi.koreainvestment.com:9443'
 
 
+# `_kis_tr_daily_chart` — 모듈 내부 헬퍼.
 def _kis_tr_daily_chart() -> str:
     return 'FHKST03010100'
 
 
+# `_kis_chart_get_json` — 모듈 내부 헬퍼.
 def _kis_chart_get_json(token: str, tr_id: str, url: str, params: dict):
     try:
         res = requests.get(
@@ -2522,6 +2568,7 @@ def _kis_chart_get_json(token: str, tr_id: str, url: str, params: dict):
     return body
 
 
+# `_kis_parse_daily_output2_row` — 모듈 내부 헬퍼.
 def _kis_parse_daily_output2_row(row: dict) -> dict | None:
     if not isinstance(row, dict):
         return None
@@ -2549,6 +2596,7 @@ def _kis_parse_daily_output2_row(row: dict) -> dict | None:
     return {'date': date_str, 'open': float(o), 'high': float(h), 'low': float(l), 'close': float(c), 'volume': max(0, v)}
 
 
+# 기간별 시세 한 구간 (KIS 최대 약 100봉). period_code: D|W|M|Y.
 def _kis_fetch_daily_chunk(token: str, code: str, d_start: date, d_end: date, period_code: str = 'D') -> list[dict]:
     """기간별 시세 한 구간 (KIS 최대 약 100봉). period_code: D|W|M|Y."""
     base = _chart_base_code(code)
@@ -2585,6 +2633,7 @@ def _kis_fetch_daily_chunk(token: str, code: str, d_start: date, d_end: date, pe
     return out
 
 
+# KIS 기간별 시세(D/W/M/Y)를 거슬러 올라가며 병합. 목표 봉 수까지 페이지.
 def _kis_fetch_daily_chart(token: str, code: str, period_code: str) -> list[dict]:
     """KIS 기간별 시세(D/W/M/Y)를 거슬러 올라가며 병합. 목표 봉 수까지 페이지."""
     merged: dict[str, dict] = {}
@@ -2621,6 +2670,7 @@ def _kis_fetch_daily_chart(token: str, code: str, period_code: str) -> list[dict
     return rows
 
 
+# `_chart_resolve_stock_id` — 모듈 내부 헬퍼.
 def _chart_resolve_stock_id(code: str) -> int | None:
     base = _chart_base_code(code)
     if not base:
@@ -2639,6 +2689,222 @@ def _chart_resolve_stock_id(code: str) -> int | None:
             conn.close()
 
 
+def _enrich_quote_ohlc_from_daily_db(code: str, quote: dict) -> None:
+    """open/high/low가 비었거나 0이면 stock_price_daily 최신 일봉으로 채운다."""
+    if not quote or not isinstance(quote, dict):
+        return
+
+    def _int_or_zero(key):
+        v = quote.get(key)
+        try:
+            return int(v) if v is not None else 0
+        except (TypeError, ValueError):
+            return 0
+
+    if _int_or_zero('open') > 0 and _int_or_zero('high') > 0 and _int_or_zero('low') > 0:
+        return
+
+    stock_id = _chart_resolve_stock_id(code)
+    if not stock_id:
+        return
+    conn = None
+    row = None
+    try:
+        conn = get_db_connection()
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT open_price, high_price, low_price, close_price
+                FROM stock_price_daily
+                WHERE stock_id = %s
+                ORDER BY date DESC
+                LIMIT 1
+                """,
+                (stock_id,),
+            )
+            row = cur.fetchone()
+    except Exception:
+        return
+    finally:
+        if conn:
+            conn.close()
+    if not row:
+        return
+
+    for key, col in (('open', 'open_price'), ('high', 'high_price'), ('low', 'low_price')):
+        if _int_or_zero(key) > 0:
+            continue
+        raw = row.get(col)
+        if raw is None:
+            continue
+        try:
+            iv = int(round(float(raw)))
+            if iv > 0:
+                quote[key] = iv
+        except (TypeError, ValueError):
+            pass
+
+
+def _enrich_quote_previous_close_from_daily_db(code: str, quote: dict) -> None:
+    """previous_close가 비었거나 0이면 stock_price_daily의 prev_close 또는 직전 일 종가로 채운다."""
+    if not quote or not isinstance(quote, dict):
+        return
+    try:
+        cur_pc = quote.get('previous_close')
+        if cur_pc is not None and int(cur_pc) > 0:
+            return
+    except (TypeError, ValueError):
+        pass
+
+    stock_id = _chart_resolve_stock_id(code)
+    if not stock_id:
+        return
+    conn = None
+    prev_day = None
+    try:
+        conn = get_db_connection()
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT prev_close
+                FROM stock_price_daily
+                WHERE stock_id = %s
+                ORDER BY date DESC
+                LIMIT 1
+                """,
+                (stock_id,),
+            )
+            latest = cur.fetchone()
+            if latest:
+                pc = latest.get('prev_close')
+                try:
+                    pi = int(round(float(pc))) if pc is not None else 0
+                except (TypeError, ValueError):
+                    pi = 0
+                if pi > 0:
+                    quote['previous_close'] = pi
+                    return
+            cur.execute(
+                """
+                SELECT close_price
+                FROM stock_price_daily
+                WHERE stock_id = %s
+                ORDER BY date DESC
+                LIMIT 1 OFFSET 1
+                """,
+                (stock_id,),
+            )
+            prev_day = cur.fetchone()
+    except Exception:
+        return
+    finally:
+        if conn:
+            conn.close()
+    if not prev_day:
+        return
+    cp = prev_day.get('close_price')
+    try:
+        cpi = int(round(float(cp))) if cp is not None else 0
+    except (TypeError, ValueError):
+        cpi = 0
+    if cpi > 0:
+        quote['previous_close'] = cpi
+
+
+def _rehydrate_quote_for_krx_display(code: str, quote: dict | None) -> None:
+    """시세 카드용: OHLC·전일 종가·상하한가를 DB/KRX 규칙으로 idempotent 보강."""
+    if not quote or not isinstance(quote, dict):
+        return
+    _enrich_quote_ohlc_from_daily_db(code, quote)
+    _enrich_quote_previous_close_from_daily_db(code, quote)
+    _enrich_quote_price_limits_krx(quote)
+
+
+def _krx_tick_size(price: int) -> int:
+    """거래소 호가 단위(원). 가격 구간별 단위 (일반적인 KRX 표)."""
+    p = abs(int(price))
+    if p < 1000:
+        return 1
+    if p < 5000:
+        return 5
+    if p < 10000:
+        return 10
+    if p < 50000:
+        return 50
+    if p < 100000:
+        return 100
+    if p < 500000:
+        return 500
+    if p < 1000000:
+        return 1000
+    if p < 5000000:
+        return 5000
+    return 10000
+
+
+def _krx_upper_lower_from_prev_close(prev_close: int, limit_ratio: float = 0.30) -> tuple[int | None, int | None]:
+    """전일 종가와 가격제한 비율로 상·하한가 근사(일반 주식 ±30% 가정). ETF·관리 등은 실제와 다를 수 있음."""
+    if prev_close <= 0 or not math.isfinite(limit_ratio):
+        return None, None
+    raw_up = float(prev_close) * (1.0 + limit_ratio)
+    raw_lo = float(prev_close) * (1.0 - limit_ratio)
+    if raw_up <= float(prev_close) or raw_lo >= float(prev_close):
+        return None, None
+    tu = _krx_tick_size(int(raw_up))
+    tl = _krx_tick_size(max(1, int(raw_lo)))
+    upper = int(raw_up // tu) * tu
+    lower = int((raw_lo + tl - 1) // tl) * tl
+    if lower < tl:
+        lower = tl
+    if upper <= prev_close or lower >= prev_close or upper <= lower:
+        return None, None
+    return upper, lower
+
+
+def _enrich_quote_price_limits_krx(quote: dict) -> None:
+    """상·하한가가 비었을 때 국내 6자리 종목만 전일 종가·호가단위로 보강."""
+    if not quote or not isinstance(quote, dict):
+        return
+    base = _chart_base_code(str(quote.get('code') or ''))
+    if not base or not re.match(r'^\d{6}$', base):
+        return
+
+    def _missing_or_zero(key):
+        v = quote.get(key)
+        try:
+            return v is None or int(v) <= 0
+        except (TypeError, ValueError):
+            return True
+
+    if not _missing_or_zero('upper_limit') and not _missing_or_zero('lower_limit'):
+        return
+
+    prev = quote.get('previous_close')
+    try:
+        pi = int(prev) if prev is not None else 0
+    except (TypeError, ValueError):
+        pi = 0
+    if pi <= 0:
+        return
+
+    upper, lower = _krx_upper_lower_from_prev_close(pi)
+    if upper is not None and _missing_or_zero('upper_limit'):
+        quote['upper_limit'] = upper
+    if lower is not None and _missing_or_zero('lower_limit'):
+        quote['lower_limit'] = lower
+
+
+def _kis_int_first_positive(output, keys: tuple[str, ...]) -> int:
+    if not output or not isinstance(output, dict):
+        return 0
+    for k in keys:
+        v = _to_int(output.get(k))
+        if v > 0:
+            return v
+    return 0
+
+
+# `_chart_ensure_stock_id` — 모듈 내부 헬퍼.
 def _chart_ensure_stock_id(code: str) -> int | None:
     sid = _chart_resolve_stock_id(code)
     if sid:
@@ -2673,6 +2939,7 @@ def _chart_ensure_stock_id(code: str) -> int | None:
             conn.close()
 
 
+# 최근 target_rows 개 일봉 (오름차순). _CHART_MIN_BARS['D'] 미만이면 None.
 def _db_load_daily_candles(stock_id: int, target_rows: int) -> list[dict] | None:
     """최근 target_rows 개 일봉 (오름차순). _CHART_MIN_BARS['D'] 미만이면 None."""
     min_need = _CHART_MIN_BARS['D']
@@ -2731,6 +2998,7 @@ def _db_load_daily_candles(stock_id: int, target_rows: int) -> list[dict] | None
     return out
 
 
+# `_upsert_daily_candles_to_db` — 모듈 내부 헬퍼.
 def _upsert_daily_candles_to_db(stock_id: int, rows: list[dict]) -> None:
     if not stock_id or not rows:
         return
@@ -2777,10 +3045,12 @@ def _upsert_daily_candles_to_db(stock_id: int, rows: list[dict]) -> None:
             conn.close()
 
 
+# `_daily_candles_to_chart_rows` — 모듈 내부 헬퍼.
 def _daily_candles_to_chart_rows(candles: list[dict]) -> list[dict]:
     return [{'time': c['date'], 'open': c['open'], 'high': c['high'], 'low': c['low'], 'close': c['close']} for c in candles]
 
 
+# 토스 스타일: range → D/W/M/Y 봉. D 는 DB 우선, 전 구간은 KIS 후 yfinance 폴백.
 def _try_period_chart(code: str, range_param: str) -> dict | None:
     """토스 스타일: range → D/W/M/Y 봉. D 는 DB 우선, 전 구간은 KIS 후 yfinance 폴백."""
     pc = _CHART_PERIOD_MAP.get(range_param, 'D')
@@ -2810,6 +3080,7 @@ def _try_period_chart(code: str, range_param: str) -> dict | None:
     return payload
 
 
+# `_normalize_percent` — 모듈 내부 헬퍼.
 def _normalize_percent(value):
     if value in (None, '', 'N/A'):
         return None
@@ -2822,21 +3093,49 @@ def _normalize_percent(value):
     return round(num, 2)
 
 
+# `_safe_round` — 모듈 내부 헬퍼.
 def _safe_round(value, digits=2):
-    if value in (None, '', 'N/A'):
+    if value is None:
+        return None
+    if isinstance(value, str):
+        s = value.strip().replace(',', '')
+        if s in ('', '-', 'N/A', '—'):
+            return None
+        value = s
+    elif value == '':
+        return None
+    if value == 'N/A':
         return None
     try:
-        return round(float(value), digits)
+        f = float(value)
+        if not math.isfinite(f):
+            return None
+        return round(f, digits)
     except (TypeError, ValueError):
         return None
 
 
+# `_valuation_ratio_displayable` — PER/PBR: None·NaN·0만 비어 있음으로 간주 (음수 PER은 유지).
+def _valuation_ratio_displayable(value):
+    if value is None:
+        return None
+    try:
+        f = float(value)
+        if not math.isfinite(f) or f == 0:
+            return None
+        return round(f, 2)
+    except (TypeError, ValueError):
+        return None
+
+
+# `_format_period_label` — 모듈 내부 헬퍼.
 def _format_period_label(value):
     if hasattr(value, 'strftime'):
         return value.strftime('%Y-%m')
     return str(value)
 
 
+# `_extract_series_values` — 모듈 내부 헬퍼.
 def _extract_series_values(df, candidates, limit=4):
     if df is None or getattr(df, 'empty', True):
         return None
@@ -2852,6 +3151,7 @@ def _extract_series_values(df, candidates, limit=4):
     return None
 
 
+# `_build_table_payload` — 모듈 내부 헬퍼.
 def _build_table_payload(df, rows_config, limit=4):
     if df is None or getattr(df, 'empty', True):
         return {'columns': [], 'rows': []}
@@ -2865,6 +3165,7 @@ def _build_table_payload(df, rows_config, limit=4):
     return {'columns': columns, 'rows': rows}
 
 
+# `_get_last_non_zero_dividend` — 모듈 내부 헬퍼.
 def _get_last_non_zero_dividend(actions):
     if actions is None or getattr(actions, 'empty', True) or 'Dividends' not in actions:
         return None, None, 0
@@ -2877,6 +3178,7 @@ def _get_last_non_zero_dividend(actions):
     return latest_value, latest_date.strftime('%Y-%m-%d'), int(dividends.count())
 
 
+# `_build_news_items` — 모듈 내부 헬퍼.
 def _build_news_items(ticker, limit=6):
     items = []
     try:
@@ -2898,6 +3200,7 @@ def _build_news_items(ticker, limit=6):
     return items
 
 
+# `_build_investor_flow_payload` — 모듈 내부 헬퍼.
 def _build_investor_flow_payload(code):
     cached = _INVESTOR_FLOW_CACHE.get(code)
     if cached and (time.time() - cached['ts'] < _INVESTOR_FLOW_CACHE_TTL):
@@ -2951,6 +3254,7 @@ def _build_investor_flow_payload(code):
     return data
 
 
+# `_get_cached_peer_info` — 모듈 내부 헬퍼.
 def _get_cached_peer_info(code):
     cached = _BASIC_PEER_CACHE.get(code)
     if cached and (time.time() - cached['ts'] < _BASIC_PEER_CACHE_TTL):
@@ -2979,6 +3283,8 @@ def _get_cached_peer_info(code):
     return data
 
 
+# `_build_valuation_comparison` — 모듈 내부 헬퍼.
+# 동종 업종 평균(industry_avg)은 yfinance 피어 표본. KIS 업종·시장 배수 TR은 미연동(추후 스펙 확정 시).
 def _build_valuation_comparison(code, target_metrics):
     target_info = _get_cached_peer_info(code)
     target_sector = target_info.get('sector')
@@ -3019,6 +3325,49 @@ def _build_valuation_comparison(code, target_metrics):
     }
 
 
+def _kis_output_psr_optional(output):
+    """KIS inquire-price output에서 PSR에 해당할 수 있는 필드. 문서·버전별 키가 다를 수 있음."""
+    if not output or not isinstance(output, dict):
+        return None
+    for key in ('psr', 'hts_psr', 'hts_pb_psr', 'stck_psr'):
+        raw = output.get(key)
+        if raw is None or raw == '' or raw == '-':
+            continue
+        v = _safe_round(raw)
+        if v is not None:
+            return v
+    return None
+
+
+def _kis_output_bps_optional(output):
+    """KIS inquire-price output에서 BPS 후보 필드. 문서·버전별 키가 다를 수 있음."""
+    if not output or not isinstance(output, dict):
+        return None
+    for key in ('bps', 'stck_bps', 'stck_bass_prc', 'hts_bps', 'book_value_per_share'):
+        raw = output.get(key)
+        if raw is None or raw == '' or raw == '-':
+            continue
+        v = _safe_round(raw)
+        if v is not None and v > 0:
+            return v
+    return None
+
+
+def _kis_output_pbr_optional(output):
+    """KIS inquire-price output에서 PBR 직접 표기 필드 후보."""
+    if not output or not isinstance(output, dict):
+        return None
+    for key in ('pbr', 'stck_pbr', 'hts_pbr', 'hts_spbr', 'stck_pbmn', 'pbr_r'):
+        raw = output.get(key)
+        if raw is None or raw == '' or raw == '-':
+            continue
+        v = _safe_round(raw)
+        if v is not None and v > 0:
+            return v
+    return None
+
+
+# `_build_stock_payload` — 모듈 내부 헬퍼.
 def _build_stock_payload(code, name, output):
     sign = output.get('prdy_vrss_sign', '3')  # 1:상한 2:상승 3:보합 4:하한 5:하락
     direction = 'up' if sign in ('1', '2') else 'down' if sign in ('4', '5') else 'flat'
@@ -3027,7 +3376,7 @@ def _build_stock_payload(code, name, output):
     rate_abs = _to_float(output.get('prdy_ctrt'))
     rate_signed = rate_abs if direction == 'up' else -rate_abs
 
-    return {
+    pl = {
         'code': code,
         'name': name,
         'price': _to_int(output.get('stck_prpr')),
@@ -3038,20 +3387,27 @@ def _build_stock_payload(code, name, output):
         'previous_close': _to_int(output.get('stck_sdpr') or output.get('stck_prdy_clpr')),
         'high': _to_int(output.get('stck_hgpr')),
         'low': _to_int(output.get('stck_lwpr')),
-        'upper_limit': _to_int(output.get('stck_mxpr')),
-        'lower_limit': _to_int(output.get('stck_llam')),
+        'upper_limit': _kis_int_first_positive(
+            output, ('stck_mxpr', 'mxpr', 'hts_mxpr', 'stck_uplm_prpr')
+        ),
+        'lower_limit': _kis_int_first_positive(
+            output, ('stck_llam', 'llam', 'hts_llam', 'stck_lwlm', 'stck_lwlm_prpr')
+        ),
         'traded_value': _to_int(output.get('acml_tr_pbmn')),
         'per': _safe_round(output.get('per')),
-        'pbr': _safe_round(output.get('pbr')),
+        'pbr': _safe_round(output.get('pbr')) or _kis_output_pbr_optional(output),
         'roe': None,
-        'psr': None,
+        'psr': _kis_output_psr_optional(output),
         'foreign_ownership_rate': _normalize_percent(output.get('frgn_hldn_rt')),
         'direction': direction,
         'stale': False,
         'error': None,
     }
+    _enrich_quote_price_limits_krx(pl)
+    return pl
 
 
+# `_build_yfinance_payload` — 모듈 내부 헬퍼.
 def _build_yfinance_payload(code, name, history):
     closes = history['Close'].dropna()
     if closes.empty:
@@ -3074,7 +3430,7 @@ def _build_yfinance_payload(code, name, history):
     volume_series = history['Volume'].dropna() if 'Volume' in history else pd.Series(dtype='float64')
     volume = int(round(float(volume_series.iloc[-1]))) if not volume_series.empty else 0
 
-    return {
+    pl = {
         'code': code,
         'name': name,
         'price': current_price,
@@ -3097,8 +3453,11 @@ def _build_yfinance_payload(code, name, history):
         'stale': True,
         'error': None,
     }
+    _enrich_quote_price_limits_krx(pl)
+    return pl
 
 
+# pykrx 일봉 폴백 시세.
 def _fetch_pykrx_quote(code, name):
     """pykrx 일봉 폴백 시세."""
     if not pykrx_stock:
@@ -3125,6 +3484,7 @@ def _fetch_pykrx_quote(code, name):
         return None, str(e)
 
 
+# `_fetch_yfinance_quote` — 모듈 내부 헬퍼.
 def _fetch_yfinance_quote(code, name):
     last_error = 'yfinance 조회 실패'
     for ticker in _candidate_yahoo_tickers(code):
@@ -3151,6 +3511,7 @@ def _fetch_yfinance_quote(code, name):
     return None, last_error
 
 
+# `_fetch_quote_snapshot` — 모듈 내부 헬퍼.
 def _fetch_quote_snapshot(code, name, token):
     payload = None
     output = None
@@ -3171,26 +3532,302 @@ def _fetch_quote_snapshot(code, name, token):
     return payload, output, err
 
 
+# `_yf_parallel_stock_fundamentals` — 모듈 내부 헬퍼.
+def _yf_parallel_stock_fundamentals(ticker, timeout_sec=18.0):
+    """단일 yfinance Ticker에 대해 info·분기/연간 재무 시트를 병렬 로드한다."""
+    if ticker is None:
+        return {}, pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
+
+    def _load_info():
+        try:
+            out = ticker.info or {}
+            return out if isinstance(out, dict) else {}
+        except Exception:
+            return {}
+
+    def _load_qf():
+        try:
+            return ticker.quarterly_financials
+        except Exception:
+            return pd.DataFrame()
+
+    def _load_qbs():
+        try:
+            return ticker.quarterly_balance_sheet
+        except Exception:
+            return pd.DataFrame()
+
+    def _load_abs():
+        try:
+            return ticker.balance_sheet
+        except Exception:
+            return pd.DataFrame()
+
+    with ThreadPoolExecutor(max_workers=4) as ex:
+        f_info = ex.submit(_load_info)
+        f_qf = ex.submit(_load_qf)
+        f_qbs = ex.submit(_load_qbs)
+        f_abs = ex.submit(_load_abs)
+        futures = (f_info, f_qf, f_qbs, f_abs)
+        done_set, pending = wait(futures, timeout=timeout_sec)
+        for p in pending:
+            try:
+                p.cancel()
+            except Exception:
+                pass
+
+        def _result_or(fut, default):
+            if fut not in done_set:
+                return default
+            try:
+                return fut.result(timeout=0)
+            except Exception:
+                return default
+
+        info = _result_or(f_info, {})
+        if not isinstance(info, dict):
+            info = {}
+        qf = _result_or(f_qf, pd.DataFrame())
+        if not isinstance(qf, pd.DataFrame):
+            qf = pd.DataFrame()
+        qbs = _result_or(f_qbs, pd.DataFrame())
+        if not isinstance(qbs, pd.DataFrame):
+            qbs = pd.DataFrame()
+        abs_df = _result_or(f_abs, pd.DataFrame())
+        if not isinstance(abs_df, pd.DataFrame):
+            abs_df = pd.DataFrame()
+    return info, qf, qbs, abs_df
+
+
+# `_yf_info_price` — 모듈 내부 헬퍼 (PER/PBR 보강용 시가).
+def _yf_info_price(info):
+    if not isinstance(info, dict):
+        return None
+    for key in ('regularMarketPrice', 'currentPrice', 'previousClose', 'open', 'postMarketPrice'):
+        v = info.get(key)
+        if v is None:
+            continue
+        try:
+            f = float(v)
+            if f > 0:
+                return f
+        except (TypeError, ValueError):
+            continue
+    return None
+
+
+# `_yf_info_quality_score` — yfinance info 품질(티커 후보 .KS/.KQ 선택용).
+def _yf_info_quality_score(info):
+    if not isinstance(info, dict) or not info:
+        return 0
+    score = len(info)
+    if _yf_info_price(info):
+        score += 40
+    for k in ('trailingPE', 'forwardPE', 'priceToBook', 'trailingEps', 'bookValue', 'epsTrailingTwelveMonths'):
+        v = info.get(k)
+        if v is not None and v != '' and v != '-':
+            score += 5
+    return score
+
+
+# `_yf_stock_detail_pick_best` — 6자리 종목은 .KS·.KQ 중 info가 나은 쪽을 고른다.
+def _yf_stock_detail_pick_best(code, timeout_sec=18.0):
+    best_ticker = None
+    best_inf = {}
+    best_qf = pd.DataFrame()
+    best_qbs = pd.DataFrame()
+    best_abs = pd.DataFrame()
+    best_score = -1
+    code_str = str(code or '')
+    for ticker_code in _candidate_yahoo_tickers(code):
+        try:
+            t = yf.Ticker(ticker_code)
+            inf, qf, qbs, abs_df = _yf_parallel_stock_fundamentals(t, timeout_sec=timeout_sec)
+        except Exception:
+            continue
+        sc = _yf_info_quality_score(inf)
+        if sc > best_score:
+            best_score = sc
+            best_ticker = t
+            best_inf, best_qf, best_qbs, best_abs = inf, qf, qbs, abs_df
+        if '.' in code_str or sc >= 100:
+            break
+    return best_ticker, best_inf, best_qf, best_qbs, best_abs
+
+
+# `_fill_per_pbr_from_kis_and_info` — 모듈 내부 헬퍼.
+def _fill_per_pbr_from_kis_and_info(quote, kis_output, info, per, pbr):
+    """PER/PBR가 비었을 때 KIS eps·bps 및 yfinance로 보강 (KIS EPS/BPS는 스키마와 동일 단위·참고 배수)."""
+    px_kis = None
+    if isinstance(kis_output, dict):
+        pi = _to_int(kis_output.get('stck_prpr'))
+        if pi and pi > 0:
+            px_kis = float(pi)
+    qpx = None
+    qp = quote.get('price')
+    if qp is not None:
+        try:
+            qpx = float(qp)
+        except (TypeError, ValueError):
+            qpx = None
+    if qpx is None or qpx <= 0:
+        qpx = px_kis
+
+    if per is None and isinstance(kis_output, dict):
+        eps = _safe_round(kis_output.get('eps'))
+        if qpx and eps and eps > 0:
+            per = _safe_round(qpx / eps)
+    if pbr is None and isinstance(kis_output, dict):
+        direct_pbr = _kis_output_pbr_optional(kis_output)
+        if direct_pbr is not None:
+            pbr = _safe_round(direct_pbr)
+    if pbr is None and isinstance(kis_output, dict):
+        bps = _kis_output_bps_optional(kis_output)
+        if qpx and bps and bps > 0:
+            pbr = _safe_round(qpx / bps)
+
+    ypx = _yf_info_price(info)
+    if ypx is None or ypx <= 0:
+        ypx = qpx
+
+    if per is None and isinstance(info, dict):
+        teps = None
+        for eps_key in ('trailingEps', 'epsTrailingTwelveMonths', 'forwardEps'):
+            cand = _safe_round(info.get(eps_key))
+            if cand is not None and cand > 0:
+                teps = cand
+                break
+        if ypx and teps and teps > 0:
+            per = _safe_round(ypx / teps)
+        if per is None:
+            per = _safe_round(info.get('forwardPE'))
+    if pbr is None and isinstance(info, dict):
+        bv = _safe_round(info.get('bookValue'))
+        if ypx and bv and bv > 0:
+            pbr = _safe_round(ypx / bv)
+    if pbr is None and isinstance(info, dict):
+        sh = None
+        for sk in ('sharesOutstanding', 'impliedSharesOutstanding'):
+            raw = info.get(sk)
+            if raw is None:
+                continue
+            try:
+                sf = float(raw)
+                if math.isfinite(sf) and sf > 0:
+                    sh = sf
+                    break
+            except (TypeError, ValueError):
+                continue
+        eq = None
+        for ek in ('totalStockholderEquity', 'commonStockTotalEquity', 'totalCommonStockholdersEquity'):
+            raw = info.get(ek)
+            if raw is None:
+                continue
+            try:
+                ef = float(raw)
+                if math.isfinite(ef) and ef > 0:
+                    eq = ef
+                    break
+            except (TypeError, ValueError):
+                continue
+        if ypx and sh and eq and sh > 0 and eq > 0:
+            bvp = eq / sh
+            if bvp > 0:
+                pbr = _safe_round(ypx / bvp)
+
+    return per, pbr
+
+
+def _pbr_from_equity_shares_price(equity, shares, price):
+    """자본총계·유통주식수·주가로 PBR 근사."""
+    try:
+        eq = float(equity)
+        sh = float(shares)
+        px = float(price)
+    except (TypeError, ValueError):
+        return None
+    if not (math.isfinite(eq) and math.isfinite(sh) and math.isfinite(px)):
+        return None
+    if eq <= 0 or sh <= 0 or px <= 0:
+        return None
+    bvp = eq / sh
+    if bvp <= 0:
+        return None
+    return _safe_round(px / bvp)
+
+
+def _try_pbr_from_balance_sheets(info, quote, annual_bs, quarterly_bs, pbr):
+    """yfinance info/재무제표로 PBR 보강 (bookValue·BPS가 비었을 때)."""
+    if pbr is not None:
+        return pbr
+    qpx = None
+    qp = quote.get('price')
+    if qp is not None:
+        try:
+            qpx = float(qp)
+        except (TypeError, ValueError):
+            qpx = None
+    if (qpx is None or qpx <= 0) and isinstance(info, dict):
+        yp = _yf_info_price(info)
+        if yp and yp > 0:
+            qpx = float(yp)
+    if qpx is None or qpx <= 0:
+        return None
+
+    sh = None
+    if isinstance(info, dict):
+        for sk in ('sharesOutstanding', 'impliedSharesOutstanding'):
+            raw = info.get(sk)
+            if raw is None:
+                continue
+            try:
+                sf = float(raw)
+                if math.isfinite(sf) and sf > 0:
+                    sh = sf
+                    break
+            except (TypeError, ValueError):
+                continue
+    if sh is None and isinstance(info, dict):
+        try:
+            mcap = float(info.get('marketCap') or 0)
+            if mcap > 0 and qpx > 0:
+                sh = mcap / qpx
+        except (TypeError, ValueError):
+            pass
+    if sh is None or sh <= 0:
+        return None
+
+    equity_keys = [
+        'Stockholders Equity',
+        'Common Stock Equity',
+        'Total Equity Gross Minority Interest',
+    ]
+    for df in (annual_bs, quarterly_bs):
+        vals = _extract_series_values(df, equity_keys, limit=1)
+        if not vals or vals[0] is None:
+            continue
+        got = _pbr_from_equity_shares_price(vals[0], sh, qpx)
+        if got is not None:
+            return got
+    return None
+
+
+# `_build_stock_detail_payload` — 모듈 내부 헬퍼.
 def _build_stock_detail_payload(code, name, token):
     quote, kis_output, err = _fetch_quote_snapshot(code, name, token)
     if quote is None:
         raise ValueError(err or '상세 시세 조회 실패')
+    _rehydrate_quote_for_krx_display(code, quote)
 
     ticker = None
     info = {}
     quarterly_financials = pd.DataFrame()
     quarterly_balance_sheet = pd.DataFrame()
     annual_balance_sheet = pd.DataFrame()
-    annual_cashflow = pd.DataFrame()
     try:
-        for ticker_code in _candidate_yahoo_tickers(code):
-            ticker = yf.Ticker(ticker_code)
-            info = ticker.info or {}
-            quarterly_financials = ticker.quarterly_financials
-            quarterly_balance_sheet = ticker.quarterly_balance_sheet
-            annual_balance_sheet = ticker.balance_sheet
-            annual_cashflow = ticker.cashflow
-            break
+        ticker, info, quarterly_financials, quarterly_balance_sheet, annual_balance_sheet = (
+            _yf_stock_detail_pick_best(code, timeout_sec=18.0)
+        )
     except Exception:
         ticker = None
         info = {}
@@ -3202,10 +3839,15 @@ def _build_stock_detail_payload(code, name, token):
     if dividend_yield is None:
         dividend_yield = _normalize_percent(kis_output.get('divi') if kis_output else None)
 
-    per = quote.get('per') if quote.get('per') is not None else _safe_round(info.get('trailingPE'))
-    pbr = quote.get('pbr') if quote.get('pbr') is not None else _safe_round(info.get('priceToBook'))
+    per = _valuation_ratio_displayable(quote.get('per')) or _valuation_ratio_displayable(
+        _safe_round(info.get('trailingPE'))
+    )
+    pbr = _valuation_ratio_displayable(quote.get('pbr')) or _valuation_ratio_displayable(
+        _safe_round(info.get('priceToBook'))
+    )
+    per, pbr = _fill_per_pbr_from_kis_and_info(quote, kis_output, info, per, pbr)
     roe = _normalize_percent(info.get('returnOnEquity'))
-    psr = _safe_round(info.get('priceToSalesTrailing12Months'))
+    psr = quote.get('psr') if quote.get('psr') is not None else _safe_round(info.get('priceToSalesTrailing12Months'))
     foreign_rate = quote.get('foreign_ownership_rate')
     if foreign_rate is None:
         foreign_rate = _normalize_percent(info.get('heldPercentInstitutions'))
@@ -3244,6 +3886,9 @@ def _build_stock_detail_payload(code, name, token):
         debt_ratio = round(total_liabilities[0] / total_equity[0] * 100, 2)
     if current_assets and current_liabilities and current_assets[0] is not None and current_liabilities[0] not in (None, 0):
         current_ratio = round(current_assets[0] / current_liabilities[0] * 100, 2)
+
+    pbr = _try_pbr_from_balance_sheets(info, quote, annual_balance_sheet, quarterly_balance_sheet, pbr)
+    pbr = _valuation_ratio_displayable(pbr)
 
     indicator_metrics = {
         'market_cap': market_cap,
@@ -3287,13 +3932,110 @@ def _build_stock_detail_payload(code, name, token):
     }
 
 
-@app.route('/api/stock-detail/<code>', methods=['GET'])
-def stock_detail(code):
+def _load_stock_detail_snapshot(cache_key: str):
+    """MySQL stock_detail_snapshots 에서 TTL 이내 detail 로드. 테이블 없음 등은 None."""
+    try:
+        conn = get_db_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    'SELECT payload_json, fetched_at FROM stock_detail_snapshots WHERE cache_key=%s LIMIT 1',
+                    (cache_key,),
+                )
+                row = cur.fetchone()
+        finally:
+            conn.close()
+    except Exception as exc:
+        logging.getLogger(__name__).warning('[stock-detail] snapshot read skipped: %s', exc)
+        return None
+    if not row:
+        return None
+    fetched = row.get('fetched_at')
+    if not isinstance(fetched, datetime):
+        return None
+    try:
+        age_sec = time.time() - fetched.timestamp()
+    except Exception:
+        return None
+    if age_sec < 0 or age_sec > _STOCK_DETAIL_DB_TTL:
+        return None
+    raw = row.get('payload_json')
+    if raw is None:
+        return None
+    if isinstance(raw, dict):
+        return raw
+    try:
+        return json.loads(raw)
+    except Exception:
+        return None
+
+
+def _save_stock_detail_snapshot(cache_key: str, code: str, detail: dict) -> None:
+    """detail 을 DB에 UPSERT. 실패해도 API 응답은 유지."""
+    ck = cache_key[:384]
+    code6 = str(code or '').strip()[:6]
+    try:
+        blob = json.dumps(detail, ensure_ascii=False, default=str)
+    except Exception as exc:
+        logging.getLogger(__name__).warning('[stock-detail] snapshot json skip: %s', exc)
+        return
+    try:
+        conn = get_db_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    INSERT INTO stock_detail_snapshots (cache_key, stock_code, payload_json, fetched_at)
+                    VALUES (%s, %s, %s, NOW())
+                    ON DUPLICATE KEY UPDATE
+                      stock_code = VALUES(stock_code),
+                      payload_json = VALUES(payload_json),
+                      fetched_at = VALUES(fetched_at)
+                    """,
+                    (ck, code6, blob),
+                )
+            conn.commit()
+        except Exception:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+            raise
+        finally:
+            conn.close()
+    except Exception as exc:
+        logging.getLogger(__name__).warning('[stock-detail] snapshot write skipped: %s', exc)
+
+
+# `serve_stock_detail` — 모듈 내부 헬퍼.
+def serve_stock_detail(code):
+    _bump_stock_popularity_view(code)
     name = request.args.get('name') or LIVE_PRICE_STOCKS.get(code) or PRICE_STOCKS.get(code) or code
-    cache_key = f'{code}:{name}'
+    cache_key = f'{code}:{name}'[:384]
     cached = _STOCK_DETAIL_CACHE.get(cache_key)
     if cached and (time.time() - cached['ts'] < _STOCK_DETAIL_CACHE_TTL):
-        return jsonify({'success': True, 'cached': True, 'ts': cached['clock'], 'detail': cached['data']})
+        detail = cached['data']
+        _rehydrate_quote_for_krx_display(code, detail.get('quote') if isinstance(detail, dict) else None)
+        return jsonify({
+            'success': True,
+            'cached': True,
+            'cache_source': 'memory',
+            'ts': cached['clock'],
+            'detail': detail,
+        })
+
+    snap = _load_stock_detail_snapshot(cache_key)
+    if snap:
+        _rehydrate_quote_for_krx_display(code, snap.get('quote') if isinstance(snap, dict) else None)
+        clock = time.strftime('%H:%M:%S')
+        _STOCK_DETAIL_CACHE[cache_key] = {'ts': time.time(), 'clock': clock, 'data': snap}
+        return jsonify({
+            'success': True,
+            'cached': True,
+            'cache_source': 'db',
+            'ts': clock,
+            'detail': snap,
+        })
 
     token = _kis_get_token() if (_KIS_KEY and _KIS_SECRET) else None
     try:
@@ -3301,11 +4043,20 @@ def stock_detail(code):
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
 
+    _rehydrate_quote_for_krx_display(code, detail.get('quote') if isinstance(detail, dict) else None)
     clock = time.strftime('%H:%M:%S')
     _STOCK_DETAIL_CACHE[cache_key] = {'ts': time.time(), 'clock': clock, 'data': detail}
-    return jsonify({'success': True, 'cached': False, 'ts': clock, 'detail': detail})
+    _save_stock_detail_snapshot(cache_key, code, detail)
+    return jsonify({
+        'success': True,
+        'cached': False,
+        'cache_source': 'live',
+        'ts': clock,
+        'detail': detail,
+    })
 
 
+# `_kis_get_token` — 모듈 내부 헬퍼.
 def _kis_get_token():
     global _KIS_TOKEN_CACHE, _KIS_TOKEN_SAVED_AT, _KIS_TOKEN_DEADLINE
 
@@ -3393,6 +4144,7 @@ def _kis_get_token():
     return None
 
 
+# `_kis_fetch_one` — 모듈 내부 헬퍼.
 def _kis_fetch_one(token, code, tr_id):
     try:
         res = requests.get(
@@ -3427,6 +4179,7 @@ def _kis_fetch_one(token, code, tr_id):
     return body.get('output', {}), None
 
 
+# inquire-asking-price-exp-ccn 의 output / output1 dict 파싱.
 def _parse_kis_orderbook_output(raw):
     """inquire-asking-price-exp-ccn 의 output / output1 dict 파싱."""
     if raw is None:
@@ -3456,6 +4209,7 @@ def _parse_kis_orderbook_output(raw):
     }
 
 
+# 한국투자 API 초당 거래 건수(TPS) 초과 등 — 재시도 시 더 악화되므로 즉시 중단.
 def _kis_asking_rate_limited(msg) -> bool:
     """한국투자 API 초당 거래 건수(TPS) 초과 등 — 재시도 시 더 악화되므로 즉시 중단."""
     if not msg:
@@ -3470,6 +4224,7 @@ def _kis_asking_rate_limited(msg) -> bool:
     return False
 
 
+# 동일 앱에서 호가 API 연속 호출 간 최소 간격 (KIS 제한 완화).
 def _kis_throttle_asking_call():
     """동일 앱에서 호가 API 연속 호출 간 최소 간격 (KIS 제한 완화)."""
     global _KIS_ASKING_LAST_CALL
@@ -3482,6 +4237,7 @@ def _kis_throttle_asking_call():
         _KIS_ASKING_LAST_CALL = time.time()
 
 
+# 호가·예상체결: 1차 TR 후, 초당한도가 아니면 보조 TR 1회(없는 서비스 코드 등 대응).
 def _kis_fetch_asking_price_exp_ccn(token, code):
     """호가·예상체결: 1차 TR 후, 초당한도가 아니면 보조 TR 1회(없는 서비스 코드 등 대응)."""
 
@@ -3542,6 +4298,7 @@ def _kis_fetch_asking_price_exp_ccn(token, code):
     return None, err2 or err or '호가 API 응답을 해석하지 못했습니다.'
 
 
+# 시세 캐시 일부 갱신 (스레드에서 호출).
 def _refresh_live_cache(selected_items, token):
     """시세 캐시 일부 갱신 (스레드에서 호출)."""
     global _LIVE_PRICE_CURSOR, _LIVE_UPDATER_RUNNING, _LIVE_LAST_UPDATE_AT
@@ -3617,6 +4374,7 @@ def _refresh_live_cache(selected_items, token):
         _LIVE_LAST_UPDATE_AT = time.time()
 
 
+# 요청 종목 시세 전부 순차 갱신.
 def _refresh_live_cache_full(selected_items, token):
     """요청 종목 시세 전부 순차 갱신."""
     if not selected_items:
@@ -3672,6 +4430,7 @@ def _refresh_live_cache_full(selected_items, token):
         _SECTOR_FULL_REFRESH_GUARD.release()
 
 
+# 시세 갱신 스레드 시작.
 def _start_live_refresh(selected_items, token, force=False):
     """시세 갱신 스레드 시작."""
     global _LIVE_UPDATER_RUNNING
@@ -3690,11 +4449,12 @@ def _start_live_refresh(selected_items, token, force=False):
     return True
 
 
+# 시세 백그라운드 폴링.
 def _live_price_background_loop():
     """시세 백그라운드 폴링."""
     while True:
         try:
-            items = list(LIVE_PRICE_STOCKS.items())[:_WEB_PRICE_MAX_COUNT]
+            items = _get_live_price_universe_items()
             token = _kis_get_token() if (_KIS_KEY and _KIS_SECRET) else None
             _start_live_refresh(items, token, force=True)
         except Exception as e:
@@ -3702,6 +4462,8 @@ def _live_price_background_loop():
         time.sleep(max(1.0, _LIVE_BG_INTERVAL_SEC))
 
 
+# 장 마감 직후 1회: pykrx 일봉으로 그날 OHLC + 종가를 stock_price_daily 에 확정 반영.
+# 설명( sync_live_price_batch 는 장중 마지막 동기화 시점의 '현재가' 를 close_price 로 덮어쓰기 때문에 토스의 거래소 공식 종가와 작게는 몇 호가, 크게는 시간외 단일가 차이가 날 수 있다. EOD 작업은 그 격차를 없애기 위함. )
 def _run_eod_close_fix():
     """장 마감 직후 1회: pykrx 일봉으로 그날 OHLC + 종가를 stock_price_daily 에 확정 반영.
 
@@ -3718,7 +4480,7 @@ def _run_eod_close_fix():
     if _LIVE_EOD_PYKRX_SKIP_DATE == today:
         print('[EOD_FIX] pykrx 실패 이력으로 오늘 EOD 동기화 스킵.')
         return
-    items = list(LIVE_PRICE_STOCKS.items())
+    items = _get_live_price_universe_items()
     if not items:
         return
 
@@ -3779,6 +4541,7 @@ def _run_eod_close_fix():
         print(f'[EOD_FIX] DB 동기화 실패: {e}')
 
 
+# 평일 _LIVE_EOD_FIX_HHMM(기본 15:35) 에 한 번 EOD 종가 확정 동기화 실행.
 def _eod_close_fix_loop():
     """평일 _LIVE_EOD_FIX_HHMM(기본 15:35) 에 한 번 EOD 종가 확정 동기화 실행."""
     last_run_date = None
@@ -3799,6 +4562,7 @@ def _eod_close_fix_loop():
         time.sleep(60)
 
 
+# 시세 백그라운드 워커 1회 시작.
 def _ensure_live_price_background_worker():
     """시세 백그라운드 워커 1회 시작."""
     global _LIVE_BG_WORKER_STARTED, _LIVE_EOD_WORKER_STARTED
@@ -3817,6 +4581,7 @@ def _ensure_live_price_background_worker():
         t_eod.start()
 
 
+# 시세 행 목록 (캐시·DB·loading 순).
 def _ordered_stock_rows(selected_items, snapshot):
     """시세 행 목록 (캐시·DB·loading 순)."""
     rows = []
@@ -3836,6 +4601,7 @@ def _ordered_stock_rows(selected_items, snapshot):
     return rows
 
 
+# 장외 yfinance 보강 대상: 미조회 행 또는 DB에 전일 종가가 없어 등락을 못 쓴 행.
 def _offhours_row_needs_yfinance(row):
     """장외 yfinance 보강 대상: 미조회 행 또는 DB에 전일 종가가 없어 등락을 못 쓴 행."""
     if row.get('loading'):
@@ -3878,6 +4644,7 @@ def _offhours_row_needs_yfinance(row):
     return False
 
 
+# 장외: loading·전일종가 누락 행을 yfinance로 채움(요청당 상한). 성공 시 메모리 캐시에도 저장.
 def _offhours_fill_yfinance_rows(full_rows, all_items, budget):
     """장외: loading·전일종가 누락 행을 yfinance로 채움(요청당 상한). 성공 시 메모리 캐시에도 저장."""
     if budget <= 0 or not full_rows or len(full_rows) != len(all_items):
@@ -3900,8 +4667,8 @@ def _offhours_fill_yfinance_rows(full_rows, all_items, budget):
                 _LIVE_PRICE_CACHE[code] = merged
 
 
-@app.route('/api/live-prices', methods=['GET'])
-def live_prices():
+# 실시간 시세 API.
+def serve_live_prices():
     """실시간 시세 API."""
     global _LIVE_PRICE_CURSOR, _LIVE_UPDATER_RUNNING
 
@@ -3952,7 +4719,7 @@ def live_prices():
             name = custom_name_map.get(code) or LIVE_PRICE_STOCKS.get(code) or PRICE_STOCKS.get(code) or code
             all_items.append((code, name))
     else:
-        all_items = list(LIVE_PRICE_STOCKS.items())[:_WEB_PRICE_MAX_COUNT]
+        all_items = _get_live_price_universe_items()
 
     if custom_codes_raw:
         price_filter = 'all'
@@ -4226,27 +4993,6 @@ def live_prices():
         'stocks': stocks,
         'ts': time.strftime('%H:%M:%S')
     })
-
-
-@app.route('/', defaults={'filename': '주린닷컴홈피.html'})
-@app.route('/<path:filename>')
-def serve_capstone(filename):
-    """frontend 정적 파일."""
-    if not filename or '..' in filename:
-        abort(404)
-    # 과거 파일명 호환: 주린닷컴.html 요청도 최신 홈 파일로 제공
-    if filename in {'주린닷컴.html', 'jurin.html', 'index.html'}:
-        filename = '주린닷컴홈피.html'
-    safe = os.path.normpath(filename).replace('\\', '/')
-    if safe.startswith('..'):
-        abort(404)
-    full = os.path.abspath(os.path.join(_FRONTEND_DIR, safe))
-    if not full.startswith(_FRONTEND_DIR + os.sep) and full != _FRONTEND_DIR:
-        abort(404)
-    if not os.path.isfile(full):
-        abort(404)
-    directory, basename = os.path.split(full)
-    return send_from_directory(directory, basename)
 
 
 if __name__ == '__main__':

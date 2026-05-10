@@ -106,7 +106,6 @@ const response = await fetch('http://localhost:5000/api/analyze', {
 │   └── style.css
 ├── js/
 │   ├── app.js
-│   ├── ai.js
 │   ├── slider.js
 │   └── rss-loader.js
 └── backend/

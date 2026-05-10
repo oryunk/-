@@ -1,3 +1,7 @@
+"""`.env` 로드, MySQL/Flask 실행 옵션·시크릿 키 등 런타임 설정.
+
+설명( `app.py`, `signup.py`, `auth_api` 등이 공통으로 사용한다. )
+"""
 import os
 from dotenv import load_dotenv
 

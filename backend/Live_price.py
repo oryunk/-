@@ -155,6 +155,9 @@ def fetch_live_snapshot_batch(codes):
             s.name_ko,
             s.current_price AS price,
             sp_latest.close_price AS latest_close,
+            sp_latest.open_price AS latest_open,
+            sp_latest.high_price AS latest_high,
+            sp_latest.low_price AS latest_low,
             sp_latest.volume AS latest_volume,
             sp_latest.date AS latest_date,
             COALESCE(
@@ -183,6 +186,9 @@ def fetch_live_snapshot_batch(codes):
             s.name_ko,
             sp_latest.close_price AS price,
             sp_latest.close_price AS latest_close,
+            sp_latest.open_price AS latest_open,
+            sp_latest.high_price AS latest_high,
+            sp_latest.low_price AS latest_low,
             sp_latest.volume AS latest_volume,
             sp_latest.date AS latest_date,
             COALESCE(
@@ -251,7 +257,7 @@ def fetch_live_snapshot_batch(codes):
                         )
                     except Exception:
                         latest_date_str = None
-                rows_by_code[code] = {
+                snap = {
                     "code": code,
                     "name": row.get("name_ko") or code,
                     "price": price,
@@ -266,6 +272,16 @@ def fetch_live_snapshot_batch(codes):
                     # 장외 stale 검사: stock_price_daily 최신 일자 (YYYY-MM-DD)
                     "latest_date": latest_date_str,
                 }
+                ohlc_o = _to_int(row.get("latest_open"), default=0)
+                ohlc_h = _to_int(row.get("latest_high"), default=0)
+                ohlc_l = _to_int(row.get("latest_low"), default=0)
+                if ohlc_o > 0:
+                    snap["open"] = ohlc_o
+                if ohlc_h > 0:
+                    snap["high"] = ohlc_h
+                if ohlc_l > 0:
+                    snap["low"] = ohlc_l
+                rows_by_code[code] = snap
     except Exception as e:
         print(f"[LIVE_DB_SNAPSHOT] 조회 실패: {e}")
     finally:
