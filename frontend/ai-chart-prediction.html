@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- AI 차트 예측(Plotly 등 시각화). -->
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
@@ -71,7 +72,7 @@
   }
 
   .btn-predict {
-    background: linear-gradient(135deg, var(--blue), var(--blue-light));
+    background: var(--blue);
     color: #ffffff;
     border: none;
     padding: 12px 24px;
@@ -79,12 +80,13 @@
     font-size: 16px;
     font-weight: 500;
     cursor: pointer;
-    transition: all 0.3s ease;
+    transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
   }
 
   .btn-predict:hover {
+    background: var(--blue-mid);
     transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(79, 158, 255, 0.3);
+    box-shadow: 0 8px 20px rgba(47, 143, 95, 0.28);
   }
 
   .chart-display {
@@ -365,6 +367,7 @@
 </div>
 
 <script src="js/api-base.js"></script>
+<script src="js/stock-autocomplete.js"></script>
 <script>
   function renderImportantSummaryHtml(raw) {
     const text = normalizeDisplayText(raw);
@@ -881,6 +884,11 @@
   document.getElementById('stockInput').addEventListener('keypress', function (e) {
     if (e.key === 'Enter') predictChart();
   });
+
+  if (window.JurinStockAutocomplete) {
+    var _chartStockIn = document.getElementById('stockInput');
+    if (_chartStockIn) JurinStockAutocomplete.attachStock(_chartStockIn, {});
+  }
 </script>
 <script src="js/common-auth.js"></script>
 

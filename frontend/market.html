@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- 시장 화면: 종목 목록·상세·차트·모의매매·1~3단계 튜토리얼. -->
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
@@ -7,6 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css?v=20260438">
 <script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
 <style>
   .market-container {
     min-height: 100vh;
@@ -40,9 +42,184 @@
   }
 
   .market-content {
-    max-width: 1200px;
+    box-sizing: border-box;
+    max-width: 1400px;
     margin: 0 auto;
     padding: 40px;
+  }
+
+  /* 관심 레일이 있을 때: 메인 폭(1320)은 유지하고 레일만 오른쪽으로 확장 */
+  .market-content.market-content--has-watchrail {
+    max-width: min(1708px, 100%);
+  }
+
+  .market-overview-split {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 28px;
+    box-sizing: border-box;
+  }
+
+  .market-overview-split--no-watchlist .market-overview-main {
+    flex: 1 1 auto;
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+  }
+
+  /* 1400(max) − 좌우 패딩 80 = 1320 — 관심 추가 전·후 동일한 메인 콘텐츠 폭 */
+  .market-overview-split:not(.market-overview-split--no-watchlist) .market-overview-main {
+    flex: 0 0 auto;
+    width: 1320px;
+    max-width: min(1320px, 100%);
+    min-width: 0;
+  }
+
+  .market-watchlist-aside {
+    box-sizing: border-box;
+    flex: 0 0 280px;
+    width: 280px;
+    min-width: 0;
+  }
+
+  .watchlist-aside-sticky {
+    position: sticky;
+    top: 88px;
+    padding: 16px 16px 18px;
+    background: var(--gray-50, #f8faf8);
+    border: 1px solid var(--gray-200, #e8ebe8);
+    border-radius: 14px;
+  }
+
+  .watchlist-panel-head {
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--text-primary);
+    margin: 0 0 12px 0;
+    letter-spacing: -0.02em;
+  }
+
+  .watchlist-aside-empty {
+    margin: 0;
+    font-size: 12px;
+    color: var(--gray-400);
+    line-height: 1.5;
+  }
+
+  .watchlist-chip-scroller--aside {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: min(60vh, 520px);
+    overflow-y: auto;
+    padding-right: 4px;
+  }
+
+  .watchlist-chip--aside {
+    display: block;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    border: 1px solid rgba(47, 143, 95, 0.28);
+    border-radius: 12px;
+    background: #fff;
+    cursor: pointer;
+    font: inherit;
+    text-align: left;
+    transition: background 0.15s ease, border-color 0.15s ease;
+  }
+
+  .watchlist-chip--aside:hover {
+    background: rgba(47, 143, 95, 0.06);
+    border-color: rgba(47, 143, 95, 0.45);
+  }
+
+  .watchlist-chip-inner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    min-width: 0;
+  }
+
+  .watchlist-chip-logo.stock-logo-wrap {
+    flex: 0 0 auto;
+    width: 36px;
+    height: 36px;
+  }
+
+  .watchlist-chip-logo.stock-logo-wrap--placeholder {
+    width: 36px;
+    height: 36px;
+    font-size: 14px;
+  }
+
+  .watchlist-chip-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .watchlist-chip-name {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .watchlist-chip-code {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--gray-500);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* 고정 폭 메인+레일이 뷰포트에 안 들어오면 세로 배치 */
+  @media (max-width: 1240px) {
+    .market-content.market-content--has-watchrail {
+      max-width: 100%;
+    }
+
+    .market-overview-split:not(.market-overview-split--no-watchlist) {
+      flex-direction: column;
+    }
+
+    .market-overview-split:not(.market-overview-split--no-watchlist) .market-overview-main {
+      width: 100%;
+      max-width: none;
+    }
+
+    .market-watchlist-aside {
+      flex: none;
+      width: 100%;
+      max-width: none;
+    }
+  }
+
+  @media (max-width: 980px) {
+    .watchlist-aside-sticky {
+      position: static;
+      max-height: none;
+    }
+
+    .watchlist-chip-scroller--aside {
+      flex-direction: row;
+      flex-wrap: wrap;
+      max-height: none;
+      overflow-x: auto;
+      overflow-y: hidden;
+    }
+
+    .watchlist-chip--aside {
+      flex: 0 0 auto;
+      width: auto;
+      min-width: 200px;
+      max-width: 280px;
+    }
   }
 
   .market-view.hidden {
@@ -150,9 +327,27 @@
 
   .stocks-header {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 14px;
     margin-bottom: 24px;
+  }
+
+  .stocks-header-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .stocks-controls {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: nowrap;
+    min-width: 0;
   }
 
   .stocks-title {
@@ -163,23 +358,29 @@
 
   .stocks-filter {
     display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
+    gap: 10px;
+    flex-wrap: nowrap;
     align-items: center;
+    justify-content: space-between;
+    flex: 1;
+    min-width: 0;
   }
 
   .stocks-filter-btns {
     display: flex;
     gap: 8px;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     align-items: center;
+    flex-shrink: 0;
   }
 
   .stocks-search-wrap {
     display: flex;
     align-items: center;
     gap: 8px;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
+    flex-shrink: 1;
+    min-width: 0;
   }
 
   .stocks-search-field {
@@ -228,6 +429,8 @@
   }
 
   .stocks-search-reset {
+    flex-shrink: 0;
+    white-space: nowrap;
     padding: 8px 14px;
     background: rgba(47, 143, 95, 0.08);
     border: 1px solid rgba(47, 143, 95, 0.22);
@@ -245,8 +448,21 @@
     border-color: rgba(47, 143, 95, 0.35);
   }
 
-  .stocks-search-reset.hidden {
-    display: none;
+  /* 검색 중에도 레이아웃이 밀리지 않도록 자리만 유지 */
+  .stocks-search-reset.stocks-search-reset--inactive {
+    visibility: hidden;
+    pointer-events: none;
+  }
+
+  @media (max-width: 720px) {
+    .stocks-controls {
+      flex-wrap: wrap;
+    }
+
+    .stocks-filter {
+      flex-wrap: wrap;
+      justify-content: flex-start;
+    }
   }
 
   .filter-btn {
@@ -326,6 +542,93 @@
 
   .stock-row.active {
     background: rgba(47, 143, 95, 0.12);
+  }
+
+  .stocks-table th.watch-col-th,
+  .stocks-table td.watch-cell {
+    width: 44px;
+    text-align: center;
+    vertical-align: middle;
+    padding: 4px 2px;
+  }
+
+  .watch-heart-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    margin: 0;
+    padding: 0;
+    border: none;
+    border-radius: 10px;
+    background: transparent;
+    color: var(--gray-300, #c5c5c5);
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+    transition: color 0.15s ease, background 0.15s ease, transform 0.12s ease;
+  }
+
+  .watch-heart-btn:hover {
+    background: rgba(233, 30, 99, 0.08);
+    color: #e91e63;
+  }
+
+  .watch-heart-btn.is-on {
+    color: #e91e63;
+    font-weight: 700;
+  }
+
+  .watch-heart-btn.detail-watch-btn {
+    width: 40px;
+    height: 40px;
+    font-size: 22px;
+    flex-shrink: 0;
+  }
+
+  .stock-detail-name-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .jurin-watch-toast {
+    position: fixed;
+    left: 50%;
+    bottom: 28px;
+    transform: translateX(-50%) translateY(12px);
+    z-index: 10050;
+    max-width: min(420px, calc(100vw - 32px));
+    padding: 12px 18px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #fff;
+    background: rgba(33, 33, 33, 0.92);
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.22);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+  }
+
+  .jurin-watch-toast:not([hidden]) {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+    pointer-events: auto;
+  }
+
+  .jurin-watch-toast.is-warn {
+    background: rgba(180, 83, 9, 0.95);
+  }
+
+  .jurin-watch-toast.is-error {
+    background: rgba(183, 28, 28, 0.95);
+  }
+
+  .jurin-watch-toast.is-ok {
+    background: rgba(27, 94, 32, 0.95);
   }
 
   .stock-name {
@@ -866,7 +1169,7 @@
   }
 
   .detail-buy {
-    background: linear-gradient(135deg, #1f9fff, #0d7ee0);
+    background: #3182f6;
     color: #fff;
   }
 
@@ -875,7 +1178,7 @@
   }
 
   .detail-sell {
-    background: linear-gradient(135deg, #ff5f64, #ff8157);
+    background: #ff5a5f;
     color: #fff;
   }
 
@@ -989,19 +1292,50 @@
     color: var(--gray-400);
   }
 
-  .mock-trade-mechanism-hint {
-    border: 1px dashed rgba(47, 143, 95, 0.35);
-    border-radius: 10px;
-    background: #f6fcf8;
-    padding: 8px 10px;
-    font-size: 12px;
-    color: #355645;
-    line-height: 1.5;
+  .mock-trade-price-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+    justify-content: space-between;
   }
-  .mock-trade-mechanism-hint a {
-    color: #1f6b45;
+
+  .mock-trade-inline-price-type {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+  }
+
+  .mock-trade-price-type-btn {
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: 1px solid rgba(47, 143, 95, 0.28);
+    background: #fff;
+    color: var(--text-primary);
+    font-size: 12px;
     font-weight: 700;
-    text-decoration: underline;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+    white-space: nowrap;
+    min-width: 64px;
+  }
+
+  .mock-trade-price-type-btn:hover {
+    border-color: rgba(47, 143, 95, 0.45);
+    background: rgba(47, 143, 95, 0.06);
+  }
+
+  .mock-trade-price-type-btn.active {
+    background: rgba(47, 143, 95, 0.16);
+    border-color: var(--accent);
+    color: #1d4d38;
+  }
+
+  #mockTradePriceField.is-market-mode #mockTradePrice:disabled {
+    opacity: 0.85;
+    cursor: not-allowed;
   }
 
   .mock-trade-input {
@@ -1017,10 +1351,15 @@
   .mock-trade-cta {
     grid-column: 1 / -1;
     display: flex;
-    justify-content: space-between;
+    justify-content: stretch;
     align-items: center;
-    gap: 16px;
+    gap: 0;
     margin-top: 22px;
+    width: 100%;
+  }
+
+  .mock-trade-cta .mock-trade-btn.submit {
+    flex: 1;
     width: 100%;
   }
 
@@ -1034,13 +1373,8 @@
     font-family: inherit;
   }
 
-  .mock-trade-btn.cancel {
-    background: var(--gray-100);
-    color: var(--text-primary);
-  }
-
   .mock-trade-btn.submit.buy {
-    background: linear-gradient(135deg, #1f9fff, #0d7ee0);
+    background: #3182f6;
     color: #fff;
   }
 
@@ -1049,7 +1383,7 @@
   }
 
   .mock-trade-btn.submit.sell {
-    background: linear-gradient(135deg, #ff5f64, #ff8157);
+    background: #ff5a5f;
     color: #fff;
   }
 
@@ -1075,6 +1409,191 @@
     display: grid;
     gap: 14px;
     margin-top: 14px;
+  }
+
+  .detail-fin-chart-toolbar {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  .detail-fin-chart-seg-wrap {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .detail-fin-chart-seg {
+    border: 1px solid rgba(47, 143, 95, 0.35);
+    background: #ffffff;
+    color: var(--text-primary);
+    padding: 8px 14px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+  }
+
+  .detail-fin-chart-seg:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .detail-fin-chart-seg.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #ffffff;
+  }
+
+  .detail-fin-metric-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+  }
+
+  .detail-fin-metric-chip {
+    border: 1px solid rgba(47, 143, 95, 0.28);
+    background: #ffffff;
+    color: var(--text-primary);
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+  }
+
+  .detail-fin-metric-chip:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .detail-fin-metric-chip.active {
+    background: rgba(47, 143, 95, 0.12);
+    border-color: var(--accent);
+    color: #1d4d38;
+  }
+
+  .detail-fin-chart-plot {
+    min-height: 260px;
+    width: 100%;
+    border-radius: 12px;
+    background: #f6faf7;
+    border: 1px solid rgba(47, 143, 95, 0.12);
+  }
+
+  .detail-fin-chart-plot.detail-fin-chart-plot--hbar {
+    min-height: 200px;
+    padding: 18px 20px;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+  }
+
+  .valuation-hbar-chart {
+    width: 100%;
+  }
+
+  .valuation-hbar-chart-title {
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--text-primary);
+    margin-bottom: 16px;
+    letter-spacing: -0.02em;
+  }
+
+  .valuation-hbar-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  .valuation-hbar-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(72px, auto) minmax(100px, 1.4fr);
+    gap: 10px 14px;
+    align-items: center;
+  }
+
+  @media (max-width: 520px) {
+    .valuation-hbar-row {
+      grid-template-columns: 1fr;
+      gap: 8px;
+    }
+
+    .valuation-hbar-track {
+      max-width: 100%;
+    }
+  }
+
+  .valuation-hbar-name {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.35;
+  }
+
+  .valuation-hbar-value {
+    font-size: 15px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-primary);
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  .valuation-hbar-track {
+    height: 16px;
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.08);
+    overflow: hidden;
+    align-self: center;
+  }
+
+  .valuation-hbar-fill {
+    height: 100%;
+    border-radius: 999px;
+    min-width: 0;
+    transition: width 0.35s ease;
+  }
+
+  .valuation-hbar-fill--stock {
+    background: linear-gradient(90deg, #2563eb, #3b82f6);
+  }
+
+  .valuation-hbar-fill--industry {
+    background: #cbd5e1;
+  }
+
+  .detail-tables-details {
+    border-radius: 14px;
+    border: 1px solid rgba(47, 143, 95, 0.14);
+    background: var(--gray-100);
+    overflow: hidden;
+  }
+
+  .detail-tables-details > summary {
+    padding: 14px 16px;
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--text-primary);
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
+  }
+
+  .detail-tables-details > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .detail-tables-inner {
+    padding: 0 16px 16px;
+    display: grid;
+    gap: 14px;
   }
 
   .detail-section {
@@ -2343,6 +2862,8 @@
 
   <div class="market-content">
     <div id="marketOverviewView" class="market-view">
+    <div id="marketOverviewSplit" class="market-overview-split market-overview-split--no-watchlist">
+    <div class="market-overview-main">
     <div class="indices-section">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;flex-wrap:wrap;gap:10px;">
         <div class="indices-title" style="margin-bottom:0">주요 지수</div>
@@ -2358,32 +2879,37 @@
 
     <div class="stocks-section">
       <div class="stocks-header">
-        <div class="stocks-title">
-          주요 종목
-          <span class="live-badge">
-            <span class="live-dot" id="liveDot"></span>
-            <span id="liveStatus">연결 중...</span>
-          </span>
-        </div>
-        <div class="stocks-filter">
-          <div class="stocks-search-wrap">
-            <label class="stocks-search-field" id="stocksSearchField" for="stocksSearchInput">
-              <span class="search-icon" aria-hidden="true">검색</span>
-              <input type="search" class="stocks-search-input" id="stocksSearchInput" autocomplete="off" placeholder="종목명·코드·키워드 검색" inputmode="text" />
-            </label>
-            <button type="button" class="stocks-search-reset hidden" id="stocksSearchReset" onclick="clearStockSearch()">전체 목록 보기</button>
+        <div class="stocks-header-top">
+          <div class="stocks-title">
+            주요 종목
+            <span class="live-badge">
+              <span class="live-dot" id="liveDot"></span>
+              <span id="liveStatus">연결 중...</span>
+            </span>
           </div>
-          <div class="stocks-filter-btns" id="stocksFilterBtns" aria-label="목록 필터">
-            <button type="button" class="filter-btn active" data-filter="all" onclick="filterStocks('all', event)">전체</button>
-            <button type="button" class="filter-btn" data-filter="up" onclick="filterStocks('up', event)">상승</button>
-            <button type="button" class="filter-btn" data-filter="down" onclick="filterStocks('down', event)">하락</button>
-            <button type="button" class="filter-btn" data-filter="volume" onclick="filterStocks('volume', event)">거래량</button>
+        </div>
+        <div class="stocks-controls">
+          <div class="stocks-filter">
+            <div class="stocks-search-wrap">
+              <label class="stocks-search-field" id="stocksSearchField" for="stocksSearchInput">
+                <span class="search-icon" aria-hidden="true">검색</span>
+                <input type="search" class="stocks-search-input" id="stocksSearchInput" autocomplete="off" placeholder="종목명·코드·키워드 검색" inputmode="text" />
+              </label>
+              <button type="button" class="stocks-search-reset stocks-search-reset--inactive" id="stocksSearchReset" onclick="clearStockSearch()">전체 목록 보기</button>
+            </div>
+            <div class="stocks-filter-btns" id="stocksFilterBtns" aria-label="목록 필터">
+              <button type="button" class="filter-btn active" data-filter="all" onclick="filterStocks('all', event)">전체</button>
+              <button type="button" class="filter-btn" data-filter="up" onclick="filterStocks('up', event)">상승</button>
+              <button type="button" class="filter-btn" data-filter="down" onclick="filterStocks('down', event)">하락</button>
+              <button type="button" class="filter-btn" data-filter="volume" onclick="filterStocks('volume', event)">거래량</button>
+            </div>
           </div>
         </div>
       </div>
       <table class="stocks-table" id="stocksTable">
         <thead>
           <tr>
+            <th class="watch-col-th" aria-label="관심 종목">♥</th>
             <th>종목명</th>
             <th>현재가</th>
             <th>전일대비</th>
@@ -2392,7 +2918,7 @@
           </tr>
         </thead>
         <tbody id="stocksTableBody">
-          <tr><td colspan="5" style="text-align:center;color:var(--gray-400);padding:32px">시세 불러오는 중...</td></tr>
+          <tr><td colspan="6" style="text-align:center;color:var(--gray-400);padding:32px">시세 불러오는 중...</td></tr>
         </tbody>
       </table>
       <div class="stocks-pagination" id="stocksPagination"></div>
@@ -2419,6 +2945,15 @@
     </div>
     </div>
 
+    <aside id="marketWatchlistAside" class="market-watchlist-aside" aria-label="관심 종목" hidden>
+      <div class="watchlist-aside-sticky">
+        <div class="watchlist-panel-head">관심 종목</div>
+        <div id="jurinWatchlistPanel" class="watchlist-panel-body"></div>
+      </div>
+    </aside>
+    </div>
+    </div>
+
     <div id="stockDetailView" class="market-view stock-detail-view hidden" aria-hidden="true">
       <div class="stock-detail-header">
         <button class="btn-back" type="button" onclick="closeStockDetail()">← 주요 종목으로 돌아가기</button>
@@ -2431,7 +2966,10 @@
               <span id="detailLogoPh" class="stock-logo-wrap--placeholder" style="display:none"></span>
             </span>
             <div>
-              <div class="stock-detail-name" id="detailName">종목 선택</div>
+              <div class="stock-detail-name-row">
+                <div class="stock-detail-name" id="detailName">종목 선택</div>
+                <button type="button" class="watch-heart-btn detail-watch-btn" id="detailWatchBtn" title="관심 종목" aria-label="관심 종목" aria-pressed="false" onclick="event.stopPropagation(); toggleWatchlistFromDetail();">♥</button>
+              </div>
             </div>
           </div>
         </div>
@@ -2511,27 +3049,45 @@
               <div class="empty-state">데이터를 불러오는 중입니다.</div>
             </div>
           </section>
-          <section class="detail-section" data-jurin-section="valuation">
-            <div class="detail-section-title">가치평가 비교</div>
-            <p class="detail-section-lead"></p>
-            <div class="detail-table-wrap" id="valuationTableWrap">
-              <div class="empty-state">데이터를 불러오는 중입니다.</div>
+          <section class="detail-section" data-jurin-section="fin-chart">
+            <div class="detail-section-title">재무 · 가치 차트</div>
+            <div class="detail-fin-chart-toolbar">
+              <div class="detail-fin-chart-seg-wrap" id="detailFinChartSegWrap" role="tablist" aria-label="차트 구간">
+                <button type="button" class="detail-fin-chart-seg active" data-fin-cat="valuation" role="tab" aria-selected="true">가치 비교</button>
+                <button type="button" class="detail-fin-chart-seg" data-fin-cat="performance" role="tab" aria-selected="false">재무 성과</button>
+                <button type="button" class="detail-fin-chart-seg" data-fin-cat="balance" role="tab" aria-selected="false">재무상태표</button>
+              </div>
+              <div class="detail-fin-metric-row" id="detailFinMetricChips" aria-label="지표 선택"></div>
             </div>
+            <div class="detail-fin-chart-plot" id="detailFinancialChart"></div>
+            <p class="detail-section-sub" id="detailFinChartCaption" style="margin-top:10px;margin-bottom:0"></p>
           </section>
-          <section class="detail-section" data-jurin-section="performance">
-            <div class="detail-section-title">재무 성과</div>
-            <p class="detail-section-lead"></p>
-            <div class="detail-table-wrap" id="performanceTableWrap">
-              <div class="empty-state">데이터를 불러오는 중입니다.</div>
+          <details class="detail-tables-details">
+            <summary>표로 보기</summary>
+            <div class="detail-tables-inner">
+              <section class="detail-section" data-jurin-section="valuation">
+                <div class="detail-section-title">가치평가 비교</div>
+                <p class="detail-section-lead"></p>
+                <div class="detail-table-wrap" id="valuationTableWrap">
+                  <div class="empty-state">데이터를 불러오는 중입니다.</div>
+                </div>
+              </section>
+              <section class="detail-section" data-jurin-section="performance">
+                <div class="detail-section-title">재무 성과</div>
+                <p class="detail-section-lead"></p>
+                <div class="detail-table-wrap" id="performanceTableWrap">
+                  <div class="empty-state">데이터를 불러오는 중입니다.</div>
+                </div>
+              </section>
+              <section class="detail-section" data-jurin-section="balance">
+                <div class="detail-section-title">재무상태표</div>
+                <p class="detail-section-lead"></p>
+                <div class="detail-table-wrap" id="statementsTableWrap">
+                  <div class="empty-state">데이터를 불러오는 중입니다.</div>
+                </div>
+              </section>
             </div>
-          </section>
-          <section class="detail-section" data-jurin-section="balance">
-            <div class="detail-section-title">재무상태표</div>
-            <p class="detail-section-lead"></p>
-            <div class="detail-table-wrap" id="statementsTableWrap">
-              <div class="empty-state">데이터를 불러오는 중입니다.</div>
-            </div>
-          </section>
+          </details>
           <section class="detail-section" data-jurin-section="stability">
             <div class="detail-section-title">안정성 / 배당</div>
             <p class="detail-section-lead"></p>
@@ -2720,21 +3276,20 @@
         <input class="mock-trade-input" id="mockTradeQty" type="number" min="1" step="1" value="1" required>
       </label>
       <label class="mock-trade-field" id="mockTradePriceField">
-        <span>지정가</span>
-        <input class="mock-trade-input" id="mockTradePrice" type="number" min="0" step="1" placeholder="지정가">
-        <div class="mock-trade-mechanism-hint" id="mockTradeMechanismHint">
-          지정가: 원하는 가격에 대기. 시장가: 빠른 체결 우선(가격 오차 가능).
-          <a href="glossary.html?term=%EC%A7%80%EC%A0%95%EA%B0%80" target="_blank" rel="noopener">지정가</a> ·
-          <a href="glossary.html?term=%ED%98%B8%EA%B0%80" target="_blank" rel="noopener">호가</a> ·
-          <a href="glossary.html?term=%EB%AF%B8%EC%B2%B4%EA%B2%B0" target="_blank" rel="noopener">미체결</a>
+        <div class="mock-trade-price-head">
+          <span id="mockTradePriceLabel">가격</span>
+          <div class="mock-trade-inline-price-type" role="radiogroup" aria-label="주문 가격 유형">
+            <button type="button" class="mock-trade-price-type-btn active" id="mockTradePriceTypeMarket" aria-pressed="true">시장가</button>
+            <button type="button" class="mock-trade-price-type-btn" id="mockTradePriceTypeLimit" aria-pressed="false">지정가</button>
+          </div>
         </div>
+        <input class="mock-trade-input" id="mockTradePrice" type="number" min="0" step="1" placeholder="지정가">
       </label>
       <div class="mock-trade-field full">
         <span>예상 주문 금액</span>
         <input class="mock-trade-input" id="mockTradeEstimated" type="text" value="₩0" readonly>
       </div>
       <div class="mock-trade-cta full">
-        <button type="button" class="mock-trade-btn cancel" onclick="closeMockTradeModal()">취소</button>
         <button class="mock-trade-btn submit buy" id="mockTradeSubmitBtn" type="submit">매수</button>
       </div>
     </form>
@@ -2745,6 +3300,120 @@
 <script src="js/stock-terms.js"></script>
 <script>
   const BACKEND = window.JURIN_API_BASE || 'http://localhost:5000';
+  let jurinWatchlistItems = [];
+
+  function jurinWatchCodesHas(code) {
+    const c = String(code || '').trim();
+    return jurinWatchlistItems.some(i => String(i.code) === c);
+  }
+
+  function showWatchToast(message, kind) {
+    const el = document.getElementById('jurinWatchToast');
+    if (!el) return;
+    el.textContent = message || '';
+    el.classList.remove('is-warn', 'is-error', 'is-ok');
+    if (kind === 'warn') el.classList.add('is-warn');
+    else if (kind === 'error') el.classList.add('is-error');
+    else el.classList.add('is-ok');
+    el.hidden = false;
+    if (showWatchToast._t) clearTimeout(showWatchToast._t);
+    showWatchToast._t = setTimeout(() => {
+      el.hidden = true;
+    }, 2800);
+  }
+
+  function syncDetailWatchHeart(code) {
+    const btn = document.getElementById('detailWatchBtn');
+    if (!btn) return;
+    const c = code ? String(code).trim() : '';
+    const on = c && jurinWatchCodesHas(c);
+    btn.classList.toggle('is-on', !!on);
+    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+  }
+
+  async function jurinRefreshWatchlist() {
+    try {
+      const res = await fetch(`${BACKEND}/api/watchlist`, { credentials: 'include' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success) {
+        jurinWatchlistItems = [];
+      } else {
+        jurinWatchlistItems = Array.isArray(data.items) ? data.items.slice() : [];
+      }
+    } catch (e) {
+      jurinWatchlistItems = [];
+    }
+    renderStocks();
+    if (selectedStockCode) syncDetailWatchHeart(selectedStockCode);
+    jurinRenderWatchlistPanel();
+  }
+
+  window.jurinRefreshWatchlist = jurinRefreshWatchlist;
+
+  window.jurinClearWatchlistUi = function () {
+    jurinWatchlistItems = [];
+    renderStocks();
+    syncDetailWatchHeart(selectedStockCode || null);
+    jurinRenderWatchlistPanel();
+  };
+
+  function watchHeartCellHtml(code) {
+    const c = String(code || '').trim();
+    const on = jurinWatchCodesHas(c);
+    const label = on ? '관심 해제' : '관심 추가';
+    return `<button type="button" class="watch-heart-btn ${on ? 'is-on' : ''}" title="${label}" aria-label="${label}" aria-pressed="${on ? 'true' : 'false'}" onclick="event.stopPropagation(); toggleWatchlist('${c}', '')">♥</button>`;
+  }
+
+  async function toggleWatchlist(code, name) {
+    const logged = await isAuthenticatedForMockTrade();
+    if (!logged) {
+      showWatchToast('로그인 후 관심 종목을 이용할 수 있습니다.', 'warn');
+      if (typeof openLoginModal === 'function') openLoginModal();
+      return;
+    }
+    const c = String(code || '').trim();
+    if (!/^\d{6}$/.test(c)) return;
+    try {
+      const res = await fetch(`${BACKEND}/api/watchlist/toggle`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ code: c }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 401) {
+        showWatchToast(data.message || '로그인이 필요합니다.', 'warn');
+        if (typeof openLoginModal === 'function') openLoginModal();
+        return;
+      }
+      if (!res.ok || !data.success) {
+        showWatchToast(data.message || '처리하지 못했습니다.', 'error');
+        return;
+      }
+      const displayName = (name || '').trim()
+        || (getStockByCode(c) && getStockByCode(c).name)
+        || c;
+      if (data.in_watchlist) {
+        jurinWatchlistItems = jurinWatchlistItems.filter(i => String(i.code) !== c);
+        jurinWatchlistItems.unshift({ code: c, name: displayName, created_at: new Date().toISOString() });
+      } else {
+        jurinWatchlistItems = jurinWatchlistItems.filter(i => String(i.code) !== c);
+      }
+      renderStocks();
+      syncDetailWatchHeart(selectedStockCode || c);
+      jurinRenderWatchlistPanel();
+      showWatchToast(data.message || (data.in_watchlist ? '관심종목에 추가했습니다.' : '관심종목에서 제거했습니다.'), 'ok');
+    } catch (e) {
+      showWatchToast('네트워크 오류입니다.', 'error');
+    }
+  }
+
+  function toggleWatchlistFromDetail() {
+    if (!selectedStockCode) return;
+    const s = getStockByCode(selectedStockCode);
+    toggleWatchlist(selectedStockCode, s && s.name ? s.name : '');
+  }
+
   const POLL_INTERVAL = 2500; // 목록 시세 (백엔드 캐시·KIS 배치와 맞춤)
   const DETAIL_POLL_INTERVAL = 2000; // 상세 패널: 한 종목 동기 갱신(움직임 체감)
   const PAGE_SIZE = 10;
@@ -2806,6 +3475,309 @@
   let detailPollHandle = null;
   let detailLastRenderedPrice = null;
   let mockTradeState = { side: 'BUY', code: '', name: '', currentPrice: 0 };
+  let finChartCategory = 'valuation';
+  let finChartMetric = 'PER';
+
+  function getMetricsForCategory(detail, cat) {
+    if (!detail) return [];
+    if (cat === 'valuation') {
+      const rows = detail.valuation_comparison && detail.valuation_comparison.rows;
+      if (!Array.isArray(rows)) return [];
+      return rows.map(r => r.label).filter(Boolean);
+    }
+    if (cat === 'performance') {
+      const t = detail.financials && detail.financials.performance;
+      if (!t || !Array.isArray(t.rows)) return [];
+      return t.rows.map(r => r.label).filter(Boolean);
+    }
+    if (cat === 'balance') {
+      const t = detail.financials && detail.financials.statements;
+      if (!t || !Array.isArray(t.rows)) return [];
+      return t.rows.map(r => r.label).filter(Boolean);
+    }
+    return [];
+  }
+
+  function syncFinSegTabs() {
+    document.querySelectorAll('.detail-fin-chart-seg').forEach(b => {
+      const on = b.dataset.finCat === finChartCategory;
+      b.classList.toggle('active', on);
+      b.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+  }
+
+  function refreshFinMetricChips(detail) {
+    const wrap = document.getElementById('detailFinMetricChips');
+    if (!wrap) return;
+    const labels = getMetricsForCategory(detail, finChartCategory);
+    if (!labels.length) {
+      wrap.innerHTML = '';
+      return;
+    }
+    if (!finChartMetric || labels.indexOf(finChartMetric) === -1) {
+      finChartMetric = labels[0];
+    }
+    wrap.innerHTML = labels.map(l => {
+      const safe = escapeHtml(String(l));
+      const active = String(l) === String(finChartMetric);
+      return '<button type="button" class="detail-fin-metric-chip' + (active ? ' active' : '') + '" data-fin-metric="' + safe + '">' + safe + '</button>';
+    }).join('');
+  }
+
+  /** 가치·재무 차트용: 콤마·대시·문자열 PER/PBR 등 안정 파싱 */
+  function parseFinNumber(raw) {
+    if (raw == null || raw === '') return null;
+    if (typeof raw === 'number' && Number.isFinite(raw)) return raw;
+    const s = String(raw).trim();
+    if (s === '' || s === '-' || s === '—' || s.toUpperCase() === 'N/A' || s === 'null') return null;
+    const n = parseFloat(s.replace(/,/g, ''));
+    return Number.isFinite(n) ? n : null;
+  }
+
+  function formatValuationDisplayText(metric, raw) {
+    if (raw == null || raw === '') return '—';
+    if (typeof raw === 'string') {
+      const t = raw.trim();
+      if (t === '' || t === '-' || t === '—' || t.toUpperCase() === 'N/A') return '—';
+      return t;
+    }
+    const n = parseFinNumber(raw);
+    if (n == null) return '—';
+    const m = String(metric || '').toUpperCase();
+    if (m === 'PER' || m === 'PBR' || m === 'PSR') {
+      const rounded = Math.round(n * 10) / 10;
+      const s = Number.isInteger(rounded) ? String(rounded) : String(rounded);
+      return s + '배';
+    }
+    return String(n);
+  }
+
+  function valuationHbarWidthPct(val, maxAbs) {
+    if (val == null || !Number.isFinite(val)) return 0;
+    const denom = Math.max(maxAbs, 1e-9);
+    const pct = Math.round((Math.abs(val) / denom) * 100);
+    return Math.min(100, Math.max(pct, 8));
+  }
+
+  function clearDetailFinancialChart() {
+    const plot = document.getElementById('detailFinancialChart');
+    const cap = document.getElementById('detailFinChartCaption');
+    const chips = document.getElementById('detailFinMetricChips');
+    if (typeof Plotly !== 'undefined' && plot) {
+      try {
+        Plotly.purge(plot);
+      } catch (e) { /* ignore */ }
+    }
+    if (plot) {
+      plot.classList.remove('detail-fin-chart-plot--hbar');
+      plot.innerHTML = '<div class="empty-state" style="min-height:220px;display:flex;align-items:center;justify-content:center">차트를 불러오는 중입니다.</div>';
+    }
+    if (cap) cap.textContent = '';
+    if (chips) chips.innerHTML = '';
+    finChartCategory = 'valuation';
+    finChartMetric = 'PER';
+    document.querySelectorAll('.detail-fin-chart-seg').forEach(b => {
+      const on = b.dataset.finCat === 'valuation';
+      b.classList.toggle('active', on);
+      b.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+  }
+
+  function renderDetailFinancialChart(detail) {
+    const el = document.getElementById('detailFinancialChart');
+    const cap = document.getElementById('detailFinChartCaption');
+    if (!el) return;
+    if (typeof Plotly !== 'undefined') {
+      try {
+        Plotly.purge(el);
+      } catch (e) { /* ignore */ }
+    }
+    el.innerHTML = '';
+    el.classList.remove('detail-fin-chart-plot--hbar');
+
+    if (!detail) {
+      el.innerHTML = '<div class="empty-state">데이터가 없습니다.</div>';
+      if (cap) cap.textContent = '';
+      return;
+    }
+
+    if (finChartCategory !== 'valuation' && typeof Plotly === 'undefined') {
+      el.innerHTML = '<div class="empty-state">차트 라이브러리(Plotly)를 불러오지 못했습니다.</div>';
+      if (cap) cap.textContent = '';
+      return;
+    }
+
+    const layoutBase = {
+      margin: { l: 52, r: 20, t: 24, b: 52 },
+      paper_bgcolor: 'transparent',
+      plot_bgcolor: '#f6faf7',
+      font: { family: 'Noto Sans KR, sans-serif', size: 12, color: '#355845' },
+      showlegend: false,
+    };
+
+    if (finChartCategory === 'valuation') {
+      const rows = (detail.valuation_comparison && detail.valuation_comparison.rows) || [];
+      const row = rows.find(r => String(r.label) === String(finChartMetric));
+      if (!row) {
+        el.innerHTML = '<div class="empty-state">가치 비교 데이터가 없습니다.</div>';
+        if (cap) cap.textContent = '';
+        return;
+      }
+      let v1 = parseFinNumber(row.value);
+      if (v1 == null && String(finChartMetric) === 'PBR' && detail.indicators) {
+        v1 = parseFinNumber(detail.indicators.pbr);
+      }
+      const v2 = parseFinNumber(row.industry_avg);
+      if (v1 == null && v2 == null) {
+        el.innerHTML = '<div class="empty-state">표시할 수치가 없습니다.</div>';
+        if (cap) cap.textContent = '';
+        return;
+      }
+      const stockLabel =
+        (detail.quote && (detail.quote.name || detail.quote.stock_name || detail.quote.short_name)) || '해당 종목';
+      const maxAbs = Math.max(
+        v1 != null && Number.isFinite(v1) ? Math.abs(v1) : 0,
+        v2 != null && Number.isFinite(v2) ? Math.abs(v2) : 0,
+        1e-9
+      );
+      const dispStockSrc = row.value != null && row.value !== '' ? row.value : v1;
+      const dispIndSrc =
+        row.industry_avg != null && row.industry_avg !== '' ? row.industry_avg : v2;
+      const rowsHtml = [];
+      if (v1 != null) {
+        const w = valuationHbarWidthPct(v1, maxAbs);
+        rowsHtml.push(
+          '<div class="valuation-hbar-row">' +
+            '<div class="valuation-hbar-name">' + escapeHtml(stockLabel) + '</div>' +
+            '<div class="valuation-hbar-value">' +
+            escapeHtml(formatValuationDisplayText(finChartMetric, dispStockSrc)) +
+            '</div>' +
+            '<div class="valuation-hbar-track">' +
+            '<div class="valuation-hbar-fill valuation-hbar-fill--stock" style="width:' + w + '%"></div>' +
+            '</div>' +
+          '</div>'
+        );
+      }
+      if (v2 != null) {
+        const w = valuationHbarWidthPct(v2, maxAbs);
+        rowsHtml.push(
+          '<div class="valuation-hbar-row">' +
+            '<div class="valuation-hbar-name">' + escapeHtml('업종 평균') + '</div>' +
+            '<div class="valuation-hbar-value">' +
+            escapeHtml(formatValuationDisplayText(finChartMetric, dispIndSrc)) +
+            '</div>' +
+            '<div class="valuation-hbar-track">' +
+            '<div class="valuation-hbar-fill valuation-hbar-fill--industry" style="width:' + w + '%"></div>' +
+            '</div>' +
+          '</div>'
+        );
+      }
+      if (rowsHtml.length === 0) {
+        el.innerHTML = '<div class="empty-state">표시할 수치가 없습니다.</div>';
+        if (cap) cap.textContent = '';
+        return;
+      }
+      el.classList.add('detail-fin-chart-plot--hbar');
+      el.innerHTML =
+        '<div class="valuation-hbar-chart">' +
+        '<div class="valuation-hbar-chart-title">' +
+        escapeHtml('가치 비교 · ' + String(finChartMetric)) +
+        '</div>' +
+        '<div class="valuation-hbar-rows">' +
+        rowsHtml.join('') +
+        '</div></div>';
+      const comp = detail.valuation_comparison || {};
+      if (cap) {
+        cap.textContent = comp.basis
+          ? '비교 기준: ' + String(comp.basis) + ' · 표본 ' + String(comp.peer_count ?? 0) + '개'
+          : '';
+      }
+      return;
+    }
+
+    const table = finChartCategory === 'performance'
+      ? (detail.financials && detail.financials.performance)
+      : (detail.financials && detail.financials.statements);
+    if (!table || !Array.isArray(table.rows) || !Array.isArray(table.columns) || table.columns.length === 0) {
+      el.innerHTML = '<div class="empty-state">표시할 재무 데이터가 없습니다.</div>';
+      if (cap) cap.textContent = '';
+      return;
+    }
+    const row = table.rows.find(r => String(r.label) === String(finChartMetric));
+    if (!row || !Array.isArray(row.values)) {
+      el.innerHTML = '<div class="empty-state">선택한 항목 데이터가 없습니다.</div>';
+      if (cap) cap.textContent = '';
+      return;
+    }
+    const xs = [];
+    const ys = [];
+    table.columns.forEach((col, i) => {
+      const n = parseFinNumber(row.values[i]);
+      if (n == null) return;
+      xs.push(String(col));
+      ys.push(n);
+    });
+    if (xs.length === 0) {
+      el.innerHTML = '<div class="empty-state">유효한 기간 데이터가 없습니다.</div>';
+      if (cap) cap.textContent = '';
+      return;
+    }
+    const trace = {
+      type: 'scatter',
+      mode: 'lines+markers',
+      x: xs,
+      y: ys,
+      line: { color: '#2f8f5f', width: 2 },
+      marker: { color: '#2f8f5f', size: 8 },
+    };
+    const layout = {
+      ...layoutBase,
+      yaxis: { title: String(finChartMetric), gridcolor: 'rgba(47,143,95,0.12)', tickformat: ',~s' },
+      xaxis: { title: '기간', gridcolor: 'rgba(47,143,95,0.08)' },
+    };
+    const pTs = Plotly.newPlot(el, [trace], layout, { responsive: true, displayModeBar: false });
+    if (pTs && typeof pTs.catch === 'function') {
+      pTs.catch(() => {
+        el.innerHTML = '<div class="empty-state">차트를 그리지 못했습니다.</div>';
+      });
+    }
+    if (cap) {
+      cap.textContent = finChartCategory === 'performance' ? '분기 실적 추이' : '연간 재무상태 추이';
+    }
+  }
+
+  function initFinChartListeners() {
+    const segWrap = document.getElementById('detailFinChartSegWrap');
+    const chipWrap = document.getElementById('detailFinMetricChips');
+    if (segWrap && !segWrap.dataset.bound) {
+      segWrap.dataset.bound = '1';
+      segWrap.addEventListener('click', e => {
+        const btn = e.target.closest('.detail-fin-chart-seg');
+        if (!btn || !selectedStockDetail) return;
+        const cat = btn.dataset.finCat;
+        if (!cat) return;
+        finChartCategory = cat;
+        finChartMetric = '';
+        syncFinSegTabs();
+        refreshFinMetricChips(selectedStockDetail);
+        renderDetailFinancialChart(selectedStockDetail);
+      });
+    }
+    if (chipWrap && !chipWrap.dataset.bound) {
+      chipWrap.dataset.bound = '1';
+      chipWrap.addEventListener('click', e => {
+        const chip = e.target.closest('.detail-fin-metric-chip');
+        if (!chip || !selectedStockDetail) return;
+        const m = chip.getAttribute('data-fin-metric');
+        if (m == null || m === '') return;
+        finChartMetric = m;
+        chipWrap.querySelectorAll('.detail-fin-metric-chip').forEach(c => {
+          c.classList.toggle('active', c === chip);
+        });
+        renderDetailFinancialChart(selectedStockDetail);
+      });
+    }
+  }
 
   function getStockDeepLinkCodeFromUrl() {
     try {
@@ -2896,8 +3868,21 @@
     const priceInput = document.getElementById('mockTradePrice');
     if (qtyInput) qtyInput.addEventListener('input', updateMockTradeEstimate);
     if (priceInput) priceInput.addEventListener('input', updateMockTradeEstimate);
+    const mockTradeMarketBtn = document.getElementById('mockTradePriceTypeMarket');
+    const mockTradeLimitBtn = document.getElementById('mockTradePriceTypeLimit');
+    if (mockTradeMarketBtn) {
+      mockTradeMarketBtn.addEventListener('click', () => {
+        if (!isMockTradeMarketPrice()) setMockTradePriceType(true);
+      });
+    }
+    if (mockTradeLimitBtn) {
+      mockTradeLimitBtn.addEventListener('click', () => {
+        if (isMockTradeMarketPrice()) setMockTradePriceType(false);
+      });
+    }
     const back = document.getElementById('mockTradeBackdrop');
     if (back) back.addEventListener('click', closeMockTradeModal);
+    initFinChartListeners();
   });
 
   function setFilterButtonsActive(filter) {
@@ -2914,7 +3899,7 @@
     const hasQuery = stockSearchQuery.trim().length > 0;
 
     if (hadQuery && !hasQuery) {
-      document.getElementById('stocksSearchReset')?.classList.add('hidden');
+      document.getElementById('stocksSearchReset')?.classList.add('stocks-search-reset--inactive');
       fetchLivePrices();
       return;
     }
@@ -2925,7 +3910,7 @@
       setFilterButtonsActive('all');
     }
     const resetBtn = document.getElementById('stocksSearchReset');
-    if (resetBtn) resetBtn.classList.toggle('hidden', !hasQuery);
+    if (resetBtn) resetBtn.classList.toggle('stocks-search-reset--inactive', !hasQuery);
 
     renderStocks();
     if (hasQuery) {
@@ -2941,7 +3926,7 @@
     if (el) el.value = '';
     stockSearchQuery = '';
     const resetBtn = document.getElementById('stocksSearchReset');
-    if (resetBtn) resetBtn.classList.add('hidden');
+    if (resetBtn) resetBtn.classList.add('stocks-search-reset--inactive');
     fetchLivePrices();
   }
 
@@ -3143,6 +4128,49 @@
     container.querySelectorAll('img.stock-logo-img').forEach(bindStockLogoIntrinsicFit);
   }
 
+  function jurinRenderWatchlistPanel() {
+    const host = document.getElementById('jurinWatchlistPanel');
+    const aside = document.getElementById('marketWatchlistAside');
+    const split = document.getElementById('marketOverviewSplit');
+    const contentWrap = document.querySelector('.market-content');
+    if (!host) return;
+    const hasItems = jurinWatchlistItems.length > 0;
+    if (contentWrap) contentWrap.classList.toggle('market-content--has-watchrail', hasItems);
+    if (!hasItems) {
+      host.innerHTML = '';
+      if (aside) aside.hidden = true;
+      if (split) split.classList.add('market-overview-split--no-watchlist');
+      return;
+    }
+    if (aside) aside.hidden = false;
+    if (split) split.classList.remove('market-overview-split--no-watchlist');
+    const chips = jurinWatchlistItems.map((it) => {
+      const code = String(it.code || '').trim();
+      const nameRaw = String(it.name || code);
+      const name = escapeHtml(nameRaw);
+      const c = escapeHtml(code);
+      const url = stockLogoUrlForCode(code);
+      let logoHtml;
+      if (url) {
+        const fileCode = resolveStockLogoFileCode(code);
+        const dataFile = fileCode ? ` data-logo-file="${escapeHtml(fileCode)}"` : '';
+        logoHtml = `<span class="stock-logo-wrap watchlist-chip-logo"><img class="stock-logo-img"${dataFile} src="${escapeHtml(url)}" alt="" loading="lazy" decoding="async"/></span>`;
+      } else {
+        const initial = escapeHtml((nameRaw && nameRaw.trim().charAt(0)) || '?');
+        logoHtml = `<span class="stock-logo-wrap stock-logo-wrap--placeholder watchlist-chip-logo" aria-hidden="true">${initial}</span>`;
+      }
+      return `<button type="button" class="watchlist-chip watchlist-chip--aside" data-code="${c}" title="${name}"><div class="watchlist-chip-inner">${logoHtml}<span class="watchlist-chip-text"><span class="watchlist-chip-name">${name}</span><span class="watchlist-chip-code">${c}</span></span></div></button>`;
+    }).join('');
+    host.innerHTML = `<div class="watchlist-chip-scroller watchlist-chip-scroller--aside">${chips}</div>`;
+    host.querySelectorAll('.watchlist-chip--aside').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const cd = btn.getAttribute('data-code');
+        if (cd && /^\d{6}$/.test(cd)) openStockDetail(cd);
+      });
+    });
+    applyStockLogoIntrinsicFit(host);
+  }
+
   function stockNameCellHtml(stock) {
     const name = escapeHtml(stock.name || '');
     const code = String(stock.code || '').trim();
@@ -3195,16 +4223,13 @@
     if (q) {
       totalPages = 1;
       if (!searchUniverseList.length) {
-        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--gray-400);padding:32px">목록 불러오는 중...</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--gray-400);padding:32px">목록 불러오는 중...</td></tr>`;
         pagination.innerHTML = '';
         return;
       }
       pageStocks = searchUniverseList.filter(s => s && s.code && stockMatchesSearchQuery(s, q));
       if (pageStocks.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--gray-400);padding:32px">
-          실시간 데이터로 보여 주는 목록에 해당 종목이 없습니다.<br/>
-          <span style="font-size:13px;opacity:.85">주요 종목 ${UNIVERSE_PAGE_SIZE}개 범위에서 <strong>종목명·코드·키워드</strong>에 검색어가 <strong>포함</strong>되는 종목만 표시됩니다. 띄어쓰기로 여러 단어를 넣으면 모두 포함되는 종목만 골라집니다.</span>
-        </td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--gray-400);padding:32px">해당종목이 없습니다.</td></tr>`;
         pagination.innerHTML = '';
         return;
       }
@@ -3217,7 +4242,7 @@
     }
 
     if (!q && pageStocks.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--gray-400);padding:32px">
+      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--gray-400);padding:32px">
         ${currentFilter !== 'all' ? '해당 조건의 종목이 없습니다.' : '시세 불러오는 중...'}
       </td></tr>`;
       pagination.innerHTML = '';
@@ -3228,6 +4253,7 @@
       if (stock.loading) {
         return `
           <tr id="row-${stock.code}">
+            <td class="watch-cell">${watchHeartCellHtml(stock.code)}</td>
             <td>${stockNameCellHtml(stock)}</td>
             <td colspan="4" style="color:var(--gray-400)">시세 불러오는 중...</td>
           </tr>`;
@@ -3236,6 +4262,7 @@
       if (stock.error && (stock.price === undefined || stock.price === null)) {
         return `
           <tr id="row-${stock.code}">
+            <td class="watch-cell">${watchHeartCellHtml(stock.code)}</td>
             <td>${stockNameCellHtml(stock)}</td>
             <td colspan="4" style="color:var(--gray-400)">조회 지연 (${stock.error})</td>
           </tr>`;
@@ -3252,6 +4279,7 @@
 
       return `
         <tr id="row-${stock.code}" class="stock-row ${flashClass} ${selectedStockCode === stock.code ? 'active' : ''}" onclick="openStockDetail('${stock.code}')">
+          <td class="watch-cell">${watchHeartCellHtml(stock.code)}</td>
           <td>${stockNameCellHtml(stock)}</td>
           <td class="stock-price ${changeClass}">${formatCurrency(stock.price)}</td>
           <td class="stock-change ${changeClass}">${arrow} ${formatCurrency(Math.abs(stock.change))}</td>
@@ -3272,6 +4300,24 @@
     pageStocks.forEach(stock => {
       if (stock.price != null) prevPrices[stock.code] = stock.price;
     });
+  }
+
+  /** 상세 헤더: API quote를 기준으로 라이브 행만 덮어씀. 시·고·저·전일종가·상하한은 라이브 값이 양수일 때만 덮어씀. */
+  function mergeDetailQuoteForRender(apiQuote, liveStock) {
+    const base = { ...(apiQuote || {}) };
+    if (!liveStock) return base;
+    const overlayScalar = ['price', 'change', 'rate', 'volume', 'traded_value', 'direction', 'stale', 'error'];
+    for (const k of overlayScalar) {
+      if (liveStock[k] !== undefined && liveStock[k] !== null) base[k] = liveStock[k];
+    }
+    const overlayPriceIfPositive = ['open', 'high', 'low', 'previous_close', 'upper_limit', 'lower_limit'];
+    for (const k of overlayPriceIfPositive) {
+      const n = Number(liveStock[k]);
+      if (Number.isFinite(n) && n > 0) base[k] = liveStock[k];
+    }
+    if (liveStock.name) base.name = liveStock.name;
+    if (liveStock.code) base.code = liveStock.code;
+    return base;
   }
 
   function getStockByCode(code) {
@@ -3305,11 +4351,9 @@
       if (!data.success || !Array.isArray(data.stocks)) return;
       mergeIncomingStocksIntoCache(data.stocks);
       const stock = getStockByCode(selectedStockCode);
-      if (stock) {
-        renderStockDetail(stock);
-        if (selectedStockDetail) {
-          selectedStockDetail.quote = { ...selectedStockDetail.quote, ...stock };
-        }
+      if (selectedStockDetail) {
+        selectedStockDetail.quote = mergeDetailQuoteForRender(selectedStockDetail.quote, stock);
+        renderStockDetail(selectedStockDetail.quote);
       }
     } catch (e) {
       console.warn('[detail live-sync]', e.message);
@@ -3391,11 +4435,9 @@
     if (detailView.classList.contains('hidden')) return;
 
     const stock = getStockByCode(selectedStockCode);
-    if (stock) {
-      renderStockDetail(stock);
-      if (selectedStockDetail) {
-        selectedStockDetail.quote = { ...selectedStockDetail.quote, ...stock };
-      }
+    if (selectedStockDetail) {
+      selectedStockDetail.quote = mergeDetailQuoteForRender(selectedStockDetail.quote, stock);
+      renderStockDetail(selectedStockDetail.quote);
     }
     if (Date.now() - detailLastLoadedAt > 60000) {
       loadStockDetail(selectedStockCode, stock ? stock.name : '');
@@ -3455,6 +4497,8 @@
         foot.classList.add('hidden');
       }
     }
+
+    syncDetailWatchHeart(stock.code || selectedStockCode || null);
   }
 
   function renderPagination(totalPages) {
@@ -3556,7 +4600,7 @@
     const searchEl = document.getElementById('stocksSearchInput');
     if (searchEl) searchEl.value = '';
     stockSearchQuery = '';
-    document.getElementById('stocksSearchReset')?.classList.add('hidden');
+    document.getElementById('stocksSearchReset')?.classList.add('stocks-search-reset--inactive');
 
     currentFilter = filter;
     currentPage = 1;
@@ -3627,10 +4671,47 @@
     }
   }
 
+  function isMockTradeMarketPrice() {
+    const btn = document.getElementById('mockTradePriceTypeMarket');
+    return !!(btn && btn.classList.contains('active'));
+  }
+
+  function setMockTradePriceType(market) {
+    const mBtn = document.getElementById('mockTradePriceTypeMarket');
+    const lBtn = document.getElementById('mockTradePriceTypeLimit');
+    const priceEl = document.getElementById('mockTradePrice');
+    const field = document.getElementById('mockTradePriceField');
+    if (mBtn) {
+      mBtn.classList.toggle('active', market);
+      mBtn.setAttribute('aria-pressed', market ? 'true' : 'false');
+    }
+    if (lBtn) {
+      lBtn.classList.toggle('active', !market);
+      lBtn.setAttribute('aria-pressed', market ? 'false' : 'true');
+    }
+    if (priceEl) {
+      priceEl.disabled = market;
+      if (market) {
+        priceEl.value = '';
+        priceEl.placeholder = '시장가';
+      } else {
+        priceEl.placeholder = '지정가';
+        const u = Number(mockTradeState.currentPrice) || 0;
+        if (u > 0) priceEl.value = String(u);
+      }
+    }
+    if (field) field.classList.toggle('is-market-mode', market);
+    updateMockTradeEstimate();
+  }
+
   function updateMockTradeEstimate() {
     const qty = Math.max(1, parseInt(document.getElementById('mockTradeQty')?.value || '1', 10) || 1);
-    const limitRaw = parseInt(document.getElementById('mockTradePrice')?.value || '0', 10);
-    const unit = Number.isFinite(limitRaw) && limitRaw > 0 ? limitRaw : (Number(mockTradeState.currentPrice) || 0);
+    const ref = Number(mockTradeState.currentPrice) || 0;
+    let unit = ref;
+    if (!isMockTradeMarketPrice()) {
+      const limitRaw = parseInt(document.getElementById('mockTradePrice')?.value || '0', 10);
+      unit = Number.isFinite(limitRaw) && limitRaw > 0 ? limitRaw : 0;
+    }
     const est = document.getElementById('mockTradeEstimated');
     if (est) est.value = formatCurrency(Math.max(0, qty * unit));
   }
@@ -3678,8 +4759,6 @@
     const meta = document.getElementById('mockTradeMeta');
     const submit = document.getElementById('mockTradeSubmitBtn');
     const qty = document.getElementById('mockTradeQty');
-    const price = document.getElementById('mockTradePrice');
-    const unit = Number(mockTradeState.currentPrice) || 0;
 
     if (title) title.textContent = mockTradeState.side === 'BUY' ? '매수' : '매도';
     if (meta) meta.textContent = mockTradeState.name || mockTradeState.code || '';
@@ -3688,8 +4767,7 @@
       submit.className = `mock-trade-btn submit ${mockTradeState.side === 'BUY' ? 'buy' : 'sell'}`;
     }
     if (qty) qty.value = '1';
-    if (price) price.value = unit > 0 ? String(unit) : '';
-    updateMockTradeEstimate();
+    setMockTradePriceType(true);
 
     const modal = document.getElementById('mockTradeModal');
     if (!modal) return;
@@ -3719,7 +4797,11 @@
     const priceEl = document.getElementById('mockTradePrice');
     const quantity = Math.max(1, parseInt(qtyEl && qtyEl.value ? qtyEl.value : '1', 10) || 1);
     let price = parseInt(priceEl && priceEl.value ? priceEl.value : '0', 10);
-    if (!Number.isFinite(price) || price < 0) price = 0;
+    if (isMockTradeMarketPrice()) {
+      price = 0;
+    } else if (!Number.isFinite(price) || price < 0) {
+      price = 0;
+    }
 
     try {
       const res = await fetch(`${BACKEND}/api/mock/trade`, {
@@ -3762,6 +4844,7 @@
   }
 
   function renderDetailLoading() {
+    clearDetailFinancialChart();
     document.getElementById('indicatorGrid').innerHTML = '<div class="empty-state">데이터를 불러오는 중입니다.</div>';
     document.getElementById('valuationTableWrap').innerHTML = '<div class="empty-state">데이터를 불러오는 중입니다.</div>';
     document.getElementById('performanceTableWrap').innerHTML = '<div class="empty-state">데이터를 불러오는 중입니다.</div>';
@@ -3788,13 +4871,24 @@
       detailLastLoadedAt = Date.now();
 
       const stock = getStockByCode(code);
-      if (stock) {
-        selectedStockDetail.quote = { ...selectedStockDetail.quote, ...stock };
-        renderStockDetail(stock);
-      }
+      selectedStockDetail.quote = mergeDetailQuoteForRender(selectedStockDetail.quote, stock);
+      renderStockDetail(selectedStockDetail.quote);
       renderStockDetailExtras(selectedStockDetail);
     } catch (e) {
       document.getElementById('indicatorGrid').innerHTML = `<div class="empty-state">상세 데이터를 불러오지 못했습니다. (${escapeHtml(e.message)})</div>`;
+      const fc = document.getElementById('detailFinancialChart');
+      if (fc) {
+        if (typeof Plotly !== 'undefined') {
+          try {
+            Plotly.purge(fc);
+          } catch (_) { /* ignore */ }
+        }
+        fc.innerHTML = '<div class="empty-state">상세 데이터를 불러오지 못했습니다.</div>';
+      }
+      const chipEl = document.getElementById('detailFinMetricChips');
+      if (chipEl) chipEl.innerHTML = '';
+      const capEl = document.getElementById('detailFinChartCaption');
+      if (capEl) capEl.textContent = '';
     }
   }
 
@@ -3807,6 +4901,11 @@
     renderStabilityDividend(detail.financials || {});
     renderArticleList('detailNewsList', detail.news || [], '관련 뉴스가 없습니다.');
     renderArticleList('detailDisclosureList', detail.disclosures || [], '연결된 공시 데이터가 없습니다.');
+    finChartCategory = 'valuation';
+    finChartMetric = 'PER';
+    syncFinSegTabs();
+    refreshFinMetricChips(detail);
+    renderDetailFinancialChart(detail);
   }
 
   function renderInvestorFlows(flow) {
@@ -4084,9 +5183,34 @@
 <script src="js/market-step3-tutorial.js"></script>
 <script src="js/common-auth.js"></script>
 <script>
-  /* 로그인 성공 시(common-auth) 2단계 튜토리얼 중이면 루미가 다음 행동을 안내 */
-  window.afterJurinLogin = function () {};
+  (function () {
+    var prevAfterLogin = typeof window.afterJurinLogin === 'function' ? window.afterJurinLogin : null;
+    function bootWatchlist() {
+      if (typeof window.jurinRefreshWatchlist === 'function') {
+        window.jurinRefreshWatchlist().catch(function () {});
+      }
+    }
+    window.afterJurinLogin = function () {
+      bootWatchlist();
+      if (prevAfterLogin) {
+        try {
+          prevAfterLogin();
+        } catch (e) { /* ignore */ }
+      }
+    };
+    window.afterJurinLogout = function () {
+      if (typeof window.jurinClearWatchlistUi === 'function') {
+        window.jurinClearWatchlistUi();
+      }
+    };
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', bootWatchlist);
+    } else {
+      bootWatchlist();
+    }
+  })();
 </script>
+<div id="jurinWatchToast" class="jurin-watch-toast" role="status" aria-live="polite" hidden></div>
 
 </body>
 </html>

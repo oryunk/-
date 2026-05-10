@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- 종목 AI 분석 요청·결과 표시. -->
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
@@ -357,6 +358,7 @@
 </div>
 
 <script src="js/api-base.js"></script>
+<script src="js/stock-autocomplete.js"></script>
 <script>
   function escapeHtml(text) {
     if (text == null) return '';
@@ -541,6 +543,11 @@
       performAnalysis();
     }
   });
+
+  if (window.JurinStockAutocomplete) {
+    var _asIn = document.getElementById('analysisStockInput');
+    if (_asIn) JurinStockAutocomplete.attachStock(_asIn, {});
+  }
 </script>
 <script src="js/common-auth.js"></script>
 

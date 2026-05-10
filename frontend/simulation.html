@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- 모의 투자: 잔고·매매·호가(simulation-page.js). -->
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
@@ -6,7 +7,8 @@
 <title>모의 투자 - 주린닷컴</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css?v=20260428">
-<link rel="stylesheet" href="css/simulation.css?v=20260511">
+<link rel="stylesheet" href="css/simulation.css?v=20260534">
+<script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
 <style>
   .sim-term-hint {
     margin-top: 10px;
@@ -68,9 +70,14 @@
   <div class="simulation-layout">
     <aside class="market-sidebar" aria-label="실시간 종목 및 순위">
       <div class="market-sidebar-inner">
-        <div class="market-sidebar-title">
-          <span>거래대금 순위</span>
-          <button class="btn-trade" type="button" style="padding:8px 12px;font-size:12px;" onclick="loadTradedValueBoard()">새로고침</button>
+        <div class="market-sidebar-head">
+          <div class="market-sidebar-title">
+            <span>거래대금 순위</span>
+            <button class="btn-trade" type="button" style="padding:8px 12px;font-size:12px;" onclick="loadTradedValueBoard()">새로고침</button>
+          </div>
+          <div class="market-rank-toolbar">
+            <input type="search" id="marketRankSearchInput" class="market-rank-search" placeholder="종목 검색" autocomplete="off" aria-label="시장 종목 검색" />
+          </div>
         </div>
         <div class="sim-rank-wrap">
           <section class="sim-sidebar-rank" aria-label="거래대금 종목">
@@ -82,13 +89,14 @@
                       <th>#</th>
                       <th>종목</th>
                       <th>현재가</th>
+                      <th>시가</th>
                       <th>등락</th>
-                      <th>등락률</th>
+                      <th>거래량</th>
                       <th>거래대금</th>
                     </tr>
                   </thead>
                   <tbody id="discoveryTableBody">
-                    <tr><td colspan="6" style="color: var(--gray-400);">데이터 로딩 중...</td></tr>
+                    <tr><td colspan="7" style="color: var(--gray-400);">데이터 로딩 중...</td></tr>
                   </tbody>
                 </table>
               </div>
@@ -118,16 +126,17 @@
         <div class="portfolio-header">
           <div class="portfolio-title">내 포트폴리오</div>
           <div class="portfolio-balance">
-            <div class="balance-label">총 자산 (예수금 + 보유 평가액)</div>
+            <div class="balance-label">총 자산</div>
             <div class="balance-amount" id="totalBalance">&#8361;0</div>
+            <div class="balance-pl flat" id="totalAssetPlLine" aria-live="polite">&#8212;</div>
             <div class="portfolio-split">
               <div>
                 <div class="balance-label">예수금</div>
                 <div class="balance-sub" id="cashBalanceDisplay">&#8212;</div>
               </div>
               <div>
-                <div class="balance-label">보유 평가액</div>
-                <div class="balance-sub" id="stockEvalDisplay">&#8212;</div>
+                <div class="balance-label">손익</div>
+                <div class="balance-sub balance-holding-pl flat" id="balanceHoldingPlDisplay" title="보유 종목 평가 손익">&#8212;</div>
               </div>
             </div>
           </div>
@@ -139,7 +148,7 @@
           <div class="stat-card"><div class="stat-label">총 수익률</div><div class="stat-value" id="totalReturn">&#8212;</div></div>
           <div class="stat-card"><div class="stat-label">총 손익</div><div class="stat-value" id="totalProfit">&#8212;</div></div>
           <div class="stat-card"><div class="stat-label">보유 종목</div><div class="stat-value" id="holdingCount">&#8212;</div></div>
-          <div class="stat-card"><div class="stat-label">평가 손익</div><div class="stat-value" id="unrealizedProfit">&#8212;</div></div>
+          <div class="stat-card"><div class="stat-label">실현 손익</div><div class="stat-value" id="realizedProfit" title="총 손익 − 보유 평가 손익">&#8212;</div></div>
         </div>
 
         <table class="holdings-table" id="holdingsTable">
@@ -148,27 +157,102 @@
           </thead>
           <tbody id="holdingsTableBody"></tbody>
         </table>
+
+        <!-- 내 자산 카드 영역만 덮음 · 구매/판매(trading-section)는 아래에 그대로 노출 -->
+        <div id="simHoldingDetailSheet" class="sim-holding-detail-sheet" hidden aria-hidden="true">
+          <div class="sim-holding-detail-inner">
+            <button type="button" class="sim-holding-detail-close" id="simHoldingDetailClose" aria-label="종목 상세 닫기">&#215;</button>
+            <div class="sim-holding-detail-head">
+              <span class="stock-logo-wrap stock-logo-wrap--detail sim-holding-detail-logo" id="simHoldingDetailLogoWrap" aria-hidden="true">
+                <img id="simHoldingDetailLogoImg" class="stock-logo-img" alt="" width="60" height="60" style="display:none" decoding="async">
+                <span id="simHoldingDetailLogoPh" class="stock-logo-wrap--placeholder" style="display:none"></span>
+              </span>
+              <div class="sim-holding-detail-titles">
+                <div class="sim-holding-detail-name" id="simHoldingDetailName"></div>
+                <div class="sim-holding-detail-code" id="simHoldingDetailCode"></div>
+              </div>
+            </div>
+            <div class="sim-holding-detail-main">
+            <div class="sim-holding-sheet-tabs" role="tablist" aria-label="종목 화면">
+              <button type="button" role="tab" class="sim-holding-sheet-tab active" id="simHoldingTabChart" data-sim-holding-tab="chart" aria-selected="true" aria-controls="simHoldingPanelChart">차트</button>
+              <button type="button" role="tab" class="sim-holding-sheet-tab" id="simHoldingTabInfo" data-sim-holding-tab="info" aria-selected="false" aria-controls="simHoldingPanelInfo">종목정보</button>
+              <button type="button" role="tab" class="sim-holding-sheet-tab" id="simHoldingTabHistory" data-sim-holding-tab="history" aria-selected="false" aria-controls="simHoldingPanelHistory">거래내역</button>
+              <button type="button" role="tab" class="sim-holding-sheet-tab" id="simHoldingTabOrder" data-sim-holding-tab="order" aria-selected="false" aria-controls="simHoldingPanelOrder">주문</button>
+              <button type="button" role="tab" class="sim-holding-sheet-tab" id="simHoldingTabOptions" data-sim-holding-tab="options" aria-selected="false" aria-controls="simHoldingPanelOptions">옵션</button>
+            </div>
+            <div id="simHoldingPanelChart" class="sim-holding-sheet-panel" role="tabpanel" aria-labelledby="simHoldingTabChart">
+            <div class="sim-holding-detail-chart-wrap">
+              <div class="sim-holding-detail-ranges" role="tablist" aria-label="차트 기간">
+                <button type="button" class="sim-holding-range-btn active" data-range="1d" aria-selected="true">1일</button>
+                <button type="button" class="sim-holding-range-btn" data-range="1w" aria-selected="false">1주</button>
+                <button type="button" class="sim-holding-range-btn" data-range="1m" aria-selected="false">1개월</button>
+                <button type="button" class="sim-holding-range-btn" data-range="1y" aria-selected="false">1년</button>
+              </div>
+              <div id="simHoldingChartSkeleton" class="sim-holding-chart-skeleton">차트 불러오는 중&#8230;</div>
+              <div id="simHoldingChartNote" class="sim-holding-chart-note" style="display:none"></div>
+              <div id="simHoldingStockChart" class="sim-holding-stock-chart" style="display:none"></div>
+            </div>
+            </div>
+            <div id="simHoldingPanelHistory" class="sim-holding-sheet-panel sim-holding-panel-history" role="tabpanel" aria-labelledby="simHoldingTabHistory" hidden>
+            <div id="simHoldingStockHistoryPanel" class="sim-holding-stock-history-panel" hidden>
+              <div class="sim-holding-stock-history" aria-labelledby="simHoldingStockHistoryTitle">
+                <div class="sim-holding-stock-history-title" id="simHoldingStockHistoryTitle">거래내역</div>
+                <div class="sim-stock-history-list" id="simStockHistoryList"></div>
+              </div>
+            </div>
+            </div>
+            <div id="simHoldingPanelInfo" class="sim-holding-sheet-panel" role="tabpanel" aria-labelledby="simHoldingTabInfo" hidden>
+              <div class="sim-holding-info-metrics" role="tablist" aria-label="가치·실적 지표">
+                <button type="button" class="sim-holding-metric-btn active" data-sim-metric="per" aria-selected="true">PER</button>
+                <button type="button" class="sim-holding-metric-btn" data-sim-metric="pbr" aria-selected="false">PBR</button>
+                <button type="button" class="sim-holding-metric-btn" data-sim-metric="psr" aria-selected="false">PSR</button>
+                <button type="button" class="sim-holding-metric-btn" data-sim-metric="net" aria-selected="false">순이익</button>
+                <button type="button" class="sim-holding-metric-btn" data-sim-metric="revenue" aria-selected="false">매출</button>
+              </div>
+              <div id="simHoldingPerBlock" class="sim-holding-info-block">
+                <div id="simHoldingPerBars" class="sim-holding-per-bars"></div>
+              </div>
+              <div id="simHoldingFundBlock" class="sim-holding-info-block" style="display:none">
+                <div id="simHoldingFundamentalsChart" class="sim-holding-fund-chart"></div>
+                <div id="simHoldingFundFootnote" class="sim-holding-fund-footnote"></div>
+              </div>
+              <div id="simHoldingInfoSkeleton" class="sim-holding-chart-skeleton" style="display:none">불러오는 중&#8230;</div>
+              <div id="simHoldingInfoNote" class="sim-holding-chart-note" style="display:none"></div>
+            </div>
+            <div id="simHoldingPanelOrder" class="sim-holding-sheet-panel sim-holding-order-panel" role="tabpanel" aria-labelledby="simHoldingTabOrder" hidden>
+              <div class="sim-holding-order-actions sim-holding-order-actions--solo">
+                <button type="button" class="btn-trade sim-holding-order-primary-btn" id="simHoldingOrderPrimaryBtn">주문</button>
+              </div>
+            </div>
+            <div id="simHoldingPanelOptions" class="sim-holding-sheet-panel sim-holding-options-panel" role="tabpanel" aria-labelledby="simHoldingTabOptions" hidden>
+              <p class="sim-holding-options-lead">모의투자에서는 <strong>옵션 거래</strong>를 지원하지 않습니다.</p>
+              <p class="sim-holding-options-sub">실전 옵션은 별도 증권사 약관·위험 고지 후 이용할 수 있어요.</p>
+              <p class="sim-holding-options-link"><a href="glossary.html">용어 검색</a>에서 옵션 관련 용어를 확인해 보세요.</p>
+            </div>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <div class="trading-section">
-        <div class="trading-title">매수 / 매도</div>
+      <div class="trading-section" id="trading-section">
+        <div class="trading-title">구매 / 판매</div>
 
         <div class="trading-form">
           <div class="form-group tf-stock">
-            <label class="form-label" for="tradeStock">매수 종목</label>
+            <label class="form-label" for="tradeStock">구매 종목</label>
             <input type="text" class="form-input" id="tradeStock" placeholder="종목명 또는 코드" autocomplete="off">
             <input type="hidden" id="tradeStockCode" value="">
           </div>
           <div class="form-group tf-qty-price">
             <div class="qty-price-row">
               <div class="qty-price-cell">
-                <label class="form-label" for="tradeQuantity">매수 수량</label>
+                <label class="form-label" for="tradeQuantity">구매 수량</label>
                 <input type="number" class="form-input" id="tradeQuantity" placeholder="수량" min="1">
               </div>
               <div class="qty-price-cell" id="tradeLimitPriceCell">
                 <div class="trade-price-label-row">
-                  <label class="form-label" for="tradeLimitPrice">매수 가격</label>
-                  <div class="trade-inline-price-type" role="radiogroup" aria-label="매수 가격 유형">
+                  <label class="form-label" for="tradeLimitPrice">구매 가격</label>
+                  <div class="trade-inline-price-type" role="radiogroup" aria-label="구매 가격 유형">
                     <button type="button" class="trade-price-type-btn active" id="tradeBuyPriceTypeMarket" aria-pressed="true">시장가</button>
                     <button type="button" class="trade-price-type-btn" id="tradeBuyPriceTypeLimit" aria-pressed="false">지정가</button>
                   </div>
@@ -176,8 +260,8 @@
                 <div class="price-stepper">
                   <input type="text" class="form-input input-price-plain price-stepper-input" id="tradeLimitPrice" placeholder="" inputmode="numeric" autocomplete="off">
                   <div class="price-stepper-side">
-                    <button type="button" class="btn-step" id="tradeLimitPricePlus" aria-label="매수가 1틱 올리기">+</button>
-                    <button type="button" class="btn-step" id="tradeLimitPriceMinus" aria-label="매수가 1틱 내리기">&#8722;</button>
+                    <button type="button" class="btn-step" id="tradeLimitPricePlus" aria-label="구매가 1틱 올리기">+</button>
+                    <button type="button" class="btn-step" id="tradeLimitPriceMinus" aria-label="구매가 1틱 내리기">&#8722;</button>
                   </div>
                 </div>
               </div>
@@ -191,19 +275,19 @@
 
         <div class="trading-form sell-inline-form">
           <div class="form-group tf-stock">
-            <label class="form-label" for="tradeSellStock">매도 종목</label>
+            <label class="form-label" for="tradeSellStock">판매 종목</label>
             <select id="tradeSellStock" class="form-input" disabled><option value="">보유 종목 선택</option></select>
           </div>
           <div class="form-group tf-qty-price">
             <div class="qty-price-row">
               <div class="qty-price-cell">
-                <label class="form-label" for="tradeSellQuantity">매도 수량</label>
+                <label class="form-label" for="tradeSellQuantity">판매 수량</label>
                 <input type="number" class="form-input" id="tradeSellQuantity" placeholder="수량" min="1" value="1">
               </div>
               <div class="qty-price-cell" id="tradeSellLimitPriceCell">
                 <div class="trade-price-label-row">
-                  <label class="form-label" for="tradeSellLimitPrice">매도 가격</label>
-                  <div class="trade-inline-price-type" role="radiogroup" aria-label="매도 가격 유형">
+                  <label class="form-label" for="tradeSellLimitPrice">판매 가격</label>
+                  <div class="trade-inline-price-type" role="radiogroup" aria-label="판매 가격 유형">
                     <button type="button" class="trade-price-type-btn active" id="tradeSellPriceTypeMarket" aria-pressed="true">시장가</button>
                     <button type="button" class="trade-price-type-btn" id="tradeSellPriceTypeLimit" aria-pressed="false">지정가</button>
                   </div>
@@ -211,8 +295,8 @@
                 <div class="price-stepper">
                   <input type="text" class="form-input input-price-plain price-stepper-input" id="tradeSellLimitPrice" placeholder="" inputmode="numeric" autocomplete="off">
                   <div class="price-stepper-side">
-                    <button type="button" class="btn-step" id="tradeSellLimitPricePlus" aria-label="매도가 1틱 올리기">+</button>
-                    <button type="button" class="btn-step" id="tradeSellLimitPriceMinus" aria-label="매도가 1틱 내리기">&#8722;</button>
+                    <button type="button" class="btn-step" id="tradeSellLimitPricePlus" aria-label="판매가 1틱 올리기">+</button>
+                    <button type="button" class="btn-step" id="tradeSellLimitPriceMinus" aria-label="판매가 1틱 내리기">&#8722;</button>
                   </div>
                 </div>
               </div>
@@ -220,7 +304,7 @@
           </div>
           <div class="form-group form-group--buy">
             <span class="form-label form-label-align" aria-hidden="true">매도</span>
-            <button type="button" class="btn-trade sell" id="tradeSellBtn" onclick="executeQuickSell()" disabled>매도</button>
+            <button type="button" class="btn-trade sell" id="tradeSellBtn" onclick="openQuickSellConfirmModal()" disabled>매도</button>
           </div>
         </div>
 
@@ -240,7 +324,7 @@
             <div class="history-toolbar-main">
               <h3 class="history-title">거래 내역</h3>
               <div class="history-filters">
-                <label class="history-date-wrap">
+                <label class="history-date-wrap" id="historyDateFilterWrap">
                   <span class="history-date-label">날짜</span>
                   <input type="date" class="history-date-input" id="historyDateFilter" title="날짜를 선택하세요. 해당 날짜 기록만 표시됩니다.">
                 </label>
@@ -250,37 +334,83 @@
             </div>
             <div class="history-tabs" role="tablist" aria-label="거래 분류">
               <button type="button" class="history-tab active" data-history-tab="all" aria-selected="true">전체</button>
-              <button type="button" class="history-tab" data-history-tab="buy" aria-selected="false">매수</button>
-              <button type="button" class="history-tab" data-history-tab="sell" aria-selected="false">매도</button>
+              <button type="button" class="history-tab" data-history-tab="buy" aria-selected="false">구매</button>
+              <button type="button" class="history-tab" data-history-tab="sell" aria-selected="false">판매</button>
+              <button type="button" class="history-tab" data-history-tab="pending" aria-selected="false">대기</button>
             </div>
           </div>
           <div class="history-list" id="tradingHistory"></div>
         </div>
       </div>
     </div>
+    <aside class="sim-watchlist-aside" aria-label="관심 종목" hidden>
+      <div class="sim-watchlist-sticky">
+        <div class="sim-watchlist-head">관심 종목</div>
+        <div id="simWatchlistPanel" class="sim-watchlist-panel-body"></div>
+      </div>
+    </aside>
   </div>
 
   <div id="sellModal" class="sell-modal-overlay" aria-hidden="true" role="presentation" onclick="if (event.target === this) closeSellModal()">
-    <div class="sell-modal-panel trade-confirm-panel trade-confirm-panel--sell" role="dialog" aria-modal="true" aria-labelledby="sellModalHeading" onclick="event.stopPropagation()">
+    <div class="sell-modal-panel trade-confirm-panel trade-confirm-panel--sell holding-trade-panel" role="dialog" aria-modal="true" aria-labelledby="sellModalHeading" onclick="event.stopPropagation()">
       <button type="button" class="sell-modal-close" onclick="closeSellModal()" aria-label="닫기">&#215;</button>
-      <h3 class="sell-modal-title" id="sellModalHeading">매도</h3>
+      <h3 class="sell-modal-title" id="sellModalHeading">주문</h3>
       <div class="sell-modal-stock" id="sellModalStockLine"></div>
-      <div class="sell-modal-field"><label for="sellModalQty">수량</label><input type="number" class="form-input" id="sellModalQty" min="1" step="1"></div>
-      <div class="sell-modal-field">
-        <label for="sellModalLimitPrice">지정가</label>
-        <div class="price-stepper">
-          <input type="text" class="form-input input-price-plain price-stepper-input" id="sellModalLimitPrice" placeholder="가격" inputmode="numeric" autocomplete="off">
-          <div class="price-stepper-side">
-            <button type="button" class="btn-step" id="sellModalLimitPricePlus" aria-label="가격 1틱 올리기">+</button>
-            <button type="button" class="btn-step" id="sellModalLimitPriceMinus" aria-label="가격 1틱 내리기">&#8722;</button>
+      <div class="holding-modal-tabs" role="tablist" aria-label="주문 유형">
+        <button type="button" role="tab" class="holding-modal-tab holding-modal-tab--sell active" id="holdingModalTabSell" aria-controls="holdingModalSellBody" aria-selected="true">매도</button>
+        <button type="button" role="tab" class="holding-modal-tab holding-modal-tab--buy" id="holdingModalTabBuy" aria-controls="holdingModalBuyBody" aria-selected="false">매수</button>
+      </div>
+
+      <div id="holdingModalSellBody" class="holding-modal-pane" role="tabpanel" aria-labelledby="holdingModalTabSell">
+        <div class="sell-modal-field"><label for="sellModalQty">수량</label><input type="number" class="form-input" id="sellModalQty" min="1" step="1"></div>
+        <div class="sell-modal-field" id="holdingSellLimitField">
+          <div class="trade-price-label-row holding-sell-price-head">
+            <label class="form-label" for="sellModalLimitPrice">판매 가격</label>
+            <div class="trade-inline-price-type" role="radiogroup" aria-label="판매 가격 유형">
+              <button type="button" class="trade-price-type-btn active" id="holdingSellPriceTypeMarket" aria-pressed="true">시장가</button>
+              <button type="button" class="trade-price-type-btn" id="holdingSellPriceTypeLimit" aria-pressed="false">지정가</button>
+            </div>
+          </div>
+          <div class="price-stepper" id="sellModalLimitPriceCell">
+            <input type="text" class="form-input input-price-plain price-stepper-input" id="sellModalLimitPrice" placeholder="" inputmode="numeric" autocomplete="off">
+            <div class="price-stepper-side">
+              <button type="button" class="btn-step" id="sellModalLimitPricePlus" aria-label="판매가 1틱 올리기">+</button>
+              <button type="button" class="btn-step" id="sellModalLimitPriceMinus" aria-label="판매가 1틱 내리기">&#8722;</button>
+            </div>
           </div>
         </div>
+        <div class="sell-modal-row"><span id="sellModalRefPriceLabel">현재 가격</span><span id="sellModalUnitPrice">&#8212;</span></div>
+        <div class="sell-modal-row"><span id="sellModalEstLabel">예상 체결금</span><span id="sellModalEstTotal">&#8212;</span></div>
+        <div id="sellModalCostBreakdown" class="mock-trade-cost-box" style="display:none" aria-label="예상 수수료·세금·입금"></div>
+        <div class="sell-modal-actions holding-modal-actions">
+          <button type="button" class="btn-trade sell holding-modal-cta-sell" onclick="confirmSellFromModal()">매도</button>
+        </div>
       </div>
-      <div class="sell-modal-row"><span>현재 가격</span><span id="sellModalUnitPrice">&#8212;</span></div>
-      <div class="sell-modal-row"><span>예상 체결금</span><span id="sellModalEstTotal">&#8212;</span></div>
-      <div class="sell-modal-actions">
-        <button type="button" class="btn-trade sell" onclick="confirmSellFromModal()">매도 확정</button>
-        <button type="button" class="btn-ghost-modal" onclick="closeSellModal()">취소</button>
+
+      <div id="holdingModalBuyBody" class="holding-modal-pane" role="tabpanel" aria-labelledby="holdingModalTabBuy" hidden>
+        <div class="sell-modal-field"><label for="holdingBuyQty">수량</label><input type="number" class="form-input" id="holdingBuyQty" min="1" step="1" value="1"></div>
+        <div class="sell-modal-field" id="holdingBuyLimitField">
+          <div class="trade-price-label-row holding-buy-price-head">
+            <label class="form-label" for="holdingBuyLimitPrice">구매 가격</label>
+            <div class="trade-inline-price-type" role="radiogroup" aria-label="구매 가격 유형">
+              <button type="button" class="trade-price-type-btn active" id="holdingBuyPriceTypeMarket" aria-pressed="true">시장가</button>
+              <button type="button" class="trade-price-type-btn" id="holdingBuyPriceTypeLimit" aria-pressed="false">지정가</button>
+            </div>
+          </div>
+          <div class="price-stepper" id="holdingBuyLimitPriceCell">
+            <input type="text" class="form-input input-price-plain price-stepper-input" id="holdingBuyLimitPrice" placeholder="" inputmode="numeric" autocomplete="off">
+            <div class="price-stepper-side">
+              <button type="button" class="btn-step" id="holdingBuyLimitPricePlus" aria-label="구매가 1틱 올리기">+</button>
+              <button type="button" class="btn-step" id="holdingBuyLimitPriceMinus" aria-label="구매가 1틱 내리기">&#8722;</button>
+            </div>
+          </div>
+        </div>
+        <div class="sell-modal-row"><span id="holdingBuyRefPriceLabel">참고 시세</span><span id="holdingBuyUnitPrice">&#8212;</span></div>
+        <div class="sell-modal-row"><span id="holdingBuyEstLabel">예상 구매금액</span><span id="holdingBuyEstTotal">&#8212;</span></div>
+        <div id="holdingBuyCostBreakdown" class="mock-trade-cost-box" style="display:none" aria-label="예상 수수료 및 결제액"></div>
+        <div class="sell-modal-actions holding-modal-actions">
+          <button type="button" class="btn-trade holding-buy-confirm holding-modal-cta-buy" onclick="confirmBuyFromHoldingModal()">매수</button>
+        </div>
       </div>
     </div>
   </div>
@@ -292,18 +422,36 @@
       <div class="sell-modal-row"><span>종목</span><span id="buyModalStockLine">&#8212;</span></div>
       <div class="sell-modal-row"><span>수량</span><span id="buyModalQtyLine">&#8212;</span></div>
       <div class="sell-modal-row"><span>예상가</span><span id="buyModalPriceLine">자동 계산</span></div>
+      <div id="buyModalCostBreakdown" class="mock-trade-cost-box" style="display:none" aria-label="예상 수수료 및 결제액"></div>
       <p class="form-note trade-confirm-note">주문 전에 수량과 가격을 다시 확인하세요.</p>
       <div class="sell-modal-actions">
-        <button type="button" class="btn-trade" onclick="confirmBuyFromModal()">매수 확정</button>
-        <button type="button" class="btn-ghost-modal" onclick="closeBuyModal()">취소</button>
+        <button type="button" class="btn-trade" onclick="confirmBuyFromModal()">매수</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="quickSellConfirmModal" class="sell-modal-overlay" aria-hidden="true" role="presentation" onclick="if (event.target === this) closeQuickSellConfirmModal()">
+    <div class="sell-modal-panel trade-confirm-panel trade-confirm-panel--sell" role="dialog" aria-modal="true" aria-labelledby="quickSellConfirmHeading" onclick="event.stopPropagation()">
+      <button type="button" class="sell-modal-close" onclick="closeQuickSellConfirmModal()" aria-label="닫기">&#215;</button>
+      <h3 class="sell-modal-title" id="quickSellConfirmHeading">매도</h3>
+      <div class="sell-modal-row"><span>종목</span><span id="quickSellModalStockLine">&#8212;</span></div>
+      <div class="sell-modal-row"><span>수량</span><span id="quickSellModalQtyLine">&#8212;</span></div>
+      <div class="sell-modal-row"><span>예상가</span><span id="quickSellModalPriceLine">&#8212;</span></div>
+      <div id="quickSellModalCostBreakdown" class="mock-trade-cost-box" style="display:none" aria-label="예상 수수료·세금·입금"></div>
+      <p class="form-note trade-confirm-note">주문 전에 수량과 가격을 다시 확인하세요.</p>
+      <div class="sell-modal-actions">
+        <button type="button" class="btn-ghost-modal" onclick="closeQuickSellConfirmModal()">취소</button>
+        <button type="button" class="btn-trade sell" onclick="confirmQuickSellFromModal()">매도</button>
       </div>
     </div>
   </div>
 </div>
 
 <script src="js/api-base.js"></script>
+<script src="js/stock-autocomplete.js"></script>
+<script src="js/stock-logos.js?v=20260517"></script>
 <script src="js/common-auth.js"></script>
-<script src="js/simulation-page.js?v=20260510"></script>
+<script src="js/simulation-page.js?v=20260509g"></script>
 
 </body>
 </html>

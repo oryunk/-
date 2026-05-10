@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- 용어 사전·GPT/로컬 용어 설명 검색. -->
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
@@ -460,6 +461,7 @@
 
 <script src="js/api-base.js"></script>
 <script src="js/stock-terms.js"></script>
+<script src="js/stock-autocomplete.js"></script>
 <script>
   const GLOSSARY_API_BASE = window.JURIN_API_BASE || 'http://localhost:5000';
 
@@ -636,6 +638,16 @@
   document.addEventListener('DOMContentLoaded', function () {
     if (window.JurinStockTerms && typeof JurinStockTerms.mountGlossaryBrowse === 'function') {
       JurinStockTerms.mountGlossaryBrowse('glossaryCategories');
+    }
+    if (window.JurinStockAutocomplete && window.JurinStockTerms && JurinStockTerms.GLOSSARY_CATEGORIES) {
+      var termNames = [];
+      JurinStockTerms.GLOSSARY_CATEGORIES.forEach(function (cat) {
+        (cat.items || []).forEach(function (it) {
+          if (it && it.name) termNames.push(it.name);
+        });
+      });
+      var termInp = document.getElementById('termInput');
+      if (termInp) JurinStockAutocomplete.attachLocal(termInp, termNames, { maxItems: 14 });
     }
     try {
       var params = new URLSearchParams(window.location.search);
