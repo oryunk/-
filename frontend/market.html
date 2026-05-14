@@ -24,7 +24,8 @@
   }
 
   .market-header-content {
-    max-width: 1200px;
+    box-sizing: border-box;
+    max-width: 1400px;
     margin: 0 auto;
     padding: 0 40px;
   }
@@ -70,16 +71,17 @@
 
   /* 1400(max) − 좌우 패딩 80 = 1320 — 관심 추가 전·후 동일한 메인 콘텐츠 폭 */
   .market-overview-split:not(.market-overview-split--no-watchlist) .market-overview-main {
-    flex: 0 0 auto;
-    width: 1320px;
-    max-width: min(1320px, 100%);
+    flex: 1 1 1320px;
+    width: auto;
+    max-width: 1320px;
     min-width: 0;
   }
 
   .market-watchlist-aside {
     box-sizing: border-box;
-    flex: 0 0 280px;
-    width: 280px;
+    flex: 0 0 clamp(248px, 22vw, 280px);
+    width: clamp(248px, 22vw, 280px);
+    max-width: 100%;
     min-width: 0;
   }
 
@@ -90,6 +92,10 @@
     background: var(--gray-50, #f8faf8);
     border: 1px solid var(--gray-200, #e8ebe8);
     border-radius: 14px;
+    max-height: calc(100vh - 100px);
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
   }
 
   .watchlist-panel-head {
@@ -107,13 +113,20 @@
     line-height: 1.5;
   }
 
+  .watchlist-panel-body {
+    min-height: 0;
+    flex: 1;
+    overflow: auto;
+  }
+
   .watchlist-chip-scroller--aside {
     display: flex;
     flex-direction: column;
     gap: 8px;
-    max-height: min(60vh, 520px);
+    min-height: 0;
+    max-height: min(58vh, 480px);
     overflow-y: auto;
-    padding-right: 4px;
+    padding-right: 2px;
   }
 
   .watchlist-chip--aside {
@@ -178,8 +191,8 @@
     font-variant-numeric: tabular-nums;
   }
 
-  /* 고정 폭 메인+레일이 뷰포트에 안 들어오면 세로 배치 */
-  @media (max-width: 1240px) {
+  /* 작은 노트북 폭부터는 모의투자처럼 세로 배치 */
+  @media (max-width: 1440px) {
     .market-content.market-content--has-watchrail {
       max-width: 100%;
     }
@@ -200,10 +213,14 @@
     }
   }
 
-  @media (max-width: 980px) {
+  @media (max-width: 1100px) {
     .watchlist-aside-sticky {
       position: static;
       max-height: none;
+    }
+
+    .watchlist-panel-body {
+      overflow: visible;
     }
 
     .watchlist-chip-scroller--aside {
@@ -215,10 +232,10 @@
     }
 
     .watchlist-chip--aside {
-      flex: 0 0 auto;
+      flex: 0 1 auto;
       width: auto;
       min-width: 200px;
-      max-width: 280px;
+      max-width: 320px;
     }
   }
 
@@ -243,33 +260,77 @@
 
   .indices-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     gap: 20px;
+  }
+
+  @media (min-width: 1280px) {
+    .indices-grid {
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 16px;
+    }
   }
 
   .index-card {
     background: var(--gray-100);
-    border: 1px solid rgba(47, 143, 95, 0.12);
+    border: 1px solid var(--card-border, rgba(47, 143, 95, 0.12));
     border-radius: 12px;
     padding: 24px;
     text-align: center;
-    transition: border-color 0.3s;
+    cursor: pointer;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
   }
   .index-card.up   { border-color: rgba(255, 71, 71, 0.35); }
   .index-card.down { border-color: rgba(79, 158, 255, 0.35); }
+  .index-card.up .index-value,
+  .index-card.up .index-change {
+    color: var(--market-up);
+  }
+  .index-card.down .index-value,
+  .index-card.down .index-change {
+    color: var(--market-down);
+  }
+  .index-card.flat .index-value {
+    color: var(--quote-flat);
+  }
+  .index-card.index-card--static {
+    cursor: default;
+  }
+  .index-card:hover,
+  .index-card:focus-visible,
+  .index-card.index-card--active {
+    border-color: rgba(47, 143, 95, 0.4);
+    box-shadow: 0 12px 28px rgba(28, 74, 52, 0.12);
+    transform: translateY(-2px);
+    outline: none;
+  }
+  .index-card.index-card--static:hover,
+  .index-card.index-card--static:focus-visible {
+    transform: none;
+    box-shadow: none;
+    border-color: rgba(47, 143, 95, 0.18);
+  }
 
   .index-name {
     font-size: 16px;
     font-weight: 600;
     color: var(--text-primary);
     margin-bottom: 12px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1.35;
   }
 
   .index-value {
     font-size: 28px;
     font-weight: 700;
-    color: var(--accent);
+    color: var(--card-accent, var(--accent));
     margin-bottom: 8px;
+  }
+  .index-value.index-value--compact {
+    font-size: 24px;
   }
 
   .index-change {
@@ -287,6 +348,163 @@
   .index-sub {
     margin-top: 6px;
     font-size: 12px;
+    color: var(--gray-400);
+  }
+
+  .index-inline-chart {
+    width: 100%;
+    height: 60px;
+    margin-top: 12px;
+    border-radius: 10px;
+    background: linear-gradient(180deg, var(--inline-chart-bg-top, rgba(47, 143, 95, 0.08)), var(--inline-chart-bg-bottom, rgba(47, 143, 95, 0.015)));
+    border: 1px solid var(--inline-chart-border, rgba(47, 143, 95, 0.1));
+    overflow: hidden;
+  }
+
+  .index-inline-chart svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  .index-hover-popover {
+    position: fixed;
+    z-index: 90;
+    width: min(300px, calc(100vw - 24px));
+    padding: 14px 14px 12px;
+    border-radius: 14px;
+    border: 1px solid var(--index-popover-border, rgba(47, 143, 95, 0.18));
+    background: rgba(255, 255, 255, 0.98);
+    box-shadow: 0 18px 46px rgba(18, 53, 36, 0.18);
+    backdrop-filter: blur(8px);
+  }
+
+  .index-hover-popover::before {
+    content: "";
+    display: block;
+    height: 3px;
+    margin: -14px -14px 12px;
+    border-radius: 14px 14px 0 0;
+    background: var(--index-popover-accent, rgba(47, 143, 95, 0.55));
+  }
+
+  .index-hover-popover[hidden] {
+    display: none;
+  }
+
+  .index-hover-popover__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 10px;
+  }
+
+  .index-hover-popover__title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+
+  .index-hover-popover__chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    margin-bottom: 8px;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    color: var(--index-chip-text, #18553c);
+    background: var(--index-chip-bg, rgba(47, 143, 95, 0.12));
+  }
+
+  .index-hover-popover__meta {
+    margin-top: 2px;
+    font-size: 11px;
+    color: var(--gray-400);
+  }
+
+  .index-hover-popover__value {
+    text-align: right;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--accent);
+    white-space: nowrap;
+  }
+
+  .index-hover-popover__change {
+    margin-top: 2px;
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .index-hover-popover__change.up { color: var(--market-up); }
+  .index-hover-popover__change.down { color: var(--market-down); }
+  .index-hover-popover__change.flat { color: var(--quote-flat); }
+
+  .index-hover-popover__chart {
+    width: 100%;
+    height: 112px;
+    border-radius: 10px;
+    background: linear-gradient(180deg, var(--index-chart-bg-top, rgba(47, 143, 95, 0.06)), var(--index-chart-bg-bottom, rgba(47, 143, 95, 0.015)));
+    border: 1px solid var(--index-chart-border, rgba(47, 143, 95, 0.08));
+    overflow: hidden;
+  }
+
+  .index-hover-popover__chart svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  .index-hover-popover__stats {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 8px;
+  }
+
+  .index-hover-popover__stat {
+    padding: 8px 8px 7px;
+    border-radius: 10px;
+    background: var(--index-stat-bg, rgba(47, 143, 95, 0.05));
+    border: 1px solid var(--index-stat-border, rgba(47, 143, 95, 0.08));
+    text-align: center;
+  }
+
+  .index-hover-popover__stat-label {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--gray-400);
+    margin-bottom: 3px;
+  }
+
+  .index-hover-popover__stat-value {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-primary);
+    white-space: nowrap;
+  }
+
+  .index-hover-popover__state {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 112px;
+    font-size: 12px;
+    color: var(--gray-500);
+    text-align: center;
+    padding: 0 14px;
+  }
+
+  .index-hover-popover__footer {
+    margin-top: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 11px;
     color: var(--gray-400);
   }
 
@@ -667,7 +885,7 @@
     object-position: 50% 50%;
     display: block;
     padding: 2px;
-    background: transparent;
+    background: #ffffff;
     box-sizing: border-box;
   }
 
@@ -682,6 +900,79 @@
     border-radius: 22%;
     transform: scale(1.08);
     transform-origin: center center;
+  }
+
+  .stock-logo-img[data-logo-file="071050"] {
+    object-fit: cover;
+    object-position: 50% 50%;
+    padding: 0;
+    border-radius: 22%;
+    transform: scale(1.12);
+    transform-origin: center center;
+    background: #ffffff;
+  }
+
+  .stock-logo-img[data-logo-file="001040"],
+  .stock-logo-img[data-logo-file="005940"],
+  .stock-logo-img[data-logo-file="011200"],
+  .stock-logo-img[data-logo-file="006800"],
+  .stock-logo-img[data-logo-file="007660"],
+  .stock-logo-img[data-logo-file="008060"],
+  .stock-logo-img[data-logo-file="009410"],
+  .stock-logo-img[data-logo-file="012510"],
+  .stock-logo-img[data-logo-file="030520"],
+  .stock-logo-img[data-logo-file="039200"],
+  .stock-logo-img[data-logo-file="090460"],
+  .stock-logo-img[data-logo-file="091700"],
+  .stock-logo-img[data-logo-file="101400"],
+  .stock-logo-img[data-logo-file="128940"],
+  .stock-logo-img[data-logo-file="161890"],
+  .stock-logo-img[data-logo-file="196170"],
+  .stock-logo-img[data-logo-file="222800"],
+  .stock-logo-img[data-logo-file="294870"],
+  .stock-logo-img[data-logo-file="298380"],
+  .stock-logo-img[data-logo-file="305720"],
+  .stock-logo-img[data-logo-file="357880"],
+  .stock-logo-img[data-logo-file="365550"],
+  .stock-logo-img[data-logo-file="375500"] {
+    background: #ffffff;
+    padding: 1px;
+    transform: scale(1.12);
+    transform-origin: center center;
+  }
+
+  .stock-logo-img[data-logo-file="030520"] {
+    transform: scale(1.24);
+  }
+
+  .watchlist-chip-logo .stock-logo-img[data-logo-file="001040"],
+  .watchlist-chip-logo .stock-logo-img[data-logo-file="005940"],
+  .watchlist-chip-logo .stock-logo-img[data-logo-file="011200"],
+  .watchlist-chip-logo .stock-logo-img[data-logo-file="006800"],
+  .watchlist-chip-logo .stock-logo-img[data-logo-file="007660"],
+  .watchlist-chip-logo .stock-logo-img[data-logo-file="008060"],
+  .watchlist-chip-logo .stock-logo-img[data-logo-file="009410"],
+  .watchlist-chip-logo .stock-logo-img[data-logo-file="012510"],
+  .watchlist-chip-logo .stock-logo-img[data-logo-file="030520"],
+  .watchlist-chip-logo .stock-logo-img[data-logo-file="039200"],
+  .watchlist-chip-logo .stock-logo-img[data-logo-file="090460"],
+  .watchlist-chip-logo .stock-logo-img[data-logo-file="091700"],
+  .watchlist-chip-logo .stock-logo-img[data-logo-file="101400"],
+  .watchlist-chip-logo .stock-logo-img[data-logo-file="128940"],
+  .watchlist-chip-logo .stock-logo-img[data-logo-file="161890"],
+  .watchlist-chip-logo .stock-logo-img[data-logo-file="196170"],
+  .watchlist-chip-logo .stock-logo-img[data-logo-file="222800"],
+  .watchlist-chip-logo .stock-logo-img[data-logo-file="294870"],
+  .watchlist-chip-logo .stock-logo-img[data-logo-file="298380"],
+  .watchlist-chip-logo .stock-logo-img[data-logo-file="305720"],
+  .watchlist-chip-logo .stock-logo-img[data-logo-file="357880"],
+  .watchlist-chip-logo .stock-logo-img[data-logo-file="365550"],
+  .watchlist-chip-logo .stock-logo-img[data-logo-file="375500"] {
+    transform: scale(1.18);
+  }
+
+  .watchlist-chip-logo .stock-logo-img[data-logo-file="030520"] {
+    transform: scale(1.3);
   }
 
   .stock-logo-wrap--placeholder {
@@ -1087,6 +1378,42 @@
     padding: 14px;
     margin-bottom: 14px;
     background: rgba(255, 255, 255, 0.02);
+  }
+
+  .jurin-chart-hover-wrap {
+    position: relative;
+    width: 100%;
+  }
+
+  .chart-ohlc-hover {
+    position: absolute;
+    z-index: 4;
+    top: 8px;
+    left: 8px;
+    max-width: calc(100% - 16px);
+    padding: 8px 10px;
+    border-radius: 10px;
+    background: rgba(15, 23, 20, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: #e8f5ee;
+    font-size: 11px;
+    line-height: 1.45;
+    pointer-events: none;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.2);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .chart-ohlc-hover-time {
+    font-weight: 700;
+    margin-bottom: 6px;
+    color: #b9d8c8;
+    font-size: 11px;
+  }
+
+  .chart-ohlc-hover-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px 12px;
   }
 
   .chart-skeleton {
@@ -2753,6 +3080,28 @@
       border-radius: 12px;
     }
 
+    .index-hover-popover {
+      width: min(280px, calc(100vw - 20px));
+      padding: 12px;
+    }
+
+    .indices-grid {
+      gap: 14px;
+    }
+
+    .index-card {
+      padding: 20px 16px;
+    }
+
+    .index-name {
+      min-height: 40px;
+      font-size: 15px;
+    }
+
+    .index-value {
+      font-size: 24px;
+    }
+
     .stocks-table {
       font-size: 14px;
       min-width: 700px;
@@ -2841,6 +3190,8 @@
     <li><a href="guide.html">가이드</a></li>
     <li><a href="analysis.html">AI 분석 <span class="nav-badge">AI</span></a></li>
     <li><a href="ai-chart-prediction.html">AI 차트 예측 <span class="nav-badge">AI</span></a></li>
+    <li><a href="market-products.html?topic=elw">ELW</a></li>
+    <li><a href="market-products.html?topic=bonds">채권</a></li>
     <li><a href="glossary.html">용어 검색</a></li>
     <li><a class="jurin-simulation-link" href="http://127.0.0.1:5000/simulation.html">모의 투자</a></li>
     <li><a href="market.html" class="active">시장 <span class="nav-badge">LIVE</span></a></li>
@@ -2875,6 +3226,7 @@
       <div class="indices-grid" id="indicesGrid">
         <!-- 동적으로 지수 카드 생성 -->
       </div>
+      <div class="index-hover-popover" id="indexHoverPopover" hidden aria-live="polite"></div>
     </div>
 
     <div class="stocks-section">
@@ -2986,7 +3338,10 @@
           <button class="detail-range-btn" type="button" data-range="1y" onclick="onRangeClick(this)">1년</button>
         </div>
         <div class="chart-placeholder" id="chartWrapper">
-          <div id="stockChart" style="width:100%;height:200px;display:none;"></div>
+          <div id="stockChartWrap" class="jurin-chart-hover-wrap" style="display:none;">
+            <div id="stockChartOhlcLegend" class="chart-ohlc-hover" hidden aria-live="polite"></div>
+            <div id="stockChart" style="width:100%;height:200px;"></div>
+          </div>
           <div class="chart-skeleton" id="chartSkeleton"></div>
           <div class="chart-note" id="chartNote" style="display:none;"></div>
           <p class="detail-section-lead chart-term-lead" id="chartTermLead" aria-live="polite"></p>
@@ -3297,6 +3652,7 @@
 </div>
 
 <script src="js/api-base.js"></script>
+<script src="js/stock-autocomplete.js"></script>
 <script src="js/stock-terms.js"></script>
 <script>
   const BACKEND = window.JURIN_API_BASE || 'http://localhost:5000';
@@ -3418,7 +3774,7 @@
   const DETAIL_POLL_INTERVAL = 2000; // 상세 패널: 한 종목 동기 갱신(움직임 체감)
   const PAGE_SIZE = 10;
   /** 주요 종목 검색·전체 유니버스용 (백엔드 LIVE_PRICE_MAX_COUNT 와 맞춤) */
-  const UNIVERSE_PAGE_SIZE = 50;
+  const UNIVERSE_PAGE_SIZE = 100;
 
   /** 종목코드 → 영문·약어 등 검색용 보조 키워드 (한글 종목명에 없는 표기) */
   const STOCK_SEARCH_EXTRA_BY_CODE = {
@@ -3469,6 +3825,7 @@
   let stockSearchQuery = '';
   /** filter=all, page_size=UNIVERSE_PAGE_SIZE 로 받은 스냅샷 (검색·이름 기준) */
   let searchUniverseList = [];
+  let stockSearchFetchSeq = 0;
   let selectedStockCode = null;
   let selectedStockDetail = null;
   let detailLastLoadedAt = 0;
@@ -3849,6 +4206,30 @@
           clearStockSearch();
         }
       });
+      if (typeof JurinStockAutocomplete !== 'undefined' && !searchInput.dataset.stockSuggestAc) {
+        searchInput.dataset.stockSuggestAc = '1';
+        JurinStockAutocomplete.attachStock(searchInput, {
+          compact: true,
+          onSelect: (item) => {
+            const code = String(item && item.code ? item.code : '').trim();
+            const label = String(item && (item.name || item.code) ? (item.name || item.code) : '').trim();
+            if (!label) return;
+            searchInput.value = label;
+            stockSearchQuery = label;
+            currentFilter = 'all';
+            currentPage = 1;
+            setFilterButtonsActive('all');
+            document.getElementById('stocksSearchReset')?.classList.remove('stocks-search-reset--inactive');
+            searchUniverseList = [];
+            renderStocks();
+            refreshSearchUniverse(code || label).then(() => {
+              renderStocks();
+              refreshStockDetailIfOpen();
+              if (code) openStockDetail(code);
+            });
+          },
+        });
+      }
     }
     (async () => {
       await fetchLivePrices();
@@ -3899,6 +4280,7 @@
     const hasQuery = stockSearchQuery.trim().length > 0;
 
     if (hadQuery && !hasQuery) {
+      stockSearchFetchSeq += 1;
       document.getElementById('stocksSearchReset')?.classList.add('stocks-search-reset--inactive');
       fetchLivePrices();
       return;
@@ -3912,6 +4294,9 @@
     const resetBtn = document.getElementById('stocksSearchReset');
     if (resetBtn) resetBtn.classList.toggle('stocks-search-reset--inactive', !hasQuery);
 
+    if (hasQuery) {
+      searchUniverseList = [];
+    }
     renderStocks();
     if (hasQuery) {
       refreshSearchUniverse().then(() => {
@@ -3925,6 +4310,8 @@
     const el = document.getElementById('stocksSearchInput');
     if (el) el.value = '';
     stockSearchQuery = '';
+    stockSearchFetchSeq += 1;
+    searchUniverseList = [];
     const resetBtn = document.getElementById('stocksSearchReset');
     if (resetBtn) resetBtn.classList.add('stocks-search-reset--inactive');
     fetchLivePrices();
@@ -3975,26 +4362,74 @@
     });
   }
 
-  async function refreshSearchUniverse() {
+  function buildCustomNamesParam(items) {
+    return (Array.isArray(items) ? items : [])
+      .map((item) => {
+        const code = String(item && item.code ? item.code : '').trim();
+        const name = String(item && item.name ? item.name : '').trim();
+        return code ? `${code}:${name}` : '';
+      })
+      .filter(Boolean)
+      .join('|');
+  }
+
+  async function refreshSearchUniverse(queryOverride) {
     const dot = document.getElementById('liveDot');
     const status = document.getElementById('liveStatus');
+    const requestSeq = ++stockSearchFetchSeq;
+    const q = String(queryOverride != null ? queryOverride : stockSearchQuery).trim();
     try {
-      const res = await fetch(`${BACKEND}/api/live-prices?page=1&page_size=${UNIVERSE_PAGE_SIZE}&filter=all`);
-      const data = await res.json();
-      if (!data.success) throw new Error(data.message || '조회 실패');
-      const incoming = Array.isArray(data.stocks) ? data.stocks : [];
+      let data;
+      let incoming = [];
+      let order = [];
+
+      if (q) {
+        const suggestRes = await fetch(`${BACKEND}/api/stocks/suggest?q=${encodeURIComponent(q)}&limit=${UNIVERSE_PAGE_SIZE}`);
+        const suggestData = await suggestRes.json();
+        if (!suggestData.success) throw new Error(suggestData.message || '검색 실패');
+        const matchedItems = (Array.isArray(suggestData.items) ? suggestData.items : [])
+          .map((item) => ({
+            code: String(item && item.code ? item.code : '').trim(),
+            name: String(item && item.name ? item.name : '').trim(),
+          }))
+          .filter((item) => item.code);
+        if (requestSeq !== stockSearchFetchSeq) return null;
+        if (!matchedItems.length) {
+          searchUniverseList = [];
+          if (dot) dot.classList.remove('error');
+          if (status) status.textContent = '검색 결과가 없습니다.';
+          return suggestData;
+        }
+        const namesParam = buildCustomNamesParam(matchedItems);
+        const codesParam = matchedItems.map((item) => item.code).join(',');
+        const liveRes = await fetch(
+          `${BACKEND}/api/live-prices?codes=${encodeURIComponent(codesParam)}&names=${encodeURIComponent(namesParam)}&page=1&page_size=${UNIVERSE_PAGE_SIZE}&filter=all`
+        );
+        data = await liveRes.json();
+        if (!data.success) throw new Error(data.message || '조회 실패');
+        incoming = Array.isArray(data.stocks) ? data.stocks : [];
+        order = matchedItems.map((item) => item.code);
+      } else {
+        const res = await fetch(`${BACKEND}/api/live-prices?page=1&page_size=${UNIVERSE_PAGE_SIZE}&filter=all`);
+        data = await res.json();
+        if (!data.success) throw new Error(data.message || '조회 실패');
+        incoming = Array.isArray(data.stocks) ? data.stocks : [];
+        order = incoming.map((s) => s.code).filter(Boolean);
+      }
+
+      if (requestSeq !== stockSearchFetchSeq) return null;
       mergeIncomingStocksIntoCache(incoming);
       const incomingByCode = Object.fromEntries(incoming.map(s => [s.code, s]));
-      const order = incoming.map(s => s.code).filter(Boolean);
       searchUniverseList = buildLiveStocksFromOrder(order, incomingByCode);
       if (dot) dot.classList.remove('error');
-      if (status && stockSearchQuery.trim()) {
+      if (status && q) {
         status.textContent = `${data.ts} 업데이트 (검색·${searchUniverseList.length}종목 기준)`;
       }
       return data;
     } catch (e) {
+      if (requestSeq !== stockSearchFetchSeq) return null;
       if (dot) dot.classList.add('error');
-      if (status && stockSearchQuery.trim()) status.textContent = '연결 실패';
+      if (status && q) status.textContent = '연결 실패';
       console.warn('[live-prices universe]', e.message);
       return null;
     }
@@ -4077,10 +4512,15 @@
   }
 
   /** `frontend/assets/stock-logos/{코드}.png` 실제 파일이 있는 종목 (폴더 내용과 동기화) */
+  const STOCK_LOGO_ASSET_VERSION = '20260512h';
+  const STOCK_LOGO_NO_SQUAREISH_CODES = new Set(['005930', '011170', '068270', '071050']);
   const STOCK_LOGO_FILE_CODES = new Set([
-    '000100', '000270', '000660', '004020', '005380', '005490', '005930', '010130', '010950', '011170', '011200',
-    '012330', '015760', '030200', '033780', '034020', '035420', '035720', '036570', '042670', '055550', '066570',
-    '068270', '078930', '086790', '090430', '105560', '161390', '251270', '259960', '271560', '316140', '352820',
+    '000080', '000100', '000250', '000270', '000660', '000720', '001040', '004020', '004370', '005380', '005490',
+    '005930', '005940', '006800', '007310', '007660', '007810', '008060', '009410', '010130', '010950', '011170',
+    '011200', '012330', '012510', '015760', '028300', '030200', '030520', '033780', '034020', '035420', '035720',
+    '036570', '039200', '042670', '047040', '055550', '066570', '068270', '071050', '078930', '086790', '090430', '090460',
+    '091160', '091700', '101400', '105560', '128940', '161390', '161890', '196170', '222800', '251270', '259960',
+    '271560', '294870', '298380', '305720', '316140', '352820', '357880', '365550', '375500',
   ]);
 
   /** 계열사·우선주 → 위 세트의 PNG 파일명(6자리) */
@@ -4088,11 +4528,19 @@
     '005935': '005930', '000810': '005930', '028260': '005930', '009150': '005930', '010140': '005930',
     '032830': '005930', '018260': '005930', '016360': '005930', '207940': '005930', '006400': '005930',
     '003550': '066570', '051910': '066570', '034220': '066570', '373220': '066570', '011070': '066570', '032640': '066570',
+    '051900': '066570',
     '003670': '005490', '047050': '005490',
     '329180': '042670', '267250': '042670',
     '096770': '000660', '017670': '000660', '302440': '000660', '034730': '000660',
-    '001740': '000660', '018670': '000660', '326030': '000660', '285130': '000660',
+    '001740': '000660', '018670': '000660', '326030': '000660', '285130': '000660', '395400': '000660',
     '000150': '034020',
+    '000120': '001040', '097950': '001040',
+    '377300': '035720', '323410': '035720',
+    '293940': '055550',
+    '006360': '078930',
+    '005300': '011170', '330590': '011170',
+    '244580': '091160', '396500': '091160', '396510': '091160', '091170': '091160',
+    '357870': '305720', '381170': '305720', '381180': '305720', '143860': '305720',
   };
 
   function resolveStockLogoFileCode(code) {
@@ -4105,14 +4553,15 @@
   function stockLogoUrlForCode(code) {
     const fileCode = resolveStockLogoFileCode(code);
     if (!fileCode) return '';
-    return 'assets/stock-logos/' + fileCode + '.png';
+    return 'assets/stock-logos/' + fileCode + '.png?v=' + STOCK_LOGO_ASSET_VERSION;
   }
 
   function bindStockLogoIntrinsicFit(img) {
     if (!img || !img.classList.contains('stock-logo-img')) return;
     const run = () => {
       img.classList.remove('stock-logo-img--squareish');
-      if (img.getAttribute('data-logo-file') === '005930') return;
+      const fileCode = img.getAttribute('data-logo-file') || '';
+      if (STOCK_LOGO_NO_SQUAREISH_CODES.has(fileCode)) return;
       const w = img.naturalWidth;
       const h = img.naturalHeight;
       if (!w || !h) return;
@@ -4227,7 +4676,7 @@
         pagination.innerHTML = '';
         return;
       }
-      pageStocks = searchUniverseList.filter(s => s && s.code && stockMatchesSearchQuery(s, q));
+      pageStocks = searchUniverseList.filter(s => s && s.code);
       if (pageStocks.length === 0) {
         tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--gray-400);padding:32px">해당종목이 없습니다.</td></tr>`;
         pagination.innerHTML = '';
@@ -4508,7 +4957,7 @@
       return;
     }
 
-    const maxVisiblePages = 5;
+    const maxVisiblePages = 10;
     let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
     let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
 
@@ -4545,16 +4994,656 @@
     fetchLivePrices();
   }
 
-  // ── 주요 지수 실시간 ─────────────────────────────────
-  const INDEX_PLACEHOLDER_NAMES = ['KOSPI', 'KOSDAQ', 'KOSPI 200'];
+  // ── 주요 지수 실시간 + hover 미니그래프 ─────────────────
+  const INDEX_PLACEHOLDER_CARDS = [
+    { name: 'KOSPI', key: 'kospi', interactive: true },
+    { name: 'KOSDAQ', key: 'kosdaq', interactive: true },
+    { name: 'KOSPI 200', key: 'kospi200', interactive: true },
+    { name: 'USD/KRW', key: 'usdkrw', interactive: false, kind: 'fx' },
+    { name: '시장폭', key: 'marketbreadth', interactive: false, kind: 'breadth' },
+  ];
+  const INDEX_KEY_BY_NAME = { KOSPI: 'kospi', KOSDAQ: 'kosdaq', 'KOSPI 200': 'kospi200' };
+  const INDEX_VISUAL_THEMES = {
+    kospi: {
+      accent: '#1f9d73',
+      chartLine: '#178f66',
+      lineMode: 'linear',
+      marker: 'circle',
+      border: 'rgba(31, 157, 115, 0.26)',
+      chipBg: 'rgba(31, 157, 115, 0.14)',
+      chipText: '#15694d',
+      chartBgTop: 'rgba(31, 157, 115, 0.10)',
+      chartBgBottom: 'rgba(31, 157, 115, 0.02)',
+      chartBorder: 'rgba(31, 157, 115, 0.16)',
+      statBg: 'rgba(31, 157, 115, 0.06)',
+      statBorder: 'rgba(31, 157, 115, 0.10)',
+      chipLabel: 'KOSPI',
+    },
+    kosdaq: {
+      accent: '#8b5cf6',
+      chartLine: '#7c3aed',
+      lineMode: 'smooth',
+      marker: 'diamond',
+      border: 'rgba(139, 92, 246, 0.26)',
+      chipBg: 'rgba(139, 92, 246, 0.14)',
+      chipText: '#6d28d9',
+      chartBgTop: 'rgba(139, 92, 246, 0.10)',
+      chartBgBottom: 'rgba(139, 92, 246, 0.02)',
+      chartBorder: 'rgba(139, 92, 246, 0.16)',
+      statBg: 'rgba(139, 92, 246, 0.06)',
+      statBorder: 'rgba(139, 92, 246, 0.10)',
+      chipLabel: 'KOSDAQ',
+    },
+    kospi200: {
+      accent: '#f59e0b',
+      chartLine: '#d97706',
+      lineMode: 'step',
+      marker: 'square',
+      border: 'rgba(245, 158, 11, 0.26)',
+      chipBg: 'rgba(245, 158, 11, 0.14)',
+      chipText: '#b45309',
+      chartBgTop: 'rgba(245, 158, 11, 0.10)',
+      chartBgBottom: 'rgba(245, 158, 11, 0.02)',
+      chartBorder: 'rgba(245, 158, 11, 0.16)',
+      statBg: 'rgba(245, 158, 11, 0.06)',
+      statBorder: 'rgba(245, 158, 11, 0.10)',
+      chipLabel: 'KOSPI 200',
+    },
+    usdkrw: {
+      accent: '#0f766e',
+      chartLine: '#0f766e',
+      lineMode: 'linear',
+      marker: 'circle',
+      border: 'rgba(15, 118, 110, 0.22)',
+      chipBg: 'rgba(15, 118, 110, 0.14)',
+      chipText: '#115e59',
+      chartBgTop: 'rgba(15, 118, 110, 0.10)',
+      chartBgBottom: 'rgba(15, 118, 110, 0.02)',
+      chartBorder: 'rgba(15, 118, 110, 0.15)',
+      statBg: 'rgba(15, 118, 110, 0.06)',
+      statBorder: 'rgba(15, 118, 110, 0.10)',
+      chipLabel: 'FX',
+    },
+    marketbreadth: {
+      accent: '#2563eb',
+      chartLine: '#2563eb',
+      lineMode: 'linear',
+      marker: 'circle',
+      border: 'rgba(37, 99, 235, 0.22)',
+      chipBg: 'rgba(37, 99, 235, 0.14)',
+      chipText: '#1d4ed8',
+      chartBgTop: 'rgba(37, 99, 235, 0.10)',
+      chartBgBottom: 'rgba(37, 99, 235, 0.02)',
+      chartBorder: 'rgba(37, 99, 235, 0.15)',
+      statBg: 'rgba(37, 99, 235, 0.06)',
+      statBorder: 'rgba(37, 99, 235, 0.10)',
+      chipLabel: 'BREADTH',
+    },
+    default: {
+      accent: '#1f9d73',
+      chartLine: '#178f66',
+      lineMode: 'linear',
+      marker: 'circle',
+      border: 'rgba(31, 157, 115, 0.26)',
+      chipBg: 'rgba(31, 157, 115, 0.14)',
+      chipText: '#15694d',
+      chartBgTop: 'rgba(31, 157, 115, 0.10)',
+      chartBgBottom: 'rgba(31, 157, 115, 0.02)',
+      chartBorder: 'rgba(31, 157, 115, 0.16)',
+      statBg: 'rgba(31, 157, 115, 0.06)',
+      statBorder: 'rgba(31, 157, 115, 0.10)',
+      chipLabel: 'INDEX',
+    },
+  };
+  const INDEX_HISTORY_CACHE_TTL_MS = 60 * 1000;
+  const indexHistoryCache = new Map();
+  let activeIndexPopoverKey = '';
+  let activeIndexPopoverCard = null;
+  let indexPopoverHideTimer = null;
+  let indexPopoverRequestSeq = 0;
+
+  function useIndexTapFallback() {
+    return !(window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches);
+  }
+
+  function getIndexHoverPopover() {
+    return document.getElementById('indexHoverPopover');
+  }
+
+  function clearIndexPopoverHideTimer() {
+    if (!indexPopoverHideTimer) return;
+    clearTimeout(indexPopoverHideTimer);
+    indexPopoverHideTimer = null;
+  }
+
+  function scheduleIndexPopoverHide() {
+    clearIndexPopoverHideTimer();
+    indexPopoverHideTimer = setTimeout(closeIndexHoverPopover, 120);
+  }
+
+  function closeIndexHoverPopover() {
+    clearIndexPopoverHideTimer();
+    const popover = getIndexHoverPopover();
+    if (activeIndexPopoverCard) {
+      activeIndexPopoverCard.classList.remove('index-card--active');
+      activeIndexPopoverCard.setAttribute('aria-expanded', 'false');
+    }
+    activeIndexPopoverCard = null;
+    activeIndexPopoverKey = '';
+    indexPopoverRequestSeq += 1;
+    if (popover) {
+      popover.hidden = true;
+      popover.innerHTML = '';
+      popover.removeAttribute('style');
+    }
+  }
+
+  function getMarketCardThemeKey(card) {
+    return String((card && (card.theme_key || card.key)) || '').trim();
+  }
+
+  function getMarketCardTheme(card) {
+    return getIndexVisualTheme(getMarketCardThemeKey(card));
+  }
+
+  function buildMarketCardStyle(card) {
+    const theme = getMarketCardTheme(card);
+    return [
+      `--card-accent:${theme.accent}`,
+      `--card-border:${theme.border}`,
+      `--inline-chart-bg-top:${theme.chartBgTop}`,
+      `--inline-chart-bg-bottom:${theme.chartBgBottom}`,
+      `--inline-chart-border:${theme.chartBorder}`,
+    ].join(';');
+  }
+
+  function indexCardHtml(idx, isSkeleton) {
+    const name = escapeHtml(String(idx && idx.name ? idx.name : '지수'));
+    const interactive = !idx || idx.interactive !== false;
+    const keyRaw = interactive ? String((idx && idx.key) || INDEX_KEY_BY_NAME[String((idx && idx.name) || '')] || '').trim() : '';
+    const keyAttr = keyRaw ? ` data-index-key="${escapeHtml(keyRaw)}"` : '';
+    const nameAttr = ` data-index-name="${name}"`;
+    const staticClass = interactive && keyRaw ? '' : ' index-card--static';
+    const styleAttr = ` style="${escapeHtml(buildMarketCardStyle(idx))}"`;
+    if (isSkeleton) {
+      return `
+        <div class="index-card${staticClass}"${interactive && keyRaw ? ' tabindex="0" aria-expanded="false"' : ''}${styleAttr}${keyAttr}${nameAttr}>
+          <div class="index-name">${name}</div>
+          <div class="index-value index-skeleton" style="color:var(--gray-400)">---</div>
+          <div class="index-change flat index-skeleton">불러오는 중</div>
+        </div>`;
+    }
+    if (idx && idx.error) {
+      return `
+        <div class="index-card${staticClass}"${interactive && keyRaw ? ' tabindex="0" aria-expanded="false"' : ''}${styleAttr}${keyAttr}${nameAttr}>
+          <div class="index-name">${name}</div>
+          <div class="index-value" style="color:var(--gray-400)">-</div>
+          <div class="index-change flat">조회 실패</div>
+        </div>`;
+    }
+    const dir = (idx && idx.direction) || 'flat';
+    const hasHistory = Boolean(interactive && keyRaw);
+    const arrow = dir === 'up' ? '▲' : (dir === 'down' ? '▼' : '-');
+    const sign = dir === 'up' ? '+' : (dir === 'down' ? '-' : '');
+    const value = Number(idx && idx.value);
+    const changePct = Number(idx && idx.change_pct);
+    const changeAbs = Number(idx && idx.change_abs);
+    const valueText = idx && idx.value_text != null
+      ? String(idx.value_text)
+      : (Number.isFinite(value) ? value.toLocaleString() : '-');
+    const changeText = idx && idx.change_text
+      ? String(idx.change_text)
+      : `${arrow} ${Number.isFinite(changePct) ? Math.abs(changePct).toFixed(2) : '0.00'}%`;
+    const compactClass = valueText.length >= 9 || (idx && idx.kind === 'breadth') ? ' index-value--compact' : '';
+    const inlineChartHtml = idx && idx.inline_chart === true
+      ? buildInlineCardSparklineSvg((idx && idx.points) || [], dir, getMarketCardTheme(idx), idx && idx.reference_value, idx && idx.chart_mode)
+      : '';
+    return `
+      <div class="index-card ${dir}${staticClass}"${hasHistory ? ' tabindex="0" aria-haspopup="dialog" aria-expanded="false"' : ''}${styleAttr}${keyAttr}${nameAttr}>
+        <div class="index-name">${name}</div>
+        <div class="index-value${compactClass}">${escapeHtml(valueText)}</div>
+        <div class="index-change ${dir}">${escapeHtml(changeText)}</div>
+        ${inlineChartHtml ? `<div class="index-inline-chart">${inlineChartHtml}</div>` : ''}
+      </div>`;
+  }
 
   function renderIndicesSkeleton() {
-    document.getElementById('indicesGrid').innerHTML = INDEX_PLACEHOLDER_NAMES.map(name => `
-      <div class="index-card">
-        <div class="index-name">${name}</div>
-        <div class="index-value index-skeleton" style="color:var(--gray-400)">---</div>
-        <div class="index-change flat index-skeleton">불러오는 중</div>
-      </div>`).join('');
+    closeIndexHoverPopover();
+    document.getElementById('indicesGrid').innerHTML = INDEX_PLACEHOLDER_CARDS.map((card) => {
+      return indexCardHtml(card, true);
+    }).join('');
+    bindIndexCardHoverTargets();
+  }
+
+  function indexPopoverDirectionColor(dir) {
+    if (dir === 'up') return '#ef5350';
+    if (dir === 'down') return '#42a5f5';
+    return '#6b7280';
+  }
+
+  function getIndexVisualTheme(indexKey) {
+    return INDEX_VISUAL_THEMES[String(indexKey || '').trim()] || INDEX_VISUAL_THEMES.default;
+  }
+
+  function applyIndexPopoverTheme(indexKey) {
+    const popover = getIndexHoverPopover();
+    if (!popover) return getIndexVisualTheme(indexKey);
+    const theme = getIndexVisualTheme(indexKey);
+    popover.style.setProperty('--index-popover-accent', theme.accent);
+    popover.style.setProperty('--index-popover-border', theme.border);
+    popover.style.setProperty('--index-chip-bg', theme.chipBg);
+    popover.style.setProperty('--index-chip-text', theme.chipText);
+    popover.style.setProperty('--index-chart-bg-top', theme.chartBgTop);
+    popover.style.setProperty('--index-chart-bg-bottom', theme.chartBgBottom);
+    popover.style.setProperty('--index-chart-border', theme.chartBorder);
+    popover.style.setProperty('--index-stat-bg', theme.statBg);
+    popover.style.setProperty('--index-stat-border', theme.statBorder);
+    return theme;
+  }
+
+  function indexPopoverArrow(dir) {
+    return dir === 'up' ? '▲' : (dir === 'down' ? '▼' : '-');
+  }
+
+  function summarizeIndexPoints(points, referenceValue) {
+    const values = Array.isArray(points) ? points.map(point => Number(point.value)).filter(Number.isFinite) : [];
+    if (!values.length) {
+      return { start: null, high: null, low: null, last: null, deltaPct: 0, referenceDeltaPct: 0, referenceValue: null };
+    }
+    const start = values[0];
+    const last = values[values.length - 1];
+    const high = Math.max.apply(null, values);
+    const low = Math.min.apply(null, values);
+    const deltaPct = start ? ((last - start) / start) * 100 : 0;
+    const baseline = Number.isFinite(Number(referenceValue)) && Number(referenceValue) > 0 ? Number(referenceValue) : start;
+    const referenceDeltaPct = baseline ? ((last - baseline) / baseline) * 100 : 0;
+    return { start, high, low, last, deltaPct, referenceDeltaPct, referenceValue: baseline };
+  }
+
+  function formatIndexValue(value) {
+    const num = Number(value);
+    if (!Number.isFinite(num)) return '-';
+    return num.toLocaleString(undefined, {
+      minimumFractionDigits: num >= 100 ? 0 : 2,
+      maximumFractionDigits: num >= 100 ? 2 : 3,
+    });
+  }
+
+  function buildLinearIndexPath(coords) {
+    return coords.map((point, index) => {
+      const prefix = index === 0 ? 'M' : 'L';
+      return `${prefix} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`;
+    }).join(' ');
+  }
+
+  function buildSmoothIndexPath(coords) {
+    if (coords.length < 3) return buildLinearIndexPath(coords);
+    let path = `M ${coords[0].x.toFixed(2)} ${coords[0].y.toFixed(2)}`;
+    for (let index = 0; index < coords.length - 1; index += 1) {
+      const prev = coords[index - 1] || coords[index];
+      const current = coords[index];
+      const next = coords[index + 1];
+      const nextNext = coords[index + 2] || next;
+      const cp1x = current.x + (next.x - prev.x) / 6;
+      const cp1y = current.y + (next.y - prev.y) / 6;
+      const cp2x = next.x - (nextNext.x - current.x) / 6;
+      const cp2y = next.y - (nextNext.y - current.y) / 6;
+      path += ` C ${cp1x.toFixed(2)} ${cp1y.toFixed(2)} ${cp2x.toFixed(2)} ${cp2y.toFixed(2)} ${next.x.toFixed(2)} ${next.y.toFixed(2)}`;
+    }
+    return path;
+  }
+
+  function buildStepIndexPath(coords) {
+    if (!coords.length) return '';
+    let path = `M ${coords[0].x.toFixed(2)} ${coords[0].y.toFixed(2)}`;
+    for (let index = 1; index < coords.length; index += 1) {
+      const point = coords[index];
+      path += ` H ${point.x.toFixed(2)} V ${point.y.toFixed(2)}`;
+    }
+    return path;
+  }
+
+  function buildIndexLinePath(coords, lineMode) {
+    if (lineMode === 'smooth') return buildSmoothIndexPath(coords);
+    if (lineMode === 'step') return buildStepIndexPath(coords);
+    return buildLinearIndexPath(coords);
+  }
+
+  function buildIndexMarker(point, lineColor, theme) {
+    const marker = theme && theme.marker;
+    if (!point) return '';
+    if (marker === 'diamond') {
+      return `<rect x="${(point.x - 3.1).toFixed(2)}" y="${(point.y - 3.1).toFixed(2)}" width="6.2" height="6.2" fill="${lineColor}" transform="rotate(45 ${point.x.toFixed(2)} ${point.y.toFixed(2)})"></rect>`;
+    }
+    if (marker === 'square') {
+      return `<rect x="${(point.x - 3.2).toFixed(2)}" y="${(point.y - 3.2).toFixed(2)}" width="6.4" height="6.4" rx="1.4" fill="${lineColor}"></rect>`;
+    }
+    return `<circle cx="${point.x.toFixed(2)}" cy="${point.y.toFixed(2)}" r="3.3" fill="${lineColor}"></circle>`;
+  }
+
+  function buildInlineCardSparklineSvg(points, direction, theme, referenceValue, chartMode) {
+    const values = Array.isArray(points) ? points.map(point => Number(point.value)).filter(Number.isFinite) : [];
+    if (values.length < 2) return '';
+    const width = 240;
+    const height = 60;
+    const padX = 8;
+    const padY = 8;
+    const mode = String(chartMode || 'relative');
+    const baseline = Number.isFinite(Number(referenceValue)) ? Number(referenceValue) : values[0];
+    const normalized = mode === 'score'
+      ? values
+      : values.map(value => (baseline ? ((value - baseline) / baseline) * 100 : 0));
+    const maxAbs = Math.max(0.05, ...normalized.map(value => Math.abs(value)));
+    const min = -maxAbs;
+    const max = maxAbs;
+    const span = Math.max(1e-9, max - min);
+    const lineColor = indexPopoverDirectionColor(direction);
+    const coords = normalized.map((value, index) => {
+      const x = padX + ((width - padX * 2) * index / Math.max(1, normalized.length - 1));
+      const y = padY + ((height - padY * 2) * (max - value) / span);
+      return { x, y };
+    });
+    const zeroY = padY + ((height - padY * 2) * (max - 0) / span);
+    const path = buildLinearIndexPath(coords);
+    const areaPath = `${path} L ${coords[coords.length - 1].x.toFixed(2)} ${zeroY.toFixed(2)} L ${coords[0].x.toFixed(2)} ${zeroY.toFixed(2)} Z`;
+    const last = coords[coords.length - 1];
+    return `
+      <svg viewBox="0 0 ${width} ${height}" aria-hidden="true" preserveAspectRatio="none">
+        <line x1="${padX}" y1="${zeroY.toFixed(2)}" x2="${width - padX}" y2="${zeroY.toFixed(2)}" stroke="rgba(107, 114, 128, 0.18)" stroke-width="1" stroke-dasharray="3 3"></line>
+        <path d="${areaPath}" fill="${lineColor}" fill-opacity="0.12"></path>
+        <path d="${path}" fill="none" stroke="${lineColor}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path>
+        <circle cx="${last.x.toFixed(2)}" cy="${last.y.toFixed(2)}" r="2.8" fill="${lineColor}"></circle>
+      </svg>`;
+  }
+
+  function indexSparklineSvg(points, direction, theme, referenceValue, chartMode) {
+    const values = Array.isArray(points) ? points.map(point => Number(point.value)).filter(Number.isFinite) : [];
+    if (values.length < 2) return '';
+    const width = 270;
+    const height = 112;
+    const padX = 12;
+    const padY = 10;
+    const mode = String(chartMode || 'relative');
+    const start = values[0];
+    const baseline = Number.isFinite(Number(referenceValue)) && Number(referenceValue) > 0 ? Number(referenceValue) : start;
+    const normalized = mode === 'score'
+      ? values
+      : values.map(value => (baseline ? ((value - baseline) / baseline) * 100 : 0));
+    const maxAbs = Math.max(mode === 'score' ? 1 : 0.12, ...normalized.map(value => Math.abs(value)));
+    const min = -maxAbs;
+    const max = maxAbs;
+    const span = Math.max(1e-9, max - min);
+    const lineColor = (theme && theme.chartLine) || indexPopoverDirectionColor(direction);
+    const coords = normalized.map((value, index) => {
+      const x = padX + ((width - padX * 2) * index / Math.max(1, values.length - 1));
+      const y = padY + ((height - padY * 2) * (max - value) / span);
+      return { x, y };
+    });
+    const zeroY = padY + ((height - padY * 2) * (max - 0) / span);
+    const lineMode = (theme && theme.lineMode) || 'linear';
+    const linePath = buildIndexLinePath(coords, lineMode);
+    const areaPath = `${linePath} L ${coords[coords.length - 1].x.toFixed(2)} ${zeroY.toFixed(2)} L ${coords[0].x.toFixed(2)} ${zeroY.toFixed(2)} Z`;
+    const last = coords[coords.length - 1];
+    const topLabel = mode === 'score' ? `${Math.round(max)}` : `${max.toFixed(2)}%`;
+    const bottomLabel = mode === 'score' ? `${Math.round(min)}` : `${min.toFixed(2)}%`;
+    return `
+      <svg viewBox="0 0 ${width} ${height}" aria-hidden="true" preserveAspectRatio="none">
+        <line x1="${padX}" y1="${zeroY.toFixed(2)}" x2="${width - padX}" y2="${zeroY.toFixed(2)}" stroke="rgba(107, 114, 128, 0.24)" stroke-width="1" stroke-dasharray="4 4"></line>
+        <path d="${areaPath}" fill="${lineColor}" fill-opacity="0.12"></path>
+        <path d="${linePath}" fill="none" stroke="${lineColor}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"></path>
+        ${buildIndexMarker(last, lineColor, theme)}
+        <text x="${width - 8}" y="${padY + 2}" text-anchor="end" font-size="10" font-weight="700" fill="rgba(107, 114, 128, 0.88)">${topLabel}</text>
+        <text x="${width - 8}" y="${height - 4}" text-anchor="end" font-size="10" font-weight="700" fill="rgba(107, 114, 128, 0.88)">${bottomLabel}</text>
+      </svg>`;
+  }
+
+  function renderIndexPopoverStats(payload, summary) {
+    if (payload && payload.kind === 'breadth') {
+      return `
+        <div class="index-hover-popover__stats">
+          <div class="index-hover-popover__stat">
+            <div class="index-hover-popover__stat-label">상승</div>
+            <div class="index-hover-popover__stat-value">${formatIndexValue(payload.up_count)}</div>
+          </div>
+          <div class="index-hover-popover__stat">
+            <div class="index-hover-popover__stat-label">하락</div>
+            <div class="index-hover-popover__stat-value">${formatIndexValue(payload.down_count)}</div>
+          </div>
+          <div class="index-hover-popover__stat">
+            <div class="index-hover-popover__stat-label">보합</div>
+            <div class="index-hover-popover__stat-value">${formatIndexValue(payload.flat_count)}</div>
+          </div>
+        </div>`;
+    }
+    return `
+      <div class="index-hover-popover__stats">
+        <div class="index-hover-popover__stat">
+          <div class="index-hover-popover__stat-label">5일 시작</div>
+          <div class="index-hover-popover__stat-value">${formatIndexValue(summary.start)}</div>
+        </div>
+        <div class="index-hover-popover__stat">
+          <div class="index-hover-popover__stat-label">5일 고가</div>
+          <div class="index-hover-popover__stat-value">${formatIndexValue(summary.high)}</div>
+        </div>
+        <div class="index-hover-popover__stat">
+          <div class="index-hover-popover__stat-label">5일 저가</div>
+          <div class="index-hover-popover__stat-value">${formatIndexValue(summary.low)}</div>
+        </div>
+      </div>`;
+  }
+
+  function renderIndexPopoverState(title, message, indexKey) {
+    const popover = getIndexHoverPopover();
+    if (!popover) return;
+    const theme = applyIndexPopoverTheme(indexKey);
+    popover.innerHTML = `
+      <div class="index-hover-popover__header">
+        <div>
+          <div class="index-hover-popover__chip">${escapeHtml(theme.chipLabel)}</div>
+          <div class="index-hover-popover__title">${escapeHtml(title || '지수')}</div>
+          <div class="index-hover-popover__meta">최근 5거래일 흐름 · 전일 종가 기준</div>
+        </div>
+      </div>
+      <div class="index-hover-popover__state">${escapeHtml(message || '불러오는 중...')}</div>`;
+  }
+
+  function renderIndexHoverPopover(payload) {
+    const popover = getIndexHoverPopover();
+    if (!popover) return;
+    const dir = String((payload && payload.direction) || 'flat');
+    const arrow = indexPopoverArrow(dir);
+    const value = Number(payload && payload.value);
+    const changePct = Number(payload && payload.change_pct);
+    const summary = summarizeIndexPoints((payload && payload.points) || [], payload && payload.reference_value);
+    const theme = applyIndexPopoverTheme(payload && payload.key);
+    const chartHtml = indexSparklineSvg((payload && payload.points) || [], dir, theme, payload && payload.reference_value, payload && payload.chart_mode);
+    const sourceLabel = payload && payload.reference_label
+      ? `${String((payload && payload.range_label) || '최근 5거래일')} · ${String(payload.reference_label)} 기준`
+      : String((payload && payload.range_label) || '최근 5거래일');
+    const valueText = payload && payload.value_text != null
+      ? String(payload.value_text)
+      : (Number.isFinite(value) ? value.toLocaleString() : '-');
+    const changeText = payload && payload.change_text
+      ? String(payload.change_text)
+      : `${arrow} ${Number.isFinite(changePct) ? Math.abs(changePct).toFixed(2) : '0.00'}%`;
+    const footerLead = payload && payload.kind === 'breadth'
+      ? `현재 스코어 ${Number.isFinite(Number(payload && payload.breadth_score)) ? Number(payload.breadth_score) : 0}`
+      : `${escapeHtml(String((payload && payload.reference_label) || '전일 종가'))} 대비 ${arrow} ${Math.abs(summary.referenceDeltaPct || 0).toFixed(2)}%`;
+    popover.innerHTML = `
+      <div class="index-hover-popover__header">
+        <div>
+          <div class="index-hover-popover__chip">${escapeHtml(theme.chipLabel)}</div>
+          <div class="index-hover-popover__title">${escapeHtml(String((payload && payload.name) || '지수'))}</div>
+          <div class="index-hover-popover__meta">${escapeHtml(sourceLabel)}</div>
+        </div>
+        <div class="index-hover-popover__value">
+          ${escapeHtml(valueText)}
+          <div class="index-hover-popover__change ${dir}">
+            ${escapeHtml(changeText)}
+          </div>
+        </div>
+      </div>
+      <div class="index-hover-popover__chart">
+        ${chartHtml || `<div class="index-hover-popover__state">차트 데이터가 부족합니다.</div>`}
+      </div>
+      ${renderIndexPopoverStats(payload, summary)}
+      <div class="index-hover-popover__footer">
+        <span>${footerLead}</span>
+        <span>${escapeHtml(String((payload && payload.ts) || ''))}</span>
+      </div>`;
+  }
+
+  async function fetchIndexHistory(indexKey) {
+    const key = String(indexKey || '').trim();
+    const cached = indexHistoryCache.get(key);
+    const now = Date.now();
+    if (cached && (now - cached.ts) < INDEX_HISTORY_CACHE_TTL_MS) {
+      return { ...cached.payload, cached: true };
+    }
+    const res = await fetch(`${BACKEND}/api/market-indices/history/${encodeURIComponent(key)}`);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.success) {
+      throw new Error(data.message || '지수 차트 조회 실패');
+    }
+    indexHistoryCache.set(key, { payload: data, ts: now });
+    return data;
+  }
+
+  function positionIndexHoverPopover(card) {
+    const popover = getIndexHoverPopover();
+    if (!popover || popover.hidden || !card) return;
+    const rect = card.getBoundingClientRect();
+    const margin = 12;
+    const popRect = popover.getBoundingClientRect();
+    let left = rect.right + margin;
+    if ((left + popRect.width) > (window.innerWidth - 8)) {
+      left = rect.left - popRect.width - margin;
+    }
+    if (left < 8) {
+      left = Math.max(8, window.innerWidth - popRect.width - 8);
+    }
+    let top = rect.top + (rect.height / 2) - (popRect.height / 2);
+    if (top < 8) top = 8;
+    if ((top + popRect.height) > (window.innerHeight - 8)) {
+      top = Math.max(8, window.innerHeight - popRect.height - 8);
+    }
+    popover.style.left = `${Math.round(left)}px`;
+    popover.style.top = `${Math.round(top)}px`;
+  }
+
+  async function openIndexHoverPopover(card) {
+    if (!card) return;
+    const key = String(card.dataset.indexKey || '').trim();
+    const name = String(card.dataset.indexName || '').trim() || '지수';
+    if (!key) return;
+    const popover = getIndexHoverPopover();
+    if (!popover) return;
+
+    clearIndexPopoverHideTimer();
+    if (activeIndexPopoverCard && activeIndexPopoverCard !== card) {
+      activeIndexPopoverCard.classList.remove('index-card--active');
+    }
+    activeIndexPopoverCard = card;
+    activeIndexPopoverKey = key;
+    card.classList.add('index-card--active');
+    card.setAttribute('aria-expanded', 'true');
+
+    renderIndexPopoverState(name, '5거래일 그래프를 불러오는 중...', key);
+    popover.hidden = false;
+    positionIndexHoverPopover(card);
+    const requestSeq = ++indexPopoverRequestSeq;
+    try {
+      const payload = await fetchIndexHistory(key);
+      if (requestSeq !== indexPopoverRequestSeq || activeIndexPopoverKey !== key) return;
+      renderIndexHoverPopover(payload);
+      popover.hidden = false;
+      positionIndexHoverPopover(card);
+    } catch (e) {
+      if (requestSeq !== indexPopoverRequestSeq || activeIndexPopoverKey !== key) return;
+      renderIndexPopoverState(name, e && e.message ? e.message : '지수 그래프를 불러오지 못했습니다.');
+      popover.hidden = false;
+      positionIndexHoverPopover(card);
+    }
+  }
+
+  function bindIndexPopoverGlobalHandlers() {
+    const popover = getIndexHoverPopover();
+    if (!popover || popover.dataset.bound === '1') return;
+    popover.dataset.bound = '1';
+    popover.tabIndex = -1;
+    popover.addEventListener('mouseenter', clearIndexPopoverHideTimer);
+    popover.addEventListener('mouseleave', () => {
+      if (!useIndexTapFallback()) scheduleIndexPopoverHide();
+    });
+    document.addEventListener('pointerdown', (event) => {
+      const target = event.target;
+      const pop = getIndexHoverPopover();
+      if (!pop || pop.hidden) return;
+      if (pop.contains(target)) return;
+      if (activeIndexPopoverCard && activeIndexPopoverCard.contains(target)) return;
+      closeIndexHoverPopover();
+    });
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') closeIndexHoverPopover();
+    });
+    window.addEventListener('resize', () => {
+      if (activeIndexPopoverCard && !popover.hidden) positionIndexHoverPopover(activeIndexPopoverCard);
+    });
+    window.addEventListener('scroll', () => {
+      if (activeIndexPopoverCard && !popover.hidden) positionIndexHoverPopover(activeIndexPopoverCard);
+    }, true);
+  }
+
+  function bindIndexCardHoverTargets() {
+    bindIndexPopoverGlobalHandlers();
+    document.querySelectorAll('#indicesGrid .index-card[data-index-key]').forEach((card) => {
+      if (card.dataset.bound === '1') return;
+      card.dataset.bound = '1';
+      card.addEventListener('mouseenter', () => {
+        if (!useIndexTapFallback()) openIndexHoverPopover(card);
+      });
+      card.addEventListener('mouseleave', (event) => {
+        if (useIndexTapFallback()) return;
+        const popover = getIndexHoverPopover();
+        const next = event.relatedTarget;
+        if (popover && next && popover.contains(next)) return;
+        scheduleIndexPopoverHide();
+      });
+      card.addEventListener('focus', () => {
+        if (!useIndexTapFallback()) openIndexHoverPopover(card);
+      });
+      card.addEventListener('blur', (event) => {
+        if (useIndexTapFallback()) return;
+        const popover = getIndexHoverPopover();
+        const next = event.relatedTarget;
+        if (popover && next && popover.contains(next)) return;
+        scheduleIndexPopoverHide();
+      });
+      card.addEventListener('click', (event) => {
+        if (!useIndexTapFallback()) return;
+        event.preventDefault();
+        event.stopPropagation();
+        if (!getIndexHoverPopover().hidden && activeIndexPopoverCard === card) {
+          closeIndexHoverPopover();
+          return;
+        }
+        openIndexHoverPopover(card);
+      });
+      card.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+          closeIndexHoverPopover();
+          return;
+        }
+        if ((event.key === 'Enter' || event.key === ' ') && useIndexTapFallback()) {
+          event.preventDefault();
+          if (!getIndexHoverPopover().hidden && activeIndexPopoverCard === card) {
+            closeIndexHoverPopover();
+          } else {
+            openIndexHoverPopover(card);
+          }
+        }
+      });
+    });
   }
 
   async function fetchMarketIndices() {
@@ -4568,26 +5657,17 @@
       dot.classList.remove('error');
       status.textContent = `${data.ts} 기준${data.cached ? ' (캐시)' : ''}`;
 
-      document.getElementById('indicesGrid').innerHTML = data.indices.map(idx => {
-        if (idx.error) {
-          return `
-            <div class="index-card">
-              <div class="index-name">${idx.name}</div>
-              <div class="index-value" style="color:var(--gray-400)">-</div>
-              <div class="index-change flat">조회 실패</div>
-            </div>`;
-        }
-        const dir    = idx.direction || 'flat';
-        const arrow  = dir === 'up' ? '▲' : (dir === 'down' ? '▼' : '-');
-        const sign   = dir === 'up' ? '+' : '';
-        return `
-          <div class="index-card ${dir}">
-            <div class="index-name">${idx.name}</div>
-            <div class="index-value">${idx.value.toLocaleString()}</div>
-            <div class="index-change ${dir}">${arrow} ${Math.abs(idx.change_pct).toFixed(2)}%</div>
-            <div class="index-sub">${sign}${idx.change_abs.toLocaleString()}</div>
-          </div>`;
-      }).join('');
+      const reopenKey = activeIndexPopoverKey;
+      const cards = Array.isArray(data.cards)
+        ? data.cards
+        : [...(Array.isArray(data.indices) ? data.indices : []), ...(Array.isArray(data.extras) ? data.extras : [])];
+      closeIndexHoverPopover();
+      document.getElementById('indicesGrid').innerHTML = cards.map(idx => indexCardHtml(idx, false)).join('');
+      bindIndexCardHoverTargets();
+      if (reopenKey) {
+        const reopenCard = document.querySelector(`#indicesGrid .index-card[data-index-key="${reopenKey}"]`);
+        if (reopenCard) openIndexHoverPopover(reopenCard);
+      }
     } catch (e) {
       dot.classList.add('error');
       status.textContent = '지수 연결 실패';
@@ -5066,6 +6146,8 @@
 
   async function loadChart(code, range) {
     const chartDiv = document.getElementById('stockChart');
+    const chartWrap = document.getElementById('stockChartWrap');
+    const ohlcLegend = document.getElementById('stockChartOhlcLegend');
     const skeleton = document.getElementById('chartSkeleton');
     const note     = document.getElementById('chartNote');
 
@@ -5075,7 +6157,12 @@
     chartFetchAbort = new AbortController();
     const { signal } = chartFetchAbort;
 
-    chartDiv.style.display  = 'none';
+    if (chartWrap) chartWrap.style.display = 'none';
+    if (ohlcLegend) {
+      ohlcLegend.hidden = true;
+      ohlcLegend.innerHTML = '';
+    }
+    chartDiv.style.display  = '';
     note.style.display      = 'none';
     skeleton.style.display  = '';
 
@@ -5094,9 +6181,11 @@
       if (!data.success || !data.candles || data.candles.length === 0) {
         note.textContent   = '차트 데이터를 불러올 수 없습니다.';
         note.style.display = '';
+        if (chartWrap) chartWrap.style.display = 'none';
         return;
       }
 
+      if (chartWrap) chartWrap.style.display = '';
       chartDiv.style.display = '';
       renderChart(data.candles, data.ma5 || [], data.ma20 || [], data.intraday);
     } catch (e) {
@@ -5106,11 +6195,77 @@
       skeleton.style.display = 'none';
       note.textContent   = '차트 로드 중 오류가 발생했습니다.';
       note.style.display = '';
+      const chartWrapErr = document.getElementById('stockChartWrap');
+      if (chartWrapErr) chartWrapErr.style.display = 'none';
     }
+  }
+
+  function formatChartCrosshairTime(time, intraday) {
+    if (time == null || time === undefined) return '';
+    if (typeof time === 'object' && time !== null && 'year' in time && 'month' in time && 'day' in time) {
+      const y = time.year;
+      const m = String(time.month).padStart(2, '0');
+      const d = String(time.day).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+    if (typeof time === 'number' && Number.isFinite(time)) {
+      const d = new Date(time * 1000);
+      if (intraday) {
+        return d.toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+      }
+      return d.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
+    }
+    const s = String(time);
+    return s.length ? s : '';
+  }
+
+  function candleBarFromSeriesData(seriesData, seriesApi) {
+    if (!seriesData || typeof seriesData.get !== 'function') return null;
+    const bar = seriesData.get(seriesApi);
+    if (!bar || typeof bar !== 'object') return null;
+    const o = Number(bar.open);
+    const h = Number(bar.high);
+    const l = Number(bar.low);
+    const c = Number(bar.close);
+    if (![o, h, l, c].every((x) => Number.isFinite(x))) return null;
+    return { open: o, high: h, low: l, close: c };
+  }
+
+  function bindStockChartOhlcLegend(chart, candleSeries, intraday) {
+    const legend = document.getElementById('stockChartOhlcLegend');
+    if (!legend || !chart || !candleSeries) return;
+    chart.subscribeCrosshairMove((param) => {
+      const map =
+        param.seriesData && typeof param.seriesData.get === 'function'
+          ? param.seriesData
+          : param.seriesPrices && typeof param.seriesPrices.get === 'function'
+            ? param.seriesPrices
+            : null;
+      const bar = map ? candleBarFromSeriesData(map, candleSeries) : null;
+      if (!bar || param.time == null) {
+        legend.hidden = true;
+        return;
+      }
+      legend.hidden = false;
+      const t = formatChartCrosshairTime(param.time, intraday);
+      legend.innerHTML =
+        '<div class="chart-ohlc-hover-time">' + escapeHtml(t) + '</div>' +
+        '<div class="chart-ohlc-hover-grid">' +
+        '<span><b>시</b> ' + escapeHtml(formatCurrency(bar.open)) + '</span>' +
+        '<span><b>고</b> ' + escapeHtml(formatCurrency(bar.high)) + '</span>' +
+        '<span><b>저</b> ' + escapeHtml(formatCurrency(bar.low)) + '</span>' +
+        '<span><b>종</b> ' + escapeHtml(formatCurrency(bar.close)) + '</span>' +
+        '</div>';
+    });
   }
 
   function renderChart(candles, ma5, ma20, intraday) {
     const container = document.getElementById('stockChart');
+    const ohlcLegendPre = document.getElementById('stockChartOhlcLegend');
+    if (ohlcLegendPre) {
+      ohlcLegendPre.hidden = true;
+      ohlcLegendPre.innerHTML = '';
+    }
 
     if (stockChartInstance) {
       stockChartInstance.remove();
@@ -5169,6 +6324,8 @@
     }
 
     stockChartInstance.timeScale().fitContent();
+
+    bindStockChartOhlcLegend(stockChartInstance, candleSeries, !!intraday);
 
     new ResizeObserver(() => {
       if (stockChartInstance) {

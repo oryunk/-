@@ -332,6 +332,8 @@
     <li><a href="guide.html">가이드</a></li>
     <li><a href="analysis.html">AI 분석 <span class="nav-badge">AI</span></a></li>
     <li><a href="ai-chart-prediction.html" class="active">AI 차트 예측 <span class="nav-badge">AI</span></a></li>
+    <li><a href="market-products.html?topic=elw">ELW</a></li>
+    <li><a href="market-products.html?topic=bonds">채권</a></li>
     <li><a href="glossary.html">용어 검색</a></li>
     <li><a class="jurin-simulation-link" href="http://127.0.0.1:5000/simulation.html">모의 투자</a></li>
     <li><a href="market.html">시장</a></li>
@@ -445,10 +447,16 @@
     const cur = Number(lastY);
     if (!Number.isFinite(cur) || cur <= 0) return cur;
     if (!Number.isFinite(target) || target <= 0) target = cur;
+    if (opinion === '약세') target = Math.min(target, cur * 0.985);
+    else if (opinion === '강력매수') target = Math.max(target, cur * 1.04);
+    else if (opinion === '매수') target = Math.max(target, cur * 1.015);
+    else target = Math.min(Math.max(target, cur * 0.99), cur * 1.01);
+
     if (Math.abs(target - cur) < cur * 0.002) {
-      if (opinion === '약세') target = cur * 0.97;
-      else if (opinion === '강력매수' || opinion === '매수') target = cur * 1.03;
-      else target = cur * 1.005;
+      if (opinion === '약세') target = cur * 0.985;
+      else if (opinion === '강력매수') target = cur * 1.04;
+      else if (opinion === '매수') target = cur * 1.015;
+      else target = cur;
     }
     return target;
   }
@@ -488,7 +496,14 @@
     if (opinion === '강력매수') return 0.0009;
     if (opinion === '매수') return 0.00045;
     if (opinion === '약세') return -0.0007;
-    return 0.00005;
+    return 0;
+  }
+
+  function normalizeForecastDrift(rawDrift, opinion) {
+    if (opinion === '강력매수') return Math.max(rawDrift, 0.00045);
+    if (opinion === '매수') return Math.max(rawDrift, 0.00018);
+    if (opinion === '약세') return Math.min(rawDrift, -0.00018);
+    return Math.max(-0.00008, Math.min(0.00008, rawDrift));
   }
 
   function buildForecastScenario(closes, lastY, targetY, steps, opinion, newsSentimentScore) {
@@ -504,7 +519,8 @@
     const histVol = Math.max(0.0015, stddev(rets.slice(-60)));
     const targetDrift = Math.log(Math.max(targetY, 1) / Math.max(lastY, 1)) / Math.max(steps, 1);
     const sentiment = Number.isFinite(Number(newsSentimentScore)) ? Number(newsSentimentScore) : 0;
-    const drift = targetDrift * 0.78 + opinionDriftBias(opinion) + sentiment * 0.00065;
+    const rawDrift = targetDrift * 0.82 + opinionDriftBias(opinion) + sentiment * 0.00025;
+    const drift = normalizeForecastDrift(rawDrift, opinion);
     const sigma = histVol * (0.9 + Math.min(0.25, Math.abs(sentiment) * 0.2));
 
     const pathCount = 180;
