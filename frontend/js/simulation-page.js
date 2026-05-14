@@ -216,10 +216,23 @@
     setText('#simHoldingTabChart', '차트');
     setText('#simHoldingTabInfo', '종목정보');
     setText('#simHoldingTabHistory', '거래내역');
-    setText('#simHoldingTabOrder', '주문');
-    setText('#simHoldingTabOptions', '옵션');
+    setText('#simHoldingTabOrder', '시세');
+    setText('#simHoldingTabOptions', 'AI 의견');
+    setText('#simHoldingOptionsAiTitle', '종목 AI 의견');
+    var oSk = document.getElementById('simHoldingOptionsAiSkeleton');
+    if (oSk) oSk.textContent = '종목 의견 불러오는 중…';
+    setText(
+      '#simHoldingOptionsAiDisclaimer',
+      'AI가 생성한 종목 참고용 요약이며, 투자 조언이나 매매 권유가 아닙니다.'
+    );
     setText('#simHoldingStockHistoryTitle', '거래내역');
-    setText('#simHoldingOrderPrimaryBtn', '주문');
+    var qSk = document.getElementById('simHoldingQuoteSkeleton');
+    if (qSk) qSk.textContent = '시세 불러오는 중…';
+    setText('#simHoldingQuoteLblHigh', '고가');
+    setText('#simHoldingQuoteLblLow', '저가');
+    setText('#simHoldingQuoteExecLabel', '체결강도');
+    setText('#simHoldingQuoteLblVolume', '거래량');
+    setText('#simHoldingQuoteLblTradedVal', '거래대금');
     setText('.sim-holding-metric-btn[data-sim-metric="per"]', 'PER');
     setText('.sim-holding-metric-btn[data-sim-metric="pbr"]', 'PBR');
     setText('.sim-holding-metric-btn[data-sim-metric="psr"]', 'PSR');
@@ -1000,6 +1013,79 @@
       .replace(/"/g, '&quot;');
   }
 
+  /** analysis.html 의 요약 강조와 동일: 마크다운 래퍼 제거 후 문장별 important-line */
+  function normalizeSimAiDisplayText(raw) {
+    var s = String(raw || '')
+      .replace(/\r\n/g, '\n')
+      .replace(/^\s+/gm, '')
+      .trim();
+    var i;
+    for (i = 0; i < 4; i += 1) {
+      if (s.length >= 6 && s.slice(0, 3) === '"""' && s.slice(-3) === '"""') {
+        s = s.slice(3, -3).trim();
+        continue;
+      }
+      if (s.length >= 6 && s.slice(0, 3) === "'''" && s.slice(-3) === "'''") {
+        s = s.slice(3, -3).trim();
+        continue;
+      }
+      break;
+    }
+    s = s.replace(/^```(?:\w+)?\s*/i, '').replace(/```$/i, '').trim();
+    return s.replace(/\n{3,}/g, '\n\n').trim();
+  }
+
+  function escapeHtmlForSimAiSummary(text) {
+    if (text == null) return '';
+    return String(text)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function renderSimHoldingImportantSummaryHtml(raw) {
+    var text = normalizeSimAiDisplayText(raw);
+    if (!text) return '';
+    var brushClass = ['brush-1', 'brush-2', 'brush-3', 'brush-4'];
+    var keywordPattern = /(매수|보유|약세|강세|목표가|리스크|위험|변동성|상승|하락|추세|저항|지지|실적|수급|거래량|현재가|%|원)/;
+    var sentenceRegex = /[^.!?\n]+(?:[.!?…]+|$)/g;
+    var lines = text.split('\n').map(function (line) {
+      var rawSents = line.match(sentenceRegex) || [line];
+      var sentences = rawSents
+        .map(function (st) {
+          return st.trim();
+        })
+        .filter(Boolean);
+      if (!sentences.length) return '';
+      var pickCount = Math.min(3, Math.max(1, Math.round(sentences.length / 3)));
+      var ranked = sentences.map(function (sentence, idx) {
+        var score = 0;
+        if (keywordPattern.test(sentence)) score += 3;
+        if (/\d/.test(sentence)) score += 2;
+        if (sentence.length >= 24 && sentence.length <= 80) score += 1;
+        return { idx: idx, score: score, rand: Math.random() };
+      });
+      ranked.sort(function (a, b) {
+        return b.score - a.score || a.rand - b.rand;
+      });
+      var selected = {};
+      ranked.slice(0, pickCount).forEach(function (r) {
+        selected[r.idx] = true;
+      });
+      return sentences
+        .map(function (sentence, idx) {
+          var safe = escapeHtmlForSimAiSummary(sentence);
+          if (!selected[idx]) return safe;
+          var cls = brushClass[Math.floor(Math.random() * brushClass.length)];
+          return '<span class="important-line ' + cls + '">' + safe + '</span>';
+        })
+        .join(' ');
+    });
+    return lines.join('<br>');
+  }
+
   function bindStockLogosIn(container) {
     var J = window.JurinStockLogos;
     if (!J || !container || !container.querySelectorAll) return;
@@ -1130,8 +1216,16 @@
           }
         }
         var price = tr ? parseFloat(tr.getAttribute('data-price') || '0', 10) : 0;
+        var volOpt = null;
+        var tvOpt = null;
+        if (tr) {
+          var vpv = parseFloat(tr.getAttribute('data-volume') || '', 10);
+          var tpv = parseFloat(tr.getAttribute('data-traded-value') || '', 10);
+          if (Number.isFinite(vpv)) volOpt = vpv;
+          if (Number.isFinite(tpv)) tvOpt = tpv;
+        }
         applyQuoteToTrade(cd, price, name || cd);
-        openSimStockDetailFromDiscovery(cd, price, name || cd);
+        openSimStockDetailFromDiscovery(cd, price, name || cd, volOpt, tvOpt);
       });
     });
   }
@@ -1293,26 +1387,6 @@
     }
     var simDetailClose = document.getElementById('simHoldingDetailClose');
     if (simDetailClose) simDetailClose.addEventListener('click', closeSimHoldingDetailSheet);
-    var simOrderPrimary = document.getElementById('simHoldingOrderPrimaryBtn');
-    if (simOrderPrimary) {
-      simOrderPrimary.addEventListener('click', function () {
-        var st = simHoldingDetailState;
-        if (st && st.key) {
-          openSellModalFromHoldingKey(st.key);
-          return;
-        }
-        var c = st.code != null ? String(st.code).trim() : '';
-        if (isSixDigitCode(c)) {
-          applyQuoteToTrade(c, Number(st.quotePrice) || 0, st.name);
-        }
-        var trSec = document.getElementById('trading-section');
-        if (trSec) {
-          try {
-            trSec.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          } catch (_) { /* ignore */ }
-        }
-      });
-    }
     initSimHistoryPanelResizer();
     document.querySelectorAll('.sim-holding-range-btn').forEach(function (btn) {
       btn.addEventListener('click', function () {
@@ -1432,8 +1506,18 @@
           name = enc;
         }
         var price = parseFloat(tr.getAttribute('data-price') || '0', 10);
+        var volAttr = tr.getAttribute('data-volume');
+        var tvAttr = tr.getAttribute('data-traded-value');
+        var volPre = volAttr != null && volAttr !== '' ? parseFloat(volAttr, 10) : NaN;
+        var tvPre = tvAttr != null && tvAttr !== '' ? parseFloat(tvAttr, 10) : NaN;
         applyQuoteToTrade(code, price, name);
-        openSimStockDetailFromDiscovery(code, price, name);
+        openSimStockDetailFromDiscovery(
+          code,
+          price,
+          name,
+          Number.isFinite(volPre) ? volPre : null,
+          Number.isFinite(tvPre) ? tvPre : null
+        );
       });
     }
     var rankSearch = document.getElementById('marketRankSearchInput');
@@ -1459,15 +1543,29 @@
       rankSearch.dataset.stockSuggestAc = '1';
       JurinStockAutocomplete.attachStock(rankSearch, {
         compact: true,
-        onSelect: function () {
-          loadTradedValueBoard({ silent: false });
+        onSelect: function (item) {
+          var q = item && (item.code || item.name) ? String(item.code || item.name).trim() : '';
+          loadTradedValueBoard({ silent: false, q: q });
         },
       });
     }
     var tradeStockEl = document.getElementById('tradeStock');
     if (tradeStockEl && !tradeStockEl.dataset.stockAcBound && typeof JurinStockAutocomplete !== 'undefined') {
       tradeStockEl.dataset.stockAcBound = '1';
-      JurinStockAutocomplete.attachStock(tradeStockEl, {});
+      JurinStockAutocomplete.attachStock(tradeStockEl, {
+        onSelect: function (item) {
+          var codeHidden = document.getElementById('tradeStockCode');
+          var code = item && item.code ? String(item.code).trim() : '';
+          var name = item && (item.name || item.code) ? String(item.name || item.code).trim() : '';
+          if (tradeStockEl) tradeStockEl.value = name || code;
+          if (codeHidden) codeHidden.value = /^\d{6}$/.test(code) ? code : '';
+          updateTradeTickHint();
+          if (/^\d{6}$/.test(code)) {
+            tryRefreshBuyDisplayPriceAsync();
+            loadOrderbookPanel(code);
+          }
+        },
+      });
     }
     document.addEventListener('keydown', function (e) {
       if (e.key !== 'Escape') return;
@@ -1526,7 +1624,7 @@
     }
 
     try {
-      var rankUrl = `${simApiBase()}/api/mock/traded-value-rank?limit=30`;
+      var rankUrl = `${simApiBase()}/api/mock/traded-value-rank?limit=100`;
       if (q) rankUrl += '&q=' + encodeURIComponent(q);
       const res = await fetch(rankUrl);
       const data = await res.json().catch(() => ({}));
@@ -1552,7 +1650,7 @@
           escapeHtml(codeStr) +
           '</div>';
         return `
-          <tr class="discovery-row" data-code="${escapeHtmlAttr(codeStr)}" data-name="${encodeURIComponent(nameStr)}" data-price="${Number(item.price || 0)}">
+          <tr class="discovery-row" data-code="${escapeHtmlAttr(codeStr)}" data-name="${encodeURIComponent(nameStr)}" data-price="${Number(item.price || 0)}" data-volume="${Number(item.volume || 0)}" data-traded-value="${Number(item.traded_value || 0)}">
             <td>${idx + 1}</td>
             <td>${nameCell}</td>
             <td>${formatCurrency(Number(item.price || 0))}</td>
@@ -2730,7 +2828,17 @@
     openSellModalFromHoldingKey(key);
   };
 
-  var simHoldingDetailState = { key: '', code: '', name: '', range: '1d', quotePrice: 0 };
+  var simHoldingDetailState = {
+    key: '',
+    code: '',
+    name: '',
+    range: '1d',
+    quotePrice: 0,
+    quoteVolume: null,
+    quoteTradedValue: null,
+    optionsAiLoadedCode: '',
+    optionsAiText: '',
+  };
   var simHoldingChartInstance = null;
   var simHoldingChartFetchAbort = null;
   var simHoldingChartResizeObs = null;
@@ -2742,6 +2850,8 @@
   var SIM_STOCK_DETAIL_TTL_MS = 120000;
   var simHoldingInfoLastDetail = null;
   var simHoldingInfoFetchAbort = null;
+  var simHoldingQuoteFetchAbort = null;
+  var simHoldingOptionsFetchAbort = null;
   var _simHistoryLayoutHooksBound = false;
 
   function disconnectSimHoldingChartResize() {
@@ -2755,6 +2865,11 @@
 
   function destroySimHoldingChart() {
     disconnectSimHoldingChartResize();
+    var leg = document.getElementById('simHoldingChartOhlcLegend');
+    if (leg) {
+      leg.hidden = true;
+      leg.innerHTML = '';
+    }
     if (simHoldingChartInstance) {
       try {
         simHoldingChartInstance.remove();
@@ -3051,10 +3166,477 @@
       });
   }
 
+  function clearSimHoldingQuoteExtras() {
+    var exec = document.getElementById('simHoldingQuoteExec');
+    var disc = document.getElementById('simHoldingQuoteDisclaimer');
+    if (exec) {
+      exec.hidden = true;
+      exec.classList.remove(
+        'sim-holding-quote-exec--sell',
+        'sim-holding-quote-exec--buy',
+        'sim-holding-quote-exec--neutral',
+        'sim-holding-quote-exec--high',
+        'sim-holding-quote-exec--mid',
+        'sim-holding-quote-exec--low',
+      );
+    }
+    if (disc) {
+      disc.hidden = true;
+      disc.textContent = '';
+    }
+    var hi = document.getElementById('simHoldingQuoteDayHigh');
+    var lo = document.getElementById('simHoldingQuoteDayLow');
+    if (hi) hi.textContent = '—';
+    if (lo) lo.textContent = '—';
+    var pctEl = document.getElementById('simHoldingQuoteExecPct');
+    var capEl = document.getElementById('simHoldingQuoteExecCaption');
+    if (pctEl) pctEl.textContent = '—';
+    if (capEl) capEl.textContent = '';
+    var volSide = document.getElementById('simHoldingQuoteVolSide');
+    if (volSide) {
+      volSide.textContent = '';
+      volSide.hidden = true;
+      volSide.classList.remove(
+        'sim-holding-quote-stat-side--up',
+        'sim-holding-quote-stat-side--down',
+        'sim-holding-quote-stat-side--flat',
+      );
+    }
+    var rankSide = document.getElementById('simHoldingQuoteRankSide');
+    if (rankSide) {
+      rankSide.innerHTML = '';
+      rankSide.hidden = true;
+    }
+  }
+
+  function applySimHoldingQuoteFromDetail(data) {
+    if (!data || !data.success) return;
+    var dh = document.getElementById('simHoldingQuoteDayHigh');
+    var dl = document.getElementById('simHoldingQuoteDayLow');
+    var dhi = Number(data.day_high);
+    var dlo = Number(data.day_low);
+    if (dh) dh.textContent = Number.isFinite(dhi) && dhi > 0 ? formatCurrency(dhi) : '—';
+    if (dl) dl.textContent = Number.isFinite(dlo) && dlo > 0 ? formatCurrency(dlo) : '—';
+
+    var exec = document.getElementById('simHoldingQuoteExec');
+    var pctEl = document.getElementById('simHoldingQuoteExecPct');
+    var capEl = document.getElementById('simHoldingQuoteExecCaption');
+    var disc = document.getElementById('simHoldingQuoteDisclaimer');
+    var ep = Number(data.exec_strength_pct);
+    if (exec) {
+      exec.hidden = false;
+      exec.classList.remove(
+        'sim-holding-quote-exec--sell',
+        'sim-holding-quote-exec--buy',
+        'sim-holding-quote-exec--neutral',
+        'sim-holding-quote-exec--high',
+        'sim-holding-quote-exec--mid',
+        'sim-holding-quote-exec--low',
+      );
+      if (Number.isFinite(ep)) {
+        if (ep >= 70) exec.classList.add('sim-holding-quote-exec--high');
+        else if (ep >= 45) exec.classList.add('sim-holding-quote-exec--mid');
+        else exec.classList.add('sim-holding-quote-exec--low');
+      } else {
+        exec.classList.add('sim-holding-quote-exec--mid');
+      }
+    }
+    if (pctEl) pctEl.textContent = Number.isFinite(ep) ? String(Math.round(ep)) + '%' : '—';
+    if (capEl) capEl.textContent = data.exec_strength_caption != null ? String(data.exec_strength_caption) : '';
+    if (disc) {
+      var dq = data.disclaimer != null ? String(data.disclaimer).trim() : '';
+      if (dq) {
+        disc.textContent = dq;
+        disc.hidden = false;
+      } else {
+        disc.textContent = '';
+        disc.hidden = true;
+      }
+    }
+
+    var volSide = document.getElementById('simHoldingQuoteVolSide');
+    if (volSide) {
+      var ratioVol = data.volume_vs_prev_ratio;
+      var rv = ratioVol != null ? Number(ratioVol) : NaN;
+      volSide.classList.remove(
+        'sim-holding-quote-stat-side--up',
+        'sim-holding-quote-stat-side--down',
+        'sim-holding-quote-stat-side--flat',
+      );
+      if (Number.isFinite(rv) && rv >= 0) {
+        var chg = (rv - 1) * 100;
+        var sign = chg > 0 ? '+' : '';
+        volSide.textContent = '전일대비 ' + sign + chg.toFixed(0) + '%';
+        volSide.hidden = false;
+        if (chg > 0) volSide.classList.add('sim-holding-quote-stat-side--up');
+        else if (chg < 0) volSide.classList.add('sim-holding-quote-stat-side--down');
+        else volSide.classList.add('sim-holding-quote-stat-side--flat');
+      } else {
+        volSide.textContent = '';
+        volSide.hidden = true;
+      }
+    }
+
+    var rankSide = document.getElementById('simHoldingQuoteRankSide');
+    if (rankSide) {
+      var ir = Number(data.traded_value_rank);
+      var it = Number(data.traded_value_rank_total);
+      if (Number.isFinite(ir) && ir > 0) {
+        rankSide.hidden = false;
+        var ri = Math.round(ir);
+        var numCls = 'sim-holding-quote-rank-num';
+        if (ri === 1) numCls += ' sim-holding-quote-rank-num--gold';
+        else if (ri === 2) numCls += ' sim-holding-quote-rank-num--silver';
+        else if (ri === 3) numCls += ' sim-holding-quote-rank-num--bronze';
+        var tail = '';
+        if (Number.isFinite(it) && it > 0) {
+          tail =
+            '<span class="sim-holding-quote-rank-sep">/</span><span class="sim-holding-quote-rank-total">' +
+            String(Math.round(it)) +
+            '</span>';
+        }
+        rankSide.innerHTML =
+          '<span class="' +
+          numCls +
+          '">' +
+          String(ri) +
+          '</span><span class="sim-holding-quote-rank-suffix">위</span>' +
+          tail;
+      } else {
+        rankSide.innerHTML = '';
+        rankSide.hidden = true;
+      }
+    }
+  }
+
+  function resetSimHoldingQuoteUi() {
+    if (simHoldingQuoteFetchAbort) {
+      try {
+        simHoldingQuoteFetchAbort.abort();
+      } catch (_) { /* ignore */ }
+      simHoldingQuoteFetchAbort = null;
+    }
+    var block = document.getElementById('simHoldingQuoteBlock');
+    var sk = document.getElementById('simHoldingQuoteSkeleton');
+    var note = document.getElementById('simHoldingQuoteNote');
+    var volEl = document.getElementById('simHoldingQuoteVolume');
+    var tvEl = document.getElementById('simHoldingQuoteTradedValue');
+    if (block) block.hidden = true;
+    if (sk) {
+      sk.style.display = 'none';
+      sk.textContent = '시세 불러오는 중…';
+    }
+    if (note) {
+      note.style.display = 'none';
+      note.textContent = '';
+    }
+    if (volEl) volEl.textContent = '—';
+    if (tvEl) tvEl.textContent = '—';
+    clearSimHoldingQuoteExtras();
+  }
+
+  function loadSimHoldingQuoteIfNeeded() {
+    if (simHoldingSheetTab !== 'order') return;
+    var st = simHoldingDetailState;
+    var rawCode = st.code != null ? String(st.code).trim() : '';
+    var chartCode = /^\d{6}$/.test(rawCode) ? rawCode : isSixDigitCode(st.key) ? String(st.key).trim() : '';
+
+    function showQuoteStats(vol, tv) {
+      var block = document.getElementById('simHoldingQuoteBlock');
+      var sk = document.getElementById('simHoldingQuoteSkeleton');
+      var note = document.getElementById('simHoldingQuoteNote');
+      var volEl = document.getElementById('simHoldingQuoteVolume');
+      var tvEl = document.getElementById('simHoldingQuoteTradedValue');
+      if (note) {
+        note.style.display = 'none';
+        note.textContent = '';
+      }
+      if (sk) sk.style.display = 'none';
+      if (block) block.hidden = false;
+      if (volEl) volEl.textContent = formatLargeNumber(Number(vol) || 0);
+      if (tvEl) tvEl.textContent = formatLargeCurrency(Number(tv) || 0);
+      var volSide2 = document.getElementById('simHoldingQuoteVolSide');
+      var rankSide2 = document.getElementById('simHoldingQuoteRankSide');
+      if (volSide2) {
+        volSide2.textContent = '';
+        volSide2.hidden = true;
+        volSide2.classList.remove(
+          'sim-holding-quote-stat-side--up',
+          'sim-holding-quote-stat-side--down',
+          'sim-holding-quote-stat-side--flat',
+        );
+      }
+      if (rankSide2) {
+        rankSide2.innerHTML = '';
+        rankSide2.hidden = true;
+      }
+    }
+
+    function showQuoteError(msg) {
+      var block = document.getElementById('simHoldingQuoteBlock');
+      var sk = document.getElementById('simHoldingQuoteSkeleton');
+      var note = document.getElementById('simHoldingQuoteNote');
+      if (block) block.hidden = true;
+      if (sk) sk.style.display = 'none';
+      clearSimHoldingQuoteExtras();
+      if (note) {
+        note.style.display = '';
+        note.textContent = msg || '';
+      }
+    }
+
+    function fetchRankFallback() {
+      clearSimHoldingQuoteExtras();
+      return fetch(
+        simApiBase() + '/api/mock/traded-value-rank?limit=50&q=' + encodeURIComponent(chartCode),
+        { signal: signal },
+      )
+        .then(function (res) {
+          return res.json().catch(function () {
+            return {};
+          });
+        })
+        .then(function (data) {
+          if (simHoldingSheetTab !== 'order') return;
+          if (signal.aborted) return;
+          if (!data.success || !Array.isArray(data.items)) {
+            if (!hasPreview) {
+              showQuoteError(data.message || '시세 조회 실패');
+            }
+            return;
+          }
+          var match = null;
+          for (var i = 0; i < data.items.length; i++) {
+            if (String(data.items[i].code || '').trim() === chartCode) {
+              match = data.items[i];
+              break;
+            }
+          }
+          if (!match) {
+            if (!hasPreview) {
+              showQuoteError('시세 정보를 찾지 못했습니다.');
+            }
+            return;
+          }
+          var v = Number(match.volume || 0);
+          var tv = Number(match.traded_value || 0);
+          st.quoteVolume = v;
+          st.quoteTradedValue = tv;
+          showQuoteStats(v, tv);
+        })
+        .catch(function () {
+          if (!hasPreview) {
+            showQuoteError('시세를 불러오지 못했습니다.');
+          }
+        });
+    }
+
+    if (!chartCode) {
+      showQuoteError('6자리 종목 코드가 없어 시세를 불러올 수 없습니다.');
+      return;
+    }
+
+    var volPre = Number(st.quoteVolume);
+    var tvPre = Number(st.quoteTradedValue);
+    var hasPreview = Number.isFinite(volPre) && Number.isFinite(tvPre);
+    if (hasPreview) {
+      showQuoteStats(volPre, tvPre);
+    } else {
+      var block0 = document.getElementById('simHoldingQuoteBlock');
+      var sk0 = document.getElementById('simHoldingQuoteSkeleton');
+      var note0 = document.getElementById('simHoldingQuoteNote');
+      if (block0) block0.hidden = true;
+      if (note0) {
+        note0.style.display = 'none';
+        note0.textContent = '';
+      }
+      if (sk0) sk0.style.display = '';
+    }
+
+    if (simHoldingQuoteFetchAbort) {
+      try {
+        simHoldingQuoteFetchAbort.abort();
+      } catch (_) { /* ignore */ }
+    }
+    var ac = new AbortController();
+    simHoldingQuoteFetchAbort = ac;
+    var signal = ac.signal;
+
+    fetch(simApiBase() + '/api/mock/sim-holding-quote-detail/' + encodeURIComponent(chartCode), {
+      signal: signal,
+    })
+      .then(function (res) {
+        return res.json().catch(function () {
+          return {};
+        });
+      })
+      .then(function (data) {
+        if (simHoldingSheetTab !== 'order') return;
+        if (signal.aborted) return;
+        if (data && data.success && data.code) {
+          var v = Number(data.volume || 0);
+          var tv = Number(data.traded_value || 0);
+          st.quoteVolume = v;
+          st.quoteTradedValue = tv;
+          showQuoteStats(v, tv);
+          applySimHoldingQuoteFromDetail(data);
+          return;
+        }
+        return fetchRankFallback();
+      })
+      .catch(function (e) {
+        if (e.name === 'AbortError') return undefined;
+        if (simHoldingSheetTab !== 'order') return undefined;
+        return fetchRankFallback();
+      })
+      .finally(function () {
+        if (simHoldingQuoteFetchAbort === ac) {
+          simHoldingQuoteFetchAbort = null;
+        }
+      });
+  }
+
+  function resetSimHoldingOptionsAiUi() {
+    if (simHoldingOptionsFetchAbort) {
+      try {
+        simHoldingOptionsFetchAbort.abort();
+      } catch (_) { /* ignore */ }
+      simHoldingOptionsFetchAbort = null;
+    }
+    simHoldingDetailState.optionsAiLoadedCode = '';
+    simHoldingDetailState.optionsAiText = '';
+    var sk = document.getElementById('simHoldingOptionsAiSkeleton');
+    var note = document.getElementById('simHoldingOptionsAiNote');
+    var tx = document.getElementById('simHoldingOptionsAiText');
+    if (sk) {
+      sk.style.display = 'none';
+      sk.textContent = '종목 의견 불러오는 중…';
+    }
+    if (note) {
+      note.style.display = 'none';
+      note.textContent = '';
+    }
+    if (tx) {
+      tx.textContent = '';
+      tx.innerHTML = '';
+      tx.hidden = true;
+    }
+  }
+
+  function loadSimHoldingOptionsAiIfNeeded() {
+    if (simHoldingSheetTab !== 'options') return;
+    var st = simHoldingDetailState;
+    var rawCode = st.code != null ? String(st.code).trim() : '';
+    var chartCode = /^\d{6}$/.test(rawCode) ? rawCode : isSixDigitCode(st.key) ? String(st.key).trim() : '';
+    var sk = document.getElementById('simHoldingOptionsAiSkeleton');
+    var note = document.getElementById('simHoldingOptionsAiNote');
+    var tx = document.getElementById('simHoldingOptionsAiText');
+
+    function showOptsAiError(msg) {
+      if (sk) sk.style.display = 'none';
+      if (tx) {
+        tx.textContent = '';
+        tx.innerHTML = '';
+        tx.hidden = true;
+      }
+      if (note) {
+        note.style.display = '';
+        note.textContent = msg || '';
+      }
+    }
+
+    function showOptsAiText(text) {
+      if (sk) sk.style.display = 'none';
+      if (note) {
+        note.style.display = 'none';
+        note.textContent = '';
+      }
+      if (tx) {
+        var html = renderSimHoldingImportantSummaryHtml(text);
+        tx.textContent = '';
+        tx.innerHTML = html;
+        tx.hidden = !html;
+      }
+    }
+
+    if (!chartCode) {
+      showOptsAiError('6자리 종목 코드가 없어 의견을 불러올 수 없습니다.');
+      return;
+    }
+
+    if (st.optionsAiLoadedCode === chartCode && String(st.optionsAiText || '').trim()) {
+      showOptsAiText(st.optionsAiText);
+      return;
+    }
+
+    if (simHoldingOptionsFetchAbort) {
+      try {
+        simHoldingOptionsFetchAbort.abort();
+      } catch (_) { /* ignore */ }
+    }
+    var ac = new AbortController();
+    simHoldingOptionsFetchAbort = ac;
+    var signal = ac.signal;
+
+    if (sk) sk.style.display = '';
+    if (note) {
+      note.style.display = 'none';
+      note.textContent = '';
+    }
+    if (tx) {
+      tx.textContent = '';
+      tx.innerHTML = '';
+      tx.hidden = true;
+    }
+
+    var dispName = st.name != null ? String(st.name).trim() : '';
+    fetch(simApiBase() + '/api/mock/sim-options-brief', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: chartCode, name: dispName }),
+      signal: signal,
+    })
+      .then(function (res) {
+        return res.json().catch(function () {
+          return {};
+        });
+      })
+      .then(function (data) {
+        if (simHoldingSheetTab !== 'options') return;
+        if (signal.aborted) return;
+        if (data && data.success && data.text) {
+          var t = String(data.text).trim();
+          st.optionsAiLoadedCode = chartCode;
+          st.optionsAiText = t;
+          showOptsAiText(t);
+          return;
+        }
+        showOptsAiError(
+          (data && data.message) || 'AI 의견을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.',
+        );
+      })
+      .catch(function (e) {
+        if (e.name === 'AbortError') return undefined;
+        if (simHoldingSheetTab !== 'options') return undefined;
+        showOptsAiError('AI 의견을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.');
+      })
+      .finally(function () {
+        if (simHoldingOptionsFetchAbort === ac) {
+          simHoldingOptionsFetchAbort = null;
+        }
+      });
+  }
+
   function setSimHoldingSheetTab(tab, silent) {
     var valid = { chart: 1, info: 1, history: 1, order: 1, options: 1 };
     var t = valid[tab] ? tab : 'chart';
     simHoldingSheetTab = t;
+    if (t !== 'options' && simHoldingOptionsFetchAbort) {
+      try {
+        simHoldingOptionsFetchAbort.abort();
+      } catch (_) { /* ignore */ }
+      simHoldingOptionsFetchAbort = null;
+    }
     document.querySelectorAll('.sim-holding-sheet-tab').forEach(function (btn) {
       var id = btn.getAttribute('data-sim-holding-tab');
       var on = id === t;
@@ -3083,6 +3665,10 @@
       requestAnimationFrame(triggerSimHoldingChartResize);
     } else if (t === 'info' && !silent) {
       loadSimHoldingStockDetailIfNeeded();
+    } else if (t === 'order' && !silent) {
+      loadSimHoldingQuoteIfNeeded();
+    } else if (t === 'options' && !silent) {
+      loadSimHoldingOptionsAiIfNeeded();
     }
     if (t !== 'info') {
       destroySimHoldingFundChart();
@@ -3119,6 +3705,8 @@
       } catch (_) { /* ignore */ }
       simHoldingInfoFetchAbort = null;
     }
+    resetSimHoldingQuoteUi();
+    resetSimHoldingOptionsAiUi();
     setSimHoldingSheetTab('chart', true);
   }
 
@@ -3235,19 +3823,50 @@
       } catch (_) { /* ignore */ }
       simHoldingInfoFetchAbort = null;
     }
+    if (simHoldingQuoteFetchAbort) {
+      try {
+        simHoldingQuoteFetchAbort.abort();
+      } catch (_) { /* ignore */ }
+      simHoldingQuoteFetchAbort = null;
+    }
+    if (simHoldingOptionsFetchAbort) {
+      try {
+        simHoldingOptionsFetchAbort.abort();
+      } catch (_) { /* ignore */ }
+      simHoldingOptionsFetchAbort = null;
+    }
     destroySimHoldingChart();
     destroySimHoldingFundChart();
     setSimHoldingSheetTab('chart', true);
     var sk = document.getElementById('simHoldingChartSkeleton');
     var note = document.getElementById('simHoldingChartNote');
     var cd = document.getElementById('simHoldingStockChart');
+    var wrap = document.getElementById('simHoldingChartWrap');
+    var ohlcLegend = document.getElementById('simHoldingChartOhlcLegend');
     if (sk) {
       sk.style.display = '';
       sk.textContent = '차트 불러오는 중…';
     }
     if (note) note.style.display = 'none';
-    if (cd) cd.style.display = 'none';
-    simHoldingDetailState = { key: '', code: '', name: '', range: '1d', quotePrice: 0 };
+    if (wrap) wrap.style.display = 'none';
+    if (ohlcLegend) {
+      ohlcLegend.hidden = true;
+      ohlcLegend.innerHTML = '';
+    }
+    if (cd) cd.style.display = '';
+    resetSimHoldingQuoteUi();
+    resetSimHoldingOptionsAiUi();
+    simHoldingDetailState = {
+      key: '',
+      code: '',
+      name: '',
+      range: '1d',
+      quotePrice: 0,
+      quoteVolume: null,
+      quoteTradedValue: null,
+      optionsAiLoadedCode: '',
+      optionsAiText: '',
+    };
     collapseSimStockHistoryPanel();
   }
 
@@ -3261,19 +3880,27 @@
     } catch (_) { /* ignore */ }
   }
 
-  function openSimStockDetailFromDiscovery(code, price, name) {
+  function openSimStockDetailFromDiscovery(code, price, name, volOpt, tvOpt) {
     var rawCode = code != null ? String(code).trim() : '';
     var chartCode = /^\d{6}$/.test(rawCode) ? rawCode : '';
     var dispName = name != null ? String(name).trim() : '';
     var showName = dispName || chartCode || rawCode || '—';
     var qPrice = Number(price);
     if (!Number.isFinite(qPrice)) qPrice = 0;
+    var qv =
+      volOpt != null && Number.isFinite(Number(volOpt)) ? Number(volOpt) : null;
+    var qtv =
+      tvOpt != null && Number.isFinite(Number(tvOpt)) ? Number(tvOpt) : null;
     simHoldingDetailState = {
       key: '',
       code: chartCode || rawCode,
       name: showName,
       range: '1d',
       quotePrice: qPrice,
+      quoteVolume: qv,
+      quoteTradedValue: qtv,
+      optionsAiLoadedCode: '',
+      optionsAiText: '',
     };
     resetSimHoldingDetailUi();
     var sheet = document.getElementById('simHoldingDetailSheet');
@@ -3326,6 +3953,10 @@
       name: name,
       range: '1d',
       quotePrice: Number(h.currentPrice) || 0,
+      quoteVolume: null,
+      quoteTradedValue: null,
+      optionsAiLoadedCode: '',
+      optionsAiText: '',
     };
     resetSimHoldingDetailUi();
     var sheet = document.getElementById('simHoldingDetailSheet');
@@ -3376,13 +4007,19 @@
 
   function loadSimHoldingChart(code, range) {
     var chartDiv = document.getElementById('simHoldingStockChart');
+    var chartWrap = document.getElementById('simHoldingChartWrap');
+    var ohlcLegend = document.getElementById('simHoldingChartOhlcLegend');
     var skeleton = document.getElementById('simHoldingChartSkeleton');
     var note = document.getElementById('simHoldingChartNote');
     if (!chartDiv || !skeleton || !note) return;
 
     if (!code) {
       skeleton.style.display = 'none';
-      chartDiv.style.display = 'none';
+      if (chartWrap) chartWrap.style.display = 'none';
+      if (ohlcLegend) {
+        ohlcLegend.hidden = true;
+        ohlcLegend.innerHTML = '';
+      }
       note.textContent = '종목 코드가 없어 차트를 불러올 수 없습니다.';
       note.style.display = '';
       destroySimHoldingChart();
@@ -3391,7 +4028,11 @@
 
     if (typeof LightweightCharts === 'undefined') {
       skeleton.style.display = 'none';
-      chartDiv.style.display = 'none';
+      if (chartWrap) chartWrap.style.display = 'none';
+      if (ohlcLegend) {
+        ohlcLegend.hidden = true;
+        ohlcLegend.innerHTML = '';
+      }
       note.textContent = '차트 라이브러리를 불러오지 못했습니다.';
       note.style.display = '';
       return;
@@ -3405,7 +4046,12 @@
     simHoldingChartFetchAbort = new AbortController();
     var signal = simHoldingChartFetchAbort.signal;
 
-    chartDiv.style.display = 'none';
+    if (chartWrap) chartWrap.style.display = 'none';
+    if (ohlcLegend) {
+      ohlcLegend.hidden = true;
+      ohlcLegend.innerHTML = '';
+    }
+    chartDiv.style.display = '';
     note.style.display = 'none';
     skeleton.style.display = '';
     destroySimHoldingChart();
@@ -3426,8 +4072,10 @@
         if (!data.success || !data.candles || data.candles.length === 0) {
           note.textContent = '차트 데이터를 불러올 수 없습니다.';
           note.style.display = '';
+          if (chartWrap) chartWrap.style.display = 'none';
           return;
         }
+        if (chartWrap) chartWrap.style.display = '';
         chartDiv.style.display = '';
         renderSimHoldingChart(data.candles, data.ma5 || [], data.ma20 || [], data.intraday);
       })
@@ -3436,7 +4084,68 @@
         skeleton.style.display = 'none';
         note.textContent = '차트 로드 중 오류가 발생했습니다.';
         note.style.display = '';
+        var wrapErr = document.getElementById('simHoldingChartWrap');
+        if (wrapErr) wrapErr.style.display = 'none';
       });
+  }
+
+  function formatChartCrosshairTimeSim(time, intraday) {
+    if (time == null || time === undefined) return '';
+    if (typeof time === 'object' && time !== null && 'year' in time && 'month' in time && 'day' in time) {
+      var y = time.year;
+      var mo = String(time.month).padStart(2, '0');
+      var da = String(time.day).padStart(2, '0');
+      return y + '-' + mo + '-' + da;
+    }
+    if (typeof time === 'number' && Number.isFinite(time)) {
+      var d = new Date(time * 1000);
+      if (intraday) {
+        return d.toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+      }
+      return d.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
+    }
+    var s = String(time);
+    return s.length ? s : '';
+  }
+
+  function candleBarFromSeriesDataSim(seriesData, seriesApi) {
+    if (!seriesData || typeof seriesData.get !== 'function') return null;
+    var bar = seriesData.get(seriesApi);
+    if (!bar || typeof bar !== 'object') return null;
+    var o = Number(bar.open);
+    var h = Number(bar.high);
+    var l = Number(bar.low);
+    var c = Number(bar.close);
+    if (![o, h, l, c].every(function (x) { return Number.isFinite(x); })) return null;
+    return { open: o, high: h, low: l, close: c };
+  }
+
+  function bindSimHoldingChartOhlcLegend(chart, candleSeries, intraday) {
+    var legend = document.getElementById('simHoldingChartOhlcLegend');
+    if (!legend || !chart || !candleSeries) return;
+    chart.subscribeCrosshairMove(function (param) {
+      var map =
+        param.seriesData && typeof param.seriesData.get === 'function'
+          ? param.seriesData
+          : param.seriesPrices && typeof param.seriesPrices.get === 'function'
+            ? param.seriesPrices
+            : null;
+      var bar = map ? candleBarFromSeriesDataSim(map, candleSeries) : null;
+      if (!bar || param.time == null) {
+        legend.hidden = true;
+        return;
+      }
+      legend.hidden = false;
+      var t = formatChartCrosshairTimeSim(param.time, intraday);
+      legend.innerHTML =
+        '<div class="chart-ohlc-hover-time">' + escapeHtml(t) + '</div>' +
+        '<div class="chart-ohlc-hover-grid">' +
+        '<span><b>시</b> ' + escapeHtml(formatCurrency(bar.open)) + '</span>' +
+        '<span><b>고</b> ' + escapeHtml(formatCurrency(bar.high)) + '</span>' +
+        '<span><b>저</b> ' + escapeHtml(formatCurrency(bar.low)) + '</span>' +
+        '<span><b>종</b> ' + escapeHtml(formatCurrency(bar.close)) + '</span>' +
+        '</div>';
+    });
   }
 
   function simHoldingChartPixelHeight(container) {
@@ -3509,6 +4218,8 @@
     }
 
     simHoldingChartInstance.timeScale().fitContent();
+
+    bindSimHoldingChartOhlcLegend(simHoldingChartInstance, candleSeries, !!intraday);
 
     disconnectSimHoldingChartResize();
     simHoldingChartResizeObs = new ResizeObserver(function () {
