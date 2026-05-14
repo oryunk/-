@@ -12,6 +12,21 @@ def mock_traded_value_rank():
     return app_module.serve_mock_traded_value_rank()
 
 
+@mock_trading_bp.route("/api/mock/sim-holding-quote-detail/<code>", methods=["GET"])
+def mock_sim_holding_quote_detail(code):
+    import app as app_module
+
+    return app_module.serve_mock_sim_holding_quote_detail(code)
+
+
+@mock_trading_bp.route("/api/mock/sim-options-brief", methods=["POST"])
+def mock_sim_options_brief():
+    """모의투자 종목 상세 탭용 짧은 종목 AI 의견(JSON brief)."""
+    import app as app_module
+
+    return app_module.serve_mock_sim_options_ai_brief()
+
+
 @mock_trading_bp.route("/api/mock/asking-price/<code>", methods=["GET"])
 def mock_asking_price(code):
     import app as app_module

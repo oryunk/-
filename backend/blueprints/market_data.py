@@ -18,6 +18,13 @@ def market_indices():
     return app_module.serve_market_indices()
 
 
+@market_data_bp.route("/api/market-indices/history/<index_key>", methods=["GET"])
+def market_index_history(index_key):
+    import app as app_module
+
+    return app_module.serve_market_index_history(index_key)
+
+
 @market_data_bp.route("/api/fx-usd-krw", methods=["GET"])
 def fx_usd_krw():
     import app as app_module
