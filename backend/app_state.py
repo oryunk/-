@@ -169,20 +169,22 @@ LOCAL_TERM_FALLBACK = {
         '포트폴리오는 내가 가진 투자 자산의 조합이에요. 한 종목에 몰지 않고 나눠 담으면 리스크를 줄이는 데 도움이 됩니다.'
     ),
 }
-_INDEX_YF_TICKERS = {
-    'KOSPI': '^KS11',
-    'KOSDAQ': '^KQ11',
-    'KOSPI 200': '^KS200',
-}
-_KIS_INDEX_ROWS_FIXED = [
-    ('KOSPI', '0001'),
-    ('KOSDAQ', '1001'),
-    ('KOSPI 200', '2001'),
+_INDEX_ROWS = [
+    {'key': 'kospi', 'name': 'KOSPI', 'kis_code': '0001', 'yf_ticker': '^KS11'},
+    {'key': 'kosdaq', 'name': 'KOSDAQ', 'kis_code': '1001', 'yf_ticker': '^KQ11'},
+    {'key': 'kospi200', 'name': 'KOSPI 200', 'kis_code': '2001', 'yf_ticker': '^KS200'},
 ]
+_INDEX_NAME_TO_KEY = {row['name']: row['key'] for row in _INDEX_ROWS}
+_INDEX_KEY_TO_NAME = {row['key']: row['name'] for row in _INDEX_ROWS}
+_INDEX_KEY_TO_YF_TICKER = {row['key']: row['yf_ticker'] for row in _INDEX_ROWS}
+_INDEX_YF_TICKERS = {row['name']: row['yf_ticker'] for row in _INDEX_ROWS}
+_KIS_INDEX_ROWS_FIXED = [(row['name'], row['kis_code']) for row in _INDEX_ROWS]
 _KIS_INDEX_TR = os.getenv('KIS_INDEX_TR_ID', 'FHPUP02100000')
 _KIS_INDEX_TR_FB = os.getenv('KIS_INDEX_TR_ID_MOCK', 'VFPUP02100000')
 _INDEX_CACHE = {'data': [], 'ts': 0.0}
 _INDEX_CACHE_TTL = int(os.getenv('MARKET_INDICES_CACHE_TTL_SEC', '15'))
+_INDEX_HISTORY_CACHE = {}
+_INDEX_HISTORY_TTL = float(os.getenv('MARKET_INDEX_HISTORY_CACHE_TTL_SEC', '60'))
 
 _FX_USD_KRW_CACHE = {'payload': None, 'ts': 0.0}
 _FX_USD_KRW_TTL = float(os.getenv('FX_USD_KRW_CACHE_TTL_SEC', '30'))
@@ -208,7 +210,7 @@ _KIS_ASKING_GAP_LOCK = threading.Lock()
 _KIS_ASKING_LAST_CALL = 0.0
 _KIS_ASKING_MIN_GAP = float(os.getenv('KIS_ASKING_MIN_GAP_SEC', '1.0'))
 _KIS_ASKING_SECOND_TR_GAP = float(os.getenv('KIS_ASKING_SECOND_TR_GAP_SEC', '1.15'))
-_WEB_PRICE_MAX_COUNT = int(os.getenv('LIVE_PRICE_MAX_COUNT', '50'))
+_WEB_PRICE_MAX_COUNT = int(os.getenv('LIVE_PRICE_MAX_COUNT', '100'))
 _WEB_REQUEST_GAP_SEC = float(os.getenv('LIVE_PRICE_REQUEST_GAP_SEC', '0.35'))
 _WEB_REFRESH_BATCH_SIZE = int(os.getenv('LIVE_PRICE_REFRESH_BATCH_SIZE', '10'))
 _WEB_WARMUP_BATCH_SIZE = int(os.getenv('LIVE_PRICE_WARMUP_BATCH_SIZE', '20'))

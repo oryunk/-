@@ -67,6 +67,11 @@ from app_state import (
     _FX_USD_KRW_TTL,
     _INDEX_CACHE,
     _INDEX_CACHE_TTL,
+    _INDEX_HISTORY_CACHE,
+    _INDEX_HISTORY_TTL,
+    _INDEX_KEY_TO_NAME,
+    _INDEX_KEY_TO_YF_TICKER,
+    _INDEX_NAME_TO_KEY,
     _INDEX_YF_TICKERS,
     _INVESTOR_FLOW_CACHE,
     _INVESTOR_FLOW_CACHE_TTL,
@@ -161,6 +166,11 @@ _LIVE_UNIVERSE_CACHE_ITEMS = None
 _LIVE_UNIVERSE_CACHE_TS = 0.0
 _LIVE_UNIVERSE_TTL = float(os.getenv('LIVE_PRICE_UNIVERSE_CACHE_TTL_SEC', '60'))
 
+# 국내 주식 카탈로그: 검색/자동완성/유니버스 fallback용 TTL 캐시.
+_STOCK_CATALOG_CACHE_ITEMS = None
+_STOCK_CATALOG_CACHE_TS = 0.0
+_STOCK_CATALOG_TTL = float(os.getenv('STOCK_CATALOG_CACHE_TTL_SEC', '120'))
+
 
 # 로컬 용어 사전·고정 안내 문구로 용어를 설명한다 (GPT 없을 때).
 # 설명( `/api/explain-term` 등에서 GPT 실패·비활성 시 fallback. )
@@ -184,12 +194,12 @@ def _resolve_chart_code(stock_name):
 
 
 # 사용자 입력(한글명/6자리코드/티커)을 yfinance ticker + 차트코드로 해석.
-# 설명( - 한글명은 STOCK_CODES + price.STOCKS 역매핑으로 6자리 코드를 찾는다. - 6자리 숫자는 .KS를 기본으로 붙인다. )
+# 설명( - 한글명은 최신 stocks 카탈로그 우선, 없으면 기존 STOCK_CODES/price.STOCKS 역매핑을 사용한다. - 6자리 숫자는 시장에 따라 .KS/.KQ 를 붙인다. )
 def _resolve_ticker_and_chart_code(stock_name):
     """
     사용자 입력(한글명/6자리코드/티커)을 yfinance ticker + 차트코드로 해석.
-    - 한글명은 STOCK_CODES + price.STOCKS 역매핑으로 6자리 코드를 찾는다.
-    - 6자리 숫자는 .KS를 기본으로 붙인다.
+    - 한글명은 최신 stocks 카탈로그 우선, 없으면 STOCK_CODES + price.STOCKS 역매핑으로 6자리 코드를 찾는다.
+    - 6자리 숫자는 시장에 따라 .KS/.KQ 를 붙인다.
     """
     raw = (stock_name or '').strip()
     if not raw:
@@ -199,6 +209,14 @@ def _resolve_ticker_and_chart_code(stock_name):
         ticker = STOCK_CODES[raw]
         chart_code = ticker.split('.')[0] if isinstance(ticker, str) and '.' in ticker else str(ticker)
         return str(ticker), str(chart_code)
+
+    catalog_item = _resolve_catalog_item_for_input(raw)
+    if catalog_item:
+        code = str(catalog_item.get('code') or '').strip()
+        market = str(catalog_item.get('market') or '').strip().upper()
+        if code and re.match(r'^\d{6}$', code):
+            suffix = '.KQ' if market == 'KOSDAQ' else '.KS'
+            return f'{code}{suffix}', code
 
     if len(raw) == 6 and raw.isdigit():
         return f'{raw}.KS', raw
@@ -272,6 +290,27 @@ def _opinion_to_color(opinion):
     if opinion == "약세":
         return "red"
     return "gray"
+
+
+def _normalize_target_price_for_opinion(current_price, target_price, opinion):
+    """AI 의견과 목표가 방향이 엇갈리지 않도록 최소 방향성을 정규화한다."""
+    cur = _safe_float(current_price, 0.0)
+    tgt = _safe_float(target_price, cur if cur > 0 else 0.0)
+    if cur <= 0:
+        return round(max(tgt, 0), 0)
+    if tgt <= 0:
+        tgt = cur
+
+    if opinion == "강력매수":
+        tgt = max(tgt, cur * 1.04)
+    elif opinion == "매수":
+        tgt = max(tgt, cur * 1.015)
+    elif opinion == "약세":
+        tgt = min(tgt, cur * 0.985)
+    else:
+        tgt = min(max(tgt, cur * 0.99), cur * 1.01)
+
+    return round(tgt, 0)
 
 
 # 분석 API용 현재가/등락률 DB fallback.
@@ -473,6 +512,7 @@ def analyze_stock(stock_name):
             target_price = round(_safe_float(gpt_obj.get('target_price'), 0), 0)
             if target_price <= 0 and db_price > 0:
                 target_price = round(db_price * 1.02, 0)
+            target_price = _normalize_target_price_for_opinion(db_price, target_price, opinion)
             summary = str(gpt_obj.get('summary') or '').strip() or f'【{stock_name}】 시세 데이터 없이 AI 텍스트 기반 분석을 제공합니다.'
             return {
                 'success': True,
@@ -564,6 +604,7 @@ def analyze_stock(stock_name):
         target_price = current_price * (1 + change_rate/100 * 0.5)
         # 대표 뉴스 톤을 목표가에 소폭 반영 (과도 편향 방지)
         target_price *= (1 + (news_score * 0.06))
+        target_price = _normalize_target_price_for_opinion(current_price, target_price, opinion)
         
         analysis_summary = f"""
 【종목: {stock_name}】
@@ -621,10 +662,13 @@ def analyze_stock(stock_name):
             if final_target_price <= 0:
                 final_target_price = target_price
             final_target_price = final_target_price * (1 + (news_score * 0.03))
+            final_target_price = _normalize_target_price_for_opinion(current_price, final_target_price, final_opinion)
             gpt_summary = str(gpt_obj.get('summary') or '').strip()
             if gpt_summary:
                 final_summary = gpt_summary
             final_color = _opinion_to_color(final_opinion)
+        else:
+            final_target_price = _normalize_target_price_for_opinion(current_price, final_target_price, final_opinion)
 
         return {
             'success': True,
@@ -696,8 +740,148 @@ def _bump_stock_popularity_on_analysis(conn, stock_id: int):
         )
 
 
+def _catalog_display_name(code, name=''):
+    clean_code = str(code or '').strip()
+    clean_name = str(name or '').strip()
+    return clean_name or PRICE_STOCKS.get(clean_code) or LIVE_PRICE_STOCKS.get(clean_code) or clean_code
+
+
+def _fetch_active_domestic_stock_catalog():
+    """국내 6자리 활성 종목 카탈로그(검색/자동완성 공통)."""
+    global _STOCK_CATALOG_CACHE_ITEMS, _STOCK_CATALOG_CACHE_TS
+    now = time.time()
+    if (
+        _STOCK_CATALOG_CACHE_ITEMS is not None
+        and (now - _STOCK_CATALOG_CACHE_TS) < _STOCK_CATALOG_TTL
+    ):
+        return _STOCK_CATALOG_CACHE_ITEMS
+
+    items = []
+    conn = None
+    try:
+        conn = get_db_connection()
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT stock_id, symbol, name_ko, name_en, market
+                FROM stocks
+                WHERE is_active = 1
+                  AND symbol REGEXP '^[0-9]{6}$'
+                  AND (market IS NULL OR market = '' OR UPPER(market) IN ('KOSPI', 'KOSDAQ', 'KONEX'))
+                ORDER BY stock_id ASC
+                """
+            )
+            rows = cur.fetchall() or []
+        seen = set()
+        for row in rows:
+            code = str(row.get('symbol') or '').strip().split('.')[0].strip()
+            if not re.match(r'^\d{6}$', code) or code in seen:
+                continue
+            seen.add(code)
+            items.append({
+                'stock_id': row.get('stock_id'),
+                'code': code,
+                'name': _catalog_display_name(code, row.get('name_ko')),
+                'name_en': str(row.get('name_en') or '').strip(),
+                'market': str(row.get('market') or '').strip(),
+            })
+    except Exception as e:
+        print(f'[stock-catalog] 조회 실패: {e}')
+    finally:
+        if conn:
+            conn.close()
+
+    if not items:
+        seen = set()
+        for code, name in PRICE_STOCKS.items():
+            clean_code = str(code or '').strip().split('.')[0].strip()
+            if not re.match(r'^\d{6}$', clean_code) or clean_code in seen:
+                continue
+            seen.add(clean_code)
+            items.append({
+                'stock_id': None,
+                'code': clean_code,
+                'name': _catalog_display_name(clean_code, name),
+                'name_en': '',
+                'market': '',
+            })
+
+    _STOCK_CATALOG_CACHE_ITEMS = items
+    _STOCK_CATALOG_CACHE_TS = now
+    return _STOCK_CATALOG_CACHE_ITEMS
+
+
+def _searchable_stock_name(item):
+    return ' '.join(
+        part.strip()
+        for part in (
+            str((item or {}).get('name') or ''),
+            str((item or {}).get('name_en') or ''),
+        )
+        if part and part.strip()
+    ).strip()
+
+
+def _normalize_catalog_stock_key(value) -> str:
+    return str(value or '').strip().replace(' ', '').lower()
+
+
+def _resolve_catalog_item_for_input(stock_input):
+    raw = str(stock_input or '').strip()
+    if not raw:
+        return None
+    normalized = _normalize_catalog_stock_key(raw)
+    exact_code = raw if re.match(r'^\d{6}$', raw) else ''
+    for item in _fetch_active_domestic_stock_catalog():
+        code = str((item or {}).get('code') or '').strip()
+        name = str((item or {}).get('name') or '').strip()
+        name_en = str((item or {}).get('name_en') or '').strip()
+        if exact_code and code == exact_code:
+            return item
+        if normalized and normalized in {
+            _normalize_catalog_stock_key(name),
+            _normalize_catalog_stock_key(name_en),
+        }:
+            return item
+    return None
+
+
+def _default_live_universe_items(limit: int) -> list[tuple[str, str]]:
+    """기본 인기 순서 유니버스. price.STOCKS 우선순위를 따르고, 나머지는 카탈로그 순으로 잇는다."""
+    catalog = _fetch_active_domestic_stock_catalog()
+    catalog_by_code = {}
+    for item in catalog:
+        code = str((item or {}).get('code') or '').strip()
+        if code and re.match(r'^\d{6}$', code):
+            catalog_by_code[code] = item
+
+    out: list[tuple[str, str]] = []
+    seen: set[str] = set()
+
+    for code in PRICE_STOCKS.keys():
+        clean_code = str(code or '').strip().split('.')[0].strip()
+        if not re.match(r'^\d{6}$', clean_code) or clean_code in seen:
+            continue
+        item = catalog_by_code.get(clean_code)
+        name = _catalog_display_name(clean_code, (item or {}).get('name'))
+        out.append((clean_code, name))
+        seen.add(clean_code)
+        if len(out) >= limit:
+            return out
+
+    for item in catalog:
+        code = str((item or {}).get('code') or '').strip()
+        if not re.match(r'^\d{6}$', code) or code in seen:
+            continue
+        out.append((code, _catalog_display_name(code, item.get('name'))))
+        seen.add(code)
+        if len(out) >= limit:
+            break
+    return out
+
+
 def _get_live_price_universe_items():
-    """stock_popularity 당일(또는 최신 일) 점수 순 종목 목록. 실패·비어 있으면 LIVE_PRICE_STOCKS 순."""
+    """시장 기본 유니버스. 인기 집계가 충분하면 그 순서, 아니면 기본 인기 fallback 순서를 사용한다."""
     global _LIVE_UNIVERSE_CACHE_ITEMS, _LIVE_UNIVERSE_CACHE_TS
     now = time.time()
     if (
@@ -707,7 +891,7 @@ def _get_live_price_universe_items():
         return _LIVE_UNIVERSE_CACHE_ITEMS
 
     limit = max(1, int(_WEB_PRICE_MAX_COUNT))
-    fallback = list(LIVE_PRICE_STOCKS.items())[:limit]
+    fallback = _default_live_universe_items(limit)
     ranked: list[tuple[str, str]] = []
     try:
         conn = get_db_connection()
@@ -716,11 +900,12 @@ def _get_live_price_universe_items():
                 cur.execute(
                     """
                     SELECT s.symbol, s.name_ko,
-                           (COALESCE(sp.view_count, 0) + COALESCE(sp.search_count, 0)
-                            + COALESCE(sp.trade_count, 0)) AS score
+                           SUM(COALESCE(sp.view_count, 0) + COALESCE(sp.search_count, 0)
+                               + COALESCE(sp.trade_count, 0)) AS score
                     FROM stock_popularity sp
                     INNER JOIN stocks s ON s.stock_id = sp.stock_id
-                    WHERE sp.date = CURDATE()
+                    WHERE sp.date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+                    GROUP BY s.symbol, s.name_ko
                     ORDER BY score DESC, s.symbol ASC
                     LIMIT %s
                     """,
@@ -737,11 +922,12 @@ def _get_live_price_universe_items():
                         cur.execute(
                             """
                             SELECT s.symbol, s.name_ko,
-                                   (COALESCE(sp.view_count, 0) + COALESCE(sp.search_count, 0)
-                                    + COALESCE(sp.trade_count, 0)) AS score
+                                   SUM(COALESCE(sp.view_count, 0) + COALESCE(sp.search_count, 0)
+                                       + COALESCE(sp.trade_count, 0)) AS score
                             FROM stock_popularity sp
                             INNER JOIN stocks s ON s.stock_id = sp.stock_id
                             WHERE sp.date = %s
+                            GROUP BY s.symbol, s.name_ko
                             ORDER BY score DESC, s.symbol ASC
                             LIMIT %s
                             """,
@@ -752,9 +938,7 @@ def _get_live_price_universe_items():
                     sym = str(r.get('symbol') or '').strip().split('.')[0].strip()
                     if not sym:
                         continue
-                    nm = (r.get('name_ko') or sym or '').strip()
-                    if not nm:
-                        nm = PRICE_STOCKS.get(sym) or LIVE_PRICE_STOCKS.get(sym) or sym
+                    nm = _catalog_display_name(sym, r.get('name_ko'))
                     ranked.append((sym, nm))
         finally:
             conn.close()
@@ -764,6 +948,10 @@ def _get_live_price_universe_items():
             logging.getLogger(__name__).warning('[live-universe] DB 조회 실패: %s', e)
         ranked = []
 
+    ranked_is_reliable = len(ranked) >= min(limit, 18)
+    if not ranked_is_reliable:
+        ranked = []
+
     seen: set[str] = set()
     out: list[tuple[str, str]] = []
     for code, name in ranked:
@@ -771,7 +959,7 @@ def _get_live_price_universe_items():
         if not c or c in seen:
             continue
         seen.add(c)
-        nm = str(name or '').strip() or PRICE_STOCKS.get(c) or LIVE_PRICE_STOCKS.get(c) or c
+        nm = _catalog_display_name(c, name)
         out.append((c, nm))
         if len(out) >= limit:
             break
@@ -782,7 +970,7 @@ def _get_live_price_universe_items():
         if not c or c in seen:
             continue
         seen.add(c)
-        out.append((c, str(name or PRICE_STOCKS.get(c) or LIVE_PRICE_STOCKS.get(c) or c)))
+        out.append((c, _catalog_display_name(c, name)))
     _LIVE_UNIVERSE_CACHE_ITEMS = out[:limit]
     _LIVE_UNIVERSE_CACHE_TS = now
     return _LIVE_UNIVERSE_CACHE_ITEMS
@@ -870,20 +1058,27 @@ def _persist_ai_analysis_row(result: dict, stock_name: str, user_id):
 # 종목 분석 API 엔드포인트
 def serve_analyze():
     """종목 분석 API 엔드포인트"""
-    data = request.json
-    stock_name = data.get('stock_name', '').strip()
+    data = request.get_json(silent=True) or {}
+    stock_name = (data.get('stock_name') or '').strip()
         
     if not stock_name:
         return jsonify({'success': False, 'message': '종목명을 입력해주세요.'}), 400
-    
-    result = analyze_stock(stock_name)
+
+    catalog_item = _resolve_catalog_item_for_input(stock_name)
+    analysis_target = str((catalog_item or {}).get('name') or '').strip() or stock_name
+
+    result = analyze_stock(analysis_target)
+    if result.get('success') and catalog_item:
+        result['stock_name'] = str(catalog_item.get('name') or analysis_target).strip() or analysis_target
+        if not str(result.get('chart_code') or '').strip():
+            result['chart_code'] = str(catalog_item.get('code') or '').strip()
     uid = session.get('user_id')
     if uid is not None:
         try:
             uid = int(uid)
         except (TypeError, ValueError):
             uid = None
-    _persist_ai_analysis_row(result, stock_name, uid)
+    _persist_ai_analysis_row(result, analysis_target, uid)
     return jsonify(result)
 
 
@@ -949,36 +1144,48 @@ def _score_price_stock_match(code, name, q_raw):
 
 
 def _matched_codes_for_price_query(q_raw, max_codes=80):
-    """PRICE_STOCKS 전역에서 검색어에 맞는 종목코드(관련도 순)."""
+    """국내 종목 카탈로그에서 검색어에 맞는 종목코드(관련도 순)."""
     q = (q_raw or '').strip()
-    if not q or not PRICE_STOCKS:
+    if not q:
         return []
     scored = []
-    for code, name in PRICE_STOCKS.items():
+    for item in _fetch_active_domestic_stock_catalog():
+        code = str(item.get('code') or '').strip()
+        name = _searchable_stock_name(item)
         sc = _score_price_stock_match(code, name, q)
         if sc is not None:
             scored.append((sc, code))
-    scored.sort(key=lambda x: x[0])
+    scored.sort(key=lambda x: (x[0], x[1]))
     return [c for _, c in scored[:max_codes]]
 
 
+def _matched_stock_catalog_items(q_raw, max_items=80):
+    """국내 종목 카탈로그에서 검색어에 맞는 종목 목록(관련도 순)."""
+    q = (q_raw or '').strip()
+    if not q:
+        return []
+    scored = []
+    for item in _fetch_active_domestic_stock_catalog():
+        code = str(item.get('code') or '').strip()
+        name = _searchable_stock_name(item)
+        sc = _score_price_stock_match(code, name, q)
+        if sc is not None:
+            scored.append((sc, code, _catalog_display_name(code, item.get('name'))))
+    scored.sort(key=lambda x: (x[0], x[1]))
+    return [{'code': c, 'name': n} for _, c, n in scored[:max_items]]
+
+
 def serve_stock_suggest():
-    """종목 자동완성(PRICE_STOCKS 기준)."""
+    """종목 자동완성(stocks 카탈로그 기준)."""
     q = (request.args.get('q') or '').strip()
     try:
         limit = int(request.args.get('limit', '12'))
     except ValueError:
         limit = 12
-    limit = max(1, min(30, limit))
-    if not q or not PRICE_STOCKS:
+    limit = max(1, min(100, limit))
+    if not q:
         return jsonify({'success': True, 'items': []})
-    scored = []
-    for code, name in PRICE_STOCKS.items():
-        sc = _score_price_stock_match(code, name, q)
-        if sc is not None:
-            scored.append((sc, code, str(name or '')))
-    scored.sort(key=lambda x: x[0])
-    items = [{'code': c, 'name': n} for _, c, n in scored[:limit]]
+    items = _matched_stock_catalog_items(q, max_items=limit)
     return jsonify({'success': True, 'items': items})
 
 
@@ -986,24 +1193,39 @@ def serve_stock_suggest():
 def serve_mock_traded_value_rank():
     """모의투자용 종목 목록(거래대금 순)."""
     try:
-        limit = int(request.args.get('limit', '30'))
+        limit = int(request.args.get('limit', '100'))
     except ValueError:
-        limit = 30
-    limit = max(1, min(50, limit))
-
-    if not PRICE_STOCKS:
-        return jsonify({'success': True, 'items': []})
+        limit = 100
+    limit = max(1, min(100, limit))
 
     search_q = (request.args.get('q') or '').strip()
     match_order = {}
+    code_name_items = []
     if search_q:
-        codes = _matched_codes_for_price_query(search_q, max_codes=50)
+        code_name_items = _matched_stock_catalog_items(search_q, max_items=max(limit, _WEB_PRICE_MAX_COUNT))
+        codes = [str(it.get('code') or '').strip() for it in code_name_items if str(it.get('code') or '').strip()]
         if not codes:
             return jsonify({'success': True, 'items': []})
         for i, c in enumerate(codes):
             match_order[c] = i
     else:
-        codes = [c for c, _ in list(PRICE_STOCKS.items())[: min(80, _WEB_PRICE_MAX_COUNT * 2)]]
+        code_name_items = _get_live_price_universe_items()
+        codes = [c for c, _ in code_name_items[:max(limit, _WEB_PRICE_MAX_COUNT)]]
+    if not code_name_items:
+        code_name_items = [(c, _catalog_display_name(c)) for c in codes]
+    normalized_items = []
+    seen_codes = set()
+    for item in code_name_items:
+        if isinstance(item, dict):
+            code = str(item.get('code') or '').strip()
+            name = _catalog_display_name(code, item.get('name'))
+        else:
+            code = str((item or ('', ''))[0] or '').strip()
+            name = _catalog_display_name(code, (item or ('', ''))[1])
+        if not code or code in seen_codes:
+            continue
+        seen_codes.add(code)
+        normalized_items.append((code, name))
     snap = {}
     if fetch_live_snapshot_batch:
         try:
@@ -1079,9 +1301,7 @@ def serve_mock_traded_value_rank():
             conn.close()
 
     items = []
-    for code, name in PRICE_STOCKS.items():
-        if code not in codes:
-            continue
+    for code, name in normalized_items:
         row = snap.get(code) or {}
         price, rate, direction = _effective_quote_for_mock(code, row)
         if abs(rate) < 1e-9 and price > 0:
@@ -1121,13 +1341,392 @@ def serve_mock_traded_value_rank():
         it.pop('_mi', None)
     try:
         token = _kis_get_token() if (_KIS_KEY and _KIS_SECRET) else None
-        nudge = [(c, name) for c, name in PRICE_STOCKS.items() if c in codes][: min(_WEB_REFRESH_BATCH_SIZE, len(codes))]
+        nudge = normalized_items[: min(_WEB_REFRESH_BATCH_SIZE, len(normalized_items))]
         if nudge:
             _start_live_refresh(nudge, token, force=False)
     except Exception:
         pass
 
     return jsonify({'success': True, 'items': items[:limit]})
+
+
+# 모의투자 종목 상세 시세 탭용(고저·체결강도·52주·전일 거래량 비·거래대금 순위 등, 표시용 모의값 포함).
+def serve_mock_sim_holding_quote_detail(code):
+    code = str(code or '').strip()
+    if not re.match(r'^\d{6}$', code):
+        return jsonify({'success': False, 'message': '종목코드는 6자리 숫자여야 합니다.'}), 400
+
+    code_name_items = _get_live_price_universe_items()
+    normalized_items = []
+    seen_codes = set()
+    for item in code_name_items:
+        if isinstance(item, dict):
+            c = str(item.get('code') or '').strip()
+            name = _catalog_display_name(c, item.get('name'))
+        else:
+            c = str((item or ('', ''))[0] or '').strip()
+            name = _catalog_display_name(c, (item or ('', ''))[1])
+        if not c or c in seen_codes:
+            continue
+        seen_codes.add(c)
+        normalized_items.append((c, name))
+    if code not in seen_codes:
+        normalized_items.append((code, _catalog_display_name(code, None)))
+        seen_codes.add(code)
+
+    codes = [c for c, _ in normalized_items]
+    snap = {}
+    if fetch_live_snapshot_batch:
+        try:
+            snap = fetch_live_snapshot_batch(codes) or {}
+        except Exception:
+            snap = {}
+
+    vol_map = {}
+    open_map = {}
+    prev_close_map = {}
+    conn = None
+    try:
+        conn = get_db_connection()
+        with conn.cursor() as cur:
+            if len(codes) > 0:
+                ph = ','.join(['%s'] * len(codes))
+                cur.execute(
+                    f"""
+                    SELECT s.symbol, COALESCE(sp.volume, 0) AS v,
+                           COALESCE(sp.open_price, 0) AS o
+                    FROM stocks s
+                    JOIN stock_price_daily sp ON sp.stock_id = s.stock_id
+                    WHERE s.symbol IN ({ph})
+                      AND sp.date = (
+                        SELECT MAX(sp2.date) FROM stock_price_daily sp2 WHERE sp2.stock_id = s.stock_id
+                      )
+                    """,
+                    tuple(codes),
+                )
+                for row in cur.fetchall() or []:
+                    sym = str(row.get('symbol') or '').strip()
+                    if sym:
+                        vol_map[sym] = int(float(row.get('v') or 0))
+                        try:
+                            opx = int(float(row.get('o') or 0))
+                        except (TypeError, ValueError):
+                            opx = 0
+                        if opx > 0:
+                            open_map[sym] = opx
+                cur.execute(
+                    f"""
+                    SELECT s.symbol, sp.close_price
+                    FROM stocks s
+                    JOIN stock_price_daily sp ON sp.stock_id = s.stock_id
+                    WHERE s.symbol IN ({ph})
+                      AND sp.date = (
+                        SELECT MAX(sp2.date)
+                        FROM stock_price_daily sp2
+                        WHERE sp2.stock_id = s.stock_id
+                          AND sp2.date < (
+                            SELECT MAX(sp3.date)
+                            FROM stock_price_daily sp3
+                            WHERE sp3.stock_id = s.stock_id
+                          )
+                      )
+                    """,
+                    tuple(codes),
+                )
+                for row in cur.fetchall() or []:
+                    sym = str(row.get('symbol') or '').strip()
+                    if not sym:
+                        continue
+                    try:
+                        prev_close_map[sym] = int(float(row.get('close_price') or 0))
+                    except (TypeError, ValueError):
+                        pass
+    except Exception as e:
+        print(f'[mock/sim-holding-quote-detail] volume 조회: {e}')
+    finally:
+        if conn:
+            conn.close()
+
+    items = []
+    name_for_code = dict(normalized_items)
+    for c_i, name in normalized_items:
+        row = snap.get(c_i) or {}
+        price, rate, direction = _effective_quote_for_mock(c_i, row)
+        if abs(rate) < 1e-9 and price > 0:
+            prev_c = prev_close_map.get(c_i)
+            if prev_c and prev_c > 0:
+                rate = round((price - prev_c) / prev_c * 100, 2)
+                if rate > 1e-9:
+                    direction = 'up'
+                elif rate < -1e-9:
+                    direction = 'down'
+                else:
+                    direction = 'flat'
+        if price <= 0:
+            continue
+        vol = vol_map.get(c_i, 0)
+        if vol <= 0:
+            vol = max(1, price // 500)
+        traded_value = float(price) * float(vol)
+        open_px = _opening_price_for_mock(c_i, open_map.get(c_i, 0))
+        items.append({
+            'code': c_i,
+            'name': name,
+            'price': price,
+            'open_price': open_px,
+            'change_rate': round(rate, 2),
+            'direction': direction,
+            'volume': vol,
+            'traded_value': int(traded_value),
+        })
+
+    items.sort(key=lambda x: -x['traded_value'])
+    total_ranked = len(items)
+    match = next((x for x in items if x['code'] == code), None)
+    traded_value_rank = None
+    if match is not None:
+        for idx, it in enumerate(items):
+            if it['code'] == code:
+                traded_value_rank = idx + 1
+                break
+
+    if match is None:
+        nm = name_for_code.get(code, _catalog_display_name(code, None))
+        row0 = snap.get(code) or {}
+        price0, rate0, direction0 = _effective_quote_for_mock(code, row0)
+        vol0 = vol_map.get(code, 0)
+        if vol0 <= 0 and price0 > 0:
+            vol0 = max(1, price0 // 500)
+        tv0 = int(float(price0) * float(vol0)) if price0 > 0 else 0
+        match = {
+            'code': code,
+            'name': nm,
+            'price': price0,
+            'open_price': _opening_price_for_mock(code, open_map.get(code, 0)),
+            'change_rate': round(rate0, 2),
+            'direction': direction0,
+            'volume': vol0,
+            'traded_value': tv0,
+        }
+
+    price = int(match['price'])
+    volume = int(match['volume'])
+    traded_value = int(match['traded_value'])
+    open_price = int(match.get('open_price') or 0)
+    snap_row = snap.get(code) or {}
+
+    day_high = int(snap_row.get('high') or 0)
+    day_low = int(snap_row.get('low') or 0)
+    if day_high <= 0:
+        day_high = price
+    if day_low <= 0:
+        day_low = price
+
+    stock_id = _chart_resolve_stock_id(code)
+    prev_volume = None
+    week52_high = None
+    week52_low = None
+    latest_high = None
+    latest_low = None
+    latest_open = None
+    if stock_id:
+        conn2 = None
+        try:
+            conn2 = get_db_connection()
+            with conn2.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT open_price, high_price, low_price, close_price, volume
+                    FROM stock_price_daily
+                    WHERE stock_id = %s
+                    ORDER BY date DESC
+                    LIMIT 2
+                    """,
+                    (stock_id,),
+                )
+                rows2 = cur.fetchall() or []
+                if len(rows2) >= 1:
+                    r0 = rows2[0]
+                    try:
+                        latest_open = int(round(float(r0.get('open_price') or 0)))
+                    except (TypeError, ValueError):
+                        latest_open = 0
+                    try:
+                        latest_high = int(round(float(r0.get('high_price') or 0)))
+                    except (TypeError, ValueError):
+                        latest_high = 0
+                    try:
+                        latest_low = int(round(float(r0.get('low_price') or 0)))
+                    except (TypeError, ValueError):
+                        latest_low = 0
+                    if latest_high > 0:
+                        day_high = max(day_high, latest_high)
+                    if latest_low > 0:
+                        day_low = min(day_low, latest_low) if day_low > 0 else latest_low
+                    if latest_open > 0 and open_price <= 0:
+                        open_price = latest_open
+                if len(rows2) >= 2:
+                    try:
+                        prev_volume = int(float(rows2[1].get('volume') or 0))
+                    except (TypeError, ValueError):
+                        prev_volume = None
+
+                cur.execute(
+                    """
+                    SELECT MAX(sp.high_price) AS h52, MIN(sp.low_price) AS l52
+                    FROM stock_price_daily sp
+                    WHERE sp.stock_id = %s
+                      AND sp.date >= (
+                        SELECT DATE_SUB(MAX(sp2.date), INTERVAL 400 DAY)
+                        FROM stock_price_daily sp2
+                        WHERE sp2.stock_id = %s
+                      )
+                    """,
+                    (stock_id, stock_id),
+                )
+                wrow = cur.fetchone() or {}
+                try:
+                    h52 = wrow.get('h52')
+                    if h52 is not None:
+                        week52_high = int(round(float(h52)))
+                except (TypeError, ValueError):
+                    week52_high = None
+                try:
+                    l52 = wrow.get('l52')
+                    if l52 is not None:
+                        week52_low = int(round(float(l52)))
+                except (TypeError, ValueError):
+                    week52_low = None
+        except Exception as e2:
+            print(f'[mock/sim-holding-quote-detail] 일봉/52주: {e2}')
+        finally:
+            if conn2:
+                conn2.close()
+
+    if day_high < day_low:
+        day_high, day_low = day_low, day_high
+    if day_high < price:
+        day_high = price
+    if day_low > price:
+        day_low = price
+
+    volume_vs_prev_ratio = None
+    if prev_volume is not None and prev_volume > 0 and volume >= 0:
+        volume_vs_prev_ratio = round(float(volume) / float(prev_volume), 4)
+
+    price_in_52w_ratio = None
+    if (
+        week52_high is not None
+        and week52_low is not None
+        and week52_high > week52_low
+        and price > 0
+    ):
+        price_in_52w_ratio = _clamp(
+            (float(price) - float(week52_low)) / (float(week52_high) - float(week52_low)),
+            0.0,
+            1.0,
+        )
+
+    seed = sum(int(d) for d in code if d.isdigit()) + date.today().toordinal()
+    exec_strength_pct = 30 + (seed % 71)
+    if exec_strength_pct >= 55:
+        exec_strength_side = 'sell'
+        exec_strength_caption = '매도세가 더 강해요'
+    elif exec_strength_pct <= 45:
+        exec_strength_side = 'buy'
+        exec_strength_caption = '매수세가 더 강해요'
+    else:
+        exec_strength_side = 'neutral'
+        exec_strength_caption = '매수·매도가 비슷해요'
+
+    try:
+        token = _kis_get_token() if (_KIS_KEY and _KIS_SECRET) else None
+        nudge = [(code, match.get('name') or code)]
+        _start_live_refresh(nudge, token, force=False)
+    except Exception:
+        pass
+
+    payload = {
+        'success': True,
+        'code': code,
+        'name': match.get('name') or name_for_code.get(code, code),
+        'price': price,
+        'open_price': open_price,
+        'day_high': day_high,
+        'day_low': day_low,
+        'volume': volume,
+        'traded_value': traded_value,
+        'change_rate': match.get('change_rate'),
+        'direction': match.get('direction'),
+        'prev_volume': prev_volume,
+        'volume_vs_prev_ratio': volume_vs_prev_ratio,
+        'week52_high': week52_high,
+        'week52_low': week52_low,
+        'price_in_52w_ratio': price_in_52w_ratio,
+        'traded_value_rank': traded_value_rank,
+        'traded_value_rank_total': total_ranked,
+        'exec_strength_pct': exec_strength_pct,
+        'exec_strength_side': exec_strength_side,
+        'exec_strength_caption': exec_strength_caption,
+        'disclaimer': '체결강도·순위 등은 모의투자 화면용으로 단순 계산된 값이며 실제 시장 지표와 다를 수 있습니다.',
+    }
+    return jsonify(payload)
+
+
+# 모의투자 종목 상세「AI 의견」탭용 짧은 종목 코멘트(경량 GPT 1회).
+def serve_mock_sim_options_ai_brief():
+    data = request.get_json(silent=True) or {}
+    code = str(data.get('code') or '').strip()
+    if not re.match(r'^\d{6}$', code):
+        return jsonify({'success': False, 'message': '종목코드는 6자리 숫자여야 합니다.'}), 400
+
+    raw_name = str(data.get('name') or '').strip()
+    display_name = _catalog_display_name(code, raw_name)
+
+    prompt = (
+        '당신은 한국 상장사 종목을 다루는 시장 교육용 도우미입니다.\n'
+        f'[종목] 코드 {code}, 표시명: {display_name}\n'
+        '[과제] 위 종목에 대해 공개적으로 알려진 정보·섹터·사업 특성을 바탕으로, '
+        '투자자가 참고할 수 있는 **짧은 종목 관점 요약**을 한국어로 **딱 2~3문장**만 작성하세요.\n'
+        '- 업종·사업 모델·실적/성장·리스크 요인 등 일반적 관점에서 서술합니다.\n'
+        '- 구체적 매수·매도 지시, 목표가, 수익 보장, 특정 증권사·상품 권유는 금지합니다.\n'
+        '- 옵션·ELW 등 파생상품 설명에 초점을 두지 마세요. 해당 종목 자체에 대해서만 씁니다.\n'
+        '- 반드시 JSON 객체 하나만 출력합니다(앞뒤 설명·마크다운 금지).\n'
+        '- 스키마: {"brief":"본문"}\n'
+        '- brief는 공백 포함 380자 이내입니다.'
+    )
+    gpt_result = call_gpt(prompt, model=DEFAULT_GPT_MODEL)
+    if not gpt_result.get('success'):
+        status = int(gpt_result.get('status_code') or 503)
+        if status not in (400, 401, 403, 429, 502, 503):
+            status = 503
+        return jsonify({
+            'success': False,
+            'message': gpt_result.get('message') or 'AI 의견을 가져오지 못했습니다. 잠시 후 다시 시도해주세요.',
+        }), status
+
+    raw_text = str(gpt_result.get('text') or '')
+    obj = _extract_first_json_object(raw_text) or {}
+    brief = str(obj.get('brief') or '').strip()
+    if brief:
+        brief = _clean_gpt_prose(brief).strip()
+    else:
+        brief = _clean_gpt_prose(raw_text).strip()
+    if len(brief) > 400:
+        brief = brief[:400].rstrip()
+
+    if not brief:
+        return jsonify({
+            'success': False,
+            'message': 'AI 응답을 해석하지 못했습니다. 잠시 후 다시 시도해주세요.',
+        }), 502
+
+    return jsonify({
+        'success': True,
+        'code': code,
+        'name': display_name,
+        'text': brief,
+    })
 
 
 # 국내주식 호가·예상체결 (한국투자 domestic-stock v1 quotations inquire-asking-price-exp-ccn).
@@ -1882,6 +2481,389 @@ def _yf_index_from_ticker(name, ticker):
     }
 
 
+def _index_row_with_key(name, row):
+    out = dict(row or {})
+    out['name'] = str(out.get('name') or name)
+    out['key'] = _INDEX_NAME_TO_KEY.get(out['name']) or _INDEX_NAME_TO_KEY.get(name) or ''
+    return out
+
+
+def _series_to_latest_session_points(series, max_points=96):
+    closes = series.dropna() if series is not None else None
+    if closes is None or closes.empty:
+        return []
+    idx = closes.index
+    if not isinstance(idx, pd.DatetimeIndex):
+        return []
+    local_idx = idx.tz_convert('Asia/Seoul') if idx.tz is not None else idx
+    last_day = pd.Timestamp(local_idx[-1]).date()
+    mask = [pd.Timestamp(ts).date() == last_day for ts in local_idx]
+    session = closes[mask]
+    if session.empty:
+        session = closes
+    if len(session) > max_points:
+        session = session.iloc[-max_points:]
+    points = []
+    for ts, value in session.items():
+        try:
+            stamp = pd.Timestamp(ts)
+            points.append({
+                'time': int(stamp.timestamp() * 1000),
+                'value': round(float(value), 2),
+            })
+        except Exception:
+            continue
+    return points
+
+
+def _series_to_recent_points(series, max_points=60):
+    closes = series.dropna() if series is not None else None
+    if closes is None or closes.empty:
+        return []
+    if len(closes) > max_points:
+        closes = closes.iloc[-max_points:]
+    points = []
+    for ts, value in closes.items():
+        try:
+            stamp = pd.Timestamp(ts)
+            points.append({
+                'time': int(stamp.timestamp() * 1000),
+                'value': round(float(value), 2),
+            })
+        except Exception:
+            continue
+    return points
+
+
+def _series_to_prev_session_close(series):
+    closes = series.dropna() if series is not None else None
+    if closes is None or len(closes) < 2:
+        return None
+    idx = closes.index
+    if not isinstance(idx, pd.DatetimeIndex):
+        return None
+    local_idx = idx.tz_convert('Asia/Seoul') if idx.tz is not None else idx
+    last_day = pd.Timestamp(local_idx[-1]).date()
+    for pos in range(len(closes) - 1, -1, -1):
+        try:
+            cur_day = pd.Timestamp(local_idx[pos]).date()
+        except Exception:
+            continue
+        if cur_day != last_day:
+            try:
+                return float(closes.iloc[pos])
+            except Exception:
+                return None
+    return None
+
+
+def _series_to_daily_points(series, max_points=20):
+    closes = series.dropna() if series is not None else None
+    if closes is None or closes.empty:
+        return []
+    if len(closes) > max_points:
+        closes = closes.iloc[-max_points:]
+    points = []
+    for ts, value in closes.items():
+        try:
+            stamp = pd.Timestamp(ts)
+            if stamp.tzinfo is not None:
+                stamp = stamp.tz_convert('Asia/Seoul')
+            stamp = stamp.tz_localize(None) if stamp.tzinfo is not None else stamp
+            stamp = stamp.replace(hour=12, minute=0, second=0, microsecond=0)
+            points.append({
+                'time': int(stamp.timestamp() * 1000),
+                'value': round(float(value), 2),
+            })
+        except Exception:
+            continue
+    return points
+
+
+def _index_history_payload_from_points(key, name, points, source, intraday, reference_value=None, reference_label=None):
+    if not points or len(points) < 2:
+        raise ValueError('지수 히스토리 데이터가 부족합니다.')
+    first = float(points[0]['value'])
+    last = float(points[-1]['value'])
+    basis = _safe_float(reference_value, 0.0) if reference_value is not None else 0.0
+    if basis <= 0:
+        basis = first
+    change_abs = last - basis
+    change_pct = (change_abs / basis * 100.0) if basis else 0.0
+    direction = 'up' if change_abs > 0 else ('down' if change_abs < 0 else 'flat')
+    return {
+        'key': key,
+        'name': name,
+        'intraday': bool(intraday),
+        'points': points,
+        'value': round(last, 2),
+        'change_abs': round(change_abs, 2),
+        'change_pct': round(change_pct, 2),
+        'direction': direction,
+        'source': source,
+        'reference_value': round(basis, 2),
+        'reference_label': reference_label or ('전일 종가' if intraday else '기준값'),
+        'window_start_value': round(first, 2),
+        'window_change_abs': round(last - first, 2),
+        'window_change_pct': round(((last - first) / first * 100.0) if first else 0.0, 2),
+    }
+
+
+def _yf_index_recent_5d_payload(key, name, ticker):
+    hist = yf.Ticker(ticker).history(period='5d', interval='30m', auto_adjust=False)
+    closes = hist['Close'] if hist is not None and not hist.empty and 'Close' in hist else None
+    points = _series_to_recent_points(closes, max_points=60)
+    prev_close = _series_to_prev_session_close(closes)
+    payload = _index_history_payload_from_points(
+        key, name, points, 'yfinance-30m', False,
+        reference_value=prev_close, reference_label='전일 종가'
+    )
+    payload['range_label'] = '최근 5거래일'
+    payload['window'] = '5d'
+    return payload
+
+
+def _yf_index_5d_fallback_payload(key, name, ticker):
+    hist = yf.Ticker(ticker).history(period='3mo', interval='1d', auto_adjust=False)
+    closes = hist['Close'] if hist is not None and not hist.empty and 'Close' in hist else None
+    points = _series_to_daily_points(closes, max_points=5)
+    prev_close = _series_to_prev_session_close(closes)
+    payload = _index_history_payload_from_points(
+        key, name, points, 'yfinance-1d', False,
+        reference_value=prev_close, reference_label='전일 종가'
+    )
+    payload['fallback'] = 'daily'
+    payload['range_label'] = '최근 5거래일 종가'
+    payload['window'] = '5d'
+    return payload
+
+
+def _fx_usd_krw_payload(now=None):
+    now_ts = time.time() if now is None else float(now)
+    cached = _FX_USD_KRW_CACHE['payload']
+    if cached and (now_ts - _FX_USD_KRW_CACHE['ts']) < _FX_USD_KRW_TTL:
+        return dict(cached), True, datetime.fromtimestamp(_FX_USD_KRW_CACHE['ts']).strftime('%H:%M:%S')
+
+    hist = yf.Ticker('KRW=X').history(period='5d', interval='30m', auto_adjust=False)
+    if hist is None or hist.empty:
+        raise ValueError('환율 데이터 없음')
+    closes = hist['Close'].dropna()
+    if closes.empty:
+        raise ValueError('환율 데이터 없음')
+
+    points = _series_to_recent_points(closes, max_points=60)
+    curr = float(closes.iloc[-1])
+    prev = _series_to_prev_session_close(closes)
+    if prev is None or prev <= 0:
+        prev = float(closes.iloc[-2]) if len(closes) >= 2 else curr
+    change_abs = curr - prev
+    change_pct = (change_abs / prev * 100) if prev else 0.0
+    direction = 'up' if change_abs > 0 else ('down' if change_abs < 0 else 'flat')
+    payload = {
+        'key': 'usdkrw',
+        'kind': 'fx',
+        'interactive': True,
+        'inline_chart': False,
+        'name': 'USD/KRW',
+        'value': round(curr, 2),
+        'change_abs': round(change_abs, 2),
+        'change_pct': round(change_pct, 2),
+        'direction': direction,
+        'source': 'yfinance',
+        'value_text': f"{curr:,.2f}",
+        'change_text': f"{'▲' if direction == 'up' else '▼' if direction == 'down' else '-'} {abs(change_pct):.2f}%",
+        'points': points,
+        'reference_value': round(prev, 2),
+        'range_label': '최근 5거래일',
+        'chart_mode': 'relative',
+        'reference_label': '전일 종가',
+    }
+    _FX_USD_KRW_CACHE['payload'] = payload
+    _FX_USD_KRW_CACHE['ts'] = now_ts
+    return dict(payload), False, datetime.now().strftime('%H:%M:%S')
+
+
+def _market_breadth_history_points(all_items, max_points=5):
+    codes = [code for code, _ in (all_items or []) if code]
+    if not codes:
+        return []
+    conn = None
+    try:
+        conn = get_db_connection()
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT DISTINCT date
+                FROM stock_price_daily
+                ORDER BY date DESC
+                LIMIT %s
+                """,
+                (max_points,),
+            )
+            recent_dates = [row.get('date') for row in cur.fetchall() or [] if row.get('date')]
+            if not recent_dates:
+                return []
+            ph_codes = ','.join(['%s'] * len(codes))
+            ph_dates = ','.join(['%s'] * len(recent_dates))
+            cur.execute(
+                f"""
+                SELECT sp.date, s.symbol, sp.close_price, sp.prev_close
+                FROM stocks s
+                JOIN stock_price_daily sp ON sp.stock_id = s.stock_id
+                WHERE s.symbol IN ({ph_codes})
+                  AND sp.date IN ({ph_dates})
+                ORDER BY sp.date ASC
+                """,
+                tuple(codes) + tuple(recent_dates),
+            )
+            rows = cur.fetchall() or []
+    except Exception:
+        return []
+    finally:
+        try:
+            if conn:
+                conn.close()
+        except Exception:
+            pass
+
+    by_date = {}
+    for row in rows:
+        d = row.get('date')
+        if not d:
+            continue
+        bucket = by_date.setdefault(d, {'up': 0, 'down': 0, 'flat': 0})
+        try:
+            close_price = float(row.get('close_price') or 0.0)
+            prev_close = float(row.get('prev_close') or 0.0)
+        except (TypeError, ValueError):
+            close_price = 0.0
+            prev_close = 0.0
+        if close_price > prev_close > 0:
+            bucket['up'] += 1
+        elif prev_close > 0 and close_price < prev_close:
+            bucket['down'] += 1
+        else:
+            bucket['flat'] += 1
+
+    points = []
+    for d in sorted(by_date.keys()):
+        score = int(by_date[d]['up']) - int(by_date[d]['down'])
+        points.append({
+            'time': int(datetime(d.year, d.month, d.day, 12, 0, 0).timestamp() * 1000),
+            'value': score,
+        })
+    return points
+
+
+def _market_breadth_direction(row):
+    direction = str((row or {}).get('direction') or '').strip().lower()
+    if direction in ('up', 'down', 'flat'):
+        return direction
+    return 'flat'
+
+
+def _market_breadth_payload(token=None):
+    all_items = _get_live_price_universe_items()
+    universe_count = len(all_items)
+    if universe_count <= 0:
+        return {
+            'key': 'marketbreadth',
+            'kind': 'breadth',
+            'interactive': True,
+            'inline_chart': False,
+            'name': '시장폭',
+            'direction': 'flat',
+            'value_text': '-',
+            'change_text': '집계 불가',
+            'up_count': 0,
+            'down_count': 0,
+            'flat_count': 0,
+            'available_count': 0,
+            'universe_count': 0,
+            'points': [],
+            'reference_value': 0,
+            'chart_mode': 'score',
+            'reference_label': '중립선',
+        }
+
+    market_open = _live_fetch_enabled_now()
+    snapshot = {}
+    if fetch_live_snapshot_batch:
+        try:
+            snapshot = fetch_live_snapshot_batch([code for code, _ in all_items]) or {}
+        except Exception:
+            snapshot = {}
+
+    if market_open:
+        rows = _ordered_stock_rows(all_items, snapshot)
+    else:
+        rows = []
+        for code, name in all_items:
+            row = snapshot.get(code)
+            if row:
+                rows.append({**row, 'name': name})
+                continue
+            cached_row = None
+            if _LIVE_OFFHOURS_USE_CACHE:
+                with _LIVE_PRICE_LOCK:
+                    cached = _LIVE_PRICE_CACHE.get(code)
+                if cached and not cached.get('loading') and cached.get('price') is not None:
+                    cached_row = {**cached, 'name': name, 'stale': True}
+            if cached_row:
+                rows.append(cached_row)
+            else:
+                rows.append({'code': code, 'name': name, 'loading': True})
+        if _LIVE_OFFHOURS_YFINANCE:
+            _offhours_fill_yfinance_rows(rows, all_items, min(max(6, _LIVE_OFFHOURS_YF_BUDGET), universe_count))
+
+    up_count = 0
+    down_count = 0
+    flat_count = 0
+    available_count = 0
+    for row in rows:
+        if row.get('loading'):
+            continue
+        available_count += 1
+        direction = _market_breadth_direction(row)
+        if direction == 'up':
+            up_count += 1
+        elif direction == 'down':
+            down_count += 1
+        else:
+            flat_count += 1
+
+    score = up_count - down_count
+    direction = 'up' if score > 0 else ('down' if score < 0 else 'flat')
+    change_label = '상승 우세' if direction == 'up' else '하락 우세' if direction == 'down' else '균형'
+    coverage_suffix = '' if available_count >= universe_count else f' · 집계 {available_count}/{universe_count}'
+    points = _market_breadth_history_points(all_items, max_points=5)
+    return {
+        'key': 'marketbreadth',
+        'kind': 'breadth',
+        'interactive': True,
+        'inline_chart': False,
+        'name': '시장폭',
+        'value': score,
+        'change_abs': score,
+        'change_pct': score,
+        'direction': direction,
+        'value_text': f'{up_count} / {down_count}',
+        'change_text': change_label,
+        'up_count': up_count,
+        'down_count': down_count,
+        'flat_count': flat_count,
+        'available_count': available_count,
+        'universe_count': universe_count,
+        'breadth_score': score,
+        'source': 'live-prices',
+        'points': points,
+        'reference_value': 0,
+        'range_label': f'최근 5거래일 · 주요 {universe_count}종목 기준{coverage_suffix}',
+        'chart_mode': 'score',
+        'reference_label': '중립선',
+    }
+
+
 # KIS 지수 현재가 조회.
 def _kis_fetch_index_price(token, fid_input_iscd):
     """KIS 지수 현재가 조회."""
@@ -1940,8 +2922,16 @@ def serve_market_indices():
     """주요 시장 지수 (캐시)."""
     now = time.time()
     if now - _INDEX_CACHE['ts'] < _INDEX_CACHE_TTL and _INDEX_CACHE['data']:
-        return jsonify({'success': True, 'indices': _INDEX_CACHE['data'],
-                        'cached': True, 'ts': datetime.fromtimestamp(_INDEX_CACHE['ts']).strftime('%H:%M:%S')})
+        cached_indices = _INDEX_CACHE['data']
+        cached_extras = _INDEX_CACHE.get('extras') or []
+        return jsonify({
+            'success': True,
+            'indices': cached_indices,
+            'extras': cached_extras,
+            'cards': list(cached_indices) + list(cached_extras),
+            'cached': True,
+            'ts': datetime.fromtimestamp(_INDEX_CACHE['ts']).strftime('%H:%M:%S'),
+        })
 
     result = []
     token = _kis_get_token() if (_KIS_KEY and _KIS_SECRET) else None
@@ -1953,7 +2943,7 @@ def serve_market_indices():
             out, _err = _kis_fetch_index_price(token, fid)
             if out:
                 try:
-                    row = _kis_index_output_to_row(name, out)
+                    row = _index_row_with_key(name, _kis_index_output_to_row(name, out))
                     if _kis_index_row_seems_valid(name, row.get('value')):
                         result.append(row)
                         continue
@@ -1962,66 +2952,132 @@ def serve_market_indices():
             yft = _INDEX_YF_TICKERS.get(name)
             if yft:
                 try:
-                    result.append(_yf_index_from_ticker(name, yft))
+                    result.append(_index_row_with_key(name, _yf_index_from_ticker(name, yft)))
                 except Exception as e:
-                    result.append({'name': name, 'error': str(e)})
+                    result.append(_index_row_with_key(name, {'name': name, 'error': str(e)}))
             else:
-                result.append({'name': name, 'error': _err or '조회 실패'})
+                result.append(_index_row_with_key(name, {'name': name, 'error': _err or '조회 실패'}))
     else:
         for name, yft in _INDEX_YF_TICKERS.items():
             try:
-                result.append(_yf_index_from_ticker(name, yft))
+                result.append(_index_row_with_key(name, _yf_index_from_ticker(name, yft)))
             except Exception as e:
-                result.append({'name': name, 'error': str(e)})
+                result.append(_index_row_with_key(name, {'name': name, 'error': str(e)}))
+
+    extras = []
+    try:
+        fx_payload, _fx_cached, _fx_ts = _fx_usd_krw_payload(now=now)
+        extras.append(fx_payload)
+    except Exception as fx_exc:
+        extras.append({
+            'key': 'usdkrw',
+            'kind': 'fx',
+            'interactive': False,
+            'inline_chart': True,
+            'name': 'USD/KRW',
+            'direction': 'flat',
+            'error': str(fx_exc),
+            'value_text': '-',
+            'change_text': '조회 실패',
+            'points': [],
+            'reference_value': 0,
+            'chart_mode': 'relative',
+        })
+
+    try:
+        extras.append(_market_breadth_payload(token=token))
+    except Exception as breadth_exc:
+        extras.append({
+            'key': 'marketbreadth',
+            'kind': 'breadth',
+            'interactive': False,
+            'inline_chart': True,
+            'name': '시장폭',
+            'direction': 'flat',
+            'error': str(breadth_exc),
+            'value_text': '-',
+            'change_text': '조회 실패',
+            'points': [],
+            'reference_value': 0,
+            'chart_mode': 'score',
+        })
 
     _INDEX_CACHE['data'] = result
+    _INDEX_CACHE['extras'] = extras
     _INDEX_CACHE['ts'] = now
-    return jsonify({'success': True, 'indices': result, 'cached': False,
-                    'ts': datetime.now().strftime('%H:%M:%S')})
+    return jsonify({
+        'success': True,
+        'indices': result,
+        'extras': extras,
+        'cards': list(result) + list(extras),
+        'cached': False,
+        'ts': datetime.now().strftime('%H:%M:%S'),
+    })
+
+
+def serve_market_index_history(index_key):
+    """주요 지수 hover 미니차트용 최근 5거래일 히스토리."""
+    key = str(index_key or '').strip().lower()
+    if not key:
+        return jsonify({'success': False, 'message': '지원하지 않는 지수입니다.'}), 404
+
+    now = time.time()
+    cached = _INDEX_HISTORY_CACHE.get(key)
+    if cached and (now - float(cached.get('ts') or 0.0)) < _INDEX_HISTORY_TTL:
+        payload = dict(cached.get('payload') or {})
+        payload.update({
+            'success': True,
+            'cached': True,
+            'ts': datetime.fromtimestamp(float(cached.get('ts') or now)).strftime('%H:%M:%S'),
+        })
+        return jsonify(payload)
+
+    try:
+        if key in _INDEX_KEY_TO_NAME:
+            name = _INDEX_KEY_TO_NAME.get(key)
+            ticker = _INDEX_KEY_TO_YF_TICKER.get(key)
+            payload = _yf_index_recent_5d_payload(key, name, ticker)
+        elif key == 'usdkrw':
+            payload, _cached, _ts = _fx_usd_krw_payload(now=now)
+        elif key == 'marketbreadth':
+            payload = _market_breadth_payload()
+        else:
+            return jsonify({'success': False, 'message': '지원하지 않는 지수입니다.'}), 404
+    except Exception:
+        try:
+            if key in _INDEX_KEY_TO_NAME:
+                name = _INDEX_KEY_TO_NAME.get(key)
+                ticker = _INDEX_KEY_TO_YF_TICKER.get(key)
+                payload = _yf_index_5d_fallback_payload(key, name, ticker)
+            elif key == 'usdkrw':
+                raise
+            elif key == 'marketbreadth':
+                raise
+            else:
+                return jsonify({'success': False, 'message': '지원하지 않는 지수입니다.'}), 404
+        except Exception as exc:
+            return jsonify({'success': False, 'message': f'지수 차트 조회 실패: {exc}'}), 200
+
+    _INDEX_HISTORY_CACHE[key] = {'payload': payload, 'ts': now}
+    body = dict(payload)
+    body.update({'success': True, 'cached': False, 'ts': datetime.now().strftime('%H:%M:%S')})
+    return jsonify(body)
 
 
 # USD/KRW 환율.
 def serve_fx_usd_krw():
     """USD/KRW 환율."""
-    now = time.time()
-    cached = _FX_USD_KRW_CACHE['payload']
-    if cached and (now - _FX_USD_KRW_CACHE['ts']) < _FX_USD_KRW_TTL:
-        return jsonify({
-            'success': True,
-            **cached,
-            'cached': True,
-            'ts': datetime.fromtimestamp(_FX_USD_KRW_CACHE['ts']).strftime('%H:%M:%S'),
-        })
-
     try:
-        hist = yf.Ticker('KRW=X').history(period='5d')
-        if hist is None or hist.empty:
-            return jsonify({'success': False, 'message': '환율 데이터 없음'}), 404
-        closes = hist['Close'].dropna()
-        if closes.empty:
-            return jsonify({'success': False, 'message': '환율 데이터 없음'}), 404
-        curr = float(closes.iloc[-1])
-        prev = float(closes.iloc[-2]) if len(closes) >= 2 else curr
-        change_abs = curr - prev
-        change_pct = (change_abs / prev * 100) if prev else 0.0
-        direction = 'up' if change_abs > 0 else ('down' if change_abs < 0 else 'flat')
-        payload = {
-            'name': 'USD/KRW',
-            'value': round(curr, 2),
-            'change_abs': round(change_abs, 2),
-            'change_pct': round(change_pct, 2),
-            'direction': direction,
-            'source': 'yfinance',
-        }
-        _FX_USD_KRW_CACHE['payload'] = payload
-        _FX_USD_KRW_CACHE['ts'] = now
+        payload, is_cached, ts = _fx_usd_krw_payload()
         return jsonify({
             'success': True,
             **payload,
-            'cached': False,
-            'ts': datetime.now().strftime('%H:%M:%S'),
+            'cached': bool(is_cached),
+            'ts': ts,
         })
     except Exception as e:
+        if '데이터 없음' in str(e):
+            return jsonify({'success': False, 'message': str(e)}), 404
         return jsonify({'success': False, 'message': str(e)}), 502
 
 
