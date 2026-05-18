@@ -2289,7 +2289,7 @@
     left: 50%;
     top: 86px;
     transform: translateX(-50%);
-    /* .market-content inner 폭(1200 - 40*2) 안에서만 넓어지도록 — 본문 카드와 겹침 완화 */
+    /* .market-content(max 1400, 패딩 40) inner 오른쪽 + gutter — 본문 카드와 겹침 완화 */
     max-width: min(1120px, calc(100vw - 48px));
     box-sizing: border-box;
     min-width: 260px;
@@ -2323,11 +2323,11 @@
   .market-step1-panel {
     position: fixed;
     /* 본문(.market-content) inner 오른쪽 끝 + 간격 — gutter 안에만 두어 카드 가림 방지 */
-    left: calc(min((100vw + 1200px) / 2 - 40px, 100vw - 40px) + 12px);
+    left: calc(min((100vw + 1400px) / 2 - 40px, 100vw - 40px) + 12px);
     right: 22px;
     top: 92px;
     width: auto;
-    max-width: 340px;
+    max-width: min(340px, calc(100vw - min((100vw + 1400px) / 2 - 40px, 100vw - 40px) - 34px));
     min-height: 196px;
     border-radius: 14px;
     border: 1px solid rgba(47, 143, 95, 0.25);
@@ -2610,11 +2610,11 @@
   }
   .market-step2-panel {
     position: fixed;
-    left: calc(min((100vw + 1200px) / 2 - 40px, 100vw - 40px) + 12px);
+    left: calc(min((100vw + 1400px) / 2 - 40px, 100vw - 40px) + 12px);
     right: 22px;
     top: 92px;
     width: auto;
-    max-width: 340px;
+    max-width: min(340px, calc(100vw - min((100vw + 1400px) / 2 - 40px, 100vw - 40px) - 34px));
     min-height: 196px;
     border-radius: 14px;
     border: 1px solid rgba(47, 143, 95, 0.25);
@@ -2885,11 +2885,11 @@
   }
   .market-step3-panel {
     position: fixed;
-    left: calc(min((100vw + 1200px) / 2 - 40px, 100vw - 40px) + 12px);
+    left: calc(min((100vw + 1400px) / 2 - 40px, 100vw - 40px) + 12px);
     right: 22px;
     top: 92px;
     width: auto;
-    max-width: 340px;
+    max-width: min(340px, calc(100vw - min((100vw + 1400px) / 2 - 40px, 100vw - 40px) - 34px));
     min-height: 196px;
     border-radius: 14px;
     border: 1px solid rgba(47, 143, 95, 0.25);
@@ -3507,7 +3507,7 @@
         <li class="market-step1-quest-item" data-quest-index="2" role="listitem">
           <span class="market-step1-quest-check" aria-hidden="true"></span>
           <span class="market-step1-quest-strike-wrap">
-            <span class="market-step1-quest-text">시세 카드·뉴스까지 따라 보기</span>
+            <span class="market-step1-quest-text">시세 카드 보고 퀴즈로 정리하기</span>
           </span>
         </li>
       </ul>
@@ -3515,9 +3515,6 @@
         <span class="market-step1-now-label">지금</span>
         <p class="market-step1-now-text" id="marketStep1Now">—</p>
       </div>
-    </div>
-    <div class="market-step1-actions">
-      <button type="button" class="btn-ghost" id="marketStep1Close">종료</button>
     </div>
   </aside>
 </div>
@@ -3542,13 +3539,13 @@
         <li class="market-step2-quest-item" data-quest-index="0" role="listitem">
           <span class="market-step2-quest-check" aria-hidden="true"></span>
           <span class="market-step2-quest-strike-wrap">
-            <span class="market-step2-quest-text">삼성전자 골라 차트 보기</span>
+            <span class="market-step2-quest-text">삼성전자 차트 열기</span>
           </span>
         </li>
         <li class="market-step2-quest-item" data-quest-index="1" role="listitem">
           <span class="market-step2-quest-check" aria-hidden="true"></span>
           <span class="market-step2-quest-strike-wrap">
-            <span class="market-step2-quest-text">NAVER 골라 차트 보기</span>
+            <span class="market-step2-quest-text">일·주·월·년 봉과 봉·거래량 보기</span>
           </span>
         </li>
         <li class="market-step2-quest-item" data-quest-index="2" role="listitem">
@@ -3563,9 +3560,6 @@
         <p class="market-step2-now-text" id="marketStep2Now">—</p>
       </div>
     </div>
-    <div class="market-step2-actions">
-      <button type="button" class="btn-ghost" id="marketStep2Close">종료</button>
-    </div>
   </aside>
 </div>
 
@@ -3575,7 +3569,7 @@
 <div class="market-step3-quest-hud" id="marketStep3QuestHud" aria-hidden="true">
   <div class="market-step3-banner">
     <span>튜토리얼 3단계</span>
-    <strong>매매 판단 루틴</strong>
+    <strong>종목 가치</strong>
   </div>
   <aside class="market-step3-panel">
     <div class="market-step3-quest-head">
@@ -3589,19 +3583,19 @@
         <li class="market-step3-quest-item" data-quest-index="0" role="listitem">
           <span class="market-step3-quest-check" aria-hidden="true"></span>
           <span class="market-step3-quest-strike-wrap">
-            <span class="market-step3-quest-text">차트로 최근 추세 방향 먼저 보기</span>
+            <span class="market-step3-quest-text">삼성전자 상세 열기</span>
           </span>
         </li>
         <li class="market-step3-quest-item" data-quest-index="1" role="listitem">
           <span class="market-step3-quest-check" aria-hidden="true"></span>
           <span class="market-step3-quest-strike-wrap">
-            <span class="market-step3-quest-text">거래량·투자자 동향으로 보조 신호 확인</span>
+            <span class="market-step3-quest-text">가치·재무 성과·재무상태표 칩 순서로 읽기</span>
           </span>
         </li>
         <li class="market-step3-quest-item" data-quest-index="2" role="listitem">
           <span class="market-step3-quest-check" aria-hidden="true"></span>
           <span class="market-step3-quest-strike-wrap">
-            <span class="market-step3-quest-text">근거 확인 후 매수/매도 버튼 보기</span>
+            <span class="market-step3-quest-text">퀴즈로 정리하고 클리어</span>
           </span>
         </li>
       </ul>
@@ -3609,9 +3603,6 @@
         <span class="market-step3-now-label">지금</span>
         <p class="market-step3-now-text" id="marketStep3Now">—</p>
       </div>
-    </div>
-    <div class="market-step3-actions">
-      <button type="button" class="btn-ghost" id="marketStep3Close">종료</button>
     </div>
   </aside>
 </div>
@@ -3880,6 +3871,17 @@
       return '<button type="button" class="detail-fin-metric-chip' + (active ? ' active' : '') + '" data-fin-metric="' + safe + '">' + safe + '</button>';
     }).join('');
   }
+
+  /** 3단계 튜토리얼: 탭 클릭 없이 칩·차트 상태 동기화 (첫 칩 깜빡임 방지) */
+  window.jurinSetFinChartState = function (cat, metric) {
+    if (!selectedStockDetail) return false;
+    if (cat) finChartCategory = cat;
+    if (metric != null && metric !== '') finChartMetric = String(metric);
+    syncFinSegTabs();
+    refreshFinMetricChips(selectedStockDetail);
+    renderDetailFinancialChart(selectedStockDetail);
+    return true;
+  };
 
   /** 가치·재무 차트용: 콤마·대시·문자열 PER/PBR 등 안정 파싱 */
   function parseFinNumber(raw) {
@@ -6335,6 +6337,7 @@
   }
 </script>
 <script src="js/mascot-coach.js?v=20260502"></script>
+<script src="js/jurin-tutorial-guard.js"></script>
 <script src="js/market-step1-tutorial.js"></script>
 <script src="js/market-step2-tutorial.js"></script>
 <script src="js/market-step3-tutorial.js"></script>

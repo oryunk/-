@@ -189,6 +189,8 @@
       <div class="auth-message" id="signupMessage"></div>
       <button class="auth-submit" type="submit">회원가입 완료</button>
     </form>
+    <span class="auth-divider" aria-hidden="true">또는</span>
+    <a class="login-google-btn" id="signupGoogleBtn" href="#">Google로 가입</a>
     <div class="auth-links">
       <a href="find-id.html" target="_blank" rel="noopener noreferrer">아이디 찾기</a>
       <a href="find-password.html" target="_blank" rel="noopener noreferrer">비밀번호 찾기</a>
@@ -196,7 +198,15 @@
   </div>
 </div>
 
+<script src="js/api-base.js"></script>
 <script>
+  (function initSignupGoogle() {
+    const btn = document.getElementById('signupGoogleBtn');
+    if (btn && typeof jurinApiBase === 'function') {
+      btn.href = `${jurinApiBase()}/api/auth/google/start`;
+    }
+  })();
+
   function updateSignupMessage(message, type) {
     const signupMessage = document.getElementById('signupMessage');
     signupMessage.textContent = message;

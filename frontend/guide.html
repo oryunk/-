@@ -27,6 +27,11 @@
     color: #4b6658;
     font-weight: 600;
     margin-bottom: 24px;
+    line-height: 1.5;
+  }
+  .guide-head-subtitle.is-hidden {
+    display: none;
+    margin-bottom: 0;
   }
   .guide-head-actions {
     display: flex;
@@ -323,15 +328,15 @@
       <button type="button" class="guide-back-btn" id="guideBackToMode">← 돌아가기</button>
     </div>
     <div class="guide-head">
-      <h1 id="guidePageTitle">단계별 주식 학습 가이드</h1>
-      <p id="guidePageSubtitle">초보자를 위한 5단계 학습</p>
+      <h1 id="guidePageTitle">초급 학습 가이드</h1>
+      <p id="guidePageSubtitle" class="guide-head-subtitle is-hidden" hidden aria-hidden="true"></p>
     </div>
 
     <div id="guideBeginnerPanel" class="guide-track-panel" aria-hidden="false">
       <div class="guide-head-actions" style="margin-bottom: 18px;">
         <button type="button" class="btn-primary" id="guideTutorialExplainBtn">튜토리얼 설명</button>
         <div class="guide-progress-inline" id="guideStepProgressWrap" aria-live="polite">
-          <span class="guide-progress-label">튜토리얼 전체 진행도</span>
+          <span class="guide-progress-label">진행도</span>
           <span class="guide-progress-bar"><span id="guideStepProgressBar"></span></span>
           <span class="guide-progress-value" id="guideStepProgressValue">0%</span>
         </div>
@@ -339,17 +344,17 @@
       <div class="guide-steps">
         <section class="guide-card" data-step="1">
           <h3>1단계: 시세 읽기</h3>
-          <p>지수·필터로 오늘 시장을 보고, 상세 카드와 뉴스·수급까지 이어서 읽습니다.</p>
+          <p>지수·필터로 오늘 시장을 보고, 상세 카드에서 <strong>거래량·거래대금</strong>까지 익힌 뒤 뉴스·수급으로 이어집니다.</p>
           <button class="btn-primary" type="button" onclick="location.href='주린닷컴홈피.html?tutorial=step1'">1단계 시작</button>
         </section>
         <section class="guide-card" data-step="2">
           <h3>2단계: 차트 기초</h3>
-          <p>주요 종목 <strong>두 개</strong>를 골라 차트에서 기간·추세·지지·저항·이평을 익힙니다.</p>
+          <p>삼성전자 차트로 <strong>일·주·월·년</strong> 봉과 <strong>봉·거래량</strong> 읽기.</p>
           <button class="btn-primary" type="button" onclick="location.href='market.html?tutorial=step2'">2단계 시작</button>
         </section>
         <section class="guide-card" data-step="3">
           <h3>3단계: 종목 가치</h3>
-          <p>PER·PBR·ROE·배당수익률을 읽고, 숫자로 종목의 가성비/체력/배당 매력을 판단합니다.</p>
+          <p>가치 비교·재무 성과·재무상태표 <strong>칩을 왼쪽부터</strong> 차트로 읽으며, PER·매출·부채 등으로 <strong>숫자 근거</strong>로 종목 가치를 보는 단계입니다.</p>
           <button class="btn-primary" type="button" onclick="location.href='market.html?tutorial=step3'">3단계 시작</button>
         </section>
         <section class="guide-card" data-step="4">
@@ -377,6 +382,7 @@
     </div>
   </div>
 </main>
+<script src="js/api-base.js"></script>
 <script src="js/mascot-coach.js?v=20260450"></script>
 <script src="js/common-auth.js"></script>
 <script>
@@ -399,7 +405,6 @@
     var introIdx = 0;
     var introActive = false;
 
-    var SUB_BEGINNER = '초보자를 위한 5단계 학습';
     var SUB_EXPERT = '고급 코스는 베타로 단계적으로 열립니다. 지금은 1단계(베타)만 이용할 수 있어요.';
 
     /** 5단계 각각 클리어 시에만 % 반영. 예전 localStorage 플래그는 읽지 않음(잘못된 20% 방지). */
@@ -476,8 +481,20 @@
           expertPanel.setAttribute('aria-hidden', 'false');
         }
       }
-      if (subtitleEl) subtitleEl.textContent = isBeginner ? SUB_BEGINNER : SUB_EXPERT;
-      if (titleEl) titleEl.textContent = isBeginner ? '단계별 주식 학습 가이드' : '고급 학습 가이드';
+      if (subtitleEl) {
+        if (isBeginner) {
+          subtitleEl.textContent = '';
+          subtitleEl.classList.add('is-hidden');
+          subtitleEl.setAttribute('hidden', '');
+          subtitleEl.setAttribute('aria-hidden', 'true');
+        } else {
+          subtitleEl.textContent = SUB_EXPERT;
+          subtitleEl.classList.remove('is-hidden');
+          subtitleEl.removeAttribute('hidden');
+          subtitleEl.setAttribute('aria-hidden', 'false');
+        }
+      }
+      if (titleEl) titleEl.textContent = isBeginner ? '초급 학습 가이드' : '고급 학습 가이드';
       if (isBeginner) {
         renderGuideProgress();
       }
@@ -520,7 +537,7 @@
         mood: 'info',
         title: '튜토리얼은 어떻게 진행되나요?',
         text:
-          '1단계는 시황판 읽기, 2단계는 주요 종목 두 개로 차트 읽기(기간·추세·지지·저항·이평), 3단계는 종목 가치(PER·PBR·ROE·배당), 4단계는 시장 종류(ETF·ELW·채권), 5단계는 실전 투자 순서로 이어져요.',
+          '1단계는 시황판·거래량·거래대금, 2단계는 삼성전자 한 종목으로 차트 기간·봉·거래량, 3단계는 가치 비교·재무 성과·재무상태표 칩으로 숫자 근거로 종목 가치를 읽어요, 4단계는 시장 종류(ETF·ELW·채권), 5단계는 실전 투자 순서로 이어져요. 추세·지지·저항은 고수 코스예요.',
       },
       {
         mood: 'success',

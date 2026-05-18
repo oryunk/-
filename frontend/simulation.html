@@ -7,7 +7,7 @@
 <title>모의 투자 - 주린닷컴</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css?v=20260428">
-<link rel="stylesheet" href="css/simulation.css?v=20260553">
+<link rel="stylesheet" href="css/simulation.css?v=20260555">
 <script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
 <style>
   .sim-term-hint {
@@ -125,6 +125,12 @@
     </aside>
 
     <div class="simulation-main">
+      <div class="sim-view-tabs" role="tablist" aria-label="모의투자 화면">
+        <button type="button" class="sim-view-tab active" id="simViewTabPortfolio" data-sim-view="portfolio" role="tab" aria-selected="true" aria-controls="simViewPortfolio">포트폴리오</button>
+        <button type="button" class="sim-view-tab" id="simViewTabPnl" data-sim-view="pnl" role="tab" aria-selected="false" aria-controls="simViewRealizedPnl">수익분석</button>
+      </div>
+
+      <div id="simViewPortfolio" class="sim-view-panel" role="tabpanel" aria-labelledby="simViewTabPortfolio">
       <div class="portfolio-section">
         <div class="portfolio-header">
           <div class="portfolio-title">내 포트폴리오</div>
@@ -151,7 +157,7 @@
           <div class="stat-card"><div class="stat-label">총 수익률</div><div class="stat-value" id="totalReturn">&#8212;</div></div>
           <div class="stat-card"><div class="stat-label">총 손익</div><div class="stat-value" id="totalProfit">&#8212;</div></div>
           <div class="stat-card"><div class="stat-label">보유 종목</div><div class="stat-value" id="holdingCount">&#8212;</div></div>
-          <div class="stat-card"><div class="stat-label">실현 손익</div><div class="stat-value" id="realizedProfit" title="총 손익 − 보유 평가 손익">&#8212;</div></div>
+          <div class="stat-card stat-card--pnl-link" id="realizedProfitCard" role="button" tabindex="0" title="수익분석 보기"><div class="stat-label">실현 손익</div><div class="stat-value" id="realizedProfit">&#8212;</div></div>
         </div>
 
         <table class="holdings-table" id="holdingsTable">
@@ -380,6 +386,45 @@
           <div class="history-list" id="tradingHistory"></div>
         </div>
       </div>
+      </div>
+
+      <div id="simViewRealizedPnl" class="sim-view-panel sim-pnl-panel" role="tabpanel" aria-labelledby="simViewTabPnl" hidden>
+        <div id="mockPnlHint" class="mock-portfolio-hint sim-pnl-hint" style="display:none"></div>
+        <div class="sim-pnl-granularity" role="tablist" aria-label="기간 단위">
+          <button type="button" class="sim-pnl-chip active" data-pnl-gran="day" aria-selected="true">일</button>
+          <button type="button" class="sim-pnl-chip" data-pnl-gran="week" aria-selected="false">주</button>
+          <button type="button" class="sim-pnl-chip" data-pnl-gran="month" aria-selected="false">월</button>
+          <button type="button" class="sim-pnl-chip" data-pnl-gran="year" aria-selected="false">년</button>
+          <button type="button" class="sim-pnl-chip" data-pnl-gran="all" aria-selected="false">전체</button>
+        </div>
+        <div class="sim-pnl-nav" id="simPnlNav">
+          <button type="button" class="sim-pnl-nav-btn" id="simPnlPrev" aria-label="이전 기간">‹</button>
+          <span class="sim-pnl-nav-label" id="simPnlPeriodLabel">실현수익</span>
+          <button type="button" class="sim-pnl-nav-btn" id="simPnlNext" aria-label="다음 기간">›</button>
+        </div>
+        <div class="sim-pnl-total-wrap">
+          <div class="sim-pnl-total-label">총 실현수익</div>
+          <div class="sim-pnl-total flat" id="simPnlTotal">&#8212;</div>
+        </div>
+        <ul class="sim-pnl-breakdown" id="simPnlBreakdown" aria-label="수익 구성">
+          <li><span class="sim-pnl-breakdown-k">판매수익</span><span class="sim-pnl-breakdown-v" id="simPnlSales">&#8212;</span></li>
+          <li><span class="sim-pnl-breakdown-k">배당금</span><span class="sim-pnl-breakdown-v muted" id="simPnlDividend">&#8361;0</span></li>
+          <li><span class="sim-pnl-breakdown-k">대여료</span><span class="sim-pnl-breakdown-v muted" id="simPnlLending">&#8361;0</span></li>
+          <li><span class="sim-pnl-breakdown-k">채권 이자·만기수익</span><span class="sim-pnl-breakdown-v muted" id="simPnlBond">&#8361;0</span></li>
+          <li><span class="sim-pnl-breakdown-k">계좌이자</span><span class="sim-pnl-breakdown-v muted" id="simPnlInterest">&#8361;0</span></li>
+        </ul>
+        <p class="sim-pnl-note" id="simPnlNote">모의투자에서는 매도 체결 기준 판매수익만 집계합니다.</p>
+        <div class="sim-pnl-detail-tabs" role="tablist" aria-label="상세 분류">
+          <button type="button" class="sim-pnl-detail-tab active" data-pnl-detail="sales" aria-selected="true">판매수익</button>
+          <button type="button" class="sim-pnl-detail-tab" data-pnl-detail="dividend" aria-selected="false">배당금</button>
+          <button type="button" class="sim-pnl-detail-tab" data-pnl-detail="interest" aria-selected="false">계좌이자</button>
+        </div>
+        <div class="sim-pnl-filter-chips" id="simPnlFilterChips">
+          <button type="button" class="sim-pnl-filter-chip active" data-pnl-market="all">전체</button>
+          <button type="button" class="sim-pnl-filter-chip" data-pnl-market="domestic">국내주식</button>
+        </div>
+        <div class="sim-pnl-sales-list" id="simPnlSalesList" aria-live="polite"></div>
+      </div>
     </div>
     <aside class="sim-watchlist-aside" aria-label="관심 종목" hidden>
       <div class="sim-watchlist-sticky">
@@ -489,7 +534,7 @@
 <script src="js/stock-autocomplete.js"></script>
 <script src="js/stock-logos.js?v=20260522"></script>
 <script src="js/common-auth.js"></script>
-<script src="js/simulation-page.js?v=20260513"></script>
+<script src="js/simulation-page.js?v=20260516"></script>
 
 </body>
 </html>
