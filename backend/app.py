@@ -1962,6 +1962,307 @@ def serve_mock_portfolio():
             conn.close()
 
 
+def _mock_order_dt(row):
+    """주문 행에서 체결 시각(datetime) 추출."""
+    for key in ('executed_at', 'created_at'):
+        val = row.get(key)
+        if val is None:
+            continue
+        if isinstance(val, datetime):
+            return val
+        if isinstance(val, date):
+            return datetime.combine(val, datetime.min.time())
+        try:
+            return datetime.fromisoformat(str(val).replace('Z', '+00:00')[:26])
+        except Exception:
+            pass
+    return datetime.now()
+
+
+def _mock_fifo_realized_events(orders):
+    """
+    시간순 주문 목록 → 매도별 실현손익 이벤트.
+    반환: [{ order_id, stock_id, code, name, quantity, sell_price, cost_basis, realized, fee, tax, executed_at }, ...]
+    """
+    sorted_orders = sorted(orders, key=_mock_order_dt)
+    lots_by_stock = {}
+    events = []
+
+    for row in sorted_orders:
+        side = str(row.get('side') or '').upper()
+        if side not in ('BUY', 'SELL'):
+            continue
+        status = str(row.get('status') or 'EXECUTED').upper()
+        if status not in ('EXECUTED', 'FILLED', 'COMPLETE', 'COMPLETED'):
+            continue
+
+        stock_id = row.get('stock_id')
+        qty = int(row.get('quantity') or 0)
+        if qty <= 0:
+            continue
+        price = _won_int(row.get('price'))
+        fee = _won_int(row.get('fee_amount'))
+        tax = _won_int(row.get('tax_amount'))
+        code = row.get('symbol') or row.get('code') or ''
+        name = row.get('name_ko') or row.get('name') or code
+        executed_at = _mock_order_dt(row)
+
+        if stock_id not in lots_by_stock:
+            lots_by_stock[stock_id] = []
+
+        if side == 'BUY':
+            gross = price * qty
+            unit_cost = int(round((gross + fee) / qty)) if qty > 0 else 0
+            lots_by_stock[stock_id].append({'qty': qty, 'unit_cost': unit_cost})
+            continue
+
+        lots = lots_by_stock.get(stock_id) or []
+        remain = qty
+        cost_basis = 0
+        while remain > 0 and lots:
+            lot = lots[0]
+            take = min(remain, lot['qty'])
+            cost_basis += take * lot['unit_cost']
+            lot['qty'] -= take
+            remain -= take
+            if lot['qty'] <= 0:
+                lots.pop(0)
+        lots_by_stock[stock_id] = lots
+
+        gross_sell = price * qty
+        proceeds = gross_sell - fee - tax
+        realized = proceeds - cost_basis
+        events.append({
+            'order_id': row.get('order_id'),
+            'stock_id': stock_id,
+            'code': code,
+            'name': name,
+            'quantity': qty,
+            'sell_price': price,
+            'gross': gross_sell,
+            'cost_basis': cost_basis,
+            'realized': realized,
+            'fee': fee,
+            'tax': tax,
+            'executed_at': executed_at,
+        })
+
+    return events
+
+
+def _parse_pnl_anchor(anchor_str):
+    """YYYY-MM-DD anchor → date."""
+    if not anchor_str:
+        return date.today()
+    try:
+        return datetime.strptime(str(anchor_str)[:10], '%Y-%m-%d').date()
+    except Exception:
+        return date.today()
+
+
+def _pnl_period_bounds(granularity, anchor_d):
+    """(start_dt, end_dt, label, prev_anchor, next_anchor) — end exclusive."""
+    gran = (granularity or 'day').lower()
+    if gran == 'all':
+        start = datetime(1970, 1, 1)
+        end = datetime(2099, 12, 31, 23, 59, 59)
+        return start, end, '전체 실현수익', None, None
+
+    if gran == 'day':
+        start = datetime.combine(anchor_d, datetime.min.time())
+        end = start + timedelta(days=1)
+        label = f'{anchor_d.month}월 {anchor_d.day}일 실현수익'
+        prev_a = (anchor_d - timedelta(days=1)).isoformat()
+        next_a = (anchor_d + timedelta(days=1)).isoformat()
+        if anchor_d >= date.today():
+            next_a = None
+        return start, end, label, prev_a, next_a
+
+    if gran == 'week':
+        # 월요일 시작 주
+        wd = anchor_d.weekday()
+        week_start = anchor_d - timedelta(days=wd)
+        start = datetime.combine(week_start, datetime.min.time())
+        end = start + timedelta(days=7)
+        week_end = week_start + timedelta(days=6)
+        label = f'{week_start.month}/{week_start.day}~{week_end.month}/{week_end.day} 실현수익'
+        prev_a = (week_start - timedelta(days=7)).isoformat()
+        next_a = (week_start + timedelta(days=7)).isoformat()
+        if week_start + timedelta(days=7) > date.today():
+            next_a = None
+        return start, end, label, prev_a, next_a
+
+    if gran == 'month':
+        start = datetime(anchor_d.year, anchor_d.month, 1)
+        if anchor_d.month == 12:
+            end = datetime(anchor_d.year + 1, 1, 1)
+        else:
+            end = datetime(anchor_d.year, anchor_d.month + 1, 1)
+        label = f'{anchor_d.year}년 {anchor_d.month}월 실현수익'
+        if anchor_d.month == 1:
+            prev_a = date(anchor_d.year - 1, 12, 1).isoformat()
+        else:
+            prev_a = date(anchor_d.year, anchor_d.month - 1, 1).isoformat()
+        if anchor_d.month == 12:
+            next_m = date(anchor_d.year + 1, 1, 1)
+        else:
+            next_m = date(anchor_d.year, anchor_d.month + 1, 1)
+        next_a = next_m.isoformat() if next_m <= date.today() else None
+        return start, end, label, prev_a, next_a
+
+    if gran == 'year':
+        start = datetime(anchor_d.year, 1, 1)
+        end = datetime(anchor_d.year + 1, 1, 1)
+        label = f'{anchor_d.year}년 실현수익'
+        prev_a = date(anchor_d.year - 1, 1, 1).isoformat()
+        next_a = date(anchor_d.year + 1, 1, 1).isoformat() if anchor_d.year + 1 <= date.today().year else None
+        return start, end, label, prev_a, next_a
+
+    start = datetime.combine(anchor_d, datetime.min.time())
+    end = start + timedelta(days=1)
+    return start, end, f'{anchor_d.month}월 {anchor_d.day}일 실현수익', None, None
+
+
+def serve_mock_realized_pnl():
+    """기간별 실현손익(FIFO 매도 기준)."""
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'success': False, 'message': '로그인이 필요합니다.'}), 401
+
+    granularity = (request.args.get('granularity') or 'day').strip().lower()
+    if granularity not in ('day', 'week', 'month', 'year', 'all'):
+        granularity = 'day'
+    anchor_d = _parse_pnl_anchor(request.args.get('anchor'))
+
+    conn = None
+    try:
+        conn = get_db_connection()
+        with conn.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT account_id FROM virtual_accounts WHERE user_id = %s LIMIT 1
+                """,
+                (user_id,),
+            )
+            account = cursor.fetchone()
+            if not account:
+                account = _ensure_mock_account(cursor, user_id)
+                conn.commit()
+            if not account:
+                return jsonify({'success': False, 'message': '가상계좌를 준비할 수 없습니다.'}), 500
+
+            account_id = account['account_id']
+            try:
+                cursor.execute(
+                    """
+                    SELECT
+                        vo.order_id,
+                        vo.stock_id,
+                        vo.side,
+                        vo.price,
+                        vo.quantity,
+                        vo.status,
+                        vo.fee_amount,
+                        COALESCE(vo.tax_amount, 0) AS tax_amount,
+                        vo.executed_at,
+                        vo.created_at,
+                        s.symbol,
+                        s.name_ko
+                    FROM virtual_orders vo
+                    JOIN stocks s ON s.stock_id = vo.stock_id
+                    WHERE vo.account_id = %s
+                    ORDER BY COALESCE(vo.executed_at, vo.created_at) ASC, vo.order_id ASC
+                    """,
+                    (account_id,),
+                )
+            except Exception as ord_err:
+                es = str(ord_err).lower()
+                if 'tax_amount' in es or 'unknown column' in es:
+                    cursor.execute(
+                        """
+                        SELECT
+                            vo.order_id,
+                            vo.stock_id,
+                            vo.side,
+                            vo.price,
+                            vo.quantity,
+                            vo.status,
+                            vo.fee_amount,
+                            vo.executed_at,
+                            vo.created_at,
+                            s.symbol,
+                            s.name_ko
+                        FROM virtual_orders vo
+                        JOIN stocks s ON s.stock_id = vo.stock_id
+                        WHERE vo.account_id = %s
+                        ORDER BY COALESCE(vo.executed_at, vo.created_at) ASC, vo.order_id ASC
+                        """,
+                        (account_id,),
+                    )
+                else:
+                    raise
+            rows = cursor.fetchall() or []
+
+        all_events = _mock_fifo_realized_events(rows)
+        start_dt, end_dt, label, prev_anchor, next_anchor = _pnl_period_bounds(granularity, anchor_d)
+
+        period_events = []
+        for ev in all_events:
+            dt = ev['executed_at']
+            if isinstance(dt, date) and not isinstance(dt, datetime):
+                dt = datetime.combine(dt, datetime.min.time())
+            if start_dt <= dt < end_dt:
+                period_events.append(ev)
+
+        sales_total = sum(int(ev['realized']) for ev in period_events)
+        breakdown = {
+            'sales': sales_total,
+            'dividend': 0,
+            'lending': 0,
+            'bond': 0,
+            'interest': 0,
+        }
+
+        sales_trades = []
+        for ev in reversed(period_events):
+            dt = ev['executed_at']
+            iso = dt.isoformat() if hasattr(dt, 'isoformat') else str(dt)
+            sales_trades.append({
+                'order_id': ev['order_id'],
+                'code': ev['code'],
+                'name': ev['name'],
+                'quantity': ev['quantity'],
+                'sell_price': ev['sell_price'],
+                'cost_basis': ev['cost_basis'],
+                'realized': ev['realized'],
+                'fee': ev['fee'],
+                'tax': ev['tax'],
+                'executed_at': iso,
+            })
+
+        return jsonify({
+            'success': True,
+            'period': {
+                'granularity': granularity,
+                'label': label,
+                'anchor': anchor_d.isoformat(),
+                'start': start_dt.isoformat(),
+                'end': end_dt.isoformat(),
+                'prev_anchor': prev_anchor,
+                'next_anchor': next_anchor,
+            },
+            'total_realized': sales_total,
+            'breakdown': breakdown,
+            'sales_trades': sales_trades,
+            'note': '모의투자에서는 매도 체결 기준 판매수익만 집계합니다. 배당·이자 등은 0원으로 표시됩니다.',
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'실현수익 조회 실패: {e}'}), 500
+    finally:
+        if conn:
+            conn.close()
+
+
 def _watchlist_dt_json(val):
     if val is None:
         return None
@@ -5112,7 +5413,8 @@ def serve_stock_detail(code):
     })
 
 
-# `_kis_get_token` — 모듈 내부 헬퍼.
+# `_kis_get_token` — 한국투자 Open API 접근 토큰 (POST /oauth2/tokenP, client_credentials).
+# 사용자 Google 로그인 OAuth 와 별개: appkey/appsecret 으로 서버가 시세 API 를 호출할 때만 사용.
 def _kis_get_token():
     global _KIS_TOKEN_CACHE, _KIS_TOKEN_SAVED_AT, _KIS_TOKEN_DEADLINE
 

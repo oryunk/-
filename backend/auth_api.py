@@ -1,4 +1,9 @@
-"""인증 API 블루프린트 (/api/auth/*)."""
+"""인증 API 블루프린트 (/api/auth/*).
+
+- 로컬 로그인·회원가입·세션
+- Google Sign-In: google_auth (사용자 OAuth)
+- KIS /oauth2/tokenP 는 app.py 서버 API 토큰 — 사용자 로그인과 무관
+"""
 
 from flask import Blueprint, request, jsonify, session
 import pymysql
@@ -35,8 +40,8 @@ def _db_error_message(exc: Exception) -> str:
         code = exc.args[0]
         if code == 1054:
             return (
-                "DB에 login_id 등 필요한 컬럼이 없습니다(오류 1054). "
-                "SQL/update.sql을 stock_db에 적용했는지 확인하세요."
+                "DB에 필요한 컬럼이 없습니다(오류 1054). "
+                "SQL/update.sql, SQL/add_google_oauth.sql 적용 여부를 확인하세요."
             )
     if isinstance(exc, pymysql.err.OperationalError) and exc.args:
         code = exc.args[0]
@@ -106,8 +111,11 @@ def register():
 
             password_hash = _hash_password(password)
             sql_insert = """
-                INSERT INTO users (login_id, email, password_hash, nickname, created_at, updated_at)
-                VALUES (%s, %s, %s, %s, NOW(), NOW())
+                INSERT INTO users (
+                    login_id, email, password_hash, nickname,
+                    auth_provider, created_at, updated_at
+                )
+                VALUES (%s, %s, %s, %s, 'local', NOW(), NOW())
             """
             cursor.execute(sql_insert, (login_id, email, password_hash, nickname))
             conn.commit()
@@ -152,8 +160,14 @@ def login():
             if not user:
                 return jsonify({"success": False, "message": "아이디 또는 비밀번호가 올바르지 않습니다."}), 401
 
-            stored_hash = (user.get("password_hash") or "").encode("utf-8")
-            if not stored_hash or not bcrypt.checkpw(password.encode("utf-8"), stored_hash):
+            if not user.get("password_hash"):
+                return jsonify({
+                    "success": False,
+                    "message": "구글 로그인으로 가입한 계정입니다. Google로 로그인하거나 비밀번호를 설정해주세요.",
+                }), 401
+
+            stored_hash = user["password_hash"].encode("utf-8")
+            if not bcrypt.checkpw(password.encode("utf-8"), stored_hash):
                 return jsonify({"success": False, "message": "아이디 또는 비밀번호가 올바르지 않습니다."}), 401
 
             session.clear()
@@ -327,3 +341,8 @@ def reset_password():
     finally:
         if conn:
             conn.close()
+
+
+from google_auth import register_google_auth_routes
+
+register_google_auth_routes(auth_bp, get_connection=get_connection, db_error_message=_db_error_message)

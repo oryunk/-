@@ -59,3 +59,22 @@ def mysql_config() -> dict:
         "password": os.getenv("MYSQL_PASSWORD", ""),
         "database": (os.getenv("MYSQL_DATABASE") or "stock_db").strip(),
     }
+
+
+def google_oauth_config() -> dict | None:
+    """Google Sign-In (사용자 로그인). 미설정 시 None."""
+    client_id = (os.getenv("GOOGLE_CLIENT_ID") or "").strip()
+    client_secret = (os.getenv("GOOGLE_CLIENT_SECRET") or "").strip()
+    redirect_uri = (os.getenv("GOOGLE_REDIRECT_URI") or "").strip()
+    if not client_id or not client_secret or not redirect_uri:
+        return None
+    return {
+        "client_id": client_id,
+        "client_secret": client_secret,
+        "redirect_uri": redirect_uri,
+    }
+
+
+def google_login_success_url() -> str:
+    raw = (os.getenv("GOOGLE_LOGIN_SUCCESS_URL") or "/주린닷컴홈피.html").strip()
+    return raw or "/주린닷컴홈피.html"

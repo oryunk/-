@@ -94,25 +94,34 @@ const response = await fetch('http://localhost:5000/api/analyze', {
 
 ## 5️⃣ 전체 프로젝트 구조
 
+프론트는 보통 `frontend/` 아래 HTML·JS·CSS가 있고, 백엔드는 이 디렉터리(`backend/`)입니다.
+
 ```
-캡스톤/
-├── 주린닷컴홈피.html
-├── analysis.html (API 연결됨)
-├── ai-chart-prediction.html
-├── glossary.html
-├── simulation.html
-├── market.html
-├── css/
-│   └── style.css
-├── js/
-│   ├── app.js
-│   ├── slider.js
-│   └── rss-loader.js
-└── backend/
-    ├── app.py (Flask 메인 앱)
-    ├── requirements.txt
-    └── .env
+backend/
+├── app.py              # Flask 앱 진입점, 일부 라우트·로직(점진적으로 분리 중)
+├── app_state.py        # 공유 상태·상수
+├── auth_api.py         # 인증 Blueprint 등
+├── blueprints/         # 도메인별 HTTP API (Flask Blueprint)
+├── services/           # 라우트 없는 공용 로직 (GPT, RSS 등)
+├── news_service.py     # 뉴스 DB 접근 등 (레거시·도메인 모듈과 공존)
+├── requirements.txt
+└── .env
 ```
+
+---
+
+## 6️⃣ `blueprints/` vs `services/` 구분 기준
+
+| 위치 | 역할 | 나누는 기준 |
+|------|------|-------------|
+| `blueprints/` | URL·HTTP 레이어 (라우트, `jsonify`, `request`) | 기능·도메인별 API 묶음 |
+| `services/` | Flask에 묶이지 않는 실행 로직 | 여러 라우트·`app.py`에서 재사용하는 구현 (예: GPT 호출, RSS 수집) |
+| `app.py` | 메인 앱 + 아직 여기 남은 라우트·무거운 로직 | 라우트는 블루프린트로, 복잡한 본문은 `services/`로 **점진 이전** 중 |
+
+- **블루프린트**: `app.register_blueprint(...)` 로 등록된 것만큼 해당 URL이 살아 있습니다. 제거하면 그 API는 동작하지 않습니다.
+- **서비스**: `app.py`나 블루프린트에서 `from services.... import` 로 쓰는 모듈입니다. 그 기능을 유지하려면 폴더·파일이 필요합니다.
+
+예: `blueprints/news.py`는 엔드포인트만 두고, RSS는 `services/rss_feed.py`, 독자용 요약은 `services/news_reader.py`, 문장 정리는 `services/gpt_client.py` 등에 둡니다.
 
 ---
 

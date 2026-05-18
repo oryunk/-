@@ -18,6 +18,9 @@ from cors_helpers import register_flask_cors
 
 app = Flask(__name__)
 app.secret_key = flask_secret_key()
+app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+app.config["SESSION_COOKIE_PATH"] = "/"
 register_flask_cors(app)
 app.register_blueprint(auth_bp)
 

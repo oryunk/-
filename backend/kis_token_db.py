@@ -1,4 +1,8 @@
-"""KIS OAuth 토큰 DB 보관. token_vts.json 과 병행해 재시작·멀티 워커 시 공유."""
+"""KIS Open API OAuth 토큰 DB 보관 (서버→한국투자증권, client_credentials).
+
+사용자 웹 로그인(Google Sign-In)과 무관합니다. 사용자 인증은 auth_api / session 을 사용하세요.
+token_vts.json 과 병행해 재시작·멀티 워커 시 공유.
+"""
 
 from __future__ import annotations
 
