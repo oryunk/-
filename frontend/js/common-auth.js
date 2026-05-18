@@ -1,7 +1,62 @@
 /**
  * 파일: 공통 로그인 모달·네비 세션 표시 (/api/auth/*)
  * 설명( api-base.js 다음에 로드. 홈은 주린닷컴홈피.html 에서도 이 파일을 포함한다. )
+ * Google Sign-In 은 /api/auth/google/* (사용자 OAuth). KIS tokenP 는 서버 API 토큰과 별개.
  */
+
+const GOOGLE_LOGIN_ERROR_MESSAGES = {
+  google: 'Google 로그인에 실패했습니다. 다시 시도해주세요.',
+  google_not_configured: 'Google 로그인이 설정되지 않았습니다. 관리자에게 문의하세요.',
+  google_state: '로그인 요청이 만료되었거나 올바르지 않습니다. 다시 시도해주세요.',
+  google_token: 'Google 인증 토큰을 받지 못했습니다.',
+  google_profile: 'Google 계정 정보를 가져오지 못했습니다.',
+  google_account: '이 이메일은 다른 방식으로 가입되어 있거나 연동할 수 없습니다.',
+  google_db: 'DB 마이그레이션이 필요합니다. SQL/add_google_oauth.sql 을 적용해주세요.',
+  google_network: 'Google 서버에 연결할 수 없습니다. 네트워크를 확인해주세요.',
+  access_denied: 'Google 로그인이 취소되었습니다.',
+};
+
+function googleLoginStartUrl() {
+  return `${jurinApiBase()}/api/auth/google/start`;
+}
+
+function googleLoginBlockHtml() {
+  return `
+    <span class="login-divider" aria-hidden="true">또는</span>
+    <a class="login-google-btn" href="${googleLoginStartUrl()}">Google로 로그인</a>
+  `;
+}
+
+function googleLoginErrorMessage(code) {
+  if (!code) return GOOGLE_LOGIN_ERROR_MESSAGES.google;
+  return GOOGLE_LOGIN_ERROR_MESSAGES[code] || GOOGLE_LOGIN_ERROR_MESSAGES.google;
+}
+
+function injectGoogleLoginIntoModal() {
+  const modal = document.getElementById('loginModal');
+  if (!modal || modal.querySelector('.login-google-btn')) return;
+  const links = modal.querySelector('.login-links');
+  const anchor = links || modal.querySelector('.login-form');
+  if (!anchor) return;
+  anchor.insertAdjacentHTML('beforebegin', googleLoginBlockHtml());
+}
+
+function handleGoogleLoginRedirect() {
+  const params = new URLSearchParams(window.location.search);
+  const err = params.get('login_error');
+  if (!err) return;
+
+  const msg = googleLoginErrorMessage(err);
+  ensureLoginModal();
+  injectGoogleLoginIntoModal();
+  openLoginModal();
+  showLoginError(msg);
+
+  params.delete('login_error');
+  const qs = params.toString();
+  const next = `${window.location.pathname}${qs ? `?${qs}` : ''}${window.location.hash || ''}`;
+  window.history.replaceState({}, '', next);
+}
 
 // 사용자 객체에서 네비에 쓸 표시 이름 추출
 function displayNameFromUser(u) {
@@ -75,6 +130,7 @@ function ensureLoginModal() {
           </label>
           <button class="login-submit" type="submit">로그인</button>
         </form>
+        ${googleLoginBlockHtml()}
         <div class="login-links">
           <a href="signup.html" target="_blank" rel="noopener noreferrer">회원가입</a>
           <a href="find-id.html" target="_blank" rel="noopener noreferrer">아이디 찾기</a>
@@ -238,6 +294,10 @@ function setupAuthNav() {
   const navRight = document.querySelector('.nav-right');
   if (!navRight) return;
 
+  const primaryBtn = navRight.querySelector('.btn-primary');
+  const oldProfile = document.getElementById('navUserProfile');
+  if (oldProfile) oldProfile.remove();
+
   let loginBtn = document.getElementById('navLoginBtn') || navRight.querySelector('.btn-ghost');
   if (!loginBtn) return;
 
@@ -289,6 +349,8 @@ document.addEventListener('keydown', (event) => {
 
 document.addEventListener('DOMContentLoaded', () => {
   ensureLoginModal();
+  injectGoogleLoginIntoModal();
   setupAuthNav();
   refreshAuthNav();
+  handleGoogleLoginRedirect();
 });

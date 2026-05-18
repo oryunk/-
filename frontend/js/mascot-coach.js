@@ -9,6 +9,8 @@
   var backHandler = null;
   var dismissHandler = null;
   var lastPayload = null;
+  /** ×로 최소화 후 「루미 대화」 복원용 — ephemeral(잘못 클릭 caution 등)은 덮어쓰지 않음 */
+  var lastDockPayload = null;
 
   /** 도크 재오픈 시 여러 모듈이 덮어쓰지 않도록 우선순위 체인 (숫자 클수록 먼저 시도) */
   var dockFilterEntries = [];
@@ -43,18 +45,40 @@
     return null;
   }
 
+  function isTutorialSessionActive() {
+    if (typeof window.__jurinGuideQuit === 'function') return true;
+    if (
+      document.body.classList.contains('market-step1-active') ||
+      document.body.classList.contains('market-step2-active') ||
+      document.body.classList.contains('market-step3-active') ||
+      document.body.classList.contains('tutorial-step1-active')
+    ) {
+      return true;
+    }
+    try {
+      var params = new URLSearchParams(window.location.search);
+      var t = (params.get('tutorial') || '').trim().toLowerCase();
+      if (t === 'step1' || t === '1' || t === 'step2' || t === '2' || t === 'step3' || t === '3') {
+        return true;
+      }
+    } catch (e) { /* ignore */ }
+    var o1 = document.getElementById('marketStep1Overlay');
+    var o2 = document.getElementById('marketStep2Overlay');
+    var o3 = document.getElementById('marketStep3Overlay');
+    var homeOv = document.getElementById('tutorialOverlay');
+    if (o1 && o1.classList.contains('is-open')) return true;
+    if (o2 && o2.classList.contains('is-open')) return true;
+    if (o3 && o3.classList.contains('is-open')) return true;
+    if (homeOv && homeOv.classList.contains('is-open')) return true;
+    return false;
+  }
+
   function registerDefaultMarketDockCompletion() {
     registerDockFilter(
       'jurin-market-tutorial-completion',
       function (lastPl, fromDock) {
         if (!fromDock) return null;
-        if (
-          document.body.classList.contains('market-step1-active') ||
-          document.body.classList.contains('market-step2-active') ||
-          document.body.classList.contains('market-step3-active')
-        ) {
-          return null;
-        }
+        if (isTutorialSessionActive()) return null;
         var m = 0;
         try {
           m = parseInt(localStorage.getItem(DOCK_TUTORIAL_MASK_KEY), 10);
@@ -123,6 +147,20 @@
     wink: '😉',
   };
 
+  function handleDismissClick() {
+    if (typeof dismissHandler === 'function') {
+      innerCloseCoach();
+      return;
+    }
+    if (typeof window.__jurinGuideQuit === 'function') {
+      try {
+        window.__jurinGuideQuit();
+      } catch (e) { /* ignore */ }
+      return;
+    }
+    innerCloseCoach();
+  }
+
   function innerCloseCoach() {
     var root = document.getElementById('mascotCoach');
     var dock = document.getElementById('mascotCoachDock');
@@ -157,7 +195,14 @@
 
   function ensureCoachRoot() {
     var root = document.getElementById('mascotCoach');
-    if (root) return root;
+    if (root) {
+      var existingDismiss = document.getElementById('mascotCoachDismiss');
+      if (existingDismiss && existingDismiss.getAttribute('data-jurin-dismiss-bound') !== '1') {
+        existingDismiss.addEventListener('click', handleDismissClick);
+        existingDismiss.setAttribute('data-jurin-dismiss-bound', '1');
+      }
+      return root;
+    }
     var html =
       '<aside class="mascot-coach" id="mascotCoach" aria-live="polite">' +
       '  <div class="mascot-coach-body">' +
@@ -166,7 +211,7 @@
       '      <span class="mascot-coach-fallback" id="mascotCoachFallback" style="display:none;"></span>' +
       '    </div>' +
       '    <div class="mascot-coach-bubble">' +
-      '      <button type="button" class="mascot-coach-close-inline" id="mascotCoachClose" aria-label="닫기">×</button>' +
+      '      <button type="button" class="mascot-coach-close-inline" id="mascotCoachClose" aria-label="창 닫기">×</button>' +
       '      <div class="mascot-coach-bubble-top">' +
       '        <span class="mascot-coach-name">루미</span>' +
       '        <span class="mascot-coach-badge info" id="mascotCoachBadge">정보/똑똑이</span>' +
@@ -176,7 +221,7 @@
       '      <div class="mascot-coach-actions">' +
       '        <button type="button" class="tutorial-btn-ghost mascot-coach-back" id="mascotCoachBack" style="display:none" aria-hidden="true">돌아가기</button>' +
       '        <button type="button" class="tutorial-btn-ghost" id="mascotCoachConfirm">확인</button>' +
-      '        <button type="button" class="tutorial-btn-ghost" id="mascotCoachDismiss">닫기</button>' +
+      '        <button type="button" class="tutorial-btn-ghost mascot-coach-btn-exit" id="mascotCoachDismiss" aria-label="종료">종료</button>' +
       '      </div>' +
       '    </div>' +
       '  </div>' +
@@ -212,21 +257,31 @@
       });
     }
     if (dismissBtn) {
-      dismissBtn.addEventListener('click', innerCloseCoach);
+      dismissBtn.addEventListener('click', handleDismissClick);
     }
     if (dockBtn) {
-      dockBtn.addEventListener('click', function () {
-        var alt = tryDockReopenPayload();
-        if (alt) {
-          show(alt, true);
-          return;
-        }
-        if (lastPayload) {
-          show(lastPayload, true);
-        }
-      });
+      dockBtn.addEventListener('click', reopenFromDock);
     }
     return root;
+  }
+
+  function reopenFromDock() {
+    if (lastDockPayload) {
+      var pl = Object.assign({}, lastDockPayload);
+      pl.instantText = true;
+      show(pl, true);
+      return;
+    }
+    var alt = tryDockReopenPayload();
+    if (alt) show(alt, true);
+  }
+
+  function restoreLastDockPayload() {
+    if (!lastDockPayload) return false;
+    var pl = Object.assign({}, lastDockPayload);
+    pl.instantText = true;
+    show(pl, false);
+    return true;
   }
 
   function resolveMood(mood) {
@@ -237,7 +292,7 @@
 
   function tryDockReopenPayload() {
     try {
-      return tryDockFiltersChained(lastPayload, true);
+      return tryDockFiltersChained(lastDockPayload, true);
     } catch (e) {
       return null;
     }
@@ -319,6 +374,9 @@
       }
     }
     lastPayload = payload ? Object.assign({}, payload) : null;
+    if (payload && payload.ephemeral !== true) {
+      lastDockPayload = Object.assign({}, payload);
+    }
     dismissHandler = (payload && typeof payload.onDismiss === 'function') ? payload.onDismiss : null;
     confirmHandler = (payload && typeof payload.onConfirm === 'function') ? payload.onConfirm : null;
     backHandler = (payload && typeof payload.onBack === 'function') ? payload.onBack : null;
@@ -338,7 +396,10 @@
       }
     }
     if (dismissBtn) {
-      dismissBtn.textContent = (payload && payload.dismissLabel) ? String(payload.dismissLabel) : '닫기';
+      var dismissText = (payload && payload.dismissLabel) ? String(payload.dismissLabel) : '종료';
+      dismissBtn.textContent = dismissText;
+      dismissBtn.setAttribute('aria-label', dismissText);
+      dismissBtn.classList.toggle('mascot-coach-btn-exit', dismissText === '종료');
     }
 
     if (img && fallback) {
@@ -363,6 +424,7 @@
   function hideDock() {
     var dock = document.getElementById('mascotCoachDock');
     if (dock) dock.style.display = 'none';
+    lastDockPayload = null;
   }
 
   registerDefaultMarketDockCompletion();
@@ -370,13 +432,9 @@
   window.MascotCoach = {
     show: show,
     reopen: function () {
-      var alt = tryDockReopenPayload();
-      if (alt) {
-        show(alt, true);
-        return;
-      }
-      if (lastPayload) show(lastPayload, true);
+      reopenFromDock();
     },
+    restoreLastDockPayload: restoreLastDockPayload,
     close: innerCloseCoach,
     hideDock: hideDock,
     registerDockFilter: registerDockFilter,

@@ -25,41 +25,30 @@
       });
     }
 
-    function showHomeWrongClickCoach() {
-      if (!window.MascotCoach || typeof window.MascotCoach.show !== 'function') return;
-      window.MascotCoach.show({
-        mood: 'caution',
-        title: '루미 가이드',
-        text: '앗, 그건 아니야! 위 메뉴에서 「시장」을 눌러줘.',
-        confirmLabel: '확인',
-        onConfirm: function () {
-          showMarketTabHint();
+    function syncHomeTutorialGuard() {
+      if (!window.JurinTutorialGuard || typeof window.JurinTutorialGuard.set !== 'function') return;
+      window.JurinTutorialGuard.set({
+        isActive: function () {
+          return (
+            overlay.classList.contains('is-open') &&
+            document.body.classList.contains('tutorial-step1-spotlight')
+          );
+        },
+        allowsClick: function (target) {
+          var G = window.JurinTutorialGuard;
+          if (target.closest && target.closest('#mascotCoach')) return true;
+          if (G.allowsSpotlightTargets(target)) return true;
+          return false;
+        },
+        getWrongMessage: function (target) {
+          if (target.closest && target.closest('.tutorial-callout-target')) return null;
+          return '앗, 그건 아니야! 위 메뉴에서 「시장」을 눌러줘.';
+        },
+        onAfterWrong: function () {
+          window.JurinTutorialGuard.restoreDockOrFallback(showMarketTabHint);
         },
       });
     }
-
-    function isSpotlightBlocking() {
-      return document.body.classList.contains('tutorial-step1-spotlight') && overlay.classList.contains('is-open');
-    }
-
-    function spotlightAllowsClick(target) {
-      if (!target || !target.closest) return false;
-      if (target.closest('#mascotCoach')) return true;
-      if (target.closest('.tutorial-callout-target')) return true;
-      return false;
-    }
-
-    document.addEventListener(
-      'click',
-      function (event) {
-        if (!isSpotlightBlocking()) return;
-        if (spotlightAllowsClick(event.target)) return;
-        event.preventDefault();
-        event.stopImmediatePropagation();
-        showHomeWrongClickCoach();
-      },
-      true
-    );
 
     function openStep1() {
       document.body.classList.add('tutorial-step1-active');
@@ -67,10 +56,14 @@
       overlay.classList.add('is-open');
       overlay.setAttribute('aria-hidden', 'false');
       marketLink.classList.add('tutorial-callout-target');
+      window.__jurinGuideQuit = function () {
+        closeStep1(true);
+      };
+      syncHomeTutorialGuard();
       showMarketTabHint();
     }
 
-    function closeStep1() {
+    function closeStep1(fromUserQuit) {
       document.body.classList.remove('tutorial-step1-active');
       document.body.classList.remove('tutorial-step1-spotlight');
       overlay.classList.remove('is-open');
@@ -79,6 +72,13 @@
       if (window.MascotCoach && typeof window.MascotCoach.close === 'function') {
         window.MascotCoach.close();
       }
+      if (fromUserQuit === true && window.MascotCoach && typeof window.MascotCoach.hideDock === 'function') {
+        window.MascotCoach.hideDock();
+      }
+      if (window.JurinTutorialGuard && typeof window.JurinTutorialGuard.clear === 'function') {
+        window.JurinTutorialGuard.clear();
+      }
+      window.__jurinGuideQuit = null;
     }
 
     if (startBtn) startBtn.addEventListener('click', openStep1);
@@ -99,7 +99,7 @@
 
     document.addEventListener('keydown', function (event) {
       if (event.key === 'Escape' && overlay.classList.contains('is-open')) {
-        closeStep1();
+        closeStep1(true);
       }
     });
   }

@@ -1275,6 +1275,7 @@
       updatePortfolio();
       renderHoldings();
       renderHistory();
+      maybeRefreshRealizedPnl();
     });
     simRefreshWatchlist().catch(function () {});
   };
@@ -1296,6 +1297,307 @@
    * null이면 서버 체결 전부 표시. 복구 버튼으로 null로 되돌림.
    */
   let historyDisplayCutoffMs = null;
+
+  /** 포트폴리오 | 수익분석 메인 뷰 */
+  let simMainView = 'portfolio';
+  let pnlGranularity = 'day';
+  let pnlAnchorDate = new Date();
+  let pnlDetailTab = 'sales';
+  let pnlCache = null;
+  let pnlLoading = false;
+
+  function pnlAnchorYmd() {
+    var d = pnlAnchorDate;
+    var y = d.getFullYear();
+    var m = String(d.getMonth() + 1).padStart(2, '0');
+    var day = String(d.getDate()).padStart(2, '0');
+    return y + '-' + m + '-' + day;
+  }
+
+  function parsePnlAnchorYmd(ymd) {
+    if (!ymd) return new Date();
+    var p = String(ymd).slice(0, 10).split('-');
+    if (p.length < 3) return new Date();
+    var dt = new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]));
+    return Number.isNaN(dt.getTime()) ? new Date() : dt;
+  }
+
+  function setMockPnlHint(html) {
+    var el = document.getElementById('mockPnlHint');
+    if (!el) return;
+    if (html) {
+      el.style.display = 'block';
+      el.innerHTML = html;
+    } else {
+      el.style.display = 'none';
+      el.innerHTML = '';
+    }
+  }
+
+  function setSimMainView(view) {
+    simMainView = view === 'pnl' ? 'pnl' : 'portfolio';
+    var portPanel = document.getElementById('simViewPortfolio');
+    var pnlPanel = document.getElementById('simViewRealizedPnl');
+    var tabPort = document.getElementById('simViewTabPortfolio');
+    var tabPnl = document.getElementById('simViewTabPnl');
+    var isPnl = simMainView === 'pnl';
+    if (portPanel) portPanel.hidden = isPnl;
+    if (pnlPanel) pnlPanel.hidden = !isPnl;
+    if (tabPort) {
+      tabPort.classList.toggle('active', !isPnl);
+      tabPort.setAttribute('aria-selected', !isPnl ? 'true' : 'false');
+    }
+    if (tabPnl) {
+      tabPnl.classList.toggle('active', isPnl);
+      tabPnl.setAttribute('aria-selected', isPnl ? 'true' : 'false');
+    }
+    if (isPnl) loadRealizedPnl();
+  }
+
+  function syncPnlGranularityChips() {
+    document.querySelectorAll('.sim-pnl-chip[data-pnl-gran]').forEach(function (btn) {
+      var g = btn.getAttribute('data-pnl-gran');
+      var on = g === pnlGranularity;
+      btn.classList.toggle('active', on);
+      btn.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    var nav = document.getElementById('simPnlNav');
+    if (nav) nav.classList.toggle('is-disabled', pnlGranularity === 'all');
+  }
+
+  function syncPnlDetailTabs() {
+    document.querySelectorAll('.sim-pnl-detail-tab[data-pnl-detail]').forEach(function (btn) {
+      var t = btn.getAttribute('data-pnl-detail');
+      var on = t === pnlDetailTab;
+      btn.classList.toggle('active', on);
+      btn.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+  }
+
+  function formatPnlSigned(n) {
+    var v = Math.round(Number(n) || 0);
+    if (v > 0) return '+' + formatCurrency(v);
+    if (v < 0) return formatCurrency(v);
+    return formatCurrency(0);
+  }
+
+  function renderRealizedPnlView(data) {
+    if (!data || !data.success) return;
+    pnlCache = data;
+    var period = data.period || {};
+    if (period.anchor) pnlAnchorDate = parsePnlAnchorYmd(period.anchor);
+
+    var labelEl = document.getElementById('simPnlPeriodLabel');
+    if (labelEl) labelEl.textContent = period.label || '실현수익';
+
+    var prevBtn = document.getElementById('simPnlPrev');
+    var nextBtn = document.getElementById('simPnlNext');
+    if (prevBtn) prevBtn.disabled = !period.prev_anchor;
+    if (nextBtn) nextBtn.disabled = !period.next_anchor;
+
+    var total = Number(data.total_realized || 0);
+    var totalEl = document.getElementById('simPnlTotal');
+    if (totalEl) {
+      totalEl.textContent = formatPnlSigned(total);
+      totalEl.className = 'sim-pnl-total ' + changeDirClass(total);
+    }
+
+    var bd = data.breakdown || {};
+    function setBd(id, key) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      var val = Number(bd[key] || 0);
+      el.textContent = formatCurrency(val);
+      el.classList.remove('up', 'down', 'muted');
+      if (key === 'sales') el.classList.add(changeDirClass(val));
+      else el.classList.add('muted');
+    }
+    setBd('simPnlSales', 'sales');
+    setBd('simPnlDividend', 'dividend');
+    setBd('simPnlLending', 'lending');
+    setBd('simPnlBond', 'bond');
+    setBd('simPnlInterest', 'interest');
+
+    var noteEl = document.getElementById('simPnlNote');
+    if (noteEl && data.note) noteEl.textContent = data.note;
+
+    var listEl = document.getElementById('simPnlSalesList');
+    if (!listEl) return;
+
+    if (pnlDetailTab === 'dividend') {
+      listEl.innerHTML =
+        '<div class="sim-pnl-empty">모의투자에서는 배당금이 발생하지 않습니다.</div>';
+      return;
+    }
+    if (pnlDetailTab === 'interest') {
+      listEl.innerHTML =
+        '<div class="sim-pnl-empty">모의투자에서는 계좌이자가 발생하지 않습니다.</div>';
+      return;
+    }
+
+    var trades = Array.isArray(data.sales_trades) ? data.sales_trades : [];
+    if (trades.length === 0) {
+      listEl.innerHTML =
+        '<div class="sim-pnl-empty">이 기간에 매도 체결이 없습니다.</div>';
+      return;
+    }
+
+    listEl.innerHTML = trades
+      .map(function (t) {
+        var r = Number(t.realized || 0);
+        var dt = t.executed_at ? new Date(t.executed_at) : null;
+        var dtStr = dt && !Number.isNaN(dt.getTime())
+          ? dt.toLocaleString('ko-KR', {
+              month: 'numeric',
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+            })
+          : '';
+        return (
+          '<div class="sim-pnl-trade">' +
+          '<div><div class="sim-pnl-trade-name">' +
+          escapeHtml(t.name || t.code || '') +
+          '</div><div class="sim-pnl-trade-meta">' +
+          escapeHtml(String(t.quantity || 0)) +
+          '주 · 매도 ' +
+          formatCurrency(Number(t.sell_price || 0)) +
+          (dtStr ? ' · ' + escapeHtml(dtStr) : '') +
+          '</div></div>' +
+          '<div class="sim-pnl-trade-amt ' +
+          changeDirClass(r) +
+          '">' +
+          formatPnlSigned(r) +
+          '</div></div>'
+        );
+      })
+      .join('');
+  }
+
+  async function loadRealizedPnl() {
+    if (simMainView !== 'pnl' || pnlLoading) return;
+    pnlLoading = true;
+    try {
+      setMockPnlHint('');
+      var url =
+        simApiBase() +
+        '/api/mock/realized-pnl?granularity=' +
+        encodeURIComponent(pnlGranularity) +
+        '&anchor=' +
+        encodeURIComponent(pnlAnchorYmd());
+      var res = await fetch(url, { credentials: 'include' });
+      var data = await res.json().catch(function () {
+        return {};
+      });
+      if (res.status === 401) {
+        var loc = window.location;
+        var openUrl = urlToOpenSimulationOnFlask();
+        var msg;
+        if (String(loc.port || '') === '5000') {
+          msg = '로그인 세션이 없습니다. 상단에서 <strong>로그인</strong>한 뒤 새로고침하세요.';
+        } else {
+          msg =
+            '로그인이 필요합니다. Flask 서버 주소로 접속해 로그인하세요.<br /><a href="' +
+            openUrl +
+            '">' +
+            openUrl +
+            '</a>';
+        }
+        setMockPnlHint(msg);
+        renderRealizedPnlView({
+          success: true,
+          total_realized: 0,
+          breakdown: { sales: 0, dividend: 0, lending: 0, bond: 0, interest: 0 },
+          sales_trades: [],
+          period: { label: '실현수익', prev_anchor: null, next_anchor: null },
+        });
+        return;
+      }
+      if (!res.ok || !data.success) {
+        setMockPnlHint('실현수익을 불러오지 못했습니다. ' + (data.message || 'HTTP ' + res.status));
+        return;
+      }
+      syncPnlGranularityChips();
+      renderRealizedPnlView(data);
+    } catch (e) {
+      console.warn('[mock-realized-pnl]', e.message);
+      setMockPnlHint('실현수익을 불러오지 못했습니다.');
+    } finally {
+      pnlLoading = false;
+    }
+  }
+
+  function pnlNavigatePrev() {
+    if (pnlGranularity === 'all') return;
+    var p = pnlCache && pnlCache.period ? pnlCache.period.prev_anchor : null;
+    if (p) {
+      pnlAnchorDate = parsePnlAnchorYmd(p);
+      loadRealizedPnl();
+    }
+  }
+
+  function pnlNavigateNext() {
+    if (pnlGranularity === 'all') return;
+    var n = pnlCache && pnlCache.period ? pnlCache.period.next_anchor : null;
+    if (n) {
+      pnlAnchorDate = parsePnlAnchorYmd(n);
+      loadRealizedPnl();
+    }
+  }
+
+  function bindSimPnlUi() {
+    document.querySelectorAll('.sim-view-tab[data-sim-view]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        setSimMainView(btn.getAttribute('data-sim-view'));
+      });
+    });
+    document.querySelectorAll('.sim-pnl-chip[data-pnl-gran]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        pnlGranularity = btn.getAttribute('data-pnl-gran') || 'day';
+        pnlAnchorDate = new Date();
+        syncPnlGranularityChips();
+        loadRealizedPnl();
+      });
+    });
+    var prevBtn = document.getElementById('simPnlPrev');
+    var nextBtn = document.getElementById('simPnlNext');
+    if (prevBtn) prevBtn.addEventListener('click', pnlNavigatePrev);
+    if (nextBtn) nextBtn.addEventListener('click', pnlNavigateNext);
+    document.querySelectorAll('.sim-pnl-detail-tab[data-pnl-detail]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        pnlDetailTab = btn.getAttribute('data-pnl-detail') || 'sales';
+        syncPnlDetailTabs();
+        if (pnlCache) renderRealizedPnlView(pnlCache);
+        else loadRealizedPnl();
+      });
+    });
+    document.querySelectorAll('.sim-pnl-filter-chip[data-pnl-market]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        document.querySelectorAll('.sim-pnl-filter-chip').forEach(function (b) {
+          b.classList.toggle('active', b === btn);
+        });
+        if (pnlCache) renderRealizedPnlView(pnlCache);
+      });
+    });
+    var card = document.getElementById('realizedProfitCard');
+    if (card) {
+      card.addEventListener('click', function () {
+        setSimMainView('pnl');
+      });
+      card.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          setSimMainView('pnl');
+        }
+      });
+    }
+    syncPnlGranularityChips();
+    syncPnlDetailTabs();
+  }
+
+  function maybeRefreshRealizedPnl() {
+    if (simMainView === 'pnl') loadRealizedPnl();
+  }
 
   // 페이지 로드 시 초기화 (로그인 여부와 관계없이 화면 표시; 미로그인 시 API는 빈 자산·매매 시 로그인 필요 안내)
   document.addEventListener('DOMContentLoaded', async function() {
@@ -1587,11 +1889,14 @@
       closeSellModal();
     });
 
+    bindSimPnlUi();
+
     await simRefreshWatchlist();
     await loadPortfolioFromServer();
     updatePortfolio();
     renderHoldings();
     renderHistory();
+    maybeRefreshRealizedPnl();
     if (isSellMarketMode()) setSellPriceType(true);
     renderOrderStatusBoard();
     loadTradedValueBoard();
@@ -1603,6 +1908,7 @@
       updatePortfolio();
       renderHoldings();
       renderHistory();
+      maybeRefreshRealizedPnl();
       await loadTradedValueBoard({ silent: true });
       await processPendingOrders();
     }, 25000);
@@ -1819,6 +2125,7 @@
         restoreOrderBoardState();
         mockOrderBoardHydratedFromLs = true;
       }
+      maybeRefreshRealizedPnl();
     } catch (e) {
       console.warn('[mock-portfolio]', e.message);
     }

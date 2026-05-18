@@ -9,60 +9,60 @@
 
   var TUTORIAL_MASK_KEY = 'jurinGuideTutorialBits';
   var STEP2_CHECK_KEY = 'jurinGuideStep2Checklist';
-  var STEP2_EXPECTED_A = '005930';
-  var STEP2_EXPECTED_B = '035420';
+  var STEP2_EXPECTED_CODE = '005930';
   var STEP2_CLEAR_HOLD_MS = 1500;
 
-  var STEP_PICK_A = 0;
-  var STEP_A_R1D = 1;
-  var STEP_A_R1W = 2;
-  var STEP_A_R1W_READ = 3;
-  var STEP_A_R1M = 4;
-  var STEP_A_R1M_READ = 5;
-  var STEP_A_R1Y = 6;
-  var STEP_A_R1Y_READ = 7;
-  var STEP_A_BACK = 8;
-  var STEP_PICK_B = 9;
-  var STEP_B_R1D = 10;
-  var STEP_B_R1W = 11;
-  var STEP_B_R1W_READ = 12;
-  var STEP_B_R1M = 13;
-  var STEP_B_R1M_READ = 14;
-  var STEP_B_R1Y = 15;
-  var STEP_B_R1Y_READ = 16;
-  var STEP_FINAL = 17;
+  var STEP_PICK = 0;
+  var STEP_R1D = 1;
+  var STEP_CANDLE = 2;
+  var STEP_WICK = 3;
+  var STEP_VOLUME = 4;
+  var STEP_R1W = 5;
+  var STEP_R1W_READ = 6;
+  var STEP_R1M = 7;
+  var STEP_R1M_READ = 8;
+  var STEP_R1Y = 9;
+  var STEP_R1Y_READ = 10;
+  var STEP_FINAL = 11;
 
   var interaction = {
     openedDetail: false,
-    firstCode: null,
-    secondCode: null,
+    stockCode: null,
   };
 
   var step2QuizActive = false;
-  var pickHandledA = false;
-  var pickHandledB = false;
+  var pickHandled = false;
 
   var STEP2_QUIZ = [
     {
-      text:
-        '문제 1/3 (O/X)\n봉 차트에서 추세를 읽을 때 고점·저점이 시간에 따라 어떻게 이어지는지를 함께 본다.',
+      text: '문제 1/5 (O/X)\n일봉 차트에서 봉 한 칸은 보통 하루치 가격을 나타낸다.',
       correct: 1,
-      correctHint: '맞아! 추세는 고점·저점의 방향이 이어지는지 먼저 보는 게 기본이야.',
-      wrongHint: '추세는 보통 고점·저점의 방향을 묶어서 읽어. 뉴스만으로는 차트 맥락이 부족할 수 있어.',
+      correctHint: '맞아! 일봉은 하루의 시가·고가·저가·종가를 한 봉에 담아.',
+      wrongHint: '일봉은 하루 단위야. 주봉·월봉은 기간을 더 길게 묶은 봉이지.',
     },
     {
-      text:
-        '문제 2/3 (O/X)\n지지·저항은 가격이 자주 막히거나 튕기는 구간으로 본다.',
-      correct: 1,
-      correctHint: '정답이야! 지지·저항은 반복적으로 반응이 나온 가격대를 뜻해.',
-      wrongHint: '지지·저항은 과거에 매물·매수가 몰리던 가격대로, 자주 반복되는 반응을 볼 때가 많아.',
+      text: '문제 2/5 (O/X)\n파란 봉 몸통은 그 기간에 종가가 시가보다 올랐을 때다.',
+      correct: 2,
+      correctHint: '맞아! 파란 몸통은 내려 마감, 빨간 몸통이 올라 마감이야.',
+      wrongHint: '봉 색은 시가와 종가를 비교해. 파랑은 내려 마감, 빨강은 올라 마감이야.',
     },
     {
-      text:
-        '문제 3/3 (O/X)\n이동평균선은 지나간 종가들의 평균을 이어 추세·위치 감각을 보조한다.',
+      text: '문제 3/5 (O/X)\n빨간 봉 몸통은 그 기간에 종가가 시가보다 올랐을 때다.',
       correct: 1,
-      correctHint: '맞아! 이평선은 과거 평균 흐름이라 추세와 현재 위치를 읽는 데 도움을 줘.',
-      wrongHint: '이평은 과거 가격의 평균 궤적이야. 방향·가격과의 거리를 볼 때 쓰지, 미래를 보장하진 않아.',
+      correctHint: '정답이야! 빨간 몸통 = 그 기간에 올라 마감, 파란 = 내려 마감이야.',
+      wrongHint: '봉 색은 시가와 종가를 비교해. 빨강은 올라 마감, 파랑은 내려 마감이야.',
+    },
+    {
+      text: '문제 4/5 (O/X)\n주봉은 하루치 가격만 한 봉에 담아서 보여 준다.',
+      correct: 2,
+      correctHint: '맞아! 주봉은 일주일을 한 봉으로 묶은 거야. 하루 단위는 일봉이지.',
+      wrongHint: '주봉은 그 주 전체를 한 칸으로 보는 거야. 하루 단위는 일봉을 보면 돼.',
+    },
+    {
+      text: '문제 5/5 (O/X)\n차트 아래 거래량 막대가 짧으면 그 기간 거래가 많았다는 뜻이다.',
+      correct: 2,
+      correctHint: '맞아! 막대가 길수록 거래가 많았다고 보면 돼. 짧으면 상대적으로 적은 편이야.',
+      wrongHint: '거래량 막대는 길수록 거래가 활발했다는 뜻이야. 짧으면 적은 편으로 보면 돼.',
     },
   ];
 
@@ -70,7 +70,7 @@
     try {
       localStorage.setItem(
         STEP2_CHECK_KEY,
-        JSON.stringify({ chart_range: true, chart_trend_sr_ma: true, chart_two_stocks: true })
+        JSON.stringify({ chart_range: true, chart_basics: true, chart_one_stock: true })
       );
       var m = parseInt(localStorage.getItem(TUTORIAL_MASK_KEY), 10);
       if (isNaN(m) || m < 0) m = 0;
@@ -124,14 +124,16 @@
   }
 
   function inChartStep(idx) {
-    return (
-      (idx >= STEP_A_R1D && idx <= STEP_A_R1Y_READ) ||
-      (idx >= STEP_B_R1D && idx <= STEP_B_R1Y_READ)
-    );
+    return idx >= STEP_R1D && idx <= STEP_R1Y_READ;
   }
 
   function isCoreActionStep(idx) {
-    return idx === STEP_PICK_A || idx === STEP_A_BACK || idx === STEP_PICK_B;
+    return idx === STEP_PICK;
+  }
+
+  function chartWrapperTarget() {
+    var w = document.getElementById('chartWrapper');
+    return w ? [w] : [];
   }
 
   function isClickGuideStep(step, idx) {
@@ -142,44 +144,75 @@
   function buildSteps() {
     return [
       {
-        objective: '삼성전자 골라 차트 보기',
+        objective: '삼성전자 차트 열기',
         mood: 'welcome',
         coach:
-          '먼저 용어 한 줄만 잡고 갈게. 한 봉은 한 기간 가격 묶음이고, OHLC는 시가·고가·저가·종가야. 이제 주요 종목 목록에서 삼성전자(005930) 행을 눌러 상세·차트로 들어가 줘.',
+          '차트는 주가를 그림으로 그린 지도야. 숫자만 보면 헷갈려도, 봉만 익히면 읽기 쉬워져. 삼성전자(005930) 행을 눌러 상세·차트로 들어가 줘.',
         targets: function () {
-          var row = document.querySelector('#row-' + STEP2_EXPECTED_A);
+          var row = document.querySelector('#row-' + STEP2_EXPECTED_CODE);
           var sec = document.querySelector('#marketOverviewView .stocks-section');
           if (row) return [row];
           return sec ? [sec] : [];
         },
         done: function () {
           return (
-            Boolean(interaction.firstCode) &&
+            Boolean(interaction.stockCode) &&
             detailVisible() &&
-            window.__jurinSelectedStockCode === interaction.firstCode
+            window.__jurinSelectedStockCode === interaction.stockCode
           );
         },
       },
       {
-        objective: '첫 종목: 1일 봉 보기',
+        objective: '일봉: 오늘 하루 읽기',
         mood: 'info',
-        coach:
-          '지금은 일봉이야. 한 봉에 하루치 시가·고가·저가·종가(OHLC)가 들어 있어.',
+        moodPlain: 'welcome',
+        coach: '지금은 일봉이야. 보이는 한 칸이 오늘 하루의 성적표야.',
         coachPlain:
-          '하루 장이 끝날 때까지 움직임이 한 덩어리로 찍힌 거야. 변동이 작으면 봉 몸통이 짧게 보이기도 해.',
-        targets: function () {
-          var b = document.querySelector('#stockDetailView .detail-range-btn[data-range="1d"]');
-          return b ? [b] : [];
-        },
+          '시가·고가·저가·종가(OHLC)가 한 봉에 들어 있어. 장이 끝나면 이 모양으로 남아.',
+        targets: chartWrapperTarget,
         done: function () {
           return false;
         },
       },
       {
-        objective: '첫 종목: 1주 누르기',
-        mood: 'info',
+        objective: '봉 색 읽기',
+        mood: 'wink',
+        moodPlain: 'info',
+        coach: '빨간 몸통은 그 기간에 종가가 시가보다 올랐을 때야. 파란 몸통은 내렸을 때고.',
+        coachPlain: '몸통이 길수록 그 기간 움직임이 컸다는 뜻이야. 색만 먼저 보면 돼.',
+        targets: chartWrapperTarget,
+        done: function () {
+          return false;
+        },
+      },
+      {
+        objective: '봉 꼬리 읽기',
+        mood: 'caution',
+        moodPlain: 'info',
+        coach: '위·아래 얇은 선은 꼬리야. 그 기간 안에 잠깐 찍은 최고가·최저가야.',
+        coachPlain: '몸통이 진짜 마감(종가) 쪽이고, 꼬리는 장중에 잠깐만 갔던 가격이야.',
+        targets: chartWrapperTarget,
+        done: function () {
+          return false;
+        },
+      },
+      {
+        objective: '거래량 막대 읽기',
+        mood: 'success',
+        moodPlain: 'info',
+        coach: '차트 아래 막대가 거래량이야. 1단계에서 본 「오늘 거래량」이 막대로 그려진 거야.',
+        coachPlain:
+          '막대가 길수록 그날(그 기간) 거래가 많았다고 보면 돼. 가격이 움직일 때 힘이 실렸는지 볼 때 써.',
+        targets: chartWrapperTarget,
+        done: function () {
+          return false;
+        },
+      },
+      {
+        objective: '1주 봉 누르기',
+        mood: 'welcome',
         requiredRange: '1w',
-        coach: '차트 위쪽에서 「1주」만 눌러 봐.',
+        coach: '차트 위쪽에서 「1주」를 눌러 봐.',
         targets: function () {
           var b = document.querySelector('#stockDetailView .detail-range-btn[data-range="1w"]');
           return b ? [b] : [];
@@ -189,23 +222,19 @@
         },
       },
       {
-        objective: '첫 종목: 주봉 화면 읽기',
+        objective: '주봉: 이번 주 읽기',
         mood: 'info',
-        coach:
-          '지금은 주봉이야. 한 봉이 그 주의 시가·고가·저가·종가를 묶어서 보여 줘. 일봉보다 봉 개수는 적고, 한 봉이 곧 일주일치야.',
-        coachPlain:
-          '하루 단위 잡음은 덜 보이고, 일주일마다 한 칸씩만 정리된 그림에 가깝게 보이는 거야.',
-        targets: function () {
-          var w = document.getElementById('chartWrapper');
-          return w ? [w] : [];
-        },
+        moodPlain: 'wink',
+        coach: '주봉은 이번 주를 한 칸으로 묶은 거야. 하루 잡음은 줄어.',
+        coachPlain: '「이번 주 전체로 위로 갔나, 아래로 갔나」에 초점을 맞춰 봐.',
+        targets: chartWrapperTarget,
         done: function () {
           return false;
         },
       },
       {
-        objective: '첫 종목: 1개월 누르기',
-        mood: 'info',
+        objective: '1개월 봉 누르기',
+        mood: 'wink',
         requiredRange: '1m',
         coach: '이제 「1개월」을 눌러.',
         targets: function () {
@@ -217,23 +246,19 @@
         },
       },
       {
-        objective: '첫 종목: 월봉 화면 읽기',
-        mood: 'info',
-        coach:
-          '지금은 월봉이야. 한 봉이 한 달 동안의 OHLC를 한 덩어리로 보여 줘. 중기 흐름이나 박스권 볼 때 쓰는 단위지.',
-        coachPlain:
-          '봉 개수는 더 줄어. 한 칸이 한 달이라서, 그달에 어디서 열리고 어디서 닫혔는지만 먼저 보면 돼.',
-        targets: function () {
-          var w = document.getElementById('chartWrapper');
-          return w ? [w] : [];
-        },
+        objective: '월봉: 한 달 읽기',
+        mood: 'success',
+        moodPlain: 'info',
+        coach: '월봉은 한 달을 한 봉으로 본 화면이야. 봉 개수가 더 줄어.',
+        coachPlain: '그달에 어디서 열리고 어디서 닫혔는지만 먼저 보면 돼.',
+        targets: chartWrapperTarget,
         done: function () {
           return false;
         },
       },
       {
-        objective: '첫 종목: 1년 누르기',
-        mood: 'info',
+        objective: '1년 봉 누르기',
+        mood: 'welcome',
         requiredRange: '1y',
         coach: '마지막으로 「1년」을 눌러.',
         targets: function () {
@@ -245,147 +270,14 @@
         },
       },
       {
-        objective: '첫 종목: 장기봉 화면 읽기',
-        mood: 'info',
+        objective: '년봉: 큰 그림 읽기',
+        mood: 'success',
+        moodPlain: 'wink',
         coach:
-          '지금은 연간에 가깝게 긴 간격으로 묶인 봉이야. 몇 년 단위 박스나 큰 추세를 볼 때 쓰는 화면이지.',
+          '년봉은 큰 그림용이야. 출렁임은 줄고, 지금 가격이 예전보다 높은 편인지 낮은 편인지 대략만 보면 돼. 지금까지는 간단한 차트 읽기를 연습했어.',
         coachPlain:
-          '짧은 출렁임은 덜 보이고, 몇 년 치 큰 방향만 보고 싶을 때 쓴다고 보면 돼.',
-        targets: function () {
-          var w = document.getElementById('chartWrapper');
-          return w ? [w] : [];
-        },
-        done: function () {
-          return false;
-        },
-      },
-      {
-        objective: '주요 종목으로 돌아가기',
-        mood: 'info',
-        coach:
-          '이제 「주요 종목으로 돌아가기」 버튼을 눌러 목록으로 이동해 줘.',
-        targets: function () {
-          var back = document.querySelector('#stockDetailView .btn-back');
-          return back ? [back] : [];
-        },
-        done: function () {
-          return overviewVisible();
-        },
-      },
-      {
-        objective: 'NAVER 골라 두 번째 종목 보기',
-        mood: 'info',
-        coach:
-          '목록으로 돌아왔으면 NAVER(035420) 행을 눌러 상세·차트로 들어가 줘.',
-        targets: function () {
-          var row = document.querySelector('#row-' + STEP2_EXPECTED_B);
-          var sec = document.querySelector('#marketOverviewView .stocks-section');
-          if (row) return [row];
-          return sec ? [sec] : [];
-        },
-        done: function () {
-          return (
-            Boolean(interaction.secondCode) &&
-            detailVisible() &&
-            window.__jurinSelectedStockCode === interaction.secondCode
-          );
-        },
-      },
-      {
-        objective: '두 번째 종목: 1일 봉 보기',
-        mood: 'info',
-        coach:
-          '지금은 일봉이야. 한 봉에 하루치 시가·고가·저가·종가(OHLC)가 들어 있어.',
-        coachPlain:
-          '하루 장이 끝날 때까지 움직임이 한 덩어리로 찍힌 거야. 변동이 작으면 봉 몸통이 짧게 보이기도 해.',
-        targets: function () {
-          var b = document.querySelector('#stockDetailView .detail-range-btn[data-range="1d"]');
-          return b ? [b] : [];
-        },
-        done: function () {
-          return false;
-        },
-      },
-      {
-        objective: '두 번째 종목: 1주 누르기',
-        mood: 'info',
-        requiredRange: '1w',
-        coach: '차트 위쪽에서 「1주」만 눌러 봐.',
-        targets: function () {
-          var b = document.querySelector('#stockDetailView .detail-range-btn[data-range="1w"]');
-          return b ? [b] : [];
-        },
-        done: function () {
-          return (window.__jurinCurrentChartRange || '') === '1w';
-        },
-      },
-      {
-        objective: '두 번째 종목: 주봉 화면 읽기',
-        mood: 'info',
-        coach:
-          '지금은 주봉이야. 한 봉이 그 주의 시가·고가·저가·종가를 묶어서 보여 줘. 일봉보다 봉 개수는 적고, 한 봉이 곧 일주일치야.',
-        coachPlain:
-          '하루 단위 잡음은 덜 보이고, 일주일마다 한 칸씩만 정리된 그림에 가깝게 보이는 거야.',
-        targets: function () {
-          var w = document.getElementById('chartWrapper');
-          return w ? [w] : [];
-        },
-        done: function () {
-          return false;
-        },
-      },
-      {
-        objective: '두 번째 종목: 1개월 누르기',
-        mood: 'info',
-        requiredRange: '1m',
-        coach: '이제 「1개월」을 눌러.',
-        targets: function () {
-          var b = document.querySelector('#stockDetailView .detail-range-btn[data-range="1m"]');
-          return b ? [b] : [];
-        },
-        done: function () {
-          return (window.__jurinCurrentChartRange || '') === '1m';
-        },
-      },
-      {
-        objective: '두 번째 종목: 월봉 화면 읽기',
-        mood: 'info',
-        coach:
-          '지금은 월봉이야. 한 봉이 한 달 동안의 OHLC를 한 덩어리로 보여 줘. 중기 흐름이나 박스권 볼 때 쓰는 단위지.',
-        coachPlain:
-          '봉 개수는 더 줄어. 한 칸이 한 달이라서, 그달에 어디서 열리고 어디서 닫혔는지만 먼저 보면 돼.',
-        targets: function () {
-          var w = document.getElementById('chartWrapper');
-          return w ? [w] : [];
-        },
-        done: function () {
-          return false;
-        },
-      },
-      {
-        objective: '두 번째 종목: 1년 누르기',
-        mood: 'info',
-        requiredRange: '1y',
-        coach: '마지막으로 「1년」을 눌러.',
-        targets: function () {
-          var b = document.querySelector('#stockDetailView .detail-range-btn[data-range="1y"]');
-          return b ? [b] : [];
-        },
-        done: function () {
-          return (window.__jurinCurrentChartRange || '') === '1y';
-        },
-      },
-      {
-        objective: '두 번째 종목: 장기봉 화면 읽기',
-        mood: 'info',
-        coach:
-          '지금은 연간에 가깝게 긴 간격으로 묶인 봉이야. 몇 년 단위 박스나 큰 추세를 볼 때 쓰는 화면이지.',
-        coachPlain:
-          '짧은 출렁임은 덜 보이고, 몇 년 치 큰 방향만 보고 싶을 때 쓴다고 보면 돼.',
-        targets: function () {
-          var w = document.getElementById('chartWrapper');
-          return w ? [w] : [];
-        },
+          '심화적으로 차트를 해석하는 추세·지지·저항은 고수 코스에서 이어가자!',
+        targets: chartWrapperTarget,
         done: function () {
           return false;
         },
@@ -394,7 +286,7 @@
         objective: '튜토리얼 완료',
         mood: 'success',
         coach:
-          '두 종목으로 일·주·월·연 단위를 모두 봤어. 같은 차트라도 봉 단위만 바꿔도 보이는 게 달라지니, 앞으로도 자주 바꿔 보면서 익숙해지면 돼.',
+          '삼성전자 차트로 일·주·월·년 봉과 봉 색·꼬리·거래량까지 봤어. 같은 화면이라도 기간만 바꿔도 보이는 게 달라져!',
         targets: function () {
           return [];
         },
@@ -509,11 +401,9 @@
     var nowEl = getEl('marketStep2Now');
     var progressEl = getEl('marketStep2Progress');
     var clearEl = getEl('marketStep2Clear');
-    var closeBtn = getEl('marketStep2Close');
     var questItems = panel ? panel.querySelectorAll('.market-step2-quest-item') : [];
 
-    if (!overlay || !questHud || !panel || !nowEl || !progressEl || !clearEl || !closeBtn || questItems.length !== 3)
-      return;
+    if (!overlay || !questHud || !panel || !nowEl || !progressEl || !clearEl || questItems.length !== 3) return;
 
     var current = 0;
     var activeTargets = [];
@@ -554,27 +444,8 @@
 
     function ensurePickTargetPulse() {
       if (!started) return;
-      if (current === STEP_A_BACK) {
-        var back = document.querySelector('#stockDetailView .btn-back');
-        if (!back || !back.classList) return;
-        var backExists = false;
-        for (var j = 0; j < activeTargets.length; j++) {
-          if (activeTargets[j] === back) {
-            backExists = true;
-            break;
-          }
-        }
-        if (!backExists) {
-          clearTargets();
-          back.classList.add('tutorial-callout-target');
-          activeTargets.push(back);
-        } else if (!back.classList.contains('tutorial-callout-target')) {
-          back.classList.add('tutorial-callout-target');
-        }
-        return;
-      }
-      if (current !== STEP_PICK_A && current !== STEP_PICK_B) return;
-      var code = current === STEP_PICK_A ? STEP2_EXPECTED_A : STEP2_EXPECTED_B;
+      if (current !== STEP_PICK) return;
+      var code = STEP2_EXPECTED_CODE;
       var row = document.querySelector('#row-' + code);
       if (!row || !row.classList) return;
       var exists = false;
@@ -595,16 +466,16 @@
 
     function updateQuestChecklist() {
       var clearPhase = document.body.classList.contains('market-step2-clear-phase');
-      var q1Done = started && current >= STEP_PICK_B;
-      var q2Done = started && (current > STEP_B_R1Y_READ || step2QuizActive);
+      var q1Done = started && current >= STEP_R1D;
+      var q2Done = started && (current > STEP_R1Y_READ || step2QuizActive);
       var q3Done = started && clearPhase;
-      var q1Current = started && !q1Done && current >= STEP_PICK_A && current < STEP_PICK_B;
+      var q1Current = started && !q1Done && current === STEP_PICK;
       var q2Current =
         started &&
         q1Done &&
         !q2Done &&
-        current >= STEP_PICK_B &&
-        current <= STEP_B_R1Y_READ &&
+        current >= STEP_R1D &&
+        current <= STEP_R1Y_READ &&
         !step2QuizActive;
       var q3Current = started && q2Done && !q3Done && (step2QuizActive || current === STEP_FINAL);
 
@@ -637,13 +508,11 @@
         document.body.classList.remove('tutorial-fx-spotlight');
         return;
       }
-      var pickOverview =
-        overviewVisible() && (current === STEP_PICK_A || current === STEP_PICK_B);
-      var backSpot = detailVisible() && current === STEP_A_BACK;
+      var pickOverview = overviewVisible() && current === STEP_PICK;
       document.body.classList.toggle('market-step2-overview-spotlight', pickOverview);
       var spot = detailVisible() && inChartStep(current);
-      document.body.classList.toggle('market-step2-detail-spotlight', spot || backSpot);
-      document.body.classList.toggle('tutorial-fx-spotlight', pickOverview || spot || backSpot);
+      document.body.classList.toggle('market-step2-detail-spotlight', spot);
+      document.body.classList.toggle('tutorial-fx-spotlight', pickOverview || spot);
       document.body.classList.remove('market-step2-detail-overview');
       document.body.classList.remove('market-step2-detail-term-mode');
     }
@@ -781,7 +650,7 @@
 
     function presentStepCoach(step) {
       if (!window.MascotCoach || typeof window.MascotCoach.show !== 'function') {
-        if (current === STEP_B_R1Y_READ) {
+        if (current === STEP_R1Y_READ) {
           ensureStep2DimGate(false);
           clearTargets();
           overlay.classList.add('is-dim');
@@ -793,7 +662,7 @@
         return;
       }
       function advanceAfterPlain() {
-        if (current === STEP_B_R1Y_READ) {
+        if (current === STEP_R1Y_READ) {
           ensureStep2DimGate(false);
           clearTargets();
           overlay.classList.add('is-dim');
@@ -805,7 +674,7 @@
       }
       function openPlainModal() {
         window.MascotCoach.show({
-          mood: step.mood || 'info',
+          mood: step.moodPlain || step.mood || 'info',
           title: '루미 가이드',
           text: stripMdBold(step.coachPlain || ''),
           confirmLabel: '확인',
@@ -840,7 +709,7 @@
         window.MascotCoach.show({
           mood: 'success',
           title: '루미 가이드',
-          text: '3문제 모두 확인했어! 차트 읽기 연습 수고했어.',
+          text: '5문제 모두 확인했어! 차트 읽기 연습 수고했어. 이제 3단계로 이어가 보자.',
           confirmLabel: '확인',
           onConfirm: function () {
             render(STEP_FINAL);
@@ -918,6 +787,7 @@
       overlay.classList.toggle('is-dim', Boolean(dim));
       updateDetailBodyClass();
       updateQuestChecklist();
+      syncTutorialGuard();
 
       if (step.dynamicTrend) {
         showCoachTrend(step);
@@ -984,10 +854,8 @@
       clearTargets();
       started = false;
       interaction.openedDetail = false;
-      interaction.firstCode = null;
-      interaction.secondCode = null;
-      pickHandledA = false;
-      pickHandledB = false;
+      interaction.stockCode = null;
+      pickHandled = false;
       overlay.classList.remove('is-dim');
       if (pickPulseKeepAlive) {
         window.clearInterval(pickPulseKeepAlive);
@@ -999,15 +867,87 @@
       if (fromUserQuit === true && window.MascotCoach && typeof window.MascotCoach.hideDock === 'function') {
         window.MascotCoach.hideDock();
       }
+      if (window.JurinTutorialGuard && typeof window.JurinTutorialGuard.clear === 'function') {
+        window.JurinTutorialGuard.clear();
+      }
+      window.__jurinGuideQuit = null;
+    }
+
+    function rangeMisclickLabel(range) {
+      if (range === '1w') return '1주';
+      if (range === '1m') return '1개월';
+      if (range === '1y') return '1년';
+      return range || '';
+    }
+
+    function isStrictMisclickStep() {
+      if (step2QuizActive) return false;
+      if (current === STEP_PICK && !pickHandled) return true;
+      var step = STEPS[current];
+      if (step && step.requiredRange) {
+        var range = window.__jurinCurrentChartRange || '';
+        return range !== step.requiredRange;
+      }
+      return false;
+    }
+
+    function syncTutorialGuard() {
+      if (!window.JurinTutorialGuard || typeof window.JurinTutorialGuard.set !== 'function') return;
+      window.JurinTutorialGuard.set({
+        isActive: function () {
+          return (
+            started &&
+            overlay.classList.contains('is-open') &&
+            !document.body.classList.contains('market-step2-clear-phase') &&
+            !step2QuizActive
+          );
+        },
+        allowsClick: function (target) {
+          var G = window.JurinTutorialGuard;
+          if (G.allowsMascotAndQuest(target, 'marketStep2QuestHud', '.market-step2-panel')) return true;
+          if (!isStrictMisclickStep()) return true;
+          if (G.allowsSpotlightTargets(target)) return true;
+          if (current === STEP_PICK && target.closest && target.closest('#row-' + STEP2_EXPECTED_CODE)) {
+            return true;
+          }
+          var step = STEPS[current];
+          if (step && step.requiredRange && target.closest) {
+            return Boolean(
+              target.closest('.detail-range-btn[data-range="' + step.requiredRange + '"]')
+            );
+          }
+          return false;
+        },
+        getWrongMessage: function (target) {
+          if (!isStrictMisclickStep()) return null;
+          if (current === STEP_PICK) {
+            return '앗, 그건 아니야! 삼성전자(005930) 행을 눌러 상세·차트로 들어가 줘.';
+          }
+          var step = STEPS[current];
+          if (step && step.requiredRange) {
+            var label = rangeMisclickLabel(step.requiredRange);
+            return '앗, 그건 아니야! 차트 위쪽에서 「' + label + '」를 눌러줘.';
+          }
+          return null;
+        },
+        onAfterWrong: function () {
+          if (step2QuizActive) return;
+          window.JurinTutorialGuard.restoreDockOrFallback(function () {
+            var step = STEPS[current];
+            if (!step) return;
+            if (step.dynamicTrend) showCoachTrend(step);
+            else if (step.coachPlain) presentStepCoach(step);
+            else showCoach(step);
+          });
+        },
+      });
     }
 
     function open() {
       started = true;
       interaction.openedDetail = false;
-      interaction.firstCode = null;
-      interaction.secondCode = null;
-      pickHandledA = false;
-      pickHandledB = false;
+      interaction.stockCode = null;
+      pickHandled = false;
       pendingPersistStep2Complete = false;
       step2QuizActive = false;
       if (pickPulseKeepAlive) {
@@ -1031,7 +971,11 @@
           if (bannerEl) bannerEl.classList.add('is-hide');
         }, 1400);
       }
-      render(STEP_PICK_A);
+      window.__jurinGuideQuit = function () {
+        close(true);
+      };
+      syncTutorialGuard();
+      render(STEP_PICK);
     }
 
     function showIntro() {
@@ -1043,17 +987,16 @@
         mood: 'welcome',
         title: '루미',
         text:
-          '2단계 시작! 삼성전자(005930)와 NAVER(035420)로 기간별 차트를 눌러 보자. 확인 누르면 시작!',
+          '2단계 시작! 삼성전자(005930) 차트로 일·주·월·년 봉과 봉·거래량을 같이 볼 거야. 확인 누르면 시작!',
         confirmLabel: '확인',
         onConfirm: function () {
           open();
         },
       });
+      window.__jurinGuideQuit = function () {
+        close(true);
+      };
     }
-
-    closeBtn.addEventListener('click', function () {
-      close(true);
-    });
 
     document.addEventListener('keydown', function (event) {
       if (event.key === 'Escape' && overlay.classList.contains('is-open')) {
@@ -1069,47 +1012,14 @@
         var code = row.id && row.id.indexOf('row-') === 0 ? row.id.slice(4) : null;
         if (!code) return;
 
-        if (current === STEP_PICK_A) {
-          if (pickHandledA) return;
-          if (code !== STEP2_EXPECTED_A) {
-            if (window.MascotCoach && typeof window.MascotCoach.show === 'function') {
-              window.MascotCoach.show({
-                mood: 'caution',
-                title: '루미 가이드',
-                text: '삼성전자(005930) 행을 눌러 줘.',
-                confirmLabel: '확인',
-                onConfirm: function () {},
-              });
-            }
-            return;
-          }
-          pickHandledA = true;
-          interaction.firstCode = code;
+        if (current === STEP_PICK) {
+          if (pickHandled) return;
+          if (code !== STEP2_EXPECTED_CODE) return;
+          pickHandled = true;
+          interaction.stockCode = code;
           interaction.openedDetail = true;
           window.setTimeout(function () {
-            render(STEP_A_R1D);
-          }, 450);
-          return;
-        }
-        if (current === STEP_PICK_B) {
-          if (code !== STEP2_EXPECTED_B) {
-            if (window.MascotCoach && typeof window.MascotCoach.show === 'function') {
-              window.MascotCoach.show({
-                mood: 'caution',
-                title: '루미 가이드',
-                text: 'NAVER(035420) 행을 눌러 줘.',
-                confirmLabel: '확인',
-                onConfirm: function () {},
-              });
-            }
-            return;
-          }
-          if (pickHandledB) return;
-          pickHandledB = true;
-          interaction.secondCode = code;
-          interaction.openedDetail = true;
-          window.setTimeout(function () {
-            render(STEP_B_R1D);
+            render(STEP_R1D);
           }, 450);
           return;
         }
@@ -1130,17 +1040,6 @@
       }, 120);
     }
 
-    function tryAutoAdvanceBackStep() {
-      if (!started || current !== STEP_A_BACK) return;
-      window.setTimeout(function () {
-        if (!started || current !== STEP_A_BACK) return;
-        var step = STEPS[current];
-        if (!step || typeof step.done !== 'function' || !step.done()) return;
-        pickHandledB = false;
-        render(STEP_PICK_B);
-      }, 120);
-    }
-
     document.addEventListener(
       'click',
       function (e) {
@@ -1149,16 +1048,6 @@
         var r = btn.getAttribute('data-range') || '';
         if (!r) return;
         tryAutoAdvanceAfterRangeClick(r);
-      },
-      true
-    );
-
-    document.addEventListener(
-      'click',
-      function (e) {
-        var back = e.target && e.target.closest ? e.target.closest('#stockDetailView .btn-back') : null;
-        if (!back || !started) return;
-        tryAutoAdvanceBackStep();
       },
       true
     );

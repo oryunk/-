@@ -24,10 +24,45 @@
   var STEP_TERM_PREVCLOSE = 8;
   var STEP_TERM_LIMITS = 9;
   var STEP_TERM_VOL = 10;
-  var STEP_WRAP = 11;
+  var STEP_TERM_TRADED_VALUE = 11;
+  var STEP_WRAP = 12;
+  var STEP_FINAL = 13;
 
   /** 가이드 「전체 튜토리얼」 5단계 중 1단계 클리어 시 비트 0 (guide.html 과 동일 키) */
   var TUTORIAL_MASK_KEY = 'jurinGuideTutorialBits';
+
+  var STEP1_QUIZ = [
+    {
+      text: '문제 1/5 (O/X)\n코스피는 대형주 비중이 큰 시장이라고 보면 된다.',
+      correct: 1,
+      correctHint: '맞아! 코스피는 대형주·우량주 비중이 상대적으로 커.',
+      wrongHint: '코스피는 대형주 비중이 크다고 보면 돼. 코스닥은 성장·벤처 쪽이 많아.',
+    },
+    {
+      text: '문제 2/5 (O/X)\n코스닥은 대형주만 모여 있는 시장이다.',
+      correct: 2,
+      correctHint: '맞아! 코스닥은 중소·성장 기업이 많은 편이야.',
+      wrongHint: '코스닥은 성장·벤처 쪽 종목이 많다고 보면 돼.',
+    },
+    {
+      text: '문제 3/5 (O/X)\n주식 시장은 보통 오전 9시부터 오후 3시 30분까지 열려 있다.',
+      correct: 1,
+      correctHint: '정답이야! 우리나라 정규장은 대략 9:00~15:30이야.',
+      wrongHint: '정규장은 보통 9시부터 3시 반까지라고 보면 돼.',
+    },
+    {
+      text: '문제 4/5 (O/X)\n전일 종가는 오늘 시가와 항상 똑같다.',
+      correct: 2,
+      correctHint: '맞아! 시가는 장 시작 후 첫 체결 쪽이라 전일 종가와 다를 수 있어.',
+      wrongHint: '전일 종가는 어제 마감가고, 오늘 시가는 장이 열린 뒤 첫 체결 쪽이야.',
+    },
+    {
+      text: '문제 5/5 (O/X)\n거래대금은 가격과 거래량을 곱해 본, 그날 시장에서 움직인 돈의 규모다.',
+      correct: 1,
+      correctHint: '맞아! 거래대금은 가격 × 거래량으로, 얼마나 큰 돈이 움직였는지 보여 줘.',
+      wrongHint: '거래대금은 가격과 거래량을 곱한 값이야. 거래량만큼 주식 수가 항상 같은 건 아니야.',
+    },
+  ];
 
   function filterUpDownButtons() {
     var wrap = document.getElementById('stocksFilterBtns');
@@ -51,7 +86,9 @@
       coach:
         '위쪽 지수 카드만 봐도 오늘 시장이 전체로 올랐는지 내렸는지 감이 와. 코스피는 대형주 비중이 크고, 코스닥은 성장·벤처 쪽이 많다고 보면 돼. 장은 보통 9시부터 3시 반까지 열려 있어.',
       targets: function () {
+        var sec = document.querySelector('.indices-section');
         var g = document.getElementById('indicesGrid');
+        if (sec) return [sec];
         return g ? [g] : [];
       },
       done: function () {
@@ -185,15 +222,39 @@
       },
     },
     {
+      objective: '용어: 거래대금 (카드)',
+      mood: 'info',
+      coach:
+        '거래대금은 가격 × 거래량으로, 그날 얼마나 큰 돈이 움직였는지 보여 줘. 아까 거래량이 「몇 주」였다면, 거래대금은 「얼마어치」에 가깝다고 보면 돼.',
+      targets: function () {
+        var el = document.getElementById('detailCardTradedValue');
+        return el ? [el] : [];
+      },
+      done: function () {
+        return true;
+      },
+    },
+    {
       objective: '목표: 뉴스·수급으로 힌트 찾기',
       mood: 'success',
       coach:
-        '여기까지가 시세 카드 핵심이야. 가격이 왜 움직였는지는 이유가 하나가 아니니까, 아래 관련 뉴스·투자자 동향도 같이 보면 좋아. 오늘은 숫자가 무슨 뜻인지만 잡아도 1단계 통과야!',
+        '여기까지가 시세 카드 핵심이야. 가격이 왜 움직였는지는 이유가 하나가 아니니까, 아래 관련 뉴스·투자자 동향도 같이 보면 좋아. 확인 누르면 짧은 퀴즈로 마무리할게!',
       targets: function () {
         var news = document.querySelector('#stockDetailView [data-jurin-section="news"]');
         if (news) return [news];
         var g = document.getElementById('detailGrid');
         return g ? [g] : [];
+      },
+      done: function () {
+        return true;
+      },
+    },
+    {
+      objective: '1단계 클리어',
+      mood: 'success',
+      coach: '1단계 시세 읽기를 마쳤어! 다음은 2단계 차트 기초로 이어가면 돼.',
+      targets: function () {
+        return [];
       },
       done: function () {
         return true;
@@ -205,7 +266,8 @@
     return document.getElementById(id);
   }
 
-  function scrollTutorialTargetsIntoViewIfNeeded(elements) {
+  function scrollTutorialTargetsIntoViewIfNeeded(elements, opts) {
+    opts = opts || {};
     if (!elements || !elements.length) return;
     var primary = elements[0];
     if (!primary || typeof primary.getBoundingClientRect !== 'function') return;
@@ -214,21 +276,65 @@
         var r = primary.getBoundingClientRect();
         var vh = window.innerHeight || document.documentElement.clientHeight;
         var vw = window.innerWidth || document.documentElement.clientWidth;
-        var topMargin = 100;
-        var bottomMargin = 40;
+        var topMargin = typeof opts.topMargin === 'number' ? opts.topMargin : 100;
+        var bottomMargin = typeof opts.bottomMargin === 'number' ? opts.bottomMargin : 40;
+        var coachReserve = typeof opts.coachBottomReserve === 'number' ? opts.coachBottomReserve : 0;
         var sideMargin = 8;
+        var viewBottom = vh - bottomMargin - coachReserve;
         var clipped =
           r.top < topMargin ||
-          r.bottom > vh - bottomMargin ||
+          r.bottom > viewBottom ||
           r.left < sideMargin ||
           r.right > vw - sideMargin;
-        if (!clipped) return;
-        try {
-          primary.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
-        } catch (e) {
-          primary.scrollIntoView(true);
+        var pinBottom = Boolean(opts.pinBottomAboveReserve);
+        if (!pinBottom && !clipped && !opts.alwaysNudge) return;
+        if (clipped) {
+          var block = opts.scrollBlock || 'center';
+          if (pinBottom) block = 'nearest';
+          try {
+            primary.scrollIntoView({ behavior: 'smooth', block: block, inline: 'nearest' });
+          } catch (e) {
+            primary.scrollIntoView(true);
+          }
+        }
+        if (pinBottom) {
+          var reserve = typeof opts.coachBottomReserve === 'number' ? opts.coachBottomReserve : 240;
+          var gap = typeof opts.pinGap === 'number' ? opts.pinGap : 14;
+          var delay = typeof opts.pinDelay === 'number' ? opts.pinDelay : 480;
+          window.setTimeout(function () {
+            var r2 = primary.getBoundingClientRect();
+            var vh2 = window.innerHeight || document.documentElement.clientHeight;
+            var targetLine = vh2 - bottomMargin - reserve - gap;
+            var delta = r2.bottom - targetLine;
+            if (Math.abs(delta) > 5) {
+              try {
+                window.scrollBy({ top: delta, left: 0, behavior: 'smooth' });
+              } catch (e) {
+                window.scrollBy(0, delta);
+              }
+            }
+          }, delay);
         }
       });
+    });
+  }
+
+  function scrollIndicesChartsIntoView() {
+    var grid = document.getElementById('indicesGrid');
+    if (!grid) return;
+    var chart =
+      grid.querySelector('.index-inline-chart') ||
+      grid.querySelector('.index-card');
+    var anchor = chart || grid;
+    scrollTutorialTargetsIntoViewIfNeeded([anchor], {
+      scrollBlock: 'start',
+      topMargin: 88,
+      bottomMargin: 24,
+      coachBottomReserve: 250,
+      pinBottomAboveReserve: true,
+      pinGap: 16,
+      pinDelay: 520,
+      alwaysNudge: true,
     });
   }
 
@@ -240,10 +346,9 @@
     var nowEl = getEl('marketStep1Now');
     var progressEl = getEl('marketStep1Progress');
     var clearEl = getEl('marketStep1Clear');
-    var closeBtn = getEl('marketStep1Close');
     var questItems = panel ? panel.querySelectorAll('.market-step1-quest-item') : [];
 
-    if (!overlay || !questHud || !panel || !nowEl || !progressEl || !clearEl || !closeBtn || questItems.length !== 3) return;
+    if (!overlay || !questHud || !panel || !nowEl || !progressEl || !clearEl || questItems.length !== 3) return;
 
     var current = 0;
     var activeTargets = [];
@@ -252,6 +357,9 @@
     var filterPraiseShown = false;
     var volumePraiseShown = false;
     var pendingPersistStep1Complete = false;
+    var step1QuizActive = false;
+    var indicesScrollNudgeTimer = null;
+    var indicesViewNudgeBound = false;
 
     function markGuideTutorialStep1Cleared() {
       try {
@@ -281,7 +389,36 @@
           activeTargets.push(el);
         }
       });
-      scrollTutorialTargetsIntoViewIfNeeded(activeTargets);
+      if (current === STEP_INDICES) {
+        scrollTutorialTargetsIntoViewIfNeeded(activeTargets, {
+          scrollBlock: 'start',
+          topMargin: 88,
+          bottomMargin: 24,
+          coachBottomReserve: 250,
+          pinBottomAboveReserve: true,
+          pinGap: 16,
+          pinDelay: 480,
+          alwaysNudge: true,
+        });
+        scrollIndicesChartsIntoView();
+      } else {
+        scrollTutorialTargetsIntoViewIfNeeded(activeTargets);
+      }
+    }
+
+    function ensureIndicesViewNudgeListener() {
+      if (indicesViewNudgeBound) return;
+      indicesViewNudgeBound = true;
+      function onIndicesViewportChange() {
+        if (!started || current !== STEP_INDICES) return;
+        if (indicesScrollNudgeTimer) window.clearTimeout(indicesScrollNudgeTimer);
+        indicesScrollNudgeTimer = window.setTimeout(function () {
+          indicesScrollNudgeTimer = null;
+          scrollIndicesChartsIntoView();
+        }, 140);
+      }
+      window.addEventListener('scroll', onIndicesViewportChange, { passive: true });
+      window.addEventListener('resize', onIndicesViewportChange, { passive: true });
     }
 
     function updateQuestChecklist() {
@@ -291,7 +428,12 @@
       var q3Done = started && (clearPhase || pendingPersistStep1Complete);
       var q1Current = started && !q1Done && current < STEP_PICK;
       var q2Current = started && q1Done && !q2Done && current >= STEP_PICK && current < STEP_GRID_INTRO;
-      var q3Current = started && q2Done && !q3Done && current >= STEP_GRID_INTRO && !clearPhase;
+      var q3Current =
+        started &&
+        q2Done &&
+        !q3Done &&
+        (step1QuizActive || current >= STEP_WRAP) &&
+        !clearPhase;
 
       var states = [
         { done: q1Done, current: q1Current },
@@ -344,7 +486,7 @@
       document.body.classList.toggle('market-step1-detail-overview', current === STEP_GRID_INTRO);
       document.body.classList.toggle(
         'market-step1-detail-term-mode',
-        current >= STEP_TERM_OPEN && current <= STEP_TERM_VOL
+        current >= STEP_TERM_OPEN && current <= STEP_TERM_TRADED_VALUE
       );
       var commonSpot =
         started &&
@@ -352,32 +494,6 @@
           (current === STEP_VOLUME && !interaction.clickedVolumeFilter) ||
           (current >= STEP_GRID_INTRO && current <= STEP_WRAP));
       document.body.classList.toggle('tutorial-fx-spotlight', commonSpot);
-    }
-
-    function showFilterMisclickCoach() {
-      if (!window.MascotCoach || typeof window.MascotCoach.show !== 'function') return;
-      window.MascotCoach.show({
-        mood: 'caution',
-        title: '루미 가이드',
-        text: '앗, 그게 아니야! 「상승」이나 「하락」을 먼저 눌러줘.',
-        confirmLabel: '확인',
-        onConfirm: function () {
-          showCoach(STEPS[STEP_FILTER]);
-        },
-      });
-    }
-
-    function showVolumeMisclickCoach() {
-      if (!window.MascotCoach || typeof window.MascotCoach.show !== 'function') return;
-      window.MascotCoach.show({
-        mood: 'caution',
-        title: '루미 가이드',
-        text: '앗, 지금은 「거래량」버튼만 눌러 줘!',
-        confirmLabel: '확인',
-        onConfirm: function () {
-          showCoach(STEPS[STEP_VOLUME]);
-        },
-      });
     }
 
     function showFilterPraiseThenGoVolume() {
@@ -429,31 +545,68 @@
       return Boolean(btn && btn.dataset.filter === 'volume');
     }
 
-    document.addEventListener(
-      'click',
-      function (event) {
-        if (!started || current !== STEP_FILTER || interaction.clickedFilter) return;
-        if (!document.body.classList.contains('market-step1-spotlight')) return;
-        if (filterStepAllowsClick(event.target)) return;
-        event.preventDefault();
-        event.stopImmediatePropagation();
-        showFilterMisclickCoach();
-      },
-      true
-    );
+    function isStrictMisclickStep() {
+      if (step1QuizActive) return false;
+      if (current === STEP_PICK) return true;
+      if (current === STEP_FILTER && !interaction.clickedFilter) return true;
+      if (current === STEP_VOLUME && !interaction.clickedVolumeFilter) return true;
+      return false;
+    }
 
-    document.addEventListener(
-      'click',
-      function (event) {
-        if (!started || current !== STEP_VOLUME || interaction.clickedVolumeFilter) return;
-        if (!document.body.classList.contains('market-step1-spotlight-volume')) return;
-        if (volumeStepAllowsClick(event.target)) return;
-        event.preventDefault();
-        event.stopImmediatePropagation();
-        showVolumeMisclickCoach();
-      },
-      true
-    );
+    function syncTutorialGuard() {
+      if (!window.JurinTutorialGuard || typeof window.JurinTutorialGuard.set !== 'function') return;
+      window.JurinTutorialGuard.set({
+        isActive: function () {
+          return (
+            started &&
+            overlay.classList.contains('is-open') &&
+            !document.body.classList.contains('market-step1-clear-phase') &&
+            !step1QuizActive
+          );
+        },
+        allowsClick: function (target) {
+          var G = window.JurinTutorialGuard;
+          if (G.allowsMascotAndQuest(target, 'marketStep1QuestHud', '.market-step1-panel')) return true;
+          if (!isStrictMisclickStep()) return true;
+          if (G.allowsSpotlightTargets(target)) return true;
+          if (current === STEP_PICK && target.closest && target.closest('.stock-row')) return true;
+          if (current === STEP_FILTER && !interaction.clickedFilter) {
+            return filterStepAllowsClick(target);
+          }
+          if (current === STEP_VOLUME && !interaction.clickedVolumeFilter) {
+            return volumeStepAllowsClick(target);
+          }
+          return false;
+        },
+        getWrongMessage: function (target) {
+          if (!isStrictMisclickStep()) return null;
+          if (
+            current === STEP_FILTER &&
+            !interaction.clickedFilter &&
+            document.body.classList.contains('market-step1-spotlight')
+          ) {
+            return '앗, 그게 아니야! 「상승」이나 「하락」을 먼저 눌러줘.';
+          }
+          if (
+            current === STEP_VOLUME &&
+            !interaction.clickedVolumeFilter &&
+            document.body.classList.contains('market-step1-spotlight-volume')
+          ) {
+            return '앗, 지금은 「거래량」버튼만 눌러 줘!';
+          }
+          if (current === STEP_PICK) {
+            return '앗, 그건 아니야! 종목 행을 눌러 상세 화면을 열어줘.';
+          }
+          return null;
+        },
+        onAfterWrong: function () {
+          if (step1QuizActive) return;
+          window.JurinTutorialGuard.restoreDockOrFallback(function () {
+            showCoach(STEPS[current]);
+          });
+        },
+      });
+    }
 
     document.querySelectorAll('.stocks-filter .filter-btn[data-filter]').forEach(function (btn) {
       btn.addEventListener('click', function () {
@@ -501,6 +654,79 @@
       });
     }
 
+    function runQuizThenFinal() {
+      step1QuizActive = true;
+      updateQuestChecklist();
+      overlay.classList.remove('is-dim');
+      clearTargets();
+      updateDetailBodyClass();
+      if (!window.MascotCoach || typeof window.MascotCoach.show !== 'function') {
+        step1QuizActive = false;
+        render(STEP_FINAL);
+        return;
+      }
+      function finishQuizSuccess() {
+        step1QuizActive = false;
+        updateQuestChecklist();
+        window.MascotCoach.show({
+          mood: 'success',
+          title: '루미 가이드',
+          text: '5문제 모두 확인했어! 1단계 시세 읽기 수고했어.',
+          confirmLabel: '확인',
+          onConfirm: function () {
+            render(STEP_FINAL);
+          },
+        });
+      }
+      function wrongThenNext(idx) {
+        var q = STEP1_QUIZ[idx];
+        window.MascotCoach.show({
+          mood: 'caution',
+          title: '루미 가이드',
+          text: '아쉽지만 오답이야.\n' + (q.wrongHint || ''),
+          confirmLabel: '다음 문제',
+          onConfirm: function () {
+            showQuizAt(idx + 1);
+          },
+        });
+      }
+      function rightThenNext(idx) {
+        var q = STEP1_QUIZ[idx];
+        window.MascotCoach.show({
+          mood: 'success',
+          title: '루미 가이드',
+          text: '정답이야!\n' + (q.correctHint || ''),
+          confirmLabel: '다음 문제',
+          onConfirm: function () {
+            showQuizAt(idx + 1);
+          },
+        });
+      }
+      function showQuizAt(idx) {
+        if (idx >= STEP1_QUIZ.length) {
+          finishQuizSuccess();
+          return;
+        }
+        var q = STEP1_QUIZ[idx];
+        window.MascotCoach.show({
+          mood: 'info',
+          title: '루미 퀴즈',
+          text: q.text,
+          confirmLabel: 'O',
+          dismissLabel: 'X',
+          onConfirm: function () {
+            if (q.correct === 1) rightThenNext(idx);
+            else wrongThenNext(idx);
+          },
+          onDismiss: function () {
+            if (q.correct === 2) rightThenNext(idx);
+            else wrongThenNext(idx);
+          },
+        });
+      }
+      showQuizAt(0);
+    }
+
     function render(stepIndex) {
       current = clamp(stepIndex, 0, STEPS.length - 1);
       var step = STEPS[current];
@@ -514,6 +740,10 @@
       updateVolumeSpotlightClass();
       updateDetailBodyClass();
       updateQuestChecklist();
+      if (current === STEP_INDICES) {
+        ensureIndicesViewNudgeListener();
+      }
+      syncTutorialGuard();
       showCoach(step);
     }
 
@@ -529,6 +759,9 @@
           open();
         },
       });
+      window.__jurinGuideQuit = function () {
+        close(true);
+      };
     }
 
     function proceed() {
@@ -539,9 +772,14 @@
         showCoach(step);
         return;
       }
+      if (current === STEP_WRAP) {
+        runQuizThenFinal();
+        return;
+      }
       if (current >= STEPS.length - 1) {
         clearTargets();
         pendingPersistStep1Complete = true;
+        step1QuizActive = false;
         document.body.classList.add('market-step1-clear-phase');
         document.body.classList.add('tutorial-fx-clear');
         overlay.classList.remove('is-dim');
@@ -560,6 +798,11 @@
     }
 
     function close(fromUserQuit) {
+      step1QuizActive = false;
+      if (indicesScrollNudgeTimer) {
+        window.clearTimeout(indicesScrollNudgeTimer);
+        indicesScrollNudgeTimer = null;
+      }
       if (pendingPersistStep1Complete) {
         markGuideTutorialStep1Cleared();
         pendingPersistStep1Complete = false;
@@ -598,6 +841,10 @@
       if (fromUserQuit === true && window.MascotCoach && typeof window.MascotCoach.hideDock === 'function') {
         window.MascotCoach.hideDock();
       }
+      if (window.JurinTutorialGuard && typeof window.JurinTutorialGuard.clear === 'function') {
+        window.JurinTutorialGuard.clear();
+      }
+      window.__jurinGuideQuit = null;
     }
 
     function open() {
@@ -608,6 +855,7 @@
       detailGuideShown = false;
       filterPraiseShown = false;
       volumePraiseShown = false;
+      step1QuizActive = false;
       window.__marketStep1OnDetailClosed = function () {
         if (!started) return;
         if (current === STEP_PICK) {
@@ -626,12 +874,12 @@
           if (bannerEl) bannerEl.classList.add('is-hide');
         }, 1400);
       }
+      window.__jurinGuideQuit = function () {
+        close(true);
+      };
+      syncTutorialGuard();
       render(STEP_INDICES);
     }
-
-    closeBtn.addEventListener('click', function () {
-      close(true);
-    });
 
     document.addEventListener('keydown', function (event) {
       if (event.key === 'Escape' && overlay.classList.contains('is-open')) {
