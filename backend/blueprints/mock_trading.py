@@ -46,3 +46,10 @@ def mock_trade():
     import app as app_module
 
     return app_module.serve_mock_trade()
+
+
+@mock_trading_bp.route("/api/mock/realized-pnl", methods=["GET"])
+def mock_realized_pnl():
+    import app as app_module
+
+    return app_module.serve_mock_realized_pnl()
