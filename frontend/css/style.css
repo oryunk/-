@@ -335,6 +335,81 @@ nav {
   color: var(--accent);
 }
 
+.login-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 18px 0 14px;
+  color: var(--gray-400);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.login-divider::before,
+.login-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: rgba(47, 143, 95, 0.18);
+}
+
+.login-google-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: 13px 16px;
+  border-radius: 10px;
+  border: 1px solid rgba(47, 143, 95, 0.28);
+  background: #ffffff;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+/* Google "G" multicolor logo (공식 브랜드 색상) */
+.login-google-btn::before {
+  content: '';
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  background: center / contain no-repeat url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%234285F4' d='M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z'/%3E%3Cpath fill='%2334A853' d='M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z'/%3E%3Cpath fill='%23FBBC05' d='M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z'/%3E%3Cpath fill='%23EA4335' d='M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z'/%3E%3C/svg%3E");
+}
+
+.login-google-btn:hover {
+  background: var(--gray-100);
+  border-color: rgba(47, 143, 95, 0.45);
+  box-shadow: 0 4px 14px rgba(31, 47, 38, 0.08);
+}
+
+.login-google-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(47, 143, 95, 0.2);
+}
+
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 20px 0 14px;
+  color: var(--gray-400);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: rgba(47, 143, 95, 0.18);
+}
+
 /* TICKER */
 .ticker-strip {
   margin-top: 64px;
@@ -663,6 +738,18 @@ body.market-step1-active .mascot-coach-dock {
 
 .mascot-coach-actions .tutorial-btn-ghost {
   min-width: 66px;
+}
+
+.mascot-coach-actions .mascot-coach-btn-exit {
+  border-color: rgba(198, 72, 72, 0.45);
+  background: linear-gradient(180deg, #fff5f5 0%, #ffecec 100%);
+  color: #b42318;
+}
+
+.mascot-coach-actions .mascot-coach-btn-exit:hover {
+  border-color: rgba(198, 72, 72, 0.62);
+  background: linear-gradient(180deg, #ffe8e8 0%, #ffd6d6 100%);
+  color: #912018;
 }
 .mascot-coach-bubble {
   position: relative;
@@ -1216,12 +1303,42 @@ body.market-step2-action-spotlight #stockDetailView .btn-back.tutorial-callout-t
   animation: tutorialTargetPulse 1.05s infinite;
 }
 
-/* 시장 3단계: 본문 위 전체 딤(강조 카드 z-index 500·루미 700 아래) */
-body.market-step3-active:not(.market-step3-clear-phase) .market-step3-overlay.is-dim {}
+/* 시장 3단계: 차트·칩 설명 중 딤 없이 밝게 (루미 대화창과 동일 체감) */
+body.market-step3-chart-bright .market-step3-overlay.is-dim {
+  background: transparent !important;
+  pointer-events: none;
+}
+
+/* 시장 3단계: 본문 위 전체 딤(퀴즈·결론 등) */
+body.market-step3-active:not(.market-step3-clear-phase):not(.market-step3-chart-bright)
+  .market-step3-overlay.is-dim {
+  z-index: 400;
+  background: rgba(4, 8, 6, 0.68);
+  pointer-events: none;
+}
 
 /* 시장 3단계 튜토리얼: 상세 구간 오버레이 스택 */
 body.market-step3-detail-spotlight:not(.market-step3-clear-phase) .market-step3-overlay {
   z-index: 400;
+}
+
+body.market-step3-chart-bright #stockDetailView [data-jurin-section="fin-chart"] {
+  position: relative;
+  z-index: 502;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow:
+    0 0 0 2px rgba(47, 143, 95, 0.35),
+    0 4px 24px rgba(246, 252, 248, 0.95);
+}
+
+body.market-step3-chart-bright #stockDetailView #detailFinancialChart {
+  background: #ffffff;
+}
+
+body.market-step3-chart-bright #stockDetailView .detail-fin-chart-seg,
+body.market-step3-chart-bright #stockDetailView .detail-fin-metric-chip {
+  opacity: 1;
 }
 
 body.market-step3-active .mascot-coach.is-open:not(.mascot-coach--spotlight) {}
@@ -1257,6 +1374,62 @@ body.market-step3-pick-lock #row-005930 td {
     0 0 0 2px rgba(255, 255, 255, 0.92),
     0 0 18px rgba(47, 143, 95, 0.46),
     0 0 36px rgba(246, 252, 248, 0.62);
+  animation: tutorialTargetPulse 1.05s infinite;
+}
+
+body.market-step3-active #indicatorGrid .metric-item.tutorial-callout-target {
+  position: relative;
+  z-index: 501;
+  box-shadow:
+    inset 0 0 0 2px rgba(47, 143, 95, 0.88),
+    0 0 0 2px rgba(255, 255, 255, 0.9),
+    0 0 16px rgba(47, 143, 95, 0.42);
+  animation: tutorialTargetPulse 1.05s infinite;
+}
+
+body.market-step3-active #indicatorGrid .metric-item.tutorial-callout-target .metric-item-label {
+  color: #174a36;
+  font-weight: 800;
+}
+
+body.market-step3-active #indicatorGrid .metric-item.tutorial-callout-target .metric-item-value {
+  font-weight: 800;
+}
+
+/* 3단계: 칩 — active 안쪽 연한 초록 유지, 바깥 튜토리얼 링만 */
+body.market-step3-active #stockDetailView .detail-fin-metric-chip.tutorial-callout-target {
+  position: relative;
+  z-index: 503;
+  background-image: none !important;
+  color: inherit !important;
+  outline: 3px solid rgba(255, 255, 255, 0.95);
+  outline-offset: 2px;
+  box-shadow:
+    0 0 0 2px rgba(47, 143, 95, 0.95),
+    0 0 18px rgba(47, 143, 95, 0.45);
+  animation: tutorialTargetPulse 1.05s infinite;
+}
+
+body.market-step3-active #stockDetailView .detail-fin-metric-chip.tutorial-callout-target:not(.active) {
+  background-color: #ffffff !important;
+}
+
+body.market-step3-active #stockDetailView .detail-fin-metric-chip.tutorial-callout-target.active {
+  background-color: rgba(47, 143, 95, 0.12) !important;
+  border-color: var(--accent, #2f8f5f) !important;
+  color: #1d4d38 !important;
+}
+
+body.market-step3-active #stockDetailView .detail-fin-chart-seg.tutorial-callout-target {
+  position: relative;
+  z-index: 503;
+  background: transparent !important;
+  color: inherit !important;
+  outline: 3px solid rgba(255, 255, 255, 0.95);
+  outline-offset: 2px;
+  box-shadow:
+    0 0 0 2px rgba(47, 143, 95, 0.95),
+    0 0 18px rgba(47, 143, 95, 0.45);
   animation: tutorialTargetPulse 1.05s infinite;
 }
 
