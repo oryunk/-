@@ -64,3 +64,104 @@ function jurinApiBase() {
     upgradeSimulationLinks();
   }
 })();
+
+// Inject mobile/tablet hamburger nav behavior for pages that use the shared nav markup.
+(function () {
+  function normalizeNavSignupButton() {
+    var buttons = document.querySelectorAll('nav .nav-right .btn-primary');
+    for (var i = 0; i < buttons.length; i++) {
+      var btn = buttons[i];
+      btn.textContent = '회원가입';
+      if (btn.tagName === 'BUTTON') {
+        btn.type = 'button';
+        if (!btn.hasAttribute('onclick') && !btn.getAttribute('data-signup-bound')) {
+          btn.setAttribute('data-signup-bound', '1');
+          btn.addEventListener('click', function () {
+            window.location.href = 'signup.html';
+          });
+        }
+      } else if (btn.tagName === 'A' && !btn.getAttribute('href')) {
+        btn.setAttribute('href', 'signup.html');
+      }
+    }
+  }
+
+  function initResponsiveNav() {
+    var nav = document.querySelector('nav');
+    if (!nav || nav.getAttribute('data-nav-mobile-ready') === '1') return;
+
+    var menu = nav.querySelector('.nav-menu');
+    var right = nav.querySelector('.nav-right');
+    if (!menu || !right) return;
+
+    nav.setAttribute('data-nav-mobile-ready', '1');
+
+    menu.id = menu.id || 'globalNavMenu';
+
+    var panel = document.createElement('div');
+    panel.className = 'nav-mobile-panel';
+
+    var toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = 'nav-hamburger';
+    toggle.setAttribute('aria-label', '메뉴 열기');
+    toggle.setAttribute('aria-expanded', 'false');
+    toggle.setAttribute('aria-controls', menu.id);
+    toggle.innerHTML = '<span class="nav-hamburger-lines" aria-hidden="true"></span>';
+
+    var backdrop = document.createElement('div');
+    backdrop.className = 'nav-mobile-backdrop';
+    backdrop.setAttribute('aria-hidden', 'true');
+
+    panel.appendChild(menu);
+    nav.insertBefore(panel, right);
+    nav.insertBefore(toggle, right);
+    nav.insertAdjacentElement('afterend', backdrop);
+
+    function isMobileWidth() {
+      return window.matchMedia('(max-width: 1024px)').matches;
+    }
+
+    function setOpen(open) {
+      var shouldOpen = !!open && isMobileWidth();
+      nav.classList.toggle('nav-open', shouldOpen);
+      toggle.setAttribute('aria-expanded', shouldOpen ? 'true' : 'false');
+      toggle.setAttribute('aria-label', shouldOpen ? '메뉴 닫기' : '메뉴 열기');
+    }
+
+    toggle.addEventListener('click', function () {
+      setOpen(!nav.classList.contains('nav-open'));
+    });
+
+    backdrop.addEventListener('click', function () {
+      setOpen(false);
+    });
+
+    nav.addEventListener('click', function (event) {
+      var link = event.target.closest('.nav-menu a, .nav-right button, .nav-right a');
+      if (link && isMobileWidth()) {
+        setOpen(false);
+      }
+    });
+
+    document.addEventListener('keydown', function (event) {
+      if (event.key === 'Escape') {
+        setOpen(false);
+      }
+    });
+
+    window.addEventListener('resize', function () {
+      if (!isMobileWidth()) setOpen(false);
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function () {
+      normalizeNavSignupButton();
+      initResponsiveNav();
+    });
+  } else {
+    normalizeNavSignupButton();
+    initResponsiveNav();
+  }
+})();
