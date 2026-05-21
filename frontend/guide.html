@@ -13,6 +13,11 @@
     padding-top: 80px;
     background: radial-gradient(circle at 10% 0%, rgba(47, 143, 95, 0.08), transparent 40%), #fff;
   }
+
+  /* 가이드: 튜토리얼 설명·가이드 연습은 MascotCoach 말풍선만, 좌하단 도크·챗봇 없음 */
+  body.guide-page #mascotCoachDock {
+    display: none !important;
+  }
   .guide-wrap {
     max-width: 1100px;
     margin: 0 auto;
@@ -285,7 +290,7 @@
   }
 </style>
 </head>
-<body>
+<body class="guide-page guide-lumi-session">
 <nav>
   <a href="주린닷컴홈피.html" class="nav-logo">
     <div class="logo-icon">주</div>
@@ -345,27 +350,27 @@
         <section class="guide-card" data-step="1">
           <h3>1단계: 시세 읽기</h3>
           <p>지수·필터로 오늘 시장을 보고, 상세 카드에서 <strong>거래량·거래대금</strong>까지 익힌 뒤 뉴스·수급으로 이어집니다.</p>
-          <button class="btn-primary" type="button" onclick="location.href='주린닷컴홈피.html?tutorial=step1'">1단계 시작</button>
+          <button class="btn-primary" type="button" onclick="try{sessionStorage.setItem('jurin:guide-lumi-session','1')}catch(e){}location.href='주린닷컴홈피.html?tutorial=step1'">1단계 시작</button>
         </section>
         <section class="guide-card" data-step="2">
           <h3>2단계: 차트 기초</h3>
           <p>삼성전자 차트로 <strong>일·주·월·년</strong> 봉과 <strong>봉·거래량</strong> 읽기.</p>
-          <button class="btn-primary" type="button" onclick="location.href='market.html?tutorial=step2'">2단계 시작</button>
+          <button class="btn-primary" type="button" onclick="try{sessionStorage.setItem('jurin:guide-lumi-session','1')}catch(e){}location.href='market.html?tutorial=step2'">2단계 시작</button>
         </section>
         <section class="guide-card" data-step="3">
           <h3>3단계: 종목 가치</h3>
           <p>가치 비교·재무 성과·재무상태표 <strong>칩을 왼쪽부터</strong> 차트로 읽으며, PER·매출·부채 등으로 <strong>숫자 근거</strong>로 종목 가치를 보는 단계입니다.</p>
-          <button class="btn-primary" type="button" onclick="location.href='market.html?tutorial=step3'">3단계 시작</button>
+          <button class="btn-primary" type="button" onclick="try{sessionStorage.setItem('jurin:guide-lumi-session','1')}catch(e){}location.href='market.html?tutorial=step3'">3단계 시작</button>
         </section>
         <section class="guide-card" data-step="4">
           <h3>4단계: 시장 종류</h3>
           <p>ETF·섹터·테마의 차이와 ELW·채권 기초 개념을 익혀, 상품 성격에 맞는 선택 기준을 만듭니다.</p>
-          <button class="btn-ghost" type="button" onclick="location.href='market-products.html?topic=elw'">ELW·채권 보기</button>
+          <button class="btn-ghost" type="button" onclick="try{sessionStorage.setItem('jurin:guide-lumi-session','1')}catch(e){}location.href='market-products.html?topic=elw'">ELW·채권 보기</button>
         </section>
         <section class="guide-card" data-step="5">
-          <h3>5단계: 실전 투자</h3>
-          <p>예수금 기준으로 주문하고, 미수 위험을 피하며, 분할매수·손절 원칙까지 실전 루틴을 익힙니다.</p>
-          <button class="btn-ghost" type="button" onclick="location.href='simulation.html'">실전 연습 가기</button>
+          <h3>5단계: 나의 첫 투자</h3>
+          <p>모의투자로 <strong>차트·시세·호가</strong>를 보며 <strong>지정가 매수</strong> 흐름을 익힙니다. 로그인 후 시작.</p>
+          <button class="btn-primary" type="button" onclick="try{sessionStorage.setItem('jurin:guide-lumi-session','1')}catch(e){}location.href='simulation.html?tutorial=step5'">5단계 시작</button>
         </section>
       </div>
     </div>
@@ -375,7 +380,7 @@
         <section class="guide-card guide-card--expert-beta">
           <h3>1단계 <span class="guide-beta-tag">베타버전</span></h3>
           <p>고급 학습·심화 전략 코스를 준비 중입니다. 베타 기간에는 1단계만 열려 있으며, 이후 단계가 순차 공개됩니다.</p>
-          <button type="button" class="btn-ghost" onclick="location.href='market.html'">시장 화면에서 심화 보기</button>
+          <button type="button" class="btn-ghost" onclick="try{sessionStorage.setItem('jurin:guide-lumi-session','1')}catch(e){}location.href='market.html'">시장 화면에서 심화 보기</button>
         </section>
       </div>
     </div>
@@ -537,7 +542,7 @@
         mood: 'info',
         title: '튜토리얼은 어떻게 진행되나요?',
         text:
-          '1단계는 시황판·거래량·거래대금, 2단계는 삼성전자 한 종목으로 차트 기간·봉·거래량, 3단계는 가치 비교·재무 성과·재무상태표 칩으로 숫자 근거로 종목 가치를 읽어요, 4단계는 시장 종류(ETF·ELW·채권), 5단계는 실전 투자 순서로 이어져요. 추세·지지·저항은 고수 코스예요.',
+          '1단계는 시황판·거래량·거래대금, 2단계는 삼성전자 차트, 3단계는 종목 가치, 4단계는 시장 종류(ETF·ELW·채권), 5단계는 모의투자로 차트·시세·호가와 지정가 매수를 연습해요. 추세·지지·저항은 고수 코스예요.',
       },
       {
         mood: 'success',
@@ -557,6 +562,7 @@
       if (introIdx >= tutorialIntroSteps.length) {
         resetTutorialIntro();
         window.MascotCoach.close();
+        if (window.MascotCoach.hideDock) window.MascotCoach.hideDock();
         return;
       }
       var step = tutorialIntroSteps[introIdx];
@@ -572,12 +578,14 @@
           if (last) {
             resetTutorialIntro();
             window.MascotCoach.close();
+            if (window.MascotCoach.hideDock) window.MascotCoach.hideDock();
             return;
           }
           showTutorialIntroStep();
         },
         onDismiss: function () {
           resetTutorialIntro();
+          if (window.MascotCoach.hideDock) window.MascotCoach.hideDock();
         },
       });
     }

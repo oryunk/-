@@ -130,14 +130,14 @@
   }
 
   .watchlist-chip--aside {
-    display: block;
+    display: flex;
+    align-items: stretch;
     width: 100%;
     margin: 0;
     padding: 0;
     border: 1px solid rgba(47, 143, 95, 0.28);
     border-radius: 12px;
     background: #fff;
-    cursor: pointer;
     font: inherit;
     text-align: left;
     transition: background 0.15s ease, border-color 0.15s ease;
@@ -146,6 +146,43 @@
   .watchlist-chip--aside:hover {
     background: rgba(47, 143, 95, 0.06);
     border-color: rgba(47, 143, 95, 0.45);
+  }
+
+  .watchlist-chip-main {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font: inherit;
+    text-align: left;
+    border-radius: 12px 0 0 12px;
+  }
+
+  .watchlist-chip-heart.watch-heart-btn {
+    flex-shrink: 0;
+    align-self: center;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    margin: 0 4px 0 0;
+    padding: 0;
+    border: none;
+    border-radius: 10px;
+    background: transparent;
+    color: #e91e63;
+    font-size: 17px;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+  }
+
+  .watchlist-chip-heart.watch-heart-btn:hover {
+    background: rgba(233, 30, 99, 0.08);
   }
 
   .watchlist-chip-inner {
@@ -1496,7 +1533,7 @@
   }
 
   .detail-buy {
-    background: #3182f6;
+    background: #ff5a5f;
     color: #fff;
   }
 
@@ -1505,7 +1542,7 @@
   }
 
   .detail-sell {
-    background: #ff5a5f;
+    background: #3182f6;
     color: #fff;
   }
 
@@ -1561,11 +1598,11 @@
   }
 
   .mock-trade-panel--buy .mock-trade-title {
-    color: #0d7ee0;
+    color: #d32f2f;
   }
 
   .mock-trade-panel--sell .mock-trade-title {
-    color: #c44;
+    color: #1565c0;
   }
 
   .mock-trade-close {
@@ -1701,7 +1738,7 @@
   }
 
   .mock-trade-btn.submit.buy {
-    background: #3182f6;
+    background: #ff5a5f;
     color: #fff;
   }
 
@@ -1710,7 +1747,7 @@
   }
 
   .mock-trade-btn.submit.sell {
-    background: #ff5a5f;
+    background: #3182f6;
     color: #fff;
   }
 
@@ -2113,8 +2150,8 @@
 
   .investor-flow-label {
     font-size: 13px;
-    color: var(--gray-200);
-    font-weight: 700;
+    color: #2e4a3b;
+    font-weight: 600;
   }
 
   .investor-flow-bar-track {
@@ -2137,10 +2174,15 @@
   .investor-flow-bar.negative { background: linear-gradient(90deg, #5ab6ff, #2f86ff); }
   .investor-flow-bar.neutral { background: linear-gradient(90deg, #7b8ea8, #9aa7b8); }
 
+  #investorFlowMeta {
+    color: #3f5a4b;
+  }
+
   .investor-flow-value {
     text-align: right;
     font-size: 12px;
-    color: var(--gray-300);
+    font-weight: 500;
+    color: #3f5a4b;
     font-family: 'DM Mono', monospace;
   }
 
@@ -3178,6 +3220,7 @@
     }
   }
 </style>
+<link rel="stylesheet" href="css/lumi-chat.css?v=20260525">
 </head>
 <body>
 
@@ -3457,14 +3500,7 @@
               <div class="empty-state">데이터를 불러오는 중입니다.</div>
             </div>
           </section>
-          <section class="detail-section" data-jurin-section="disclosure">
-            <div class="detail-section-title">공시</div>
-            <p class="detail-section-lead"></p>
-            <div class="detail-news-list" id="detailDisclosureList">
-              <div class="empty-state">연결 가능한 공시 데이터가 없으면 비어 있을 수 있습니다.</div>
-            </div>
-          </section>
-        </div>
+</div>
         <div class="detail-cta">
           <button class="detail-buy" type="button" onclick="openMockTradeModal('BUY')">매수</button>
           <button class="detail-sell" type="button" onclick="openMockTradeModal('SELL')">매도</button>
@@ -4610,13 +4646,20 @@
         const initial = escapeHtml((nameRaw && nameRaw.trim().charAt(0)) || '?');
         logoHtml = `<span class="stock-logo-wrap stock-logo-wrap--placeholder watchlist-chip-logo" aria-hidden="true">${initial}</span>`;
       }
-      return `<button type="button" class="watchlist-chip watchlist-chip--aside" data-code="${c}" title="${name}"><div class="watchlist-chip-inner">${logoHtml}<span class="watchlist-chip-text"><span class="watchlist-chip-name">${name}</span><span class="watchlist-chip-code">${c}</span></span></div></button>`;
+      return `<div class="watchlist-chip watchlist-chip--aside" data-code="${c}"><button type="button" class="watchlist-chip-main" data-code="${c}"><div class="watchlist-chip-inner">${logoHtml}<span class="watchlist-chip-text"><span class="watchlist-chip-name">${name}</span><span class="watchlist-chip-code">${c}</span></span></div></button><button type="button" class="watch-heart-btn is-on watchlist-chip-heart" data-code="${c}" title="관심 해제" aria-label="관심 해제" aria-pressed="true">♥</button></div>`;
     }).join('');
-    host.innerHTML = `<div class="watchlist-chip-scroller watchlist-chip-scroller--aside">${chips}</div>`;
-    host.querySelectorAll('.watchlist-chip--aside').forEach((btn) => {
+    host.innerHTML = `<div class="watchlist-chip-scroller watchlist-chip-scroller--aside" role="list">${chips}</div>`;
+    host.querySelectorAll('.watchlist-chip-main').forEach((btn) => {
       btn.addEventListener('click', () => {
         const cd = btn.getAttribute('data-code');
         if (cd && /^\d{6}$/.test(cd)) openStockDetail(cd);
+      });
+    });
+    host.querySelectorAll('.watchlist-chip-heart').forEach((btn) => {
+      btn.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        const cd = btn.getAttribute('data-code');
+        if (cd && /^\d{6}$/.test(cd)) toggleWatchlist(cd, '');
       });
     });
     applyStockLogoIntrinsicFit(host);
@@ -5933,8 +5976,7 @@
     document.getElementById('statementsTableWrap').innerHTML = '<div class="empty-state">데이터를 불러오는 중입니다.</div>';
     document.getElementById('stabilityDividendGrid').innerHTML = '<div class="empty-state">데이터를 불러오는 중입니다.</div>';
     document.getElementById('detailNewsList').innerHTML = '<div class="empty-state">데이터를 불러오는 중입니다.</div>';
-    document.getElementById('detailDisclosureList').innerHTML = '<div class="empty-state">데이터를 불러오는 중입니다.</div>';
-    document.getElementById('investorFlowList').innerHTML = '<div class="empty-state">데이터를 불러오는 중입니다.</div>';
+document.getElementById('investorFlowList').innerHTML = '<div class="empty-state">데이터를 불러오는 중입니다.</div>';
     document.getElementById('investorFlowMeta').textContent = '최신 데이터 기준';
     const foot = document.getElementById('detailFootNote');
     if (foot) {
@@ -5957,6 +5999,7 @@
       renderStockDetail(selectedStockDetail.quote);
       renderStockDetailExtras(selectedStockDetail);
     } catch (e) {
+      renderInvestorFlows({ available: false, source: '', updated_at: '', items: [] });
       document.getElementById('indicatorGrid').innerHTML = `<div class="empty-state">상세 데이터를 불러오지 못했습니다. (${escapeHtml(e.message)})</div>`;
       const fc = document.getElementById('detailFinancialChart');
       if (fc) {
@@ -5982,7 +6025,6 @@
     renderFinancialTable('statementsTableWrap', detail.financials?.statements || { columns: [], rows: [] });
     renderStabilityDividend(detail.financials || {});
     renderArticleList('detailNewsList', detail.news || [], '관련 뉴스가 없습니다.');
-    renderArticleList('detailDisclosureList', detail.disclosures || [], '연결된 공시 데이터가 없습니다.');
     finChartCategory = 'valuation';
     finChartMetric = 'PER';
     syncFinSegTabs();
@@ -6372,5 +6414,6 @@
 </script>
 <div id="jurinWatchToast" class="jurin-watch-toast" role="status" aria-live="polite" hidden></div>
 
+<script src="js/lumi-chat.js?v=20260525"></script>
 </body>
 </html>

@@ -354,8 +354,8 @@
   }
 
   .btn-back {
-    background: rgba(79, 158, 255, 0.2);
-    border: 1px solid rgba(79, 158, 255, 0.4);
+    background: rgba(47, 143, 95, 0.1);
+    border: 1px solid rgba(47, 143, 95, 0.35);
     color: var(--accent);
     padding: 10px 20px;
     font-size: 13px;
@@ -372,8 +372,8 @@
   }
 
   .btn-back:hover {
-    background: rgba(79, 158, 255, 0.3);
-    border-color: rgba(79, 158, 255, 0.6);
+    background: rgba(47, 143, 95, 0.16);
+    border-color: rgba(47, 143, 95, 0.45);
   }
 
   @media (max-width: 768px) {
@@ -397,6 +397,7 @@
     }
   }
 </style>
+<link rel="stylesheet" href="css/lumi-chat.css?v=20260523">
 </head>
 <body>
 
@@ -448,8 +449,13 @@
       <span class="news-reader-source" id="newsReaderSource"></span>
       <span class="news-reader-date" id="newsReaderDate"></span>
     </div>
-    <h2 class="news-reader-title" id="newsReaderTitle"></h2>
-    <div class="news-reader-image-wrap" id="newsReaderImageWrap">
+    <div class="news-reader-title-row">
+      <h2 class="news-reader-title" id="newsReaderTitle"></h2>
+      <div class="news-reader-related-wrap" id="newsReaderRelatedWrap" hidden>
+        <div class="news-reader-related-scroll" id="newsReaderRelatedList" role="list" aria-label="관련 종목"></div>
+      </div>
+    </div>
+<div class="news-reader-image-wrap" id="newsReaderImageWrap">
       <img id="newsReaderImage" class="news-reader-image" src="" alt="" style="display:none;">
       <div class="news-reader-image-placeholder" id="newsReaderImagePlaceholder" style="display:none;" aria-hidden="true">
         <span class="news-reader-image-placeholder-graphic" aria-hidden="true"></span>
@@ -470,5 +476,6 @@
 <script src="js/rss-loader.js"></script>
 <script src="js/common-auth.js"></script>
 
+<script src="js/lumi-chat.js?v=20260523"></script>
 </body>
 </html>

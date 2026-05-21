@@ -29,6 +29,7 @@
     text-decoration: none;
   }
 </style>
+<link rel="stylesheet" href="css/lumi-chat.css?v=20260525">
 </head>
 <body>
 
@@ -128,6 +129,7 @@
       <div class="sim-view-tabs" role="tablist" aria-label="모의투자 화면">
         <button type="button" class="sim-view-tab active" id="simViewTabPortfolio" data-sim-view="portfolio" role="tab" aria-selected="true" aria-controls="simViewPortfolio">포트폴리오</button>
         <button type="button" class="sim-view-tab" id="simViewTabPnl" data-sim-view="pnl" role="tab" aria-selected="false" aria-controls="simViewRealizedPnl">수익분석</button>
+        <button type="button" class="sim-view-tab" id="simViewTabRanking" data-sim-view="ranking" role="tab" aria-selected="false" aria-controls="simViewRanking">이달의 랭킹</button>
       </div>
 
       <div id="simViewPortfolio" class="sim-view-panel" role="tabpanel" aria-labelledby="simViewTabPortfolio">
@@ -177,8 +179,14 @@
                 <span id="simHoldingDetailLogoPh" class="stock-logo-wrap--placeholder" style="display:none"></span>
               </span>
               <div class="sim-holding-detail-titles">
-                <div class="sim-holding-detail-name" id="simHoldingDetailName"></div>
-                <div class="sim-holding-detail-code" id="simHoldingDetailCode"></div>
+                <div class="sim-holding-detail-name-row">
+                  <span class="sim-holding-detail-name" id="simHoldingDetailName"></span>
+                  <span class="sim-holding-detail-code" id="simHoldingDetailCode"></span>
+                </div>
+                <div class="sim-holding-detail-quote-row" id="simHoldingDetailQuoteRow">
+                  <span class="sim-holding-detail-price" id="simHoldingDetailPrice">—</span>
+                  <span class="sim-holding-detail-change flat" id="simHoldingDetailChange" aria-label="등락률">—</span>
+                </div>
               </div>
             </div>
             <div class="sim-holding-detail-main">
@@ -232,7 +240,9 @@
               <div id="simHoldingInfoNote" class="sim-holding-chart-note" style="display:none"></div>
             </div>
             <div id="simHoldingPanelOrder" class="sim-holding-sheet-panel sim-holding-quote-panel" role="tabpanel" aria-labelledby="simHoldingTabOrder" hidden>
-              <div class="sim-holding-quote-hl" id="simHoldingQuoteHL" aria-label="당일 고가·저가">
+              <div class="sim-holding-quote-hl" id="simHoldingQuoteHL" aria-label="시가·고가·저가">
+                <span class="sim-holding-quote-hl-item"><span class="sim-holding-quote-hl-k" id="simHoldingQuoteLblOpen">시가</span> <span class="sim-holding-quote-hl-v" id="simHoldingQuoteOpen">&#8212;</span></span>
+                <span class="sim-holding-quote-hl-sep" aria-hidden="true">|</span>
                 <span class="sim-holding-quote-hl-item"><span class="sim-holding-quote-hl-k" id="simHoldingQuoteLblHigh">고가</span> <span class="sim-holding-quote-hl-v" id="simHoldingQuoteDayHigh">—</span></span>
                 <span class="sim-holding-quote-hl-sep" aria-hidden="true">|</span>
                 <span class="sim-holding-quote-hl-item"><span class="sim-holding-quote-hl-k" id="simHoldingQuoteLblLow">저가</span> <span class="sim-holding-quote-hl-v" id="simHoldingQuoteDayLow">—</span></span>
@@ -254,8 +264,13 @@
                 </div>
               </div>
               <div class="sim-holding-quote-exec" id="simHoldingQuoteExec" hidden>
-                <div class="sim-holding-quote-exec-label" id="simHoldingQuoteExecLabel">체결강도</div>
-                <div class="sim-holding-quote-exec-pct" id="simHoldingQuoteExecPct">—</div>
+                <div class="sim-holding-quote-exec-head">
+                  <span class="sim-holding-quote-exec-label" id="simHoldingQuoteExecLabel">체결강도</span>
+                  <span class="sim-holding-quote-exec-pct" id="simHoldingQuoteExecPct">—</span>
+                </div>
+                <div class="sim-holding-quote-exec-meter" aria-hidden="true">
+                  <span class="sim-holding-quote-exec-meter-fill" id="simHoldingQuoteExecMeterFill"></span>
+                </div>
                 <div class="sim-holding-quote-exec-caption" id="simHoldingQuoteExecCaption"></div>
                 <p class="sim-holding-quote-disclaimer" id="simHoldingQuoteDisclaimer" hidden></p>
               </div>
@@ -368,19 +383,35 @@
             <div class="history-toolbar-main">
               <h3 class="history-title">거래 내역</h3>
               <div class="history-filters">
-                <label class="history-date-wrap" id="historyDateFilterWrap">
-                  <span class="history-date-label">날짜</span>
-                  <input type="date" class="history-date-input" id="historyDateFilter" title="날짜를 선택하세요. 해당 날짜 기록만 표시됩니다.">
-                </label>
                 <button type="button" class="history-btn-ghost" id="historyClearDisplay">초기화</button>
                 <button type="button" class="history-btn-ghost" id="historyRestoreDisplay" title="초기값 상태로 다시 표시합니다.">복원</button>
+              </div>
+            </div>
+            <div class="history-period-row" id="historyPeriodFilters" aria-label="조회 기간">
+              <span class="history-period-label" id="historyPeriodLabel">조회 기간</span>
+              <div class="history-period-chips" role="tablist" aria-labelledby="historyPeriodLabel">
+                <button type="button" class="history-period-chip active" data-history-period="all" aria-selected="true">전체</button>
+                <button type="button" class="history-period-chip" data-history-period="7d" aria-selected="false">1주</button>
+                <button type="button" class="history-period-chip" data-history-period="30d" aria-selected="false">1개월</button>
+                <button type="button" class="history-period-chip" data-history-period="90d" aria-selected="false">3개월</button>
+                <button type="button" class="history-period-chip" data-history-period="custom" aria-selected="false">기간 지정</button>
+              </div>
+              <div class="history-range-wrap" id="historyRangeWrap">
+                <label class="history-range-field">
+                  <span class="history-range-field-label" id="historyRangeFromLabel">시작</span>
+                  <input type="date" class="history-date-input" id="historyDateFrom" title="조회 시작일">
+                </label>
+                <span class="history-range-sep" aria-hidden="true">~</span>
+                <label class="history-range-field">
+                  <span class="history-range-field-label" id="historyRangeToLabel">종료</span>
+                  <input type="date" class="history-date-input" id="historyDateTo" title="조회 종료일">
+                </label>
               </div>
             </div>
             <div class="history-tabs" role="tablist" aria-label="거래 분류">
               <button type="button" class="history-tab active" data-history-tab="all" aria-selected="true">전체</button>
               <button type="button" class="history-tab" data-history-tab="buy" aria-selected="false">구매</button>
               <button type="button" class="history-tab" data-history-tab="sell" aria-selected="false">판매</button>
-              <button type="button" class="history-tab" data-history-tab="pending" aria-selected="false">대기</button>
             </div>
           </div>
           <div class="history-list" id="tradingHistory"></div>
@@ -424,6 +455,18 @@
           <button type="button" class="sim-pnl-filter-chip" data-pnl-market="domestic">국내주식</button>
         </div>
         <div class="sim-pnl-sales-list" id="simPnlSalesList" aria-live="polite"></div>
+      </div>
+
+<div id="simViewRanking" class="sim-view-panel sim-ranking-panel" role="tabpanel" aria-labelledby="simViewTabRanking" hidden>
+        <div id="simRankingHint" class="mock-portfolio-hint sim-ranking-hint" style="display:none"></div>
+        <div class="sim-ranking-head">
+          <h2 class="sim-ranking-title" id="simRankingPeriodLabel">이달의 모의투자 랭킹</h2>
+          <p class="sim-ranking-sub" id="simRankingNote">이번 달 모의투자 수익률 기준 상위 30명입니다.</p>
+          <p class="sim-ranking-my" id="simRankingMyRank" hidden></p>
+        </div>
+        <ul class="sim-ranking-list" id="simRankingList" aria-live="polite">
+          <li class="sim-ranking-empty">랭킹을 불러오는 중…</li>
+        </ul>
       </div>
     </div>
     <aside class="sim-watchlist-aside" aria-label="관심 종목" hidden>
@@ -508,7 +551,8 @@
       <div id="buyModalCostBreakdown" class="mock-trade-cost-box" style="display:none" aria-label="예상 수수료 및 결제액"></div>
       <p class="form-note trade-confirm-note">주문 전에 수량과 가격을 다시 확인하세요.</p>
       <div class="sell-modal-actions">
-        <button type="button" class="btn-trade" onclick="confirmBuyFromModal()">매수</button>
+        <button type="button" class="btn-ghost-modal" onclick="closeBuyModal()">취소</button>
+        <button type="button" class="btn-trade" onclick="confirmBuyFromModal()">구매</button>
       </div>
     </div>
   </div>
@@ -524,7 +568,7 @@
       <p class="form-note trade-confirm-note">주문 전에 수량과 가격을 다시 확인하세요.</p>
       <div class="sell-modal-actions">
         <button type="button" class="btn-ghost-modal" onclick="closeQuickSellConfirmModal()">취소</button>
-        <button type="button" class="btn-trade sell" onclick="confirmQuickSellFromModal()">매도</button>
+        <button type="button" class="btn-trade sell" onclick="confirmQuickSellFromModal()">판매</button>
       </div>
     </div>
   </div>
@@ -534,7 +578,10 @@
 <script src="js/stock-autocomplete.js"></script>
 <script src="js/stock-logos.js?v=20260522"></script>
 <script src="js/common-auth.js"></script>
-<script src="js/simulation-page.js?v=20260516"></script>
-
+<script src="js/simulation-page.js?v=20260523"></script>
+<script src="js/mascot-coach.js?v=20260520"></script>
+<script src="js/jurin-tutorial-guard.js?v=20260450"></script>
+<script src="js/simulation-step5-tutorial.js?v=20260520"></script>
+<script src="js/lumi-chat.js?v=20260525"></script>
 </body>
 </html>
