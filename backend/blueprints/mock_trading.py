@@ -53,3 +53,10 @@ def mock_realized_pnl():
     import app as app_module
 
     return app_module.serve_mock_realized_pnl()
+
+
+@mock_trading_bp.route("/api/mock/monthly-ranking", methods=["GET"])
+def mock_monthly_ranking():
+    import app as app_module
+
+    return app_module.serve_mock_monthly_ranking()

@@ -9,6 +9,7 @@ from app_state import GPT_AVAILABLE, NEWS_READER_DIGEST
 from auth_api import get_connection as get_db_connection
 from services.gpt_client import clean_gpt_prose
 from services.news_reader import explain_news_reader_text
+from services.news_related_stocks import build_news_related_stocks
 from services.rss_feed import fetch_rss_items
 
 news_bp = Blueprint("news", __name__)
@@ -42,6 +43,7 @@ def rss_news():
 def news_detail(news_id: int):
     """단일 뉴스(본문 요약 + 선택 시 AI 쉬운 설명 생성/캐시)."""
     want_digest = (request.args.get("digest") or "").strip().lower() in ("1", "true", "y", "yes", "on")
+    want_related = (request.args.get("related") or "").strip().lower() in ("1", "true", "y", "yes", "on")
     try:
         conn = get_db_connection()
         try:
@@ -79,6 +81,36 @@ def news_detail(news_id: int):
                 article["digest_error"] = gen.get("message") or "설명 생성에 실패했습니다."
     elif want_digest and NEWS_READER_DIGEST and not GPT_AVAILABLE:
         article["digest_error"] = "AI 설명을 쓰려면 OPENAI_API_KEY 또는 GPT_API_KEY를 설정하세요."
+    elif want_digest and not NEWS_READER_DIGEST:
+        article["digest_error"] = "뉴스 쉬운 설명 기능이 비활성화되어 있습니다. (NEWS_READER_DIGEST)"
+
+    if want_related:
+        try:
+            conn = get_db_connection()
+            try:
+                cached_rel = (article.get("reader_related_stocks") or "").strip() or None
+                stocks, blob = build_news_related_stocks(
+                    conn,
+                    news_id,
+                    article.get("title") or "",
+                    article.get("summary") or "",
+                    cached_json=cached_rel,
+                    use_gpt=bool(GPT_AVAILABLE),
+                )
+                article["related_stocks"] = stocks
+                if blob and blob != cached_rel:
+                    try:
+                        news_service.update_reader_related_stocks(conn, news_id, blob)
+                        conn.commit()
+                    except Exception:
+                        conn.rollback()
+            finally:
+                conn.close()
+        except Exception as ex:
+            article["related_stocks"] = []
+            article["related_stocks_error"] = str(ex)[:200]
+    else:
+        article["related_stocks"] = []
 
     return jsonify(
         {
