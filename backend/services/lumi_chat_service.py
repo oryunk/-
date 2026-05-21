@@ -1,0 +1,534 @@
+"""루미 AI 챗봇 — GPT 응답·FAQ 폴백·DB CRUD."""
+
+from __future__ import annotations
+
+import json
+import os
+import re
+from datetime import datetime
+from typing import Any
+
+import requests
+
+from app_state import DEFAULT_GPT_MODEL, GPT_AVAILABLE, OPENAI_API_KEY, OPENAI_API_URL
+from services.gpt_client import clean_gpt_prose
+
+LUMI_CHAT_ENABLED = os.getenv("LUMI_CHAT_ENABLED", "true").strip().lower() in {
+    "1",
+    "true",
+    "y",
+    "yes",
+    "on",
+}
+
+INTRO_MESSAGE = (
+    "안녕! 나 루미야, 주린이랑 같이 공부하는 친구 같은 가이드지. "
+    "가이드·시장·용어·AI분석·모의투자·뉴스 다 여기서 연습할 수 있어. 편하게 물어봐!"
+)
+
+DEFAULT_QUICK_QUESTIONS = [
+    "주식 처음 시작하려면?",
+    "분산투자가 뭐예요?",
+    "손절 기준은 어떻게 잡나요?",
+]
+
+FAQ_DATA: list[dict[str, Any]] = [
+    {
+        "keywords": ["시작", "입문", "초보", "처음"],
+        "answer": (
+            "처음이면 이렇게만 기억해 봐요! ① 계좌 만들기 ② 왜 하는지 목표 잡기 "
+            "③ 분산 투자 개념 익히기 ④ 소액으로 연습하기. 같이 천천히 가요."
+        ),
+        "mood": "welcome",
+    },
+    {
+        "keywords": ["분산투자", "포트폴리오", "리스크"],
+        "answer": (
+            "한 종목에 올인하지 않고 여러 곳에 나눠 담는 거예요, 그게 분산투자! "
+            "보통 10~20개 정도로 나눠 본다고 생각하면 이해하기 쉬워요."
+        ),
+        "mood": "info",
+    },
+    {
+        "keywords": ["매수", "매도", "타이밍", "언제"],
+        "answer": (
+            "언제 사고팔지 맞추려다 지칠 수 있어요. 장기로 보면서 "
+            "매달 조금씩 넣는 것도 괜찮고, 좋은 회사면 단기 흔들림에 덜 놀라게 돼요."
+        ),
+        "mood": "info",
+    },
+    {
+        "keywords": ["손절", "손실", "하락"],
+        "answer": (
+            "손절은 미리 정해두는 게 마음 편해요. 많은 분이 7~10% 정도 빠지면 "
+            "다시 본다고 하더라고요. 감정 말고 내가 정한 룰대로 가요."
+        ),
+        "mood": "caution",
+    },
+    {
+        "keywords": ["배당", "배당주", "배당금"],
+        "answer": (
+            "배당주는 현금 흐름 받고 싶을 때 보면 좋아요. 배당률·성장률 같이 보는데, "
+            "무조건 배당만 높으면 좋은 건 아니에요."
+        ),
+        "mood": "info",
+    },
+    {
+        "keywords": ["차트", "기술적분석", "기술적"],
+        "answer": (
+            "기술적 분석은 과거 가격 패턴을 보는 방법이에요. 이동평균·RSI 등을 쓰지만 "
+            "재무·뉴스 같은 기본 분석과 함께 보는 게 좋아요."
+        ),
+        "mood": "info",
+    },
+    {
+        "keywords": ["재무제표", "기본적분석", "펀더멘털", "per", "pbr"],
+        "answer": (
+            "손익계산서·재무상태표·현금흐름표로 기업 건전성을 봅니다. "
+            "PER, PBR, ROE, 부채비율 등이 대표 지표예요."
+        ),
+        "mood": "info",
+    },
+    {
+        "keywords": ["etf", "인덱스"],
+        "answer": (
+            "ETF는 여러 종목을 한 번에 담은 상품이라 초보자에게도 편해요. "
+            "KOSPI200·S&P500 같은 지수 추종 상품부터 알아보고, 수수료도 비교해 보세요."
+        ),
+        "mood": "success",
+    },
+    {
+        "keywords": ["세금", "양도소득", "배당소득"],
+        "answer": (
+            "국내 주식은 일반 투자자에게 양도소득세 면제인 경우가 많고, "
+            "배당은 15.4% 원천징수가 일반적이에요. 해외 주식은 별도 규정이 있으니 확인이 필요합니다."
+        ),
+        "mood": "caution",
+    },
+    {
+        "keywords": ["주린", "사이트", "기능", "가이드", "모의"],
+        "answer": (
+            "여기 주린닷컴은 연습용 사이트예요! 가이드로 배우고 시장에서 시세 보고, "
+            "용어·AI분석·모의투자·뉴스도 쓸 수 있어요. 막막하면 가이드부터 가 보세요."
+        ),
+        "mood": "welcome",
+    },
+    {
+        "keywords": ["루미", "너", "누구", "소개"],
+        "answer": INTRO_MESSAGE,
+        "mood": "welcome",
+    },
+]
+
+FALLBACK_ANSWER = (
+    "음, 그건 아직 내가 확실히 몰라요. 미안! "
+    "주식 시작·분산투자·손절·배당·ETF·세금·사이트 쓰는 법처럼 다시 물어봐 줄래요?"
+)
+
+VALID_MOODS = frozenset({"welcome", "info", "success", "caution", "wink"})
+
+
+def _normalize_mood(raw: str | None, default: str = "info") -> str:
+    m = str(raw or "").strip().lower()
+    return m if m in VALID_MOODS else default
+
+
+def _faq_match(user_message: str) -> dict | None:
+    lower = (user_message or "").strip().lower()
+    if not lower:
+        return None
+    for item in FAQ_DATA:
+        for kw in item.get("keywords") or []:
+            if kw.lower() in lower:
+                return {
+                    "text": item["answer"],
+                    "mood": _normalize_mood(item.get("mood"), "info"),
+                    "source": "faq",
+                }
+    return None
+
+
+def _guess_mood_from_text(text: str) -> str:
+    t = (text or "").lower()
+    if any(
+        w in t
+        for w in (
+            "주의",
+            "위험",
+            "손실",
+            "조심",
+            "세금",
+            "하락",
+            "무서",
+            "걱정",
+            "조심해",
+            "손절",
+            "망",
+        )
+    ):
+        return "caution"
+    if any(
+        w in t
+        for w in (
+            "축하",
+            "잘했",
+            "좋아",
+            "좋은",
+            "도움",
+            "성공",
+            "응원",
+            "화이팅",
+            "괜찮",
+            "쉬워",
+            "추천",
+        )
+    ):
+        return "success"
+    if any(w in t for w in ("안녕", "반가", "소개", "루미", "처음", "만나")):
+        return "welcome"
+    if any(w in t for w in ("ㅎ", "헤", "재미", "농담", "친구", "고마", "같이")):
+        return "wink"
+    return "info"
+
+
+def infer_mood_from_user_message(user_message: str) -> str:
+    """사용자 질문 톤으로 답변 대기 중 표정 힌트."""
+    return _guess_mood_from_text(user_message)
+
+
+def _call_gpt_chat(messages: list[dict[str, str]], model: str = DEFAULT_GPT_MODEL) -> dict:
+    if not GPT_AVAILABLE:
+        return {
+            "success": False,
+            "status_code": 500,
+            "message": "GPT API가 설정되지 않았습니다.",
+        }
+    headers = {
+        "Authorization": f"Bearer {OPENAI_API_KEY}",
+        "content-type": "application/json",
+    }
+    payload = {
+        "model": model,
+        "max_completion_tokens": 600,
+        "messages": messages,
+    }
+    try:
+        response = requests.post(OPENAI_API_URL, headers=headers, json=payload, timeout=45)
+    except Exception as err:
+        return {"success": False, "status_code": 503, "message": f"GPT 호출 실패: {err}"}
+
+    if not response.ok:
+        message = f"GPT API 호출 실패({response.status_code})"
+        try:
+            err_body = response.json()
+            api_msg = (((err_body or {}).get("error") or {}).get("message") or "").strip()
+            if api_msg:
+                message = api_msg
+        except Exception:
+            pass
+        code = 429 if response.status_code == 429 else response.status_code
+        return {"success": False, "status_code": code, "message": message}
+
+    try:
+        data = response.json()
+    except Exception:
+        return {"success": False, "status_code": 500, "message": "GPT 응답 파싱 실패"}
+
+    choices = data.get("choices") or []
+    first = choices[0] if choices else {}
+    content = ((first.get("message") or {}).get("content") or "").strip()
+    if not content:
+        return {"success": False, "status_code": 500, "message": "GPT 응답이 비어 있습니다."}
+    return {"success": True, "text": content}
+
+
+def _build_system_prompt(page_hint: str | None) -> str:
+    site = (page_hint or "").strip()
+    page_line = f"\n- 사용자가 보고 있는 페이지: {site}" if site else ""
+    return (
+        "당신은 '루미', 주린이(초보 투자자)의 **친한 친구 같은** 주린닷컴 가이드입니다.\n"
+        "[말투]\n"
+        "- 반말·존댓말을 섞지 말고, **편한 해요체**로 말합니다. (~해요, ~거예요, ~할 수 있어요)\n"
+        "- 딱딱한 강의 말투 금지. 친구에게 설명하듯 따뜻하고 가볍게.\n"
+        "- 가끔 짧은 응원·공감 한마디 OK. (예: 걱정되죠, 천천히 해봐요, 같이 알아봐요)\n"
+        "- 2~4문장, 핵심만 짧게. 이모지는 0~1개만 가끔.\n"
+        "[역할]\n"
+        "- 주린닷컴(가이드·시장·용어·AI분석·모의투자·뉴스)은 필요할 때만 짧게 안내.\n"
+        "- 특정 종목 매수·매도·목표가 직접 권유 금지.\n"
+        "- 확인 안 된 사실은 단정하지 않음.\n"
+        f"{page_line}\n"
+        "[표정 mood — reply 내용과 맞게 하나만]\n"
+        "- welcome: 인사·첫만남·사이트 소개\n"
+        "- info: 일반 설명·개념·차분한 답변\n"
+        "- success: 응원·긍정·잘하고 있어요·추천 팁\n"
+        "- caution: 손실·리스크·세금·조심·주의\n"
+        "- wink: 가벼운 농담·친근한 마무리·응원 눈웃음\n"
+        "[출력]\n"
+        "JSON 한 개만: {\"reply\":\"본문\", \"mood\":\"welcome|info|success|caution|wink\"}\n"
+    )
+
+
+def _parse_reply_json(raw: str) -> tuple[str, str]:
+    text = clean_gpt_prose(raw)
+    start = text.find("{")
+    end = text.rfind("}")
+    if start != -1 and end > start:
+        try:
+            obj = json.loads(text[start : end + 1])
+            if isinstance(obj, dict):
+                reply = str(obj.get("reply") or obj.get("text") or "").strip()
+                mood = _normalize_mood(obj.get("mood"), _guess_mood_from_text(reply))
+                if reply:
+                    return reply, mood
+        except Exception:
+            pass
+    return text, _guess_mood_from_text(text)
+
+
+def build_reply(
+    user_message: str,
+    history: list[dict[str, Any]] | None = None,
+    *,
+    page_hint: str | None = None,
+    use_gpt: bool = True,
+) -> dict[str, Any]:
+    """사용자 메시지에 대한 루미 응답 dict: text, mood, source."""
+    msg = (user_message or "").strip()
+    if not msg:
+        return {"text": "말해 줄 내용을 입력해 주세요!", "mood": "wink", "source": "local"}
+
+    if not LUMI_CHAT_ENABLED:
+        faq = _faq_match(msg)
+        if faq:
+            return faq
+        return {"text": FALLBACK_ANSWER, "mood": "info", "source": "local"}
+
+    if use_gpt and GPT_AVAILABLE:
+        messages: list[dict[str, str]] = [{"role": "system", "content": _build_system_prompt(page_hint)}]
+        for h in (history or [])[-8:]:
+            role = str(h.get("role") or "").strip()
+            content = str(h.get("content") or "").strip()
+            if role in ("user", "assistant") and content:
+                messages.append({"role": role, "content": content[:2000]})
+        messages.append({"role": "user", "content": msg[:2000]})
+        gpt = _call_gpt_chat(messages)
+        if gpt.get("success") and (gpt.get("text") or "").strip():
+            reply, mood = _parse_reply_json(gpt["text"])
+            return {"text": reply, "mood": mood, "source": "gpt"}
+
+    faq = _faq_match(msg)
+    if faq:
+        return faq
+    return {"text": FALLBACK_ANSWER, "mood": "info", "source": "faq-fallback"}
+
+
+def _thread_title_from_message(message: str, max_len: int = 48) -> str:
+    t = re.sub(r"\s+", " ", (message or "").strip())
+    if not t:
+        return "새 대화"
+    if len(t) <= max_len:
+        return t
+    return t[: max_len - 1] + "…"
+
+
+def _dt_json(value: Any) -> str | None:
+    if value is None:
+        return None
+    if hasattr(value, "isoformat"):
+        return value.isoformat()
+    return str(value)
+
+
+def list_threads(conn, user_id: int, limit: int = 40) -> list[dict]:
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT thread_id, title, created_at, updated_at
+            FROM lumi_chat_threads
+            WHERE user_id = %s
+            ORDER BY updated_at DESC
+            LIMIT %s
+            """,
+            (int(user_id), limit),
+        )
+        rows = cur.fetchall() or []
+    out = []
+    for r in rows:
+        d = dict(r)
+        out.append(
+            {
+                "id": int(d["thread_id"]),
+                "title": d.get("title") or "새 대화",
+                "created_at": _dt_json(d.get("created_at")),
+                "updated_at": _dt_json(d.get("updated_at")),
+            }
+        )
+    return out
+
+
+def get_thread(conn, user_id: int, thread_id: int) -> dict | None:
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT thread_id, title, created_at, updated_at
+            FROM lumi_chat_threads
+            WHERE thread_id = %s AND user_id = %s
+            LIMIT 1
+            """,
+            (int(thread_id), int(user_id)),
+        )
+        row = cur.fetchone()
+        if not row:
+            return None
+        cur.execute(
+            """
+            SELECT message_id, role, content, mood, created_at
+            FROM lumi_chat_messages
+            WHERE thread_id = %s
+            ORDER BY created_at ASC, message_id ASC
+            """,
+            (int(thread_id),),
+        )
+        msgs = [dict(m) for m in (cur.fetchall() or [])]
+    d = dict(row)
+    return {
+        "id": int(d["thread_id"]),
+        "title": d.get("title") or "새 대화",
+        "created_at": _dt_json(d.get("created_at")),
+        "updated_at": _dt_json(d.get("updated_at")),
+        "messages": [
+            {
+                "id": int(m["message_id"]),
+                "role": m.get("role"),
+                "content": m.get("content") or "",
+                "mood": m.get("mood"),
+                "created_at": _dt_json(m.get("created_at")),
+            }
+            for m in msgs
+        ],
+    }
+
+
+def create_thread(conn, user_id: int, title: str | None = None) -> dict:
+    t = (title or "").strip() or "새 대화"
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            INSERT INTO lumi_chat_threads (user_id, title, created_at, updated_at)
+            VALUES (%s, %s, NOW(), NOW())
+            """,
+            (int(user_id), t[:120]),
+        )
+        tid = int(cur.lastrowid)
+    return get_thread(conn, user_id, tid) or {"id": tid, "title": t, "messages": []}
+
+
+def import_thread_messages(
+    conn,
+    user_id: int,
+    thread_id: int,
+    messages: list[dict[str, Any]],
+    *,
+    title: str | None = None,
+) -> dict | None:
+    """기존 대화 내용을 GPT 없이 스레드에 복사(게스트 localStorage 이전용)."""
+    if not get_thread(conn, user_id, thread_id):
+        return None
+    with conn.cursor() as cur:
+        for m in messages or []:
+            role = str(m.get("role") or "").strip().lower()
+            if role not in ("user", "assistant"):
+                continue
+            content = str(m.get("content") or "").strip()
+            if not content:
+                continue
+            mood = _normalize_mood(m.get("mood"), "info") if role == "assistant" else None
+            cur.execute(
+                """
+                INSERT INTO lumi_chat_messages (thread_id, role, content, mood, created_at)
+                VALUES (%s, %s, %s, %s, NOW())
+                """,
+                (int(thread_id), role, content[:8000], mood),
+            )
+        if title:
+            cur.execute(
+                """
+                UPDATE lumi_chat_threads SET title = %s, updated_at = NOW()
+                WHERE thread_id = %s AND user_id = %s
+                """,
+                (title[:120], int(thread_id), int(user_id)),
+            )
+    return get_thread(conn, user_id, thread_id)
+
+
+def delete_thread(conn, user_id: int, thread_id: int) -> bool:
+    with conn.cursor() as cur:
+        cur.execute(
+            "DELETE FROM lumi_chat_threads WHERE thread_id = %s AND user_id = %s",
+            (int(thread_id), int(user_id)),
+        )
+        return cur.rowcount > 0
+
+
+def append_exchange(
+    conn,
+    user_id: int,
+    thread_id: int,
+    user_message: str,
+    *,
+    page_hint: str | None = None,
+) -> dict | None:
+    thread = get_thread(conn, user_id, thread_id)
+    if not thread:
+        return None
+
+    history = [{"role": m["role"], "content": m["content"]} for m in thread.get("messages") or []]
+    reply = build_reply(user_message, history, page_hint=page_hint)
+
+    title = thread.get("title") or "새 대화"
+    if title == "새 대화" and (user_message or "").strip():
+        title = _thread_title_from_message(user_message)
+
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            INSERT INTO lumi_chat_messages (thread_id, role, content, mood, created_at)
+            VALUES (%s, 'user', %s, NULL, NOW())
+            """,
+            (int(thread_id), (user_message or "")[:8000]),
+        )
+        user_mid = int(cur.lastrowid)
+        cur.execute(
+            """
+            INSERT INTO lumi_chat_messages (thread_id, role, content, mood, created_at)
+            VALUES (%s, 'assistant', %s, %s, NOW())
+            """,
+            (int(thread_id), reply["text"][:8000], reply.get("mood")),
+        )
+        asst_mid = int(cur.lastrowid)
+        cur.execute(
+            """
+            UPDATE lumi_chat_threads SET title = %s, updated_at = NOW()
+            WHERE thread_id = %s AND user_id = %s
+            """,
+            (title[:120], int(thread_id), int(user_id)),
+        )
+
+    return {
+        "thread_id": int(thread_id),
+        "title": title,
+        "user_message": {
+            "id": user_mid,
+            "role": "user",
+            "content": user_message,
+            "created_at": datetime.now().isoformat(),
+        },
+        "assistant_message": {
+            "id": asst_mid,
+            "role": "assistant",
+            "content": reply["text"],
+            "mood": reply.get("mood"),
+            "source": reply.get("source"),
+            "created_at": datetime.now().isoformat(),
+        },
+    }
