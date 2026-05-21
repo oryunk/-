@@ -1568,10 +1568,6 @@ body.market-step3-chart-bright #stockDetailView .detail-fin-metric-chip {
   opacity: 1;
 }
 
-body.market-step3-active .mascot-coach.is-open:not(.mascot-coach--spotlight) {}
-
-body.market-step3-active .mascot-coach-dock {}
-
 body.market-step3-clear-phase .mascot-coach.is-open {
   z-index: 600;
 }
