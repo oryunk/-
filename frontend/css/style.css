@@ -48,20 +48,11 @@ body {
   padding: 0 2px;
 }
 
-.important-line.brush-1 {
-  background-image: linear-gradient(transparent 52%, rgba(157, 222, 189, 0.72) 52%);
-}
-
-.important-line.brush-2 {
-  background-image: linear-gradient(transparent 52%, rgba(156, 201, 229, 0.72) 52%);
-}
-
-.important-line.brush-3 {
-  background-image: linear-gradient(transparent 52%, rgba(196, 174, 220, 0.72) 52%);
-}
-
+.important-line.brush-1,
+.important-line.brush-2,
+.important-line.brush-3,
 .important-line.brush-4 {
-  background-image: linear-gradient(transparent 52%, rgba(236, 187, 182, 0.72) 52%);
+  background-image: linear-gradient(transparent 52%, rgba(47, 143, 95, 0.42) 52%);
 }
 
 /* NAVBAR */
@@ -333,6 +324,14 @@ nav {
 
 .login-links a:hover {
   color: var(--accent);
+}
+
+.login-google-hint {
+  margin: 10px 0 0;
+  text-align: center;
+  font-size: 12px;
+  color: var(--gray-400);
+  line-height: 1.5;
 }
 
 .login-divider {
@@ -727,6 +726,60 @@ body.market-step1-detail-overview .stock-detail-view .detail-grid .detail-card {
   opacity: 1;
 }
 
+/* 5단계 시세 용어: 한 칸만 밝게 (패널 통째 opacity 금지) */
+body.sim-step5-term-mode #simHoldingPanelOrder .sim-holding-quote-stat:not(.tutorial-callout-target),
+body.sim-step5-term-mode #simHoldingPanelOrder .sim-holding-quote-exec:not(.tutorial-callout-target),
+body.sim-step5-term-mode #simHoldingPanelOrder .sim-holding-quote-hl-item:not(.tutorial-callout-target),
+body.sim-step5-term-mode #simHoldingPanelOrder .sim-holding-quote-hl:not(.tutorial-callout-target) {
+  opacity: 0.38;
+  transition: opacity 0.2s ease;
+}
+
+body.sim-step5-term-mode #simHoldingPanelOrder .tutorial-callout-target {
+  position: relative;
+  z-index: 500;
+  opacity: 1;
+}
+
+/* 5단계 차트·시세 intro: 패널 내부 칸 일괄 밝게 */
+body.sim-step5-overview #simHoldingPanelOrder .sim-holding-quote-stat,
+body.sim-step5-overview #simHoldingPanelOrder .sim-holding-quote-exec,
+body.sim-step5-overview #simHoldingPanelOrder .sim-holding-quote-hl,
+body.sim-step5-overview #simHoldingPanelOrder .sim-holding-quote-hl-item {
+  opacity: 1;
+}
+
+/* 5단계 강조 칸 라벨·값 대비 (1단계 detail-card와 동일 톤) */
+body.simulation-step5-active .sim-holding-quote-stat.tutorial-callout-target .sim-holding-quote-stat-label,
+body.simulation-step5-active .sim-holding-quote-exec.tutorial-callout-target .sim-holding-quote-exec-label {
+  color: #174a36;
+  font-weight: 800;
+  opacity: 1;
+}
+
+body.simulation-step5-active .sim-holding-quote-stat.tutorial-callout-target .sim-holding-quote-stat-value,
+body.simulation-step5-active .sim-holding-quote-hl.tutorial-callout-target .sim-holding-quote-hl-v,
+body.simulation-step5-active .sim-holding-quote-hl-item.tutorial-callout-target .sim-holding-quote-hl-v {
+  font-weight: 800;
+  color: #0f1f16;
+}
+
+body.simulation-step5-active .sim-holding-quote-stat.tutorial-callout-target .sim-holding-quote-stat-side--up {
+  color: #b91c1c;
+}
+
+body.simulation-step5-active .sim-holding-quote-stat.tutorial-callout-target .sim-holding-quote-stat-side--down {
+  color: #1d4ed8;
+}
+
+body.simulation-step5-active .sim-holding-quote-exec--high.tutorial-callout-target .sim-holding-quote-exec-pct {
+  color: #b91c1c;
+}
+
+body.simulation-step5-active .sim-holding-quote-exec--low.tutorial-callout-target .sim-holding-quote-exec-pct {
+  color: #1d4ed8;
+}
+
 /* 겹칠 때 루미 말풍선이 강조 카드(.tutorial-callout-target z-index 500) 위에 오도록 */
 body.market-step1-active .mascot-coach.is-open:not(.mascot-coach--spotlight) {
   z-index: 600;
@@ -985,9 +1038,9 @@ body.tutorial-fx-active.tutorial-fx-clear .mascot-coach.is-open {
   z-index: 600;
 }
 
-body.tutorial-fx-active .tutorial-callout-target,
-body.market-step4-active .tutorial-callout-target,
-body.market-step5-active .tutorial-callout-target {
+body.tutorial-fx-active .tutorial-callout-target:not(.market-sidebar),
+body.market-step4-active .tutorial-callout-target:not(.market-sidebar),
+body.market-step5-active .tutorial-callout-target:not(.market-sidebar) {
   position: relative;
   z-index: 500;
   border-radius: 8px;
@@ -1130,44 +1183,27 @@ body.market-step2-active .detail-section.tutorial-callout-target .empty-state {
 /* 상세 매수/매도: 튜토리얼 강조 시 원래 버튼 색 유지(흰 배경 덮어쓰기 방지) */
 body.market-step1-active .stock-detail-view .detail-buy.tutorial-callout-target,
 body.market-step2-active .stock-detail-view .detail-buy.tutorial-callout-target {
-  background: linear-gradient(135deg, #1f9fff, #0d7ee0);
-  color: #fff;
-  animation: tutorialDetailCtaPulse 1.15s ease-in-out infinite;
-  box-shadow:
-    0 0 0 2px rgba(255, 255, 255, 0.95),
-    0 0 0 5px rgba(47, 143, 95, 0.82),
-    0 8px 22px rgba(13, 126, 224, 0.4);
-}
-
-body.market-step1-active .stock-detail-view .detail-sell.tutorial-callout-target,
-body.market-step2-active .stock-detail-view .detail-sell.tutorial-callout-target {
   background: linear-gradient(135deg, #ff5f64, #ff8157);
   color: #fff;
-  animation: tutorialDetailCtaPulseSell 1.15s ease-in-out infinite;
+  animation: tutorialDetailCtaPulseBuy 1.15s ease-in-out infinite;
   box-shadow:
     0 0 0 2px rgba(255, 255, 255, 0.95),
     0 0 0 5px rgba(47, 143, 95, 0.82),
     0 8px 22px rgba(255, 95, 100, 0.35);
 }
 
-@keyframes tutorialDetailCtaPulse {
-  0%,
-  100% {
-    box-shadow:
-      0 0 0 2px rgba(255, 255, 255, 0.95),
-      0 0 0 5px rgba(47, 143, 95, 0.82),
-      0 8px 22px rgba(13, 126, 224, 0.4);
-  }
-  50% {
-    box-shadow:
-      0 0 0 2px rgba(255, 255, 255, 1),
-      0 0 0 5px rgba(47, 143, 95, 0.45),
-      0 0 0 14px rgba(47, 143, 95, 0),
-      0 10px 28px rgba(13, 126, 224, 0.5);
-  }
+body.market-step1-active .stock-detail-view .detail-sell.tutorial-callout-target,
+body.market-step2-active .stock-detail-view .detail-sell.tutorial-callout-target {
+  background: linear-gradient(135deg, #3182f6, #5b9cf9);
+  color: #fff;
+  animation: tutorialDetailCtaPulseSell 1.15s ease-in-out infinite;
+  box-shadow:
+    0 0 0 2px rgba(255, 255, 255, 0.95),
+    0 0 0 5px rgba(47, 143, 95, 0.82),
+    0 8px 22px rgba(13, 126, 224, 0.4);
 }
 
-@keyframes tutorialDetailCtaPulseSell {
+@keyframes tutorialDetailCtaPulseBuy {
   0%,
   100% {
     box-shadow:
@@ -1181,6 +1217,23 @@ body.market-step2-active .stock-detail-view .detail-sell.tutorial-callout-target
       0 0 0 5px rgba(47, 143, 95, 0.45),
       0 0 0 14px rgba(47, 143, 95, 0),
       0 10px 28px rgba(255, 95, 100, 0.45);
+  }
+}
+
+@keyframes tutorialDetailCtaPulseSell {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 2px rgba(255, 255, 255, 0.95),
+      0 0 0 5px rgba(47, 143, 95, 0.82),
+      0 8px 22px rgba(13, 126, 224, 0.4);
+  }
+  50% {
+    box-shadow:
+      0 0 0 2px rgba(255, 255, 255, 1),
+      0 0 0 5px rgba(47, 143, 95, 0.45),
+      0 0 0 14px rgba(47, 143, 95, 0),
+      0 10px 28px rgba(13, 126, 224, 0.5);
   }
 }
 
@@ -2529,3 +2582,159 @@ footer {
 .jurin-ac-dd--compact .jurin-ac-code {
   font-size: 11px;
 }
+
+/* 루미 코치 키워드 (5단계는 plain 텍스트 — 강조색 미사용) */
+.mascot-coach-text .mascot-coach-kw {
+  font-weight: 700;
+  color: inherit;
+  background: none;
+  padding: 0;
+  border-radius: 0;
+  text-decoration: none;
+}
+
+body.simulation-step5-active .mascot-coach-text .mascot-coach-kw {
+  font-weight: inherit;
+}
+
+/* simulation 5단계: 스포트라이트 없을 때 오버레이 투명 */
+body.tutorial-fx-active:not(.sim-step5-spotlight) .sim-step5-overlay.is-open,
+body.simulation-step5-active:not(.sim-step5-spotlight) .sim-step5-overlay.is-open {
+  position: fixed;
+  inset: 0;
+  z-index: 390;
+  background: transparent !important;
+  pointer-events: none;
+}
+
+/* 5단계 스포트라이트: 1단계와 같은 전역 딤 */
+body.tutorial-fx-active.sim-step5-spotlight .sim-step5-overlay.is-open,
+body.tutorial-fx-active.sim-step5-spotlight .sim-step5-overlay.is-open.is-dim,
+body.simulation-step5-active.sim-step5-spotlight .sim-step5-overlay.is-open,
+body.simulation-step5-active.sim-step5-spotlight .sim-step5-overlay.is-open.is-dim {
+  position: fixed;
+  inset: 0;
+  z-index: 400;
+  background: rgba(4, 8, 6, 0.68) !important;
+  pointer-events: none;
+}
+
+/* 5단계: 강조 요소를 딤(400) 위로 — callout 카드는 tutorial-fx 규칙 */
+body.simulation-step5-active.sim-step5-spotlight .tutorial-callout-target {
+  position: relative;
+  z-index: 500;
+}
+
+body.simulation-step5-active.sim-step5-spotlight .portfolio-section > .sim-holding-detail-sheet.tutorial-callout-target {
+  position: absolute;
+  z-index: 500;
+  isolation: auto;
+}
+
+body.simulation-step5-active.sim-step5-spotlight .orderbook-overlay.tutorial-callout-target {
+  position: absolute;
+  z-index: 500;
+  isolation: auto;
+}
+
+body.simulation-step5-active .mascot-coach.is-open {
+  z-index: 620;
+}
+
+body.simulation-step5-active .mascot-coach-dock,
+body.simulation-step5-active .sim-step5-quest-hud {
+  z-index: 615;
+}
+
+.sim-step5-quest-hud {
+  position: fixed;
+  top: 88px;
+  right: 16px;
+  z-index: 550;
+  max-width: min(320px, calc(100vw - 32px));
+  display: none;
+}
+
+.sim-step5-quest-hud.is-open {
+  display: block;
+}
+
+.sim-step5-panel {
+  border: 1px solid rgba(47, 143, 95, 0.28);
+  border-radius: 14px;
+  background: #fff;
+  padding: 12px 14px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.12);
+}
+
+.sim-step5-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.sim-step5-tag {
+  font-size: 11px;
+  font-weight: 800;
+  color: #2f8f5f;
+  background: #f0faf4;
+  border-radius: 999px;
+  padding: 3px 8px;
+}
+
+.sim-step5-title {
+  font-size: 15px;
+  color: #1a3d2c;
+}
+
+.sim-step5-now {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: #4b6658;
+  line-height: 1.45;
+}
+
+.sim-step5-confetti {
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  z-index: 700;
+  display: none;
+  overflow: hidden;
+}
+
+.sim-step5-confetti.is-active {
+  display: block;
+}
+
+.sim-step5-confetti.is-active::before,
+.sim-step5-confetti.is-active::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(circle, #ffd54f 2px, transparent 2px),
+    radial-gradient(circle, #2f8f5f 2px, transparent 2px),
+    radial-gradient(circle, #ff8a80 2px, transparent 2px);
+  background-size: 48px 48px, 64px 64px, 56px 56px;
+  background-position: 0 0, 24px 24px, 12px 36px;
+  animation: simStep5ConfettiDrift 2.4s ease-out forwards;
+  opacity: 0.85;
+}
+
+@keyframes simStep5ConfettiDrift {
+  0% {
+    transform: translateY(-20%) scale(1);
+    opacity: 0;
+  }
+  15% {
+    opacity: 0.9;
+  }
+  100% {
+    transform: translateY(30%) scale(1.05);
+    opacity: 0;
+  }
+}
+

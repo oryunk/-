@@ -239,11 +239,11 @@
   }
 
   .orderbook-row.ask td:nth-child(2) {
-    color: #ff8e8e;
+    color: #5b9cf9;
   }
 
   .orderbook-row.bid td:nth-child(2) {
-    color: #7ec8ff;
+    color: #ff8e8e;
   }
 
   .orderbook-exp-row td {
@@ -383,14 +383,14 @@
   }
 
   .sim-watchlist-aside .watchlist-chip--aside {
-    display: block;
+    display: flex;
+    align-items: stretch;
     width: 100%;
     margin: 0;
     padding: 0;
     border: 1px solid rgba(47, 143, 95, 0.28);
     border-radius: 12px;
     background: #fff;
-    cursor: pointer;
     font: inherit;
     text-align: left;
     transition: background 0.15s ease, border-color 0.15s ease;
@@ -401,11 +401,50 @@
     border-color: rgba(47, 143, 95, 0.45);
   }
 
+  .sim-watchlist-aside .watchlist-chip-main {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font: inherit;
+    text-align: left;
+    border-radius: 12px 0 0 12px;
+  }
+
+  .sim-watchlist-aside .watchlist-chip-heart.watch-heart-btn {
+    flex-shrink: 0;
+    align-self: center;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    margin: 0 4px 0 0;
+    padding: 0;
+    border: none;
+    border-radius: 10px;
+    background: transparent;
+    color: #e91e63;
+    font-size: 17px;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+    transition: color 0.15s ease, background 0.15s ease;
+  }
+
+  .sim-watchlist-aside .watchlist-chip-heart.watch-heart-btn:hover {
+    background: rgba(233, 30, 99, 0.08);
+    color: #e91e63;
+  }
+
   .sim-watchlist-aside .watchlist-chip-inner {
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 10px 12px;
+    padding: 10px 8px 10px 12px;
     min-width: 0;
   }
 
@@ -534,13 +573,14 @@
     bottom: auto;
     min-height: 100%;
     height: auto;
+    max-height: min(520px, calc(100vh - 300px));
     z-index: 20;
     border-radius: 16px;
     background: rgba(255, 255, 255, 0.98);
     box-shadow: inset 0 0 0 1px rgba(47, 143, 95, 0.18);
     display: flex;
     flex-direction: column;
-    overflow: visible;
+    overflow: hidden;
   }
 
   .sim-holding-detail-sheet[hidden] {
@@ -551,9 +591,13 @@
     position: relative;
     display: flex;
     flex-direction: column;
-    flex: 0 0 auto;
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: 100%;
     padding: 20px 22px 22px;
-    overflow: visible;
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
   .sim-holding-detail-close {
@@ -596,20 +640,65 @@
     min-width: 0;
   }
 
+  .sim-holding-detail-name-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 8px 10px;
+    line-height: 1.25;
+  }
+
   .sim-holding-detail-name {
     font-size: 20px;
     font-weight: 800;
     letter-spacing: -0.02em;
     color: var(--text-primary);
-    line-height: 1.25;
   }
 
   .sim-holding-detail-code {
     font-size: 14px;
     font-weight: 600;
     color: var(--gray-400);
-    margin-top: 4px;
     font-variant-numeric: tabular-nums;
+  }
+
+  .sim-holding-detail-code:empty,
+  .sim-holding-detail-code[hidden] {
+    display: none;
+  }
+
+  .sim-holding-detail-quote-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 8px 12px;
+    margin-top: 8px;
+  }
+
+  .sim-holding-detail-price {
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--text-primary);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+  }
+
+  .sim-holding-detail-change {
+    font-size: 16px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .sim-holding-detail-change.flat {
+    color: var(--gray-400);
+  }
+
+  .sim-holding-detail-change.up {
+    color: #e53935;
+  }
+
+  .sim-holding-detail-change.down {
+    color: #1e88e5;
   }
 
   .sim-holding-sheet-tabs {
@@ -849,16 +938,24 @@
     display: flex;
     flex-direction: column;
     align-items: stretch;
-    padding: 12px 4px 12px;
-    gap: 12px;
+    padding: 8px 4px 4px;
+    gap: 10px;
+    max-height: none;
   }
 
   .sim-holding-quote-block {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
     width: 100%;
-    padding: 4px 8px 0;
+    padding: 0 8px;
+    box-sizing: border-box;
+  }
+
+  @media (max-width: 520px) {
+    .sim-holding-quote-block {
+      grid-template-columns: 1fr;
+    }
   }
 
   .sim-holding-quote-stat {
@@ -866,11 +963,11 @@
     flex-direction: column;
     align-items: flex-start;
     gap: 6px;
-    padding: 14px 16px;
-    border-radius: 14px;
-    background: linear-gradient(145deg, #f8faf9 0%, #f0f5f2 100%);
-    border: 1px solid rgba(47, 143, 95, 0.12);
-    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.9) inset;
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: #ffffff;
+    border: 1px solid rgba(47, 143, 95, 0.14);
+    box-shadow: none;
   }
 
   .sim-holding-quote-stat-head {
@@ -965,11 +1062,15 @@
     flex-wrap: wrap;
     align-items: center;
     justify-content: center;
-    gap: 8px 12px;
+    gap: 6px 10px;
     font-size: 12px;
     line-height: 1.4;
     color: var(--gray-500, #6b7280);
-    padding: 0 8px 2px;
+    padding: 6px 10px 8px;
+    margin: 0 8px;
+    border-radius: 10px;
+    background: #f8faf9;
+    border: 1px solid rgba(47, 143, 95, 0.1);
   }
 
   .sim-holding-quote-hl-k {
@@ -989,33 +1090,66 @@
   }
 
   .sim-holding-quote-exec {
-    text-align: center;
-    padding: 14px 12px 12px;
-    border-radius: 14px;
-    border: 1px solid rgba(47, 143, 95, 0.1);
-    background: #fafbfa;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: calc(100% - 16px);
+    margin: 0 8px;
+    grid-column: 1 / -1;
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: #ffffff;
+    border: 1px solid rgba(47, 143, 95, 0.14);
+    box-sizing: border-box;
+  }
+
+  .sim-holding-quote-exec-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+    width: 100%;
   }
 
   .sim-holding-quote-exec-label {
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 600;
     color: var(--gray-500, #6b7280);
-    margin-bottom: 4px;
   }
 
   .sim-holding-quote-exec-pct {
-    font-size: 28px;
-    font-weight: 900;
-    letter-spacing: -0.03em;
-    line-height: 1.15;
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
     font-variant-numeric: tabular-nums;
+    color: var(--text-primary, #111827);
+  }
+
+  .sim-holding-quote-exec-meter {
+    height: 8px;
+    width: 100%;
+    border-radius: 999px;
+    background: #e8eeeb;
+    overflow: hidden;
+  }
+
+  .sim-holding-quote-exec-meter-fill {
+    display: block;
+    height: 100%;
+    width: 0%;
+    min-width: 0;
+    max-width: 100%;
+    border-radius: inherit;
+    background: #6b7280;
+    transition: width 0.25s ease;
   }
 
   .sim-holding-quote-exec-caption {
-    margin-top: 6px;
-    font-size: 14px;
-    font-weight: 700;
+    font-size: 13px;
+    font-weight: 600;
     line-height: 1.35;
+    color: var(--gray-600, #4b5563);
   }
 
   .sim-holding-quote-exec--high .sim-holding-quote-exec-pct,
@@ -1023,9 +1157,8 @@
     color: #dc2626;
   }
 
-  .sim-holding-quote-exec--high {
-    background: linear-gradient(180deg, #fff1f2 0%, #fafbfa 55%);
-    border-color: rgba(220, 38, 38, 0.2);
+  .sim-holding-quote-exec--high .sim-holding-quote-exec-meter-fill {
+    background: #dc2626;
   }
 
   .sim-holding-quote-exec--mid .sim-holding-quote-exec-pct,
@@ -1033,9 +1166,8 @@
     color: #b45309;
   }
 
-  .sim-holding-quote-exec--mid {
-    background: linear-gradient(180deg, #fffbeb 0%, #fafbfa 55%);
-    border-color: rgba(217, 119, 6, 0.22);
+  .sim-holding-quote-exec--mid .sim-holding-quote-exec-meter-fill {
+    background: #d97706;
   }
 
   .sim-holding-quote-exec--low .sim-holding-quote-exec-pct,
@@ -1043,9 +1175,8 @@
     color: #2563eb;
   }
 
-  .sim-holding-quote-exec--low {
-    background: linear-gradient(180deg, #eff6ff 0%, #fafbfa 55%);
-    border-color: rgba(37, 99, 235, 0.18);
+  .sim-holding-quote-exec--low .sim-holding-quote-exec-meter-fill {
+    background: #2563eb;
   }
 
   .sim-holding-quote-disclaimer {
@@ -1251,13 +1382,13 @@
   }
 
   .sim-stock-history-item .history-badge.buy {
-    color: #0d47a1;
-    background: rgba(25, 118, 210, 0.18);
+    color: #c62828;
+    background: rgba(255, 90, 95, 0.2);
   }
 
   .sim-stock-history-item .history-badge.sell {
-    color: #e53935;
-    background: rgba(229, 115, 115, 0.22);
+    color: #1565c0;
+    background: rgba(49, 130, 246, 0.18);
   }
 
   .sim-stock-history-amt {
@@ -1267,8 +1398,8 @@
 
   .sim-stock-history-total {
     font-size: 15px;
-    font-weight: 600;
-    color: var(--accent);
+    font-weight: 700;
+    color: var(--text-primary);
     letter-spacing: -0.02em;
   }
 
@@ -1573,6 +1704,56 @@
     box-shadow: 0 16px 48px rgba(31, 47, 38, 0.12);
   }
 
+  /* 매수·매도 확인 창: 라벨 중립 연한 검정, 계산값 진한 검정 */
+  .trade-confirm-panel.sell-modal-panel {
+    background: #ffffff;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    box-shadow: 0 16px 48px rgba(31, 47, 38, 0.1);
+  }
+
+  .trade-confirm-panel .sell-modal-row span:first-child,
+  .trade-confirm-panel .sell-modal-field label,
+  .trade-confirm-panel .mock-cost-row span:first-child {
+    color: #6b7280;
+    font-weight: 600;
+  }
+
+  .trade-confirm-panel .sell-modal-row span:last-child,
+  .trade-confirm-panel .sell-modal-stock,
+  .trade-confirm-panel .mock-cost-row span:last-child {
+    color: var(--text-primary);
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .trade-confirm-panel .mock-cost-row span:last-child {
+    font-weight: 700;
+  }
+
+  .trade-confirm-panel .trade-confirm-note,
+  .trade-confirm-panel .form-note.trade-confirm-note {
+    color: #9ca3af !important;
+  }
+
+  .trade-confirm-panel .mock-trade-cost-box {
+    background: #ffffff;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: 12px;
+  }
+
+  .trade-confirm-panel .mock-cost-row {
+    border-bottom-color: rgba(0, 0, 0, 0.08);
+  }
+
+  .trade-confirm-panel .mock-cost-row--emph {
+    border-top-color: rgba(0, 0, 0, 0.1);
+  }
+
+  .trade-confirm-panel .mock-cost-row--emph span:last-child {
+    font-weight: 800;
+    font-size: 1.06em;
+  }
+
   .sell-modal-close {
     position: absolute;
     top: 12px;
@@ -1610,11 +1791,11 @@
   }
 
   .trade-confirm-panel--buy .sell-modal-title {
-    color: #0d7ee0;
+    color: #d32f2f;
   }
 
   .trade-confirm-panel--sell .sell-modal-title {
-    color: #c44;
+    color: #1565c0;
   }
 
   .holding-trade-panel.trade-confirm-panel--sell .sell-modal-title {
@@ -1641,55 +1822,55 @@
     border: 2px solid transparent;
   }
 
-  /* 매도 탭: 코랄/레드 톤 (.btn-trade.sell 과 동일 #ff5a5f) */
+  /* 매도 탭: 파랑 (.btn-trade.sell 과 동일 #3182f6) */
   .holding-modal-tab--sell {
-    background: rgba(255, 90, 95, 0.12);
-    border-color: rgba(255, 90, 95, 0.45);
-    color: #c42e33;
-  }
-
-  .holding-modal-tab--sell:hover {
-    background: rgba(255, 90, 95, 0.2);
-    border-color: rgba(255, 90, 95, 0.65);
-    color: #a82529;
-  }
-
-  .holding-modal-tab--sell.active {
-    background: #ff5a5f;
-    border-color: #ff5a5f;
-    color: #fff;
-  }
-
-  .holding-modal-tab--sell.active:hover {
-    filter: brightness(1.06);
-    background: #ff5a5f;
-    border-color: #ff5a5f;
-    color: #fff;
-  }
-
-  /* 매수 탭: 파랑 톤 (.btn-trade 매수 와 동일 #3182f6) */
-  .holding-modal-tab--buy {
     background: rgba(49, 130, 246, 0.12);
     border-color: rgba(49, 130, 246, 0.45);
     color: #1e6ad2;
   }
 
-  .holding-modal-tab--buy:hover {
+  .holding-modal-tab--sell:hover {
     background: rgba(49, 130, 246, 0.2);
     border-color: rgba(49, 130, 246, 0.65);
     color: #1557b0;
   }
 
-  .holding-modal-tab--buy.active {
+  .holding-modal-tab--sell.active {
     background: #3182f6;
     border-color: #3182f6;
     color: #fff;
   }
 
-  .holding-modal-tab--buy.active:hover {
+  .holding-modal-tab--sell.active:hover {
     filter: brightness(1.06);
     background: #3182f6;
     border-color: #3182f6;
+    color: #fff;
+  }
+
+  /* 매수 탭: 빨강 (.btn-trade 매수 와 동일 #ff5a5f) */
+  .holding-modal-tab--buy {
+    background: rgba(255, 90, 95, 0.12);
+    border-color: rgba(255, 90, 95, 0.45);
+    color: #c42e33;
+  }
+
+  .holding-modal-tab--buy:hover {
+    background: rgba(255, 90, 95, 0.2);
+    border-color: rgba(255, 90, 95, 0.65);
+    color: #a82529;
+  }
+
+  .holding-modal-tab--buy.active {
+    background: #ff5a5f;
+    border-color: #ff5a5f;
+    color: #fff;
+  }
+
+  .holding-modal-tab--buy.active:hover {
+    filter: brightness(1.06);
+    background: #ff5a5f;
+    border-color: #ff5a5f;
     color: #fff;
   }
 
@@ -1707,25 +1888,25 @@
   }
 
   .holding-trade-panel .holding-modal-cta-sell {
-    background: #ff5a5f;
+    background: #3182f6;
     color: #fff;
   }
 
   .holding-trade-panel .holding-modal-cta-sell:hover {
     filter: brightness(1.06);
-    background: #ff5a5f;
+    background: #3182f6;
   }
 
   .holding-trade-panel .holding-modal-cta-buy,
   .holding-trade-panel .holding-buy-confirm.holding-modal-cta-buy {
-    background: #3182f6;
+    background: #ff5a5f;
     color: #fff;
   }
 
   .holding-trade-panel .holding-modal-cta-buy:hover,
   .holding-trade-panel .holding-buy-confirm.holding-modal-cta-buy:hover {
     filter: brightness(1.06);
-    background: #3182f6;
+    background: #ff5a5f;
   }
 
   .holding-modal-pane {
@@ -1791,7 +1972,7 @@
   .trade-confirm-panel .sell-modal-field label {
     font-size: 15px;
     font-weight: 600;
-    color: var(--gray-400);
+    color: #6b7280;
     margin-bottom: 8px;
   }
 
@@ -1821,7 +2002,6 @@
   }
 
   .trade-confirm-panel .sell-modal-row span:first-child {
-    color: var(--gray-400);
     font-weight: 600;
     flex-shrink: 0;
   }
@@ -1829,7 +2009,6 @@
   .trade-confirm-panel .sell-modal-row span:last-child {
     font-size: 18px;
     font-weight: 800;
-    color: var(--text-primary);
     text-align: right;
   }
 
@@ -1837,7 +2016,6 @@
     margin: 14px 0 0 0 !important;
     font-size: 15px !important;
     line-height: 1.5 !important;
-    color: var(--gray-400) !important;
   }
 
   .sell-modal-actions {
@@ -1964,6 +2142,8 @@
   }
 
   .trading-section {
+    position: relative;
+    z-index: 25;
     background: #ffffff;
     border: 1px solid rgba(47, 143, 95, 0.18);
     border-radius: 16px;
@@ -2291,10 +2471,10 @@
     border-color: rgba(47, 143, 95, 0.35);
   }
 
-  /* 시장 정보 매수·매도와 동일 톤: 단색(토스 스타일) */
+  /* 국내 HTS 관례: 매수=빨강, 매도=파랑 */
   .form-group--buy .btn-trade:not(.sell),
   .trade-confirm-panel--buy .sell-modal-actions .btn-trade {
-    background: #3182f6;
+    background: #ff5a5f;
     border: none;
     color: #fff;
   }
@@ -2302,18 +2482,18 @@
   .form-group--buy .btn-trade:not(.sell):hover,
   .trade-confirm-panel--buy .sell-modal-actions .btn-trade:hover {
     filter: brightness(1.06);
-    background: #3182f6;
+    background: #ff5a5f;
   }
 
   .btn-trade.sell {
-    background: #ff5a5f;
+    background: #3182f6;
     border: none;
     color: #fff;
   }
 
   .btn-trade.sell:hover {
     filter: brightness(1.06);
-    background: #ff5a5f;
+    background: #3182f6;
   }
 
   .trade-feedback {
@@ -2449,7 +2629,8 @@
   }
 
   .order-status-sum--wait {
-    color: #b8860b;
+    color: #d97706;
+    font-weight: 600;
   }
 
   .order-status-sum--failcount {
@@ -2488,34 +2669,102 @@
   }
 
   .order-status-item--pending-open {
-    background: rgba(255, 213, 79, 0.22);
-    border-color: rgba(212, 175, 55, 0.45);
+    background: #fffef7;
+    border-color: #fde68a;
+    box-shadow: none;
+    display: flex;
+    flex-direction: column;
   }
 
   .order-status-name--pending {
-    color: #b8860b;
-    font-weight: 700;
+    color: #b45309;
+    font-weight: 600;
   }
 
   .order-status-wait-suffix {
-    font-weight: 800;
-    color: #c9a227;
+    font-weight: 700;
+    color: #d97706;
     margin-left: 2px;
   }
 
   .order-status-sideqty--pending {
-    color: #a67c00;
+    color: #a16207;
   }
 
-  .order-status-limit-label {
+  .order-status-sideqty--pending .order-status-limit-label {
+    color: #b45309;
+  }
+
+  .order-status-item--pending-open .order-status-limit-label {
     font-weight: 600;
-    color: #8d6e00;
+    color: #b45309;
   }
 
   .order-status-badge--pending-open {
-    background: rgba(255, 213, 79, 0.85);
-    color: #5d4a00;
-    border: 1px solid rgba(180, 140, 0, 0.35);
+    background: #fef9c3;
+    color: #a16207;
+    border: 1px solid #fde047;
+  }
+
+  .order-status-badge--pending-reserve {
+    background: #fff7ed;
+    color: #c2410c;
+    border: 1px solid #fdba74;
+  }
+
+  .order-status-offhours-note {
+    font-size: 0.85em;
+    color: #9a3412;
+    font-weight: 600;
+  }
+
+  .order-status-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+
+  .order-status-item--pending-open .order-status-top {
+    margin-bottom: 4px;
+  }
+
+  .order-status-item--pending-open .order-status-detail--dateonly {
+    margin-bottom: 0;
+  }
+
+  .order-status-footer {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(253, 230, 138, 0.85);
+  }
+
+  .order-status-cancel-btn {
+    padding: 5px 12px;
+    min-width: 52px;
+    border-radius: 8px;
+    border: 1px solid #fde68a;
+    background: #ffffff;
+    color: #b45309;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    line-height: 1.2;
+    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  }
+
+  .order-status-cancel-btn:hover {
+    background: #fef9c3;
+    border-color: #fcd34d;
+    color: #92400e;
+  }
+
+  .order-status-cancel-btn:active {
+    background: #fde68a;
   }
 
   .order-status-top {
@@ -2558,11 +2807,11 @@
   }
 
   .order-status-action--buy {
-    color: #0d47a1;
+    color: #d32f2f;
   }
 
   .order-status-action--sell {
-    color: #e53935;
+    color: #1565c0;
   }
 
   .order-status-stock {
@@ -2664,6 +2913,103 @@
     gap: 10px;
   }
 
+  .history-period-row {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    width: 100%;
+  }
+
+  .history-period-row.history-period-muted {
+    opacity: 0.55;
+    pointer-events: none;
+  }
+
+  .history-period-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #6b7280;
+    white-space: nowrap;
+  }
+
+  .history-period-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    overflow-x: auto;
+    padding-bottom: 2px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .history-period-chip {
+    flex: 0 0 auto;
+    padding: 8px 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(47, 143, 95, 0.25);
+    background: #f8faf8;
+    color: #4b5563;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  }
+
+  .history-period-chip:hover:not(:disabled) {
+    border-color: rgba(47, 143, 95, 0.45);
+    color: var(--text-primary);
+  }
+
+  .history-period-chip.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+
+  .history-period-chip:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+
+  .history-range-wrap {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    background: #fafafa;
+  }
+
+  .history-date-input--readonly {
+    background: #ffffff;
+    color: var(--text-primary);
+    cursor: default;
+    border-color: rgba(0, 0, 0, 0.12);
+    pointer-events: none;
+  }
+
+  .history-range-field {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: #6b7280;
+  }
+
+  .history-range-field-label {
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .history-range-sep {
+    color: #6b7280;
+    font-weight: 600;
+    user-select: none;
+  }
+
   .history-date-wrap {
     display: inline-flex;
     align-items: center;
@@ -2763,13 +3109,13 @@
   }
 
   .history-badge.buy {
-    background: rgba(25, 118, 210, 0.2);
-    color: #0d47a1;
+    background: rgba(255, 90, 95, 0.2);
+    color: #c62828;
   }
 
   .history-badge.sell {
-    background: rgba(239, 83, 80, 0.18);
-    color: #e53935;
+    background: rgba(49, 130, 246, 0.18);
+    color: #1565c0;
   }
 
   .history-badge.wait {
@@ -2886,8 +3232,8 @@
 
   .history-price {
     font-size: 15px;
-    font-weight: 600;
-    color: var(--accent);
+    font-weight: 700;
+    color: var(--text-primary);
     margin-bottom: 4px;
     letter-spacing: -0.02em;
   }
@@ -3003,7 +3349,8 @@
 
   .sim-view-tab {
     flex: 1;
-    max-width: 160px;
+    min-width: 0;
+    max-width: none;
     padding: 10px 16px;
     border: none;
     border-radius: 10px 10px 0 0;
@@ -3028,6 +3375,15 @@
 
   .sim-view-panel[hidden] {
     display: none !important;
+  }
+
+  /* 종목 상세 열림: 포트폴리오·수익분석·랭킹 탭 숨기고 종목 탭(차트·시세)만 */
+  .simulation-main:has(#simHoldingDetailSheet:not([hidden])) .sim-view-tabs {
+    display: none;
+  }
+
+  .simulation-main:has(#simHoldingDetailSheet:not([hidden])) #simViewPortfolio .portfolio-section > .sim-holding-detail-sheet {
+    max-height: min(580px, calc(100vh - 240px));
   }
 
   .stat-card--pnl-link {
@@ -3294,6 +3650,141 @@
     line-height: 1.5;
   }
 
+  /* 이달 모의투자 랭킹 */
+  .sim-ranking-panel {
+    padding: 16px 18px 24px;
+    background: #fff;
+    border: 1px solid rgba(47, 143, 95, 0.18);
+    border-top: none;
+    border-radius: 0 0 14px 14px;
+  }
+
+  .sim-ranking-head {
+    margin-bottom: 14px;
+  }
+
+  .sim-ranking-title {
+    margin: 0 0 6px;
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--text-primary);
+    letter-spacing: -0.02em;
+  }
+
+  .sim-ranking-sub {
+    margin: 0;
+    font-size: 13px;
+    color: var(--gray-500);
+    line-height: 1.5;
+  }
+
+  .sim-ranking-my {
+    margin: 10px 0 0;
+    font-size: 13px;
+    font-weight: 700;
+    color: #2f8f5f;
+  }
+
+  .sim-ranking-hint {
+    margin-bottom: 12px;
+  }
+
+  .sim-ranking-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .sim-ranking-row {
+    display: grid;
+    grid-template-columns: 36px 52px 1fr auto;
+    align-items: center;
+    gap: 10px 12px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    border: 1px solid rgba(47, 143, 95, 0.14);
+    background: #f8faf8;
+  }
+
+  .sim-ranking-row--me {
+    box-shadow: inset 0 0 0 2px rgba(47, 143, 95, 0.35);
+  }
+
+  .sim-ranking-row--gold {
+    background: linear-gradient(90deg, rgba(255, 215, 0, 0.18), #fffef8 40%);
+    border-color: rgba(212, 167, 0, 0.45);
+  }
+
+  .sim-ranking-row--silver {
+    background: linear-gradient(90deg, rgba(192, 192, 192, 0.22), #fafafa 40%);
+    border-color: rgba(140, 140, 140, 0.35);
+  }
+
+  .sim-ranking-row--bronze {
+    background: linear-gradient(90deg, rgba(205, 127, 50, 0.2), #fffaf6 40%);
+    border-color: rgba(180, 110, 50, 0.4);
+  }
+
+  .sim-ranking-trophy {
+    font-size: 22px;
+    line-height: 1;
+    text-align: center;
+  }
+
+  .sim-ranking-trophy--spacer {
+    visibility: hidden;
+    font-size: 22px;
+  }
+
+  .sim-ranking-rank {
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--text-primary);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .sim-ranking-name {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-primary);
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .sim-ranking-rate {
+    font-size: 14px;
+    font-weight: 800;
+    font-family: 'DM Mono', ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  .sim-ranking-rate.up {
+    color: #e53935;
+  }
+
+  .sim-ranking-rate.down {
+    color: #3182f6;
+  }
+
+  .sim-ranking-rate.flat {
+    color: var(--gray-500);
+  }
+
+  .sim-ranking-empty {
+    text-align: center;
+    padding: 28px 16px;
+    color: var(--gray-400);
+    font-size: 14px;
+    line-height: 1.55;
+    list-style: none;
+  }
+
   @media (max-width: 768px) {
     .trading-form {
       grid-template-columns: 1fr;
@@ -3331,5 +3822,36 @@
     .holdings-table td {
       padding: 12px 8px;
     }
+  }
+
+  /* 5단계: 시트·호가 레이어만 (강조 카드 스타일은 style.css tutorial-fx) */
+  body.sim-step5-spotlight.sim-step5-detail-spotlight
+    .portfolio-section
+    > .sim-holding-detail-sheet:not([hidden]) {
+    position: absolute;
+    z-index: 505;
+  }
+
+  body.sim-step5-spotlight.sim-step5-detail-spotlight .market-sidebar .sim-rank-wrap {
+    position: relative;
+    z-index: 505;
+  }
+
+  body.sim-step5-detail-spotlight
+    .portfolio-section
+    > .sim-holding-detail-sheet:not([hidden]).tutorial-callout-target {
+    overflow: visible;
+  }
+
+  body.sim-step5-spotlight .orderbook-overlay.tutorial-callout-target {
+    position: absolute !important;
+    inset: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
+  body.sim-step5-spotlight .market-sidebar .discovery-table.tutorial-callout-target {
+    display: block;
+    width: 100%;
   }
 
