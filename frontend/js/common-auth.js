@@ -80,17 +80,20 @@ function setAuthNavVisible(displayName) {
   const loginBtn = document.getElementById('navLoginBtn');
   const logoutBtn = document.getElementById('navLogoutBtn');
   const emailEl = document.getElementById('navUserEmail');
+  const signupBtn = document.querySelector('nav .nav-right .btn-primary');
   if (!loginBtn || !emailEl) return;
   if (displayName) {
     const welcomeText = `${displayName}님 환영합니다`;
     loginBtn.style.display = 'none';
     if (logoutBtn) logoutBtn.style.display = '';
+    if (signupBtn) signupBtn.style.display = 'none';
     emailEl.textContent = welcomeText;
     emailEl.style.display = 'inline-block';
     emailEl.title = welcomeText;
   } else {
     loginBtn.style.display = '';
     if (logoutBtn) logoutBtn.style.display = 'none';
+    if (signupBtn) signupBtn.style.display = '';
     emailEl.style.display = 'none';
     emailEl.textContent = '';
     emailEl.removeAttribute('title');
