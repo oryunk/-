@@ -172,13 +172,14 @@
     setText('.order-status-title', '주문/체결 현황');
     setText('#orderStatusSummary', '아직 주문 상태가 없습니다.');
     setText('.history-title', '거래 내역');
-    setText('.history-date-label', '날짜');
+    setText('#historyPeriodLabel', '조회 기간');
+    setText('#historyRangeFromLabel', '시작');
+    setText('#historyRangeToLabel', '종료');
     setText('#historyClearDisplay', '초기화');
     setText('#historyRestoreDisplay', '복원');
     setText('[data-history-tab="all"]', '전체');
     setText('[data-history-tab="buy"]', '구매');
     setText('[data-history-tab="sell"]', '판매');
-    setText('[data-history-tab="pending"]', '대기');
 
     setText('#sellModalHeading', '보유 종목 주문');
     setText('#holdingModalTabSell', '매도');
@@ -206,12 +207,12 @@
     setText('#buyModal .sell-modal-row:nth-of-type(1) span:first-child', '종목');
     setText('#buyModal .sell-modal-row:nth-of-type(2) span:first-child', '수량');
     setText('#buyModal .sell-modal-row:nth-of-type(3) span:first-child', '예상가');
-    setText('#buyModal .trade-confirm-note', '위 내용으로 매수를 진행합니다.');
+    setText('#buyModal .trade-confirm-note', '위 내용으로 구매를 진행합니다.');
     var buyExec = document.querySelector('#buyModal .btn-trade');
-    if (buyExec) buyExec.textContent = '매수';
+    if (buyExec) buyExec.textContent = '구매';
     setText('#quickSellConfirmHeading', '매도');
     var quickSellExec = document.querySelector('#quickSellConfirmModal .btn-trade.sell');
-    if (quickSellExec) quickSellExec.textContent = '매도';
+    if (quickSellExec) quickSellExec.textContent = '판매';
 
     setText('#simHoldingTabChart', '차트');
     setText('#simHoldingTabInfo', '종목정보');
@@ -228,6 +229,7 @@
     setText('#simHoldingStockHistoryTitle', '거래내역');
     var qSk = document.getElementById('simHoldingQuoteSkeleton');
     if (qSk) qSk.textContent = '시세 불러오는 중…';
+    setText('#simHoldingQuoteLblOpen', '시가');
     setText('#simHoldingQuoteLblHigh', '고가');
     setText('#simHoldingQuoteLblLow', '저가');
     setText('#simHoldingQuoteExecLabel', '체결강도');
@@ -451,6 +453,12 @@
     }
   }
 
+  window.openSimOrderbookForTutorial = function (code) {
+    if (code && /^\d{6}$/.test(String(code).trim())) {
+      loadOrderbookPanel(String(code).trim());
+    }
+  };
+
   function closeOrderbookOverlay() {
     var el = document.getElementById('orderbookOverlay');
     if (el) {
@@ -539,6 +547,174 @@
     return /^\d{6}$/.test(String(v || '').trim());
   }
 
+  /** 체결·대기 UI용: 6자리 코드면 종목명으로 치환 */
+  function resolveStockDisplayLabel(stockRef, hint) {
+    var ref = String(stockRef || '').trim();
+    var h = String(hint || '').trim();
+    if (h && !isSixDigitCode(h)) return h;
+    if (ref && !isSixDigitCode(ref)) return ref;
+
+    var code = isSixDigitCode(ref) ? ref : isSixDigitCode(h) ? h : '';
+    if (!code) return h || ref || '-';
+
+    var row = document.querySelector('.discovery-row[data-code="' + code + '"]');
+    if (row) {
+      var enc = row.getAttribute('data-name') || '';
+      if (enc) {
+        try {
+          var fromRow = decodeURIComponent(enc);
+          if (fromRow && !isSixDigitCode(fromRow)) return fromRow;
+        } catch (e) { /* ignore */ }
+      }
+    }
+
+    if (portfolio && portfolio.holdings) {
+      var fromHold = '';
+      Object.keys(portfolio.holdings).forEach(function (k) {
+        if (fromHold) return;
+        var hd = portfolio.holdings[k];
+        if (!hd) return;
+        var hc = String(hd.code || '').trim();
+        if (hc === code || k === code) {
+          var nm = String(hd.name || k || '').trim();
+          if (nm && !isSixDigitCode(nm)) fromHold = nm;
+        }
+      });
+      if (fromHold) return fromHold;
+    }
+
+    if (sellModalState) {
+      var sc = String(sellModalState.code || '').trim();
+      var sn = String(sellModalState.name || '').trim();
+      if (sc === code && sn && !isSixDigitCode(sn)) return sn;
+    }
+
+    var tradeInput = document.getElementById('tradeStock');
+    var tradeCode = document.getElementById('tradeStockCode');
+    var ti = tradeInput && tradeInput.value ? String(tradeInput.value).trim() : '';
+    var tc = tradeCode && tradeCode.value ? String(tradeCode.value).trim() : '';
+    if (tc === code && ti && !isSixDigitCode(ti)) return ti;
+
+    return code;
+  }
+
+  function getTradeStockDisplayName() {
+    var t = document.getElementById('tradeStock');
+    var nameInput = t && t.value ? String(t.value).trim() : '';
+    var h = document.getElementById('tradeStockCode');
+    var code = h && h.value ? String(h.value).trim() : '';
+    var apiRef = getTradeStockForApi();
+    return resolveStockDisplayLabel(code || apiRef, nameInput);
+  }
+
+  function getHoldingModalBuyDisplayName() {
+    var sn = String(sellModalState.name || '').trim();
+    var sc = String(sellModalState.code || '').trim();
+    return resolveStockDisplayLabel(sc || getHoldingModalBuyStockForApi(), sn);
+  }
+
+  var KR_MARKET_OPEN_HHMM = 900;
+  var KR_MARKET_CLOSE_HHMM = 1530;
+
+  /** 백엔드 _is_kr_regular_market_open_now 와 동일: 평일 09:00~15:30 */
+  function isKrRegularMarketOpenNow() {
+    var now = new Date();
+    var dow = now.getDay();
+    if (dow === 0 || dow === 6) return false;
+    var hhmm = now.getHours() * 100 + now.getMinutes();
+    return hhmm >= KR_MARKET_OPEN_HHMM && hhmm <= KR_MARKET_CLOSE_HHMM;
+  }
+
+  function limitOrderNeedsPriceQueue(side, refPx, limPx) {
+    if (!(limPx > 0) || !(refPx > 0)) return false;
+    if (side === 'BUY') return refPx > limPx;
+    return refPx < limPx;
+  }
+
+  function registerPendingOrder(opts) {
+    var o = opts || {};
+    var pending = {
+      id: pendingOrderSeq++,
+      side: o.side === 'SELL' ? 'SELL' : 'BUY',
+      stock: o.stock,
+      stockRef: o.stockRef,
+      quantity: o.quantity,
+      limitPrice: o.limitPrice,
+      createdAt: Date.now(),
+      reason: o.reason === 'off_hours' ? 'off_hours' : 'price',
+    };
+    pendingOrders.push(pending);
+    saveOrderBoardState();
+    renderOrderStatusBoard();
+    showPendingOrderFeedback(pending, Number(o.refPx || 0));
+    return pending;
+  }
+
+  function rejectMarketOrderOffHours() {
+    var msg =
+      '장이 열려 있지 않아 시장가 주문을 넣을 수 없습니다. 지정가로 예약하거나 정규장(09:00~15:30)에 다시 시도해 주세요.';
+    var fb = document.getElementById('tradeFeedback');
+    if (fb) {
+      fb.style.display = 'block';
+      fb.innerHTML =
+        '<strong>주문 불가</strong>' +
+        '<div class="trade-row"><span>안내</span><span>' +
+        escapeHtml(msg) +
+        '</span></div>';
+    }
+    alert(msg);
+  }
+
+  /**
+   * 지정가·시장가 제출 전 라우팅.
+   * @returns {{ ok: boolean, execute?: boolean, pending?: object, blocked?: boolean }}
+   */
+  async function handleLimitOrderSubmission(params) {
+    var side = params.side === 'SELL' ? 'SELL' : 'BUY';
+    var stock = params.stock;
+    var stockRef = params.stockRef || stock;
+    var quantity = params.quantity;
+    var limPx = Number(params.limPx || 0);
+
+    if (!(limPx > 0)) {
+      if (!isKrRegularMarketOpenNow()) {
+        rejectMarketOrderOffHours();
+        return { ok: false, blocked: true };
+      }
+      return { ok: true, execute: true };
+    }
+
+    if (!isKrRegularMarketOpenNow()) {
+      var refOff = await getLatestMarketPrice(stockRef);
+      var pOff = registerPendingOrder({
+        side: side,
+        stock: stock,
+        stockRef: stockRef,
+        quantity: quantity,
+        limitPrice: limPx,
+        reason: 'off_hours',
+        refPx: refOff,
+      });
+      return { ok: true, pending: pOff };
+    }
+
+    var refPx = await getLatestMarketPrice(stockRef);
+    if (limitOrderNeedsPriceQueue(side, refPx, limPx)) {
+      var p = registerPendingOrder({
+        side: side,
+        stock: stock,
+        stockRef: stockRef,
+        quantity: quantity,
+        limitPrice: limPx,
+        reason: 'price',
+        refPx: refPx,
+      });
+      return { ok: true, pending: p };
+    }
+
+    return { ok: true, execute: true };
+  }
+
   function nowStamp() {
     return new Date().toLocaleTimeString('ko-KR', { hour12: false });
   }
@@ -546,10 +722,14 @@
   function pushOrderStatusEvent(evt) {
     if (!evt) return;
     var tsMs = typeof evt.atMs === 'number' && Number.isFinite(evt.atMs) ? evt.atMs : Date.now();
+    var stockLabel = resolveStockDisplayLabel(
+      evt.stockRef || evt.stock,
+      evt.stockName != null ? evt.stockName : evt.stock
+    );
     orderStatusEvents.unshift({
       at: evt.at || nowStamp(),
       atMs: tsMs,
-      stock: String(evt.stock || '-'),
+      stock: stockLabel,
       side: evt.side === 'SELL' ? 'SELL' : 'BUY',
       mode: evt.mode || 'manual',
       status: evt.status || 'executed',
@@ -573,6 +753,39 @@
       day: 'numeric',
       weekday: 'long',
     });
+  }
+
+  function cancelPendingOrder(orderId) {
+    var id = Number(orderId);
+    if (!Number.isFinite(id)) return;
+    var removed = null;
+    pendingOrders = pendingOrders.filter(function (o) {
+      if (o && o.id === id) {
+        removed = o;
+        return false;
+      }
+      return true;
+    });
+    if (!removed) return;
+    saveOrderBoardState();
+    renderOrderStatusBoard();
+    var fb = document.getElementById('tradeFeedback');
+    if (fb) {
+      var sideKo = removed.side === 'SELL' ? '판매' : '구매';
+      fb.style.display = 'block';
+      fb.innerHTML =
+        '<strong>주문 취소</strong>' +
+        '<div class="trade-row"><span>종목</span><span>' +
+        escapeHtml(resolveStockDisplayLabel(removed.stockRef || removed.stock, removed.stock)) +
+        '</span></div>' +
+        '<div class="trade-row"><span>내용</span><span>' +
+        sideKo +
+        ' · ' +
+        Number(removed.quantity || 0).toLocaleString() +
+        '주 · 목표 ' +
+        formatCurrency(Number(removed.limitPrice || 0)) +
+        '</span></div>';
+    }
   }
 
   function renderOrderStatusBoard() {
@@ -622,27 +835,46 @@
       var side = o.side === 'SELL' ? '판매' : '구매';
       var actCls = o.side === 'SELL' ? 'sell' : 'buy';
       var qty = Number(o.quantity || 0).toLocaleString();
-      var name = escapeHtml(o.stock || o.stockRef || '-');
+      var name = escapeHtml(resolveStockDisplayLabel(o.stockRef || o.stock, o.stock));
       var dateLine = formatOrderStatusDateLine(Number(o.createdAt));
       var lp = formatCurrency(Number(o.limitPrice || 0));
+      var isReserve = o.reason === 'off_hours';
+      var waitSuffix = isReserve ? '(예약)' : '(대기)';
+      var badgeTxt = isReserve ? '예약' : '대기';
+      var badgeCls = isReserve
+        ? 'order-status-badge order-status-badge--pending-reserve'
+        : 'order-status-badge order-status-badge--pending-open';
+      var subNote = isReserve
+        ? ' <span class="order-status-offhours-note">장 마감</span>'
+        : '';
       return (
         '<div class="order-status-item order-status-item--pending-open">' +
           '<div class="order-status-top">' +
             '<div class="order-status-stockblock">' +
               '<div class="order-status-name order-status-name--pending">' +
                 name +
-                '<span class="order-status-wait-suffix">(대기)</span>' +
+                '<span class="order-status-wait-suffix">' + waitSuffix + '</span>' +
               '</div>' +
               '<div class="order-status-sideqty order-status-sideqty--pending">' +
                 '<span class="order-status-action order-status-action--' + actCls + '">' + side + '</span>' +
                 ' <span class="order-status-qtyparen">(' + qty + '주)</span>' +
                 ' · <span class="order-status-limit-label">목표 ' + lp + '</span>' +
+                subNote +
               '</div>' +
             '</div>' +
-            '<span class="order-status-badge order-status-badge--pending-open">미체결</span>' +
+            '<div class="order-status-actions">' +
+              '<span class="' + badgeCls + '">' + badgeTxt + '</span>' +
+            '</div>' +
           '</div>' +
           '<div class="order-status-detail order-status-detail--dateonly">' +
             '<span>' + escapeHtml(dateLine) + '</span>' +
+          '</div>' +
+          '<div class="order-status-footer">' +
+            '<button type="button" class="order-status-cancel-btn" data-pending-cancel="' +
+            escapeHtmlAttr(String(o.id)) +
+            '" aria-label="' +
+            escapeHtmlAttr((o.stock || o.stockRef || '종목') + ' 대기 주문 취소') +
+            '">취소</button>' +
           '</div>' +
         '</div>'
       );
@@ -654,7 +886,7 @@
       var badgeCls = e.status === 'failed' ? 'fail' : 'done';
       var badgeTxt = e.status === 'failed' ? '체결실패' : '체결완료';
       var qty = Number(e.quantity || 0).toLocaleString();
-      var name = escapeHtml(e.stock);
+      var name = escapeHtml(resolveStockDisplayLabel(e.stock, e.stock));
       var dateLine = formatOrderStatusDateLine(e.atMs);
       var failNote =
         e.status === 'failed' && e.note
@@ -682,9 +914,6 @@
 
     listEl.innerHTML = pendingRows + eventRows;
     saveOrderBoardState();
-    if (historyViewFilter === 'pending') {
-      renderHistory();
-    }
   }
 
   function rememberMarketQuote(code, name, price) {
@@ -775,14 +1004,21 @@
     const cond = order.side === 'BUY' ? '현재가가 지정가 이하' : '현재가가 지정가 이상';
     const rp = Number(refPrice || 0);
     const refText = rp > 0 ? formatCurrency(rp) : '확인 불가';
+    const isReserve = order.reason === 'off_hours';
+    const title = isReserve ? '장 마감 · 예약 주문' : '주문 대기 등록';
+    const condRow = isReserve
+      ? '<div class="trade-row"><span>체결 시점</span><span>정규장(09:00~15:30) 개장 후, 지정가 조건이 맞으면 자동 체결</span></div>'
+      : '<div class="trade-row"><span>자동 체결 조건</span><span>' + cond + '</span></div>';
     el.style.display = 'block';
     el.innerHTML =
-      '<strong>주문 대기 등록</strong>' +
-      '<div class="trade-row"><span>종목</span><span>' + escapeHtml(order.stock) + '</span></div>' +
+      '<strong>' + title + '</strong>' +
+      '<div class="trade-row"><span>종목</span><span>' +
+      escapeHtml(resolveStockDisplayLabel(order.stockRef || order.stock, order.stock)) +
+      '</span></div>' +
       '<div class="trade-row"><span>구분</span><span>' + sideKo + ' · ' + Number(order.quantity).toLocaleString() + '주</span></div>' +
       '<div class="trade-row"><span>지정가</span><span>' + formatCurrency(order.limitPrice) + '</span></div>' +
       '<div class="trade-row"><span>현재 기준가</span><span>' + refText + '</span></div>' +
-      '<div class="trade-row"><span>자동 체결 조건</span><span>' + cond + '</span></div>';
+      condRow;
   }
 
   async function executeTradeRequest(side, stock, quantity, price) {
@@ -803,6 +1039,7 @@
 
   async function processPendingOrders() {
     if (pendingOrderProcessing || pendingOrders.length === 0) return;
+    if (!isKrRegularMarketOpenNow()) return;
     pendingOrderProcessing = true;
     try {
       var survivors = [];
@@ -830,7 +1067,9 @@
           anyExecuted = true;
           var t = rt.data && rt.data.trade ? rt.data.trade : {};
           pushOrderStatusEvent({
-            stock: t.name || order.stock || order.stockRef,
+            stockRef: order.stockRef,
+            stock: t.name || order.stock,
+            stockName: t.name || order.stock,
             side: order.side,
             mode: 'auto',
             status: 'executed',
@@ -1112,17 +1351,135 @@
     return Number.isNaN(d.getTime()) ? 0 : d.getTime();
   }
 
-  /** 체결 내역 날짜 필터 값(비어 있으면 오늘 로컬일) */
-  function getHistoryFilterYmd() {
-    var dateEl = document.getElementById('historyDateFilter');
-    var v = dateEl && dateEl.value ? String(dateEl.value).trim() : '';
-    if (v) return v;
-    return tradeLocalYmd(Date.now());
+  /** 거래 내역 조회 기간: all | 7d | 30d | 90d | custom */
+  let historyPeriodMode = 'all';
+
+  function ymdToLocalStartMs(ymd) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(ymd || '').trim());
+    if (!m) return 0;
+    return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 0, 0, 0, 0).getTime();
   }
 
-  function setHistoryDateToToday() {
-    var el = document.getElementById('historyDateFilter');
-    if (el) el.value = tradeLocalYmd(Date.now());
+  function ymdToLocalEndMs(ymd) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(ymd || '').trim());
+    if (!m) return 0;
+    return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 23, 59, 59, 999).getTime();
+  }
+
+  function normalizeHistoryCustomRange() {
+    var fromEl = document.getElementById('historyDateFrom');
+    var toEl = document.getElementById('historyDateTo');
+    if (!fromEl || !toEl) return;
+    var today = tradeLocalYmd(Date.now());
+    if (!fromEl.value) fromEl.value = today;
+    if (!toEl.value) toEl.value = today;
+    if (ymdToLocalStartMs(fromEl.value) > ymdToLocalEndMs(toEl.value)) {
+      var tmp = fromEl.value;
+      fromEl.value = toEl.value;
+      toEl.value = tmp;
+    }
+  }
+
+  function getMockAccountStartYmd() {
+    var todayYmd = tradeLocalYmd(Date.now());
+    var startMs = 0;
+    if (portfolio.accountCreatedMs > 0) startMs = portfolio.accountCreatedMs;
+    else if (portfolio.history && portfolio.history.length) {
+      portfolio.history.forEach(function (h) {
+        if (h.atMs > 0 && (!startMs || h.atMs < startMs)) startMs = h.atMs;
+      });
+    }
+    if (startMs > 0) return tradeLocalYmd(startMs);
+    return todayYmd;
+  }
+
+  function getHistoryPeriodBounds() {
+    var todayYmd = tradeLocalYmd(Date.now());
+    var mode = historyPeriodMode;
+    var startYmd = todayYmd;
+    var endYmd = todayYmd;
+
+    if (mode === 'custom') {
+      normalizeHistoryCustomRange();
+      var fromEl = document.getElementById('historyDateFrom');
+      var toEl = document.getElementById('historyDateTo');
+      startYmd = fromEl && fromEl.value ? String(fromEl.value).trim() : todayYmd;
+      endYmd = toEl && toEl.value ? String(toEl.value).trim() : todayYmd;
+    } else if (mode === 'all') {
+      startYmd = getMockAccountStartYmd();
+      endYmd = todayYmd;
+    } else if (mode === '7d' || mode === '30d' || mode === '90d') {
+      var daysBack = mode === '7d' ? 6 : mode === '30d' ? 29 : 89;
+      var startD = new Date();
+      startD.setHours(0, 0, 0, 0);
+      startD.setDate(startD.getDate() - daysBack);
+      startYmd = tradeLocalYmd(startD.getTime());
+      endYmd = todayYmd;
+    } else {
+      startYmd = getMockAccountStartYmd();
+      endYmd = todayYmd;
+    }
+
+    return {
+      mode: mode,
+      startYmd: startYmd,
+      endYmd: endYmd,
+      startMs: ymdToLocalStartMs(startYmd),
+      endMs: ymdToLocalEndMs(endYmd),
+    };
+  }
+
+  function applyHistoryPeriodRangeDisplay() {
+    var bounds = getHistoryPeriodBounds();
+    var isCustom = historyPeriodMode === 'custom';
+    var fromEl = document.getElementById('historyDateFrom');
+    var toEl = document.getElementById('historyDateTo');
+    var rangeWrap = document.getElementById('historyRangeWrap');
+    if (rangeWrap) rangeWrap.hidden = false;
+
+    if (fromEl) {
+      if (!isCustom) fromEl.value = bounds.startYmd;
+      fromEl.readOnly = !isCustom;
+      fromEl.disabled = false;
+      fromEl.classList.toggle('history-date-input--readonly', !isCustom);
+      fromEl.title = isCustom ? '조회 시작일' : '선택한 조회 기간의 시작일(변경 불가)';
+    }
+    if (toEl) {
+      if (!isCustom) toEl.value = bounds.endYmd;
+      toEl.readOnly = !isCustom;
+      toEl.disabled = false;
+      toEl.classList.toggle('history-date-input--readonly', !isCustom);
+      toEl.title = isCustom ? '조회 종료일' : '선택한 조회 기간의 종료일(변경 불가)';
+    }
+  }
+
+  function syncHistoryPeriodChipUi() {
+    document.querySelectorAll('[data-history-period]').forEach(function (btn) {
+      var p = btn.getAttribute('data-history-period') || 'all';
+      var on = p === historyPeriodMode;
+      btn.classList.toggle('active', on);
+      btn.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    applyHistoryPeriodRangeDisplay();
+  }
+
+  function setHistoryPeriodMode(mode) {
+    var allowed = ['all', '7d', '30d', '90d', 'custom'];
+    historyPeriodMode = allowed.indexOf(mode) >= 0 ? mode : 'all';
+    if (historyPeriodMode === 'custom') {
+      var today = tradeLocalYmd(Date.now());
+      var fromEl = document.getElementById('historyDateFrom');
+      var toEl = document.getElementById('historyDateTo');
+      if (fromEl && !fromEl.value) fromEl.value = today;
+      if (toEl && !toEl.value) toEl.value = today;
+    }
+    syncHistoryPeriodChipUi();
+    renderHistory();
+  }
+
+  function resetHistoryPeriodDefault() {
+    historyPeriodMode = 'all';
+    syncHistoryPeriodChipUi();
   }
 
   /** 등락·손익 색: 보합 flat, 상승 up(빨강), 하락 down(파랑) */
@@ -1132,6 +1489,106 @@
     if (x > 1e-9) return 'up';
     if (x < -1e-9) return 'down';
     return 'flat';
+  }
+
+  function formatMarketChangeRateStr(rate) {
+    var r = Number(rate);
+    if (!Number.isFinite(r)) return '—';
+    var s = r.toFixed(2) + '%';
+    if (r > 1e-9) return '+' + s;
+    return s;
+  }
+
+  function getDiscoveryQuoteSnapshot(code) {
+    var c = String(code || '').trim();
+    if (!isSixDigitCode(c)) return null;
+    var row = document.querySelector('.discovery-row[data-code="' + c + '"]');
+    if (!row) return null;
+    var enc = row.getAttribute('data-name') || '';
+    var name = '';
+    try {
+      name = enc ? decodeURIComponent(enc) : '';
+    } catch (e) {
+      name = enc;
+    }
+    return {
+      name: name,
+      price: parseFloat(row.getAttribute('data-price') || '0', 10),
+      changeRate: parseFloat(row.getAttribute('data-change-rate') || '0', 10),
+    };
+  }
+
+  function updateSimHoldingDetailHead(opts) {
+    opts = opts || {};
+    var name = String(opts.name != null ? opts.name : '—').trim() || '—';
+    var code = String(opts.code != null ? opts.code : '').trim();
+    var price = Number(opts.price);
+    var rate = Number(opts.changeRate);
+
+    var nameEl = document.getElementById('simHoldingDetailName');
+    var codeEl = document.getElementById('simHoldingDetailCode');
+    var priceEl = document.getElementById('simHoldingDetailPrice');
+    var changeEl = document.getElementById('simHoldingDetailChange');
+
+    if (nameEl) nameEl.textContent = name;
+    if (codeEl) {
+      if (isSixDigitCode(code)) {
+        codeEl.textContent = code;
+        codeEl.hidden = false;
+      } else if (code) {
+        codeEl.textContent = code;
+        codeEl.hidden = false;
+      } else {
+        codeEl.textContent = '';
+        codeEl.hidden = true;
+      }
+    }
+    if (priceEl) {
+      priceEl.textContent = Number.isFinite(price) && price > 0 ? formatCurrency(price) : '—';
+    }
+    if (changeEl) {
+      var dir = Number.isFinite(rate) ? changeDirClass(rate) : 'flat';
+      changeEl.className = 'sim-holding-detail-change ' + dir;
+      changeEl.textContent = Number.isFinite(rate) ? formatMarketChangeRateStr(rate) : '—';
+    }
+
+    if (Number.isFinite(price) && price > 0) simHoldingDetailState.quotePrice = price;
+    if (Number.isFinite(rate)) simHoldingDetailState.quoteChangeRate = rate;
+  }
+
+  function refreshSimHoldingDetailHeadFromApi(code) {
+    var c = String(code || '').trim();
+    if (!isSixDigitCode(c)) return;
+    fetch(simApiBase() + '/api/mock/traded-value-rank?limit=20&q=' + encodeURIComponent(c), {
+      credentials: 'include',
+    })
+      .then(function (res) {
+        return res.json().catch(function () {
+          return {};
+        });
+      })
+      .then(function (data) {
+        if (!data.success || !Array.isArray(data.items)) return;
+        var sheet = document.getElementById('simHoldingDetailSheet');
+        if (!sheet || sheet.hasAttribute('hidden')) return;
+        var stCode = String(simHoldingDetailState.code || '').trim();
+        if (stCode !== c) return;
+        var match = null;
+        for (var i = 0; i < data.items.length; i++) {
+          if (String(data.items[i].code || '').trim() === c) {
+            match = data.items[i];
+            break;
+          }
+        }
+        if (!match) return;
+        updateSimHoldingDetailHead({
+          name: simHoldingDetailState.name || match.name,
+          code: c,
+          price: Number(match.price || simHoldingDetailState.quotePrice || 0),
+          changeRate: Number(match.change_rate || 0),
+        });
+      })
+      .catch(function () { /* ignore */ });
   }
 
   var simWatchlistItems = [];
@@ -1161,6 +1618,63 @@
     );
   }
 
+  async function simIsLoggedIn() {
+    try {
+      var res = await fetch(simApiBase() + '/api/auth/me', { credentials: 'include' });
+      var data = await res.json().catch(function () {
+        return {};
+      });
+      return !!(res.ok && data.success && data.user);
+    } catch (e) {
+      return false;
+    }
+  }
+
+  async function simToggleWatchlist(code, name) {
+    var logged = await simIsLoggedIn();
+    if (!logged) {
+      alert('로그인 후 관심 종목을 이용할 수 있습니다.');
+      if (typeof openLoginModal === 'function') openLoginModal();
+      return;
+    }
+    var c = String(code || '').trim();
+    if (!/^\d{6}$/.test(c)) return;
+    try {
+      var res = await fetch(simApiBase() + '/api/watchlist/toggle', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ code: c }),
+      });
+      var data = await res.json().catch(function () {
+        return {};
+      });
+      if (res.status === 401) {
+        alert(data.message || '로그인이 필요합니다.');
+        if (typeof openLoginModal === 'function') openLoginModal();
+        return;
+      }
+      if (!res.ok || !data.success) {
+        alert(data.message || '처리하지 못했습니다.');
+        return;
+      }
+      if (data.in_watchlist) {
+        var displayName = String(name || '').trim() || c;
+        simWatchlistItems = simWatchlistItems.filter(function (i) {
+          return String(i.code) !== c;
+        });
+        simWatchlistItems.unshift({ code: c, name: displayName, created_at: new Date().toISOString() });
+      } else {
+        simWatchlistItems = simWatchlistItems.filter(function (i) {
+          return String(i.code) !== c;
+        });
+      }
+      simRenderWatchlistChips();
+    } catch (e) {
+      alert('네트워크 오류입니다.');
+    }
+  }
+
   function simRenderWatchlistChips() {
     var host = document.getElementById('simWatchlistPanel');
     var aside = document.querySelector('.sim-watchlist-aside');
@@ -1180,7 +1694,9 @@
       var n = escapeHtml(nameRaw);
       var logoBlock = simWatchlistChipLogoHtml(codeRaw, nameRaw);
       parts.push(
-        '<button type="button" class="watchlist-chip watchlist-chip--aside" data-code="' +
+        '<div class="watchlist-chip watchlist-chip--aside" data-code="' +
+          c +
+          '"><button type="button" class="watchlist-chip-main" data-code="' +
           c +
           '"><div class="watchlist-chip-inner">' +
           logoBlock +
@@ -1188,12 +1704,14 @@
           n +
           '</span><span class="watchlist-chip-code">' +
           c +
-          '</span></span></div></button>',
+          '</span></span></div></button><button type="button" class="watch-heart-btn is-on watchlist-chip-heart" data-code="' +
+          c +
+          '" title="관심 해제" aria-label="관심 해제" aria-pressed="true">♥</button></div>',
       );
     }
     host.innerHTML = '<div class="watchlist-chip-scroller--aside" role="list">' + parts.join('') + '</div>';
     bindStockLogosIn(host);
-    host.querySelectorAll('.watchlist-chip--aside').forEach(function (btn) {
+    host.querySelectorAll('.watchlist-chip-main').forEach(function (btn) {
       btn.addEventListener('click', function () {
         var cd = btn.getAttribute('data-code');
         if (!cd || !/^\d{6}$/.test(cd)) return;
@@ -1216,6 +1734,7 @@
           }
         }
         var price = tr ? parseFloat(tr.getAttribute('data-price') || '0', 10) : 0;
+        var rateOpt = tr ? parseFloat(tr.getAttribute('data-change-rate') || '', 10) : NaN;
         var volOpt = null;
         var tvOpt = null;
         if (tr) {
@@ -1225,7 +1744,29 @@
           if (Number.isFinite(tpv)) tvOpt = tpv;
         }
         applyQuoteToTrade(cd, price, name || cd);
-        openSimStockDetailFromDiscovery(cd, price, name || cd, volOpt, tvOpt);
+        openSimStockDetailFromDiscovery(
+          cd,
+          price,
+          name || cd,
+          volOpt,
+          tvOpt,
+          Number.isFinite(rateOpt) ? rateOpt : null
+        );
+      });
+    });
+    host.querySelectorAll('.watchlist-chip-heart').forEach(function (btn) {
+      btn.addEventListener('click', function (ev) {
+        ev.stopPropagation();
+        var cd = btn.getAttribute('data-code');
+        if (!cd || !/^\d{6}$/.test(cd)) return;
+        var nm = '';
+        for (var k = 0; k < simWatchlistItems.length; k++) {
+          if (String(simWatchlistItems[k].code) === cd) {
+            nm = String(simWatchlistItems[k].name || simWatchlistItems[k].code || cd);
+            break;
+          }
+        }
+        simToggleWatchlist(cd, nm);
       });
     });
   }
@@ -1276,6 +1817,7 @@
       renderHoldings();
       renderHistory();
       maybeRefreshRealizedPnl();
+      maybeRefreshMockRanking();
     });
     simRefreshWatchlist().catch(function () {});
   };
@@ -1287,9 +1829,10 @@
     holdings: {},
     history: [],
     summary: null,
+    accountCreatedMs: 0,
   };
 
-  /** 거래 내역 탭: all | buy | sell | pending */
+  /** 거래 내역 탭: all | buy | sell */
   let historyViewFilter = 'all';
 
   /**
@@ -1298,8 +1841,10 @@
    */
   let historyDisplayCutoffMs = null;
 
-  /** 포트폴리오 | 수익분석 메인 뷰 */
+  /** 포트폴리오 | 수익분석 | 이달 랭킹 메인 뷰 */
   let simMainView = 'portfolio';
+  let simRankingLoading = false;
+  let simRankingCache = null;
   let pnlGranularity = 'day';
   let pnlAnchorDate = new Date();
   let pnlDetailTab = 'sales';
@@ -1335,23 +1880,144 @@
   }
 
   function setSimMainView(view) {
-    simMainView = view === 'pnl' ? 'pnl' : 'portfolio';
+    var v = String(view || 'portfolio');
+    if (v === 'pnl' || v === 'ranking') simMainView = v;
+    else simMainView = 'portfolio';
     var portPanel = document.getElementById('simViewPortfolio');
     var pnlPanel = document.getElementById('simViewRealizedPnl');
+    var rankPanel = document.getElementById('simViewRanking');
     var tabPort = document.getElementById('simViewTabPortfolio');
     var tabPnl = document.getElementById('simViewTabPnl');
+    var tabRank = document.getElementById('simViewTabRanking');
+    var isPort = simMainView === 'portfolio';
     var isPnl = simMainView === 'pnl';
-    if (portPanel) portPanel.hidden = isPnl;
+    var isRank = simMainView === 'ranking';
+    if (portPanel) portPanel.hidden = !isPort;
     if (pnlPanel) pnlPanel.hidden = !isPnl;
+    if (rankPanel) rankPanel.hidden = !isRank;
     if (tabPort) {
-      tabPort.classList.toggle('active', !isPnl);
-      tabPort.setAttribute('aria-selected', !isPnl ? 'true' : 'false');
+      tabPort.classList.toggle('active', isPort);
+      tabPort.setAttribute('aria-selected', isPort ? 'true' : 'false');
     }
     if (tabPnl) {
       tabPnl.classList.toggle('active', isPnl);
       tabPnl.setAttribute('aria-selected', isPnl ? 'true' : 'false');
     }
+    if (tabRank) {
+      tabRank.classList.toggle('active', isRank);
+      tabRank.setAttribute('aria-selected', isRank ? 'true' : 'false');
+    }
     if (isPnl) loadRealizedPnl();
+    if (isRank) loadMockMonthlyRanking();
+  }
+
+  function setSimRankingHint(html) {
+    var el = document.getElementById('simRankingHint');
+    if (!el) return;
+    if (html) {
+      el.style.display = 'block';
+      el.innerHTML = html;
+    } else {
+      el.style.display = 'none';
+      el.innerHTML = '';
+    }
+  }
+
+  function formatRankingReturn(rate) {
+    var n = Number(rate);
+    if (!Number.isFinite(n)) return '—';
+    var sign = n > 0 ? '+' : '';
+    return sign + n.toFixed(2) + '%';
+  }
+
+  function renderMockMonthlyRanking(data) {
+    var listEl = document.getElementById('simRankingList');
+    var periodEl = document.getElementById('simRankingPeriodLabel');
+    var noteEl = document.getElementById('simRankingNote');
+    var myEl = document.getElementById('simRankingMyRank');
+    if (!listEl) return;
+    if (periodEl && data.period_label) {
+      periodEl.textContent = data.period_label + ' 모의투자 랭킹';
+    }
+    if (noteEl && data.note) noteEl.textContent = data.note;
+    if (myEl) {
+      if (data.my_rank != null && Number(data.my_rank) > 0) {
+        myEl.hidden = false;
+        myEl.textContent = '내 순위: ' + data.my_rank + '위';
+      } else if (data.my_rank === null && data.total_participants > 0) {
+        myEl.hidden = false;
+        myEl.textContent = '이번 달 활동 후 랭킹에 포함됩니다.';
+      } else {
+        myEl.hidden = true;
+        myEl.textContent = '';
+      }
+    }
+    var items = Array.isArray(data.items) ? data.items : [];
+    if (!items.length) {
+      listEl.innerHTML =
+        '<li class="sim-ranking-empty">아직 이번 달 랭킹 참가자가 없습니다. 모의투자를 시작해 보세요!</li>';
+      return;
+    }
+    listEl.innerHTML = items
+      .map(function (it) {
+        var rank = Number(it.rank) || 0;
+        var tier =
+          rank === 1 ? 'sim-ranking-row--gold' : rank === 2 ? 'sim-ranking-row--silver' : rank === 3 ? 'sim-ranking-row--bronze' : '';
+        var me = it.is_me ? ' sim-ranking-row--me' : '';
+        var trophy = rank === 1 ? '<span class="sim-ranking-trophy" aria-hidden="true">🏆</span>' : '<span class="sim-ranking-trophy sim-ranking-trophy--spacer" aria-hidden="true"></span>';
+        var rateCls = Number(it.return_rate) > 0 ? 'up' : Number(it.return_rate) < 0 ? 'down' : 'flat';
+        return (
+          '<li class="sim-ranking-row ' +
+          tier +
+          me +
+          '">' +
+          trophy +
+          '<span class="sim-ranking-rank">' +
+          rank +
+          '위</span>' +
+          '<span class="sim-ranking-name">' +
+          escapeHtml(it.nickname || '주린이') +
+          '</span>' +
+          '<span class="sim-ranking-rate ' +
+          rateCls +
+          '">' +
+          escapeHtml(formatRankingReturn(it.return_rate)) +
+          '</span></li>'
+        );
+      })
+      .join('');
+  }
+
+  async function loadMockMonthlyRanking(force) {
+    if (simRankingLoading) return;
+    if (!force && simRankingCache) {
+      renderMockMonthlyRanking(simRankingCache);
+      return;
+    }
+    var listEl = document.getElementById('simRankingList');
+    if (listEl) {
+      listEl.innerHTML = '<li class="sim-ranking-empty">랭킹을 불러오는 중…</li>';
+    }
+    setSimRankingHint('');
+    simRankingLoading = true;
+    try {
+      var res = await fetch(simApiBase() + '/api/mock/monthly-ranking', { credentials: 'include' });
+      var data = await res.json().catch(function () {
+        return {};
+      });
+      if (!res.ok || !data.success) {
+        setSimRankingHint(escapeHtml(data.message || '랭킹을 불러오지 못했습니다.'));
+        if (listEl) listEl.innerHTML = '<li class="sim-ranking-empty">—</li>';
+        return;
+      }
+      simRankingCache = data;
+      renderMockMonthlyRanking(data);
+    } catch (e) {
+      setSimRankingHint('네트워크 오류입니다. 백엔드 연결을 확인해 주세요.');
+      if (listEl) listEl.innerHTML = '<li class="sim-ranking-empty">—</li>';
+    } finally {
+      simRankingLoading = false;
+    }
   }
 
   function syncPnlGranularityChips() {
@@ -1599,6 +2265,13 @@
     if (simMainView === 'pnl') loadRealizedPnl();
   }
 
+  function maybeRefreshMockRanking() {
+    if (simMainView === 'ranking') {
+      simRankingCache = null;
+      loadMockMonthlyRanking(true);
+    }
+  }
+
   // 페이지 로드 시 초기화 (로그인 여부와 관계없이 화면 표시; 미로그인 시 API는 빈 자산·매매 시 로그인 필요 안내)
   document.addEventListener('DOMContentLoaded', async function() {
     localizeSimulationUi();
@@ -1637,6 +2310,17 @@
     if (hbTypM) hbTypM.addEventListener('click', function () { setHoldingBuyPriceType(true); });
     if (hbTypL) hbTypL.addEventListener('click', function () { setHoldingBuyPriceType(false); });
 
+    var orderStatusListEl = document.getElementById('orderStatusList');
+    if (orderStatusListEl) {
+      orderStatusListEl.addEventListener('click', function (e) {
+        var cancelBtn = e.target.closest('[data-pending-cancel]');
+        if (!cancelBtn) return;
+        e.preventDefault();
+        var pid = parseInt(cancelBtn.getAttribute('data-pending-cancel'), 10);
+        if (!Number.isNaN(pid)) cancelPendingOrder(pid);
+      });
+    }
+
     document.querySelectorAll('.history-tab').forEach(function (btn) {
       btn.addEventListener('click', function () {
         setHistoryViewFilter(this.getAttribute('data-history-tab') || 'all');
@@ -1656,14 +2340,27 @@
       });
     });
 
-    var historyDateFilter = document.getElementById('historyDateFilter');
-    if (historyDateFilter) {
-      setHistoryDateToToday();
-      function onHistoryDateChange() {
-        renderHistory();
-      }
-      historyDateFilter.addEventListener('change', onHistoryDateChange);
-      historyDateFilter.addEventListener('input', onHistoryDateChange);
+    resetHistoryPeriodDefault();
+    document.querySelectorAll('[data-history-period]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        if (btn.disabled) return;
+        setHistoryPeriodMode(btn.getAttribute('data-history-period') || 'all');
+      });
+    });
+    function onHistoryRangeChange() {
+      if (historyPeriodMode !== 'custom') return;
+      normalizeHistoryCustomRange();
+      renderHistory();
+    }
+    var historyDateFrom = document.getElementById('historyDateFrom');
+    var historyDateTo = document.getElementById('historyDateTo');
+    if (historyDateFrom) {
+      historyDateFrom.addEventListener('change', onHistoryRangeChange);
+      historyDateFrom.addEventListener('input', onHistoryRangeChange);
+    }
+    if (historyDateTo) {
+      historyDateTo.addEventListener('change', onHistoryRangeChange);
+      historyDateTo.addEventListener('input', onHistoryRangeChange);
     }
     var historyClearDisplay = document.getElementById('historyClearDisplay');
     if (historyClearDisplay) {
@@ -1808,6 +2505,7 @@
           name = enc;
         }
         var price = parseFloat(tr.getAttribute('data-price') || '0', 10);
+        var changeRate = parseFloat(tr.getAttribute('data-change-rate') || '0', 10);
         var volAttr = tr.getAttribute('data-volume');
         var tvAttr = tr.getAttribute('data-traded-value');
         var volPre = volAttr != null && volAttr !== '' ? parseFloat(volAttr, 10) : NaN;
@@ -1818,7 +2516,8 @@
           price,
           name,
           Number.isFinite(volPre) ? volPre : null,
-          Number.isFinite(tvPre) ? tvPre : null
+          Number.isFinite(tvPre) ? tvPre : null,
+          Number.isFinite(changeRate) ? changeRate : null
         );
       });
     }
@@ -1909,6 +2608,7 @@
       renderHoldings();
       renderHistory();
       maybeRefreshRealizedPnl();
+      maybeRefreshMockRanking();
       await loadTradedValueBoard({ silent: true });
       await processPendingOrders();
     }, 25000);
@@ -1956,7 +2656,7 @@
           escapeHtml(codeStr) +
           '</div>';
         return `
-          <tr class="discovery-row" data-code="${escapeHtmlAttr(codeStr)}" data-name="${encodeURIComponent(nameStr)}" data-price="${Number(item.price || 0)}" data-volume="${Number(item.volume || 0)}" data-traded-value="${Number(item.traded_value || 0)}">
+          <tr class="discovery-row" data-code="${escapeHtmlAttr(codeStr)}" data-name="${encodeURIComponent(nameStr)}" data-price="${Number(item.price || 0)}" data-change-rate="${rate}" data-open-price="${openPx > 0 ? openPx : ''}" data-volume="${Number(item.volume || 0)}" data-traded-value="${Number(item.traded_value || 0)}">
             <td>${idx + 1}</td>
             <td>${nameCell}</td>
             <td>${formatCurrency(Number(item.price || 0))}</td>
@@ -2043,6 +2743,7 @@
           holdings: {},
           history: [],
           summary: null,
+          accountCreatedMs: 0,
         };
         clearMockOrderBoardLocal();
         var loc = window.location;
@@ -2120,12 +2821,15 @@
         holdings,
         history,
         summary: data.summary || null,
+        accountCreatedMs: parseOrderTimestamp(data.account.created_at),
       };
+      syncHistoryPeriodChipUi();
       if (!mockOrderBoardHydratedFromLs) {
         restoreOrderBoardState();
         mockOrderBoardHydratedFromLs = true;
       }
       maybeRefreshRealizedPnl();
+      maybeRefreshMockRanking();
     } catch (e) {
       console.warn('[mock-portfolio]', e.message);
     }
@@ -2213,9 +2917,10 @@
   async function confirmBuyFromModal() {
     const stockEl = document.getElementById('tradeStock');
     const qtyEl = document.getElementById('tradeQuantity');
-    const stock = getTradeStockForApi();
+    const stockRef = getTradeStockForApi();
+    const stockLabel = getTradeStockDisplayName();
     let quantity = parseInt(qtyEl && qtyEl.value, 10);
-    if (!stock) {
+    if (!stockRef) {
       alert('종목을 입력해주세요.');
       return;
     }
@@ -2223,33 +2928,26 @@
       quantity = 1;
       if (qtyEl) qtyEl.value = '1';
     }
-    buyModalState = { stock, quantity };
+    buyModalState = { stock: stockRef, quantity };
     var limEl2 = document.getElementById('tradeLimitPrice');
     var limPx = limEl2 && limEl2.value ? parseInt(limEl2.value, 10) : 0;
     if (Number.isNaN(limPx) || limPx < 0) limPx = 0;
     if (isBuyMarketMode()) limPx = 0;
     try {
-      if (limPx > 0) {
-        const refPx = await getLatestMarketPrice(stock);
-        if (refPx > 0 && refPx > limPx) {
-          const pending = {
-            id: pendingOrderSeq++,
-            side: 'BUY',
-            stock: stock,
-            stockRef: stock,
-            quantity: quantity,
-            limitPrice: limPx,
-            createdAt: Date.now(),
-          };
-          pendingOrders.push(pending);
-          renderOrderStatusBoard();
-          closeBuyModal();
-          showPendingOrderFeedback(pending, refPx);
-          return;
-        }
+      var routedBuy = await handleLimitOrderSubmission({
+        side: 'BUY',
+        stock: stockLabel,
+        stockRef: stockRef,
+        quantity: quantity,
+        limPx: limPx,
+      });
+      if (!routedBuy.ok) return;
+      if (routedBuy.pending) {
+        closeBuyModal();
+        return;
       }
 
-      const out = await executeTradeRequest('BUY', stock, quantity, limPx);
+      const out = await executeTradeRequest('BUY', stockRef, quantity, limPx);
       const res = out.res;
       const data = out.data;
       if (res.status === 401) {
@@ -2265,7 +2963,8 @@
       }
       if (!res.ok || !data.success) {
         pushOrderStatusEvent({
-          stock: stock,
+          stockRef: stockRef,
+          stock: stockLabel,
           side: 'BUY',
           mode: 'manual',
           status: 'failed',
@@ -2290,7 +2989,8 @@
 
       var tr = data && data.trade ? data.trade : {};
       pushOrderStatusEvent({
-        stock: tr.name || stock,
+        stockRef: tr.code || stockRef,
+        stock: tr.name || stockLabel,
         side: 'BUY',
         mode: 'manual',
         status: 'executed',
@@ -2622,24 +3322,16 @@
       throw new Error('보유 종목 정보를 다시 확인해주세요.');
     }
     var stockRef = found.code && String(found.code).trim() ? String(found.code).trim() : key;
-    if (sellPx > 0) {
-      var refPx = await getLatestMarketPrice(stockRef);
-      if (refPx > 0 && refPx < sellPx) {
-        const pending = {
-          id: pendingOrderSeq++,
-          side: 'SELL',
-          stock: key,
-          stockRef: stockRef,
-          quantity: qty,
-          limitPrice: sellPx,
-          createdAt: Date.now(),
-        };
-        pendingOrders.push(pending);
-        renderOrderStatusBoard();
-        showPendingOrderFeedback(pending, refPx);
-        return;
-      }
-    }
+    var routedQs = await handleLimitOrderSubmission({
+      side: 'SELL',
+      stock: key,
+      stockRef: stockRef,
+      quantity: qty,
+      limPx: sellPx,
+    });
+    if (!routedQs.ok) return;
+    if (routedQs.pending) return;
+
     const out = await executeTradeRequest('SELL', stockRef, qty, sellPx);
     const res = out.res;
     const data = out.data;
@@ -2804,24 +3496,17 @@
     if (isHoldingSellMarketMode()) sellPx = 0;
     try {
       const stockRef = st.code && String(st.code).trim() ? st.code : st.name;
-      if (sellPx > 0) {
-        const refPx = await getLatestMarketPrice(stockRef);
-        if (refPx > 0 && refPx < sellPx) {
-          const pending = {
-            id: pendingOrderSeq++,
-            side: 'SELL',
-            stock: st.name || stockRef,
-            stockRef: stockRef,
-            quantity: qty,
-            limitPrice: sellPx,
-            createdAt: Date.now(),
-          };
-          pendingOrders.push(pending);
-          renderOrderStatusBoard();
-          closeSellModal();
-          showPendingOrderFeedback(pending, refPx);
-          return;
-        }
+      var routedSell = await handleLimitOrderSubmission({
+        side: 'SELL',
+        stock: st.name || stockRef,
+        stockRef: stockRef,
+        quantity: qty,
+        limPx: sellPx,
+      });
+      if (!routedSell.ok) return;
+      if (routedSell.pending) {
+        closeSellModal();
+        return;
       }
 
       const out = await executeTradeRequest('SELL', stockRef, qty, sellPx);
@@ -2861,8 +3546,9 @@
   }
 
   async function confirmBuyFromHoldingModal() {
-    var stock = getHoldingModalBuyStockForApi();
-    if (!stock) {
+    var stockRef = getHoldingModalBuyStockForApi();
+    var stockLabel = getHoldingModalBuyDisplayName();
+    if (!stockRef) {
       alert('종목을 확인할 수 없습니다.');
       return;
     }
@@ -2877,27 +3563,20 @@
     if (Number.isNaN(limPx) || limPx < 0) limPx = 0;
     if (isHoldingBuyMarketMode()) limPx = 0;
     try {
-      if (limPx > 0) {
-        const refPx = await getLatestMarketPrice(stock);
-        if (refPx > 0 && refPx > limPx) {
-          const pending = {
-            id: pendingOrderSeq++,
-            side: 'BUY',
-            stock: stock,
-            stockRef: stock,
-            quantity: quantity,
-            limitPrice: limPx,
-            createdAt: Date.now(),
-          };
-          pendingOrders.push(pending);
-          renderOrderStatusBoard();
-          closeSellModal();
-          showPendingOrderFeedback(pending, refPx);
-          return;
-        }
+      var routedHb = await handleLimitOrderSubmission({
+        side: 'BUY',
+        stock: stockLabel,
+        stockRef: stockRef,
+        quantity: quantity,
+        limPx: limPx,
+      });
+      if (!routedHb.ok) return;
+      if (routedHb.pending) {
+        closeSellModal();
+        return;
       }
 
-      const out = await executeTradeRequest('BUY', stock, quantity, limPx);
+      const out = await executeTradeRequest('BUY', stockRef, quantity, limPx);
       const res = out.res;
       const data = out.data;
       if (res.status === 401) {
@@ -2912,7 +3591,8 @@
       }
       if (!res.ok || !data.success) {
         pushOrderStatusEvent({
-          stock: stock,
+          stockRef: stockRef,
+          stock: stockLabel,
           side: 'BUY',
           mode: 'manual',
           status: 'failed',
@@ -2930,7 +3610,8 @@
 
       var tr = data && data.trade ? data.trade : {};
       pushOrderStatusEvent({
-        stock: tr.name || stock,
+        stockRef: tr.code || stockRef,
+        stock: tr.name || stockLabel,
         side: 'BUY',
         mode: 'manual',
         status: 'executed',
@@ -3141,6 +3822,7 @@
     name: '',
     range: '1d',
     quotePrice: 0,
+    quoteChangeRate: null,
     quoteVolume: null,
     quoteTradedValue: null,
     optionsAiLoadedCode: '',
@@ -3495,10 +4177,14 @@
     var lo = document.getElementById('simHoldingQuoteDayLow');
     if (hi) hi.textContent = '—';
     if (lo) lo.textContent = '—';
+    var openEl = document.getElementById('simHoldingQuoteOpen');
+    if (openEl) openEl.textContent = '—';
     var pctEl = document.getElementById('simHoldingQuoteExecPct');
     var capEl = document.getElementById('simHoldingQuoteExecCaption');
+    var meterFill = document.getElementById('simHoldingQuoteExecMeterFill');
     if (pctEl) pctEl.textContent = '—';
     if (capEl) capEl.textContent = '';
+    if (meterFill) meterFill.style.width = '0%';
     var volSide = document.getElementById('simHoldingQuoteVolSide');
     if (volSide) {
       volSide.textContent = '';
@@ -3518,12 +4204,35 @@
 
   function applySimHoldingQuoteFromDetail(data) {
     if (!data || !data.success) return;
+    var qPrice = Number(data.price);
+    var qRate = Number(data.change_rate);
+    if (Number.isFinite(qPrice) && qPrice > 0) {
+      updateSimHoldingDetailHead({
+        name: simHoldingDetailState.name || data.name,
+        code: data.code || simHoldingDetailState.code,
+        price: qPrice,
+        changeRate: Number.isFinite(qRate) ? qRate : simHoldingDetailState.quoteChangeRate,
+      });
+    } else if (Number.isFinite(qRate)) {
+      updateSimHoldingDetailHead({
+        name: simHoldingDetailState.name || data.name,
+        code: data.code || simHoldingDetailState.code,
+        price: simHoldingDetailState.quotePrice,
+        changeRate: qRate,
+      });
+    }
     var dh = document.getElementById('simHoldingQuoteDayHigh');
     var dl = document.getElementById('simHoldingQuoteDayLow');
     var dhi = Number(data.day_high);
     var dlo = Number(data.day_low);
     if (dh) dh.textContent = Number.isFinite(dhi) && dhi > 0 ? formatCurrency(dhi) : '—';
     if (dl) dl.textContent = Number.isFinite(dlo) && dlo > 0 ? formatCurrency(dlo) : '—';
+    var openEl = document.getElementById('simHoldingQuoteOpen');
+    var opi = Number(data.open_price);
+    if (openEl) {
+      openEl.textContent =
+        Number.isFinite(opi) && opi > 0 ? formatCurrency(opi) : '—';
+    }
 
     var exec = document.getElementById('simHoldingQuoteExec');
     var pctEl = document.getElementById('simHoldingQuoteExecPct');
@@ -3541,15 +4250,21 @@
         'sim-holding-quote-exec--low',
       );
       if (Number.isFinite(ep)) {
-        if (ep >= 70) exec.classList.add('sim-holding-quote-exec--high');
-        else if (ep >= 45) exec.classList.add('sim-holding-quote-exec--mid');
-        else exec.classList.add('sim-holding-quote-exec--low');
+        if (ep > 100.5) exec.classList.add('sim-holding-quote-exec--high');
+        else if (ep < 99.5) exec.classList.add('sim-holding-quote-exec--low');
+        else exec.classList.add('sim-holding-quote-exec--mid');
       } else {
         exec.classList.add('sim-holding-quote-exec--mid');
       }
     }
     if (pctEl) pctEl.textContent = Number.isFinite(ep) ? String(Math.round(ep)) + '%' : '—';
     if (capEl) capEl.textContent = data.exec_strength_caption != null ? String(data.exec_strength_caption) : '';
+    var meterFill = document.getElementById('simHoldingQuoteExecMeterFill');
+    if (meterFill) {
+      meterFill.style.width = Number.isFinite(ep)
+        ? String(Math.min(100, Math.max(0, Math.round(ep / 2)))) + '%'
+        : '0%';
+    }
     if (disc) {
       var dq = data.disclaimer != null ? String(data.disclaimer).trim() : '';
       if (dq) {
@@ -3639,6 +4354,8 @@
     }
     if (volEl) volEl.textContent = '—';
     if (tvEl) tvEl.textContent = '—';
+    var openEl0 = document.getElementById('simHoldingQuoteOpen');
+    if (openEl0) openEl0.textContent = '—';
     clearSimHoldingQuoteExtras();
   }
 
@@ -3730,6 +4447,12 @@
           st.quoteVolume = v;
           st.quoteTradedValue = tv;
           showQuoteStats(v, tv);
+          updateSimHoldingDetailHead({
+            name: st.name || match.name,
+            code: chartCode,
+            price: Number(match.price || st.quotePrice || 0),
+            changeRate: Number(match.change_rate || 0),
+          });
         })
         .catch(function () {
           if (!hasPreview) {
@@ -4169,11 +4892,13 @@
       name: '',
       range: '1d',
       quotePrice: 0,
+      quoteChangeRate: null,
       quoteVolume: null,
       quoteTradedValue: null,
       optionsAiLoadedCode: '',
       optionsAiText: '',
     };
+    updateSimHoldingDetailHead({ name: '—', code: '', price: 0, changeRate: NaN });
     collapseSimStockHistoryPanel();
   }
 
@@ -4187,13 +4912,15 @@
     } catch (_) { /* ignore */ }
   }
 
-  function openSimStockDetailFromDiscovery(code, price, name, volOpt, tvOpt) {
+  function openSimStockDetailFromDiscovery(code, price, name, volOpt, tvOpt, changeRateOpt) {
     var rawCode = code != null ? String(code).trim() : '';
     var chartCode = /^\d{6}$/.test(rawCode) ? rawCode : '';
     var dispName = name != null ? String(name).trim() : '';
     var showName = dispName || chartCode || rawCode || '—';
     var qPrice = Number(price);
     if (!Number.isFinite(qPrice)) qPrice = 0;
+    var qRate =
+      changeRateOpt != null && Number.isFinite(Number(changeRateOpt)) ? Number(changeRateOpt) : NaN;
     var qv =
       volOpt != null && Number.isFinite(Number(volOpt)) ? Number(volOpt) : null;
     var qtv =
@@ -4204,6 +4931,7 @@
       name: showName,
       range: '1d',
       quotePrice: qPrice,
+      quoteChangeRate: Number.isFinite(qRate) ? qRate : null,
       quoteVolume: qv,
       quoteTradedValue: qtv,
       optionsAiLoadedCode: '',
@@ -4217,8 +4945,12 @@
       }
       return;
     }
-    document.getElementById('simHoldingDetailName').textContent = showName;
-    document.getElementById('simHoldingDetailCode').textContent = chartCode || rawCode || '—';
+    updateSimHoldingDetailHead({
+      name: showName,
+      code: chartCode || rawCode,
+      price: qPrice,
+      changeRate: qRate,
+    });
     syncSimHoldingDetailLogo(chartCode || rawCode, showName);
     collapseSimStockHistoryPanel();
 
@@ -4253,13 +4985,19 @@
     var rawCode = h.code != null ? String(h.code).trim() : '';
     var code = /^\d{6}$/.test(rawCode) ? rawCode : '';
     var chartCode = code || (isSixDigitCode(holdingKey) ? String(holdingKey).trim() : '');
-    var name = holdingKey;
+    var name = h.name && String(h.name).trim() ? String(h.name).trim() : holdingKey;
+    var headPrice = Number(h.currentPrice) || 0;
+    var snap = chartCode ? getDiscoveryQuoteSnapshot(chartCode) : null;
+    var headRate = snap && Number.isFinite(snap.changeRate) ? snap.changeRate : NaN;
+    if (snap && snap.price > 0) headPrice = snap.price;
+    if (snap && snap.name) name = snap.name;
     simHoldingDetailState = {
       key: holdingKey,
       code: code,
       name: name,
       range: '1d',
-      quotePrice: Number(h.currentPrice) || 0,
+      quotePrice: headPrice,
+      quoteChangeRate: Number.isFinite(headRate) ? headRate : null,
       quoteVolume: null,
       quoteTradedValue: null,
       optionsAiLoadedCode: '',
@@ -4273,10 +5011,17 @@
       }
       return;
     }
-    document.getElementById('simHoldingDetailName').textContent = name;
-    document.getElementById('simHoldingDetailCode').textContent = code || '—';
+    updateSimHoldingDetailHead({
+      name: name,
+      code: chartCode || code,
+      price: headPrice,
+      changeRate: headRate,
+    });
     var logoRef = chartCode || code;
     syncSimHoldingDetailLogo(logoRef, name);
+    if (chartCode && !Number.isFinite(headRate)) {
+      refreshSimHoldingDetailHeadFromApi(chartCode);
+    }
     collapseSimStockHistoryPanel();
 
     document.querySelectorAll('.sim-holding-range-btn').forEach(function (b) {
@@ -4577,7 +5322,7 @@
   }
 
   function setHistoryViewFilter(mode) {
-    if (mode === 'buy' || mode === 'sell' || mode === 'pending') {
+    if (mode === 'buy' || mode === 'sell') {
       historyViewFilter = mode;
     } else {
       historyViewFilter = 'all';
@@ -4588,16 +5333,6 @@
       btn.classList.toggle('active', on);
       btn.setAttribute('aria-selected', on ? 'true' : 'false');
     });
-    var d = document.getElementById('historyDateFilter');
-    var wrap = document.getElementById('historyDateFilterWrap');
-    if (d) {
-      d.disabled = historyViewFilter === 'pending';
-      d.title =
-        historyViewFilter === 'pending'
-          ? '대기 탭에서는 날짜 필터가 적용되지 않습니다.'
-          : '날짜를 선택하세요. 해당 날짜 기록만 표시됩니다.';
-    }
-    if (wrap) wrap.classList.toggle('history-date-muted', historyViewFilter === 'pending');
     renderHistory();
   }
 
@@ -4613,7 +5348,7 @@
       historyDisplayCutoffMs = Date.now() - 1;
     }
     portfolio.history = [];
-    setHistoryDateToToday();
+    resetHistoryPeriodDefault();
     renderHistory();
   }
 
@@ -4744,62 +5479,12 @@
     el.innerHTML = buildSimHoldingStockHistoryListHtml();
   }
 
-  // 거래 내역 렌더링 (전체 / 구매 / 판매 / 대기)
+  // 거래 내역 렌더링 (전체 / 구매 / 판매)
   function renderHistory() {
     const tradingHistory = document.getElementById('tradingHistory');
     if (!tradingHistory) return;
 
-    if (historyViewFilter === 'pending') {
-      if (!pendingOrders.length) {
-        tradingHistory.innerHTML =
-          '<div style="text-align: center; color: var(--gray-400); padding: 28px;">대기 중인 주문이 없습니다.</div>';
-      } else {
-        var pendRows = pendingOrders
-          .slice()
-          .sort(function (a, b) {
-            return (Number(b.createdAt) || 0) - (Number(a.createdAt) || 0);
-          })
-          .map(function (o) {
-            var side = o.side === 'SELL' ? '판매' : '구매';
-            var actClass = o.side === 'SELL' ? 'sell' : 'buy';
-            var t = o.createdAt ? new Date(o.createdAt).toLocaleString('ko-KR') : '—';
-            var stk = escapeHtml(o.stock || o.stockRef || '—');
-            var qty = Number(o.quantity || 0).toLocaleString();
-            var lp = formatCurrency(Number(o.limitPrice || 0));
-            return (
-              '<div class="history-item history-item--pending">' +
-              '<div class="history-info">' +
-              '<div class="history-stock">' +
-              '<span class="history-pending-title">' +
-              stk +
-              '<span class="history-pending-suffix">(대기)</span></span>' +
-              '</div>' +
-              '<div class="history-details history-pending-sub">' +
-              '<span class="history-action history-action--' +
-              actClass +
-              '">' +
-              side +
-              '</span> ' +
-              '<span>' +
-              qty +
-              '주</span> · <span>목표 ' +
-              lp +
-              '</span>' +
-              '</div></div>' +
-              '<div class="history-amount">' +
-              '<div class="history-price history-pending-value">' +
-              lp +
-              '</div>' +
-              '<div class="history-time">' +
-              escapeHtml(t) +
-              '</div></div></div>'
-            );
-          });
-        tradingHistory.innerHTML = pendRows.join('');
-      }
-      renderSimHoldingStockHistory();
-      return;
-    }
+    applyHistoryPeriodRangeDisplay();
 
     if (portfolio.history.length === 0) {
       tradingHistory.innerHTML =
@@ -4815,14 +5500,16 @@
       items = items.filter(t => t.type === 'sell');
     }
 
-    var dateVal = getHistoryFilterYmd();
+    var range = getHistoryPeriodBounds();
     items = items.filter(function (t) {
-      return t.atMs && tradeLocalYmd(t.atMs) === dateVal;
+      var ms = t.atMs || 0;
+      if (!ms) return false;
+      return ms >= range.startMs && ms <= range.endMs;
     });
 
     if (items.length === 0) {
       tradingHistory.innerHTML =
-        '<div style="text-align: center; color: var(--gray-400); padding: 28px;">이 구분에 해당하는 체결이 없습니다.</div>';
+        '<div style="text-align: center; color: var(--gray-400); padding: 28px;">선택한 기간에 체결 내역이 없습니다.</div>';
       renderSimHoldingStockHistory();
       return;
     }

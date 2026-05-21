@@ -15,6 +15,39 @@
   /** 도크 재오픈 시 여러 모듈이 덮어쓰지 않도록 우선순위 체인 (숫자 클수록 먼저 시도) */
   var dockFilterEntries = [];
   var DOCK_TUTORIAL_MASK_KEY = 'jurinGuideTutorialBits';
+  var GUIDE_LUMI_SESSION_KEY = 'jurin:guide-lumi-session';
+
+  function isGuideLumiSession() {
+    if (/guide\.html/i.test(window.location.pathname || '')) return true;
+    try {
+      if (sessionStorage.getItem(GUIDE_LUMI_SESSION_KEY) === '1') return true;
+    } catch (e) { /* ignore */ }
+    return isTutorialSessionActive();
+  }
+
+  function startGuideLumiSession() {
+    try {
+      sessionStorage.setItem(GUIDE_LUMI_SESSION_KEY, '1');
+    } catch (e) { /* ignore */ }
+    document.body.classList.add('guide-lumi-session');
+  }
+
+  function endGuideLumiSession() {
+    try {
+      sessionStorage.removeItem(GUIDE_LUMI_SESSION_KEY);
+    } catch (e) { /* ignore */ }
+    document.body.classList.remove('guide-lumi-session');
+  }
+
+  function syncGuideDockLabel() {
+    var dockBtn = document.getElementById('mascotCoachDockBtn');
+    if (!dockBtn) return;
+    dockBtn.textContent = '루미 대화';
+  }
+
+  if (isGuideLumiSession()) {
+    document.body.classList.add('guide-lumi-session');
+  }
 
   function registerDockFilter(id, fn, priority) {
     if (!id || typeof fn !== 'function') return;
@@ -45,12 +78,43 @@
     return null;
   }
 
+  function escapeHtml(s) {
+    return String(s || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function formatCoachHtml(text) {
+    var raw = String(text || '');
+    var parts = raw.split(/(\*\*[^*]+\*\*)/g);
+    var html = '';
+    for (var i = 0; i < parts.length; i++) {
+      var p = parts[i];
+      if (p.indexOf('**') === 0 && p.lastIndexOf('**') === p.length - 2 && p.length > 4) {
+        html +=
+          '<strong class="mascot-coach-kw">' +
+          escapeHtml(p.slice(2, -2)) +
+          '</strong>';
+      } else {
+        html += escapeHtml(p);
+      }
+    }
+    return html.replace(/\n/g, '<br />');
+  }
+
+  function coachPlainText(text) {
+    return String(text || '').replace(/\*\*/g, '');
+  }
+
   function isTutorialSessionActive() {
     if (typeof window.__jurinGuideQuit === 'function') return true;
     if (
       document.body.classList.contains('market-step1-active') ||
       document.body.classList.contains('market-step2-active') ||
       document.body.classList.contains('market-step3-active') ||
+      document.body.classList.contains('simulation-step5-active') ||
       document.body.classList.contains('tutorial-step1-active')
     ) {
       return true;
@@ -58,17 +122,28 @@
     try {
       var params = new URLSearchParams(window.location.search);
       var t = (params.get('tutorial') || '').trim().toLowerCase();
-      if (t === 'step1' || t === '1' || t === 'step2' || t === '2' || t === 'step3' || t === '3') {
+      if (
+        t === 'step1' ||
+        t === '1' ||
+        t === 'step2' ||
+        t === '2' ||
+        t === 'step3' ||
+        t === '3' ||
+        t === 'step5' ||
+        t === '5'
+      ) {
         return true;
       }
     } catch (e) { /* ignore */ }
     var o1 = document.getElementById('marketStep1Overlay');
     var o2 = document.getElementById('marketStep2Overlay');
     var o3 = document.getElementById('marketStep3Overlay');
+    var o5 = document.getElementById('simStep5Overlay');
     var homeOv = document.getElementById('tutorialOverlay');
     if (o1 && o1.classList.contains('is-open')) return true;
     if (o2 && o2.classList.contains('is-open')) return true;
     if (o3 && o3.classList.contains('is-open')) return true;
+    if (o5 && o5.classList.contains('is-open')) return true;
     if (homeOv && homeOv.classList.contains('is-open')) return true;
     return false;
   }
@@ -156,6 +231,7 @@
       try {
         window.__jurinGuideQuit();
       } catch (e) { /* ignore */ }
+      endGuideLumiSession();
       return;
     }
     innerCloseCoach();
@@ -173,7 +249,11 @@
       root.classList.remove('mascot-coach--spotlight');
     }
     document.body.classList.remove('mascot-coach-spotlight-dim');
-    if (dock) dock.style.display = '';
+    if (dock) {
+      /* 가이드 페이지: 튜토리얼 설명 후 좌하단 「루미 대화」 도크 미표시 */
+      dock.style.display = document.body.classList.contains('guide-page') ? 'none' : '';
+    }
+    syncGuideDockLabel();
     var backBtn = document.getElementById('mascotCoachBack');
     if (backBtn) {
       backBtn.className = 'tutorial-btn-ghost mascot-coach-back';
@@ -260,7 +340,19 @@
       dismissBtn.addEventListener('click', handleDismissClick);
     }
     if (dockBtn) {
-      dockBtn.addEventListener('click', reopenFromDock);
+      syncGuideDockLabel();
+      dockBtn.addEventListener('click', function () {
+        if (
+          window.LumiChat &&
+          typeof window.LumiChat.open === 'function' &&
+          !isGuideLumiSession() &&
+          !isTutorialSessionActive()
+        ) {
+          window.LumiChat.open();
+          return;
+        }
+        reopenFromDock();
+      });
     }
     return root;
   }
@@ -298,7 +390,7 @@
     }
   }
 
-  function typewrite(textEl, fullText) {
+  function typewrite(textEl, fullText, htmlFull) {
     typingToken += 1;
     var token = typingToken;
     if (!textEl) return;
@@ -306,17 +398,22 @@
       clearTimeout(typingTimer);
       typingTimer = null;
     }
-    window.__mascotFullText = fullText;
+    var plain = coachPlainText(fullText);
+    window.__mascotFullText = plain;
     textEl.textContent = '';
     var index = 0;
+    function finishType() {
+      if (htmlFull) textEl.innerHTML = htmlFull;
+    }
     function tick() {
       if (token !== typingToken) return;
       index += 1;
-      textEl.textContent = fullText.slice(0, index);
-      if (index < fullText.length) {
+      textEl.textContent = plain.slice(0, index);
+      if (index < plain.length) {
         typingTimer = setTimeout(tick, 32);
       } else {
         typingTimer = null;
+        finishType();
       }
     }
     tick();
@@ -362,15 +459,16 @@
     }
     if (titleEl) titleEl.textContent = title;
     if (textEl) {
+      var textHtml = formatCoachHtml(text);
       if (payload && payload.instantText) {
         typingToken += 1;
         if (typingTimer) {
           clearTimeout(typingTimer);
           typingTimer = null;
         }
-        textEl.textContent = text;
+        textEl.innerHTML = textHtml;
       } else {
-        typewrite(textEl, text);
+        typewrite(textEl, text, textHtml);
       }
     }
     lastPayload = payload ? Object.assign({}, payload) : null;
@@ -416,8 +514,7 @@
     if (dock) dock.style.display = 'none';
     root.classList.add('is-open');
     if (!fromDock) {
-      var dockBtn = document.getElementById('mascotCoachDockBtn');
-      if (dockBtn) dockBtn.textContent = '루미 대화';
+      syncGuideDockLabel();
     }
   }
 
@@ -439,5 +536,11 @@
     hideDock: hideDock,
     registerDockFilter: registerDockFilter,
     unregisterDockFilter: unregisterDockFilter,
+  };
+
+  window.JurinGuideLumi = {
+    start: startGuideLumiSession,
+    end: endGuideLumiSession,
+    isActive: isGuideLumiSession,
   };
 })();

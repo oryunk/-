@@ -136,6 +136,7 @@ function ensureLoginModal() {
           <a href="find-id.html" target="_blank" rel="noopener noreferrer">아이디 찾기</a>
           <a href="find-password.html" target="_blank" rel="noopener noreferrer">비밀번호 찾기</a>
         </div>
+        <p class="login-google-hint">Google 가입 계정은 Google로 로그인하세요.</p>
       </div>
     </div>
   `;
@@ -193,7 +194,14 @@ async function submitLogout() {
       /* ignore */
     }
   }
-  refreshAuthNav();
+  await refreshAuthNav();
+  if (window.LumiChat && typeof window.LumiChat.refreshAuth === 'function') {
+    try {
+      await window.LumiChat.refreshAuth();
+    } catch (_) {
+      /* ignore */
+    }
+  }
 }
 
 function openLoginModal() {
@@ -252,6 +260,13 @@ async function submitLogin(event) {
       closeLoginModal();
       setAuthNavVisible(displayNameFromUser(data.user));
       await refreshAuthNav();
+      if (window.LumiChat && typeof window.LumiChat.refreshAuth === 'function') {
+        try {
+          await window.LumiChat.refreshAuth();
+        } catch (e) {
+          /* ignore */
+        }
+      }
       if (typeof window.afterJurinLogin === 'function') {
         try {
           window.afterJurinLogin();

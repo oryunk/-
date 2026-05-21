@@ -354,6 +354,73 @@ function closeNewsReader() {
   if (!el) return;
   el.classList.remove('is-open');
   el.setAttribute('aria-hidden', 'true');
+  const relWrap = document.getElementById('newsReaderRelatedWrap');
+  const relList = document.getElementById('newsReaderRelatedList');
+  if (relWrap) relWrap.hidden = true;
+  if (relList) relList.innerHTML = '';
+}
+
+function formatNewsStockRate(rate) {
+  const r = Number(rate);
+  if (!Number.isFinite(r)) return '—';
+  const sign = r > 0 ? '+' : '';
+  return sign + r.toFixed(2) + '%';
+}
+
+/** 관련 종목 타원 칩 (제목 옆, 0~2개 · 종목명 + 등락률만) */
+function renderNewsRelatedStocks(stocks) {
+  const wrap = document.getElementById('newsReaderRelatedWrap');
+  const list = document.getElementById('newsReaderRelatedList');
+  if (!wrap || !list) return;
+  const items = (Array.isArray(stocks) ? stocks : []).filter((s) => s && s.code).slice(0, 2);
+  if (!items.length) {
+    wrap.hidden = true;
+    list.innerHTML = '';
+    return;
+  }
+  wrap.hidden = false;
+  list.innerHTML = items
+    .map((s) => {
+      const code = String(s.code || '').trim();
+      const name = escapeHtml(s.name || code);
+      const dir = String(s.direction || 'flat').toLowerCase();
+      const rateCls = dir === 'up' ? 'up' : dir === 'down' ? 'down' : 'flat';
+      const label = name + ' ' + escapeHtml(formatNewsStockRate(s.rate));
+      const href = code && /^\d{6}$/.test(code) ? 'market.html?code=' + encodeURIComponent(code) : 'market.html';
+      return (
+        '<a class="news-related-pill ' +
+        rateCls +
+        '" role="listitem" href="' +
+        escapeHtml(href) +
+        '" target="_blank" rel="noopener noreferrer" title="' +
+        name +
+        ' 시장 정보">' +
+        label +
+        '</a>'
+      );
+    })
+    .join('');
+}
+
+function fetchNewsRelatedStocks(newsId) {
+  if (!Number.isInteger(Number(newsId)) || Number(newsId) <= 0) {
+    renderNewsRelatedStocks([]);
+    return;
+  }
+  fetch(`${jurinApiBase()}/api/news/${encodeURIComponent(newsId)}?related=1`)
+    .then((r) =>
+      r.json().catch(() => ({})).then((data) => ({ ok: r.ok, status: r.status, data }))
+    )
+    .then(({ ok, data }) => {
+      if (!ok || !data || data.success === false) {
+        renderNewsRelatedStocks([]);
+        return;
+      }
+      const art = data.article;
+      const stocks = art && Array.isArray(art.related_stocks) ? art.related_stocks : [];
+      renderNewsRelatedStocks(stocks);
+    })
+    .catch(() => renderNewsRelatedStocks([]));
 }
 
 /** @param {string} imgUrl @param {string} title @param {string} source */
@@ -405,6 +472,7 @@ function openNewsReader(item) {
     dateEl.textContent = pd ? formatNewsDateLabel(pd) : '';
   }
   if (titleEl) titleEl.textContent = item.title || '';
+  renderNewsRelatedStocks([]);
   const leadText = stripHTML(item.summary || item.description || '');
   if (leadEl) leadEl.textContent = leadText || '요약이 없습니다.';
   setNewsReaderHeroImage(item.img_url || '', item.title || '', item.source || '');
@@ -427,6 +495,8 @@ function openNewsReader(item) {
   if (!digestEl) return;
   digestEl.classList.remove('is-muted');
 
+  if (hasNewsId) fetchNewsRelatedStocks(item.news_id);
+
   if (item.reader_digest) {
     digestEl.innerHTML = renderImportantSummaryHtml(item.reader_digest);
     return;
@@ -435,14 +505,22 @@ function openNewsReader(item) {
   if (hasNewsId) {
     digestEl.textContent = '쉬운 설명을 준비하는 중…';
     fetch(`${jurinApiBase()}/api/news/${encodeURIComponent(item.news_id)}?digest=1`)
-      .then((r) => r.json().catch(() => ({})))
-      .then((data) => {
-        const art = data && data.article;
+      .then((r) =>
+        r.json().catch(() => ({})).then((data) => ({ ok: r.ok, status: r.status, data }))
+      )
+      .then(({ ok, status, data }) => {
+        if (!ok || !data || data.success === false) {
+          digestEl.classList.add('is-muted');
+          digestEl.textContent =
+            (data && data.message) || `쉬운 설명을 불러오지 못했습니다. (${status || '오류'})`;
+          return;
+        }
+        const art = data.article;
         if (art) {
           const img = (art.img_url || item.img_url || '').trim();
           setNewsReaderHeroImage(img, art.title || item.title || '', item.source || '');
         }
-        if (data && data.success && art && art.reader_digest) {
+        if (art && art.reader_digest) {
           digestEl.innerHTML = renderImportantSummaryHtml(art.reader_digest);
           return;
         }

@@ -200,7 +200,60 @@
         { name: '환불일', desc: '배정 후 남은 증거금이 계좌로 돌아오는 날짜예요.' },
       ],
     },
+    {
+      id: 'macro',
+      title: '10. 거시·시장 환경',
+      subtitle: '환율, 금리, 물가 등 전체 시장에 영향을 주는 요인',
+      items: [
+        { name: '환율', desc: '원화와 외화(주로 달러)를 바꿀 때 쓰는 가격이에요. 수출·수입 기업 실적과 주가에 영향을 줄 수 있어요.' },
+        { name: '금리', desc: '빌릴 때·맡길 때 붙는 이자 비율이에요. 올라가면 성장주·채권 가격에 부담이 될 수 있어요.' },
+        { name: '물가', desc: '생활비·상품 가격 수준이에요. 빠르게 오르면 금리 인상 압력이 커질 수 있어요.' },
+        { name: '인플레이션', desc: '물가가 지속적으로 오르는 현상이에요. 실질 구매력과 투자 심리에 영향을 줘요.' },
+        { name: '디플레이션', desc: '물가 상승이 둔화되거나 내려가는 현상이에요. 기업 이익·경기 기대에 부담이 될 수 있어요.' },
+        { name: '경기침체', desc: '경제 활동이 줄어드는 구간이에요. 실적·고용·주가 변동성이 커질 수 있어요.' },
+      ],
+    },
   ];
+
+  /** 용어 검색 자동완성·자주 찾는 용어 카드용 (카테고리 밖 표기) */
+  var GLOSSARY_POPULAR_TERMS = [
+    'PER',
+    'ROE',
+    '배당주',
+    '시가총액',
+    '변동성',
+    '포트폴리오',
+    '체결강도',
+    '호가',
+    'EPS',
+    'BPS',
+    '배당성향',
+    '공매도',
+    '공시',
+    '실적발표',
+  ];
+
+  /** 금융 용어 자동완성 후보 목록 (이름·지표 라벨·인기 용어 통합) */
+  function collectGlossaryAutocompleteTerms() {
+    var seen = Object.create(null);
+    var out = [];
+    function add(term) {
+      var s = String(term || '').trim();
+      if (!s || seen[s]) return;
+      seen[s] = true;
+      out.push(s);
+    }
+    GLOSSARY_CATEGORIES.forEach(function (cat) {
+      (cat.items || []).forEach(function (it) {
+        if (it && it.name) add(it.name);
+      });
+    });
+    Object.keys(INDICATOR_HINTS).forEach(add);
+    Object.keys(STABILITY_HINTS).forEach(add);
+    Object.keys(CARD_LABELS).forEach(add);
+    GLOSSARY_POPULAR_TERMS.forEach(add);
+    return out;
+  }
 
   function escapeHtml(str) {
     return String(str)
@@ -330,6 +383,8 @@
     CARD_LABELS: CARD_LABELS,
     INDICATOR_HINTS: INDICATOR_HINTS,
     GLOSSARY_CATEGORIES: GLOSSARY_CATEGORIES,
+    GLOSSARY_POPULAR_TERMS: GLOSSARY_POPULAR_TERMS,
+    collectGlossaryAutocompleteTerms: collectGlossaryAutocompleteTerms,
     metricItemHtml: metricItemHtml,
     initMarketDetailHints: function () {
       initSectionLeads();
