@@ -13,7 +13,7 @@
   try {
     var loc = window.location;
     if (loc && loc.hostname && loc.protocol && loc.protocol !== 'file:') {
-      if (String(loc.port) === '5000') {
+      if (String(loc.port) === '5000' || loc.port === '' || loc.port === '80' || loc.port === '443') {
         window.JURIN_API_BASE = loc.origin;
         return;
       }
