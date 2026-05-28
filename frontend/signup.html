@@ -158,6 +158,7 @@
     }
   }
 </style>
+<link rel="stylesheet" href="css/lumi-chat.css?v=20260525">
 </head>
 <body>
 <div class="auth-page">
@@ -231,7 +232,7 @@
     return false;
   }
 
-  const API_BASE = 'http://localhost:5000';
+  const API_BASE = window.JURIN_API_BASE || 'http://localhost:5000';
 
   async function submitSignup(event) {
     event.preventDefault();
@@ -309,5 +310,6 @@
   document.getElementById('signupPassword').addEventListener('input', validatePasswordMatch);
   document.getElementById('signupPasswordConfirm').addEventListener('input', validatePasswordMatch);
 </script>
+<script src="js/lumi-chat.js?v=20260525"></script>
 </body>
 </html>
