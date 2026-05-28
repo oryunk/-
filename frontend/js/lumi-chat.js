@@ -28,6 +28,7 @@
     openThreadMenuId: null,
     currentMood: 'welcome',
     loadError: '',
+    activeCategory: null,
   };
 
   function isLocalThreadId(id) {
@@ -282,13 +283,16 @@
         : '<img class="lumi-chat-avatar lumi-chat-avatar-bot" src="' +
           escapeHtml(MOOD_IMAGES[mood] || MOOD_IMAGES.info) +
           '" alt="루미">';
+      var bubbleContent = m.contentHtml
+        ? m.contentHtml
+        : escapeHtml(m.content || '').replace(/\n/g, '<br>');
       html +=
         '<div class="lumi-chat-msg ' +
         (isUser ? 'is-user' : 'is-bot') +
         '">' +
         avatar +
         '<div class="lumi-chat-bubble">' +
-        escapeHtml(m.content || '') +
+        bubbleContent +
         '</div></div>';
     });
     if (state.thinking) {
@@ -310,23 +314,213 @@
   function renderQuick() {
     var quick = document.getElementById('lumiChatQuick');
     if (!quick) return;
-    var chips = (state.quickQuestions || [])
-      .slice(0, 3)
-      .map(function (q) {
+    var cats = [
+      { cat: 'lumi',    icon: '🤖', label: '루미챗봇' },
+      { cat: 'service', icon: '🏠', label: '제공기능' },
+      { cat: 'term',    icon: '📚', label: '용어검색' },
+      { cat: 'news',    icon: '📰', label: '뉴스검색' },
+      { cat: 'stock',   icon: '📈', label: '종목검색' },
+    ];
+    quick.innerHTML =
+      '<p class="lumi-chat-quick-label">무엇이 궁금하세요?</p>' +
+      '<div class="lumi-chat-cat-grid">' +
+      cats.map(function (c) {
         return (
-          '<button type="button" class="lumi-chat-quick-btn" data-q="' +
-          escapeHtml(q) +
-          '">' +
-          escapeHtml(q) +
+          '<button type="button" class="lumi-chat-cat-btn" data-cat="' + c.cat + '">' +
+          '<span class="lumi-chat-cat-icon">' + c.icon + '</span>' +
+          '<span>' + c.label + '</span>' +
           '</button>'
         );
-      })
-      .join('');
-    quick.innerHTML =
-      '<p class="lumi-chat-quick-label">자주 묻는 질문</p>' +
-      '<div class="lumi-chat-quick-chips">' +
-      chips +
+      }).join('') +
       '</div>';
+  }
+
+  function handleCategoryClick(cat) {
+    var inputEl = document.getElementById('lumiChatInput');
+    if (cat === 'lumi') {
+      sendMessage('루미챗봇이 뭐야? 어떤 기능이 있어?');
+      return;
+    }
+    if (cat === 'service') {
+      sendMessage('주린닷컴은 어떤 서비스를 제공하는 사이트야?');
+      return;
+    }
+    state.activeCategory = cat;
+    var placeholders = {
+      term:  '궁금한 투자 용어 입력 (예: PER)',
+      news:  '검색할 뉴스 주제 입력 (예: 삼성전자)',
+      stock: '검색할 종목명 입력 (예: 삼성전자)',
+    };
+    if (inputEl) {
+      inputEl.placeholder = placeholders[cat] || '입력해주세요';
+      inputEl.focus();
+    }
+    var modeLabelMap = {
+      term:  '📚 용어검색 — 궁금한 용어를 입력 후 전송하세요',
+      news:  '📰 뉴스검색 — 검색할 주제를 입력 후 전송하세요',
+      stock: '📈 종목검색 — 종목명을 입력 후 전송하세요',
+    };
+    var quick = document.getElementById('lumiChatQuick');
+    if (quick) {
+      var badge = quick.querySelector('.lumi-chat-cat-mode');
+      if (!badge) {
+        badge = document.createElement('div');
+        badge.className = 'lumi-chat-cat-mode';
+        quick.appendChild(badge);
+      }
+      badge.innerHTML =
+        '<span class="lumi-chat-cat-mode-label">' + (modeLabelMap[cat] || '') + '</span>' +
+        '<button type="button" class="lumi-cat-cancel-btn" aria-label="모드 취소">✕</button>';
+    }
+  }
+
+  function cancelCategory() {
+    state.activeCategory = null;
+    var inputEl = document.getElementById('lumiChatInput');
+    if (inputEl) inputEl.placeholder = '루미한테 편하게 물어봐…';
+    var quick = document.getElementById('lumiChatQuick');
+    if (quick) {
+      var badge = quick.querySelector('.lumi-chat-cat-mode');
+      if (badge) badge.remove();
+    }
+  }
+
+  async function searchAndShowNews(query, thread) {
+    var q = (query || '').trim().toLowerCase();
+    if (!q) return false;
+    try {
+      var res = await fetch(apiBase() + '/api/rss/news?limit=30');
+      var data = await res.json().catch(function () { return {}; });
+      var items = data.items || [];
+
+      // 1차: 전체 쿼리로 직접 매칭
+      var matched = items.filter(function (item) {
+        return (
+          (item.title || '').toLowerCase().indexOf(q) >= 0 ||
+          (item.summary || '').toLowerCase().indexOf(q) >= 0
+        );
+      }).slice(0, 5);
+
+      // 2차: 매칭 실패 시 핵심 키워드 추출 후 재검색
+      var displayQuery = query;
+      if (!matched.length) {
+        var keyword = _extractNewsKeyword(query).toLowerCase();
+        if (keyword && keyword !== q) {
+          matched = items.filter(function (item) {
+            return (
+              (item.title || '').toLowerCase().indexOf(keyword) >= 0 ||
+              (item.summary || '').toLowerCase().indexOf(keyword) >= 0
+            );
+          }).slice(0, 5);
+          if (matched.length) displayQuery = _extractNewsKeyword(query);
+        }
+      }
+
+      var reply;
+      if (!matched.length) {
+        reply = '"' + displayQuery + '" 관련 최근 뉴스를 찾지 못했어요. 다른 키워드로 검색해봐요!';
+      } else {
+        reply = '"' + displayQuery + '" 관련 뉴스 ' + matched.length + '건이에요!\n\n' +
+          matched.map(function (item) {
+            var date = (item.published_at || '').slice(0, 10);
+            return '● ' + (item.title || '') +
+              (item.source ? ' (' + item.source + ')' : '') +
+              (date ? ' [' + date + ']' : '');
+          }).join('\n');
+      }
+      ensureWelcomeMessage(thread);
+      thread.messages.push({
+        id: 'news-' + Date.now(),
+        role: 'assistant',
+        content: reply,
+        mood: matched.length ? 'info' : 'caution',
+        created_at: new Date().toISOString(),
+      });
+      thread.updatedAt = new Date().toISOString();
+      if (!state.loggedIn) persistGuest();
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /** 자유 채팅에서 뉴스 질문인지 자동 감지 */
+  function isNewsQuery(msg) {
+    var t = (msg || '').toLowerCase();
+    return /뉴스|기사|소식|보도|언론|최근 상황|요즘 어때|어떻게 됐|새소식/.test(t);
+  }
+
+  /**
+   * 자연어 쿼리에서 핵심 검색 키워드 추출
+   * "최근 SK하이닉스에 관한 주요 뉴스 알려줘" → "sk하이닉스"
+   */
+  function _extractNewsKeyword(msg) {
+    var stopwords = [
+      '최근', '관한', '관련', '주요', '알려줘', '알려주', '뉴스', '기사', '소식',
+      '보도', '어떤', '있어', '있나', '있나요', '대한', '찾아줘', '해줘', '해주세요',
+      '요즘', '최신', '이번', '어때요', '어때', '좀', '한번', '이번주', '오늘',
+      '어떤가', '어떤가요', '에서', '정보', '알고싶어', '알고싶어요',
+    ];
+    var words = (msg || '').trim().split(/\s+/).map(function (w) {
+      // 한국어 조사 제거: 에서의/에서/에게/으로/에/의/을/를/이/가/은/는/와/과/도/만/부터/까지
+      return w.replace(/(에서의|에서|에게서|에게|한테서|한테|으로부터|로부터|으로서|로서|으로|로|에|의|을|를|이|가|은|는|와|과|도|만|부터|까지)$/, '');
+    }).filter(function (w) {
+      return w.length >= 2 && stopwords.indexOf(w.toLowerCase()) < 0;
+    });
+    return words.length ? words[0] : (msg || '').trim();
+  }
+
+  /** 종목 코드 조회 후 현재가 카드 HTML 반환 */
+  async function buildStockPriceHtml(query) {
+    try {
+      // 1) 종목 코드 검색
+      var sugRes = await fetch(apiBase() + '/api/stocks/suggest?q=' + encodeURIComponent(query) + '&limit=1');
+      var sugData = await sugRes.json().catch(function () { return {}; });
+      var items = sugData.items || [];
+      if (!items.length) return '';          // 종목 자체를 못 찾으면 빈 값
+      var stock = items[0];
+      var code = stock.code;
+      var name = stock.name;
+
+      // 2) 현재가 조회
+      var priceRes = await fetch(
+        apiBase() + '/api/live-prices?codes=' + encodeURIComponent(code) +
+        '&names=' + encodeURIComponent(code + ':' + name)
+      );
+      var priceData = await priceRes.json().catch(function () { return {}; });
+      var stocks = priceData.stocks || [];
+      var s = stocks[0];
+
+      // 3) 카드 HTML 구성 — 가격 로딩 중이어도 종목명·코드는 표시
+      var priceBlock;
+      if (!s || s.loading || !s.price) {
+        priceBlock = '현재가 <span class="lumi-price-flat">시세 조회 중…</span>';
+      } else {
+        var changeVal = s.change || 0;
+        var rateVal   = s.rate   || 0;
+        var priceStr  = Number(s.price).toLocaleString() + '원';
+        var changeStr = (changeVal >= 0 ? '+' : '') + Number(changeVal).toLocaleString() + '원';
+        var rateStr   = (rateVal   >= 0 ? '+' : '') + Number(rateVal).toFixed(2) + '%';
+        var colorClass = s.direction === 'up'
+          ? 'lumi-price-up'
+          : s.direction === 'down'
+            ? 'lumi-price-down'
+            : 'lumi-price-flat';
+        priceBlock =
+          '현재가 <span class="' + colorClass + '">' + escapeHtml(priceStr) + '</span> ' +
+          '<span class="' + colorClass + '">' + escapeHtml(changeStr) + ' (' + escapeHtml(rateStr) + ')</span>';
+      }
+
+      return (
+        '<div class="lumi-stock-card">' +
+        '<span class="lumi-stock-name">' + escapeHtml(name) + '</span> ' +
+        '<span class="lumi-stock-code">(' + escapeHtml(code) + ')</span><br>' +
+        priceBlock +
+        '</div>'
+      );
+    } catch (e) {
+      return '';
+    }
   }
 
   function setTyping(on, hintText) {
@@ -504,6 +698,123 @@
   async function sendMessage(text) {
     var message = String(text || '').trim();
     if (!message || state.sending) return;
+
+    // 카테고리 모드 초기화
+    var category = state.activeCategory;
+    state.activeCategory = null;
+    var inputElReset = document.getElementById('lumiChatInput');
+    if (inputElReset) inputElReset.placeholder = '루미한테 편하게 물어봐…';
+    var quickEl = document.getElementById('lumiChatQuick');
+    if (quickEl) { var badge = quickEl.querySelector('.lumi-chat-cat-mode'); if (badge) badge.remove(); }
+
+    // 자유 채팅에서 뉴스 관련 질문 자동 감지 → 뉴스 모드로 전환
+    if (!category && isNewsQuery(message)) {
+      category = 'news';
+    }
+
+    // 뉴스검색 모드: RSS에서 직접 검색
+    if (category === 'news') {
+      state.sending = true;
+      var sendBtnN = document.getElementById('lumiChatSend');
+      if (sendBtnN) sendBtnN.disabled = true;
+      var threadN = getActiveThread();
+      if (!threadN) threadN = await startNewChat();
+      if (state.loggedIn && isLocalThreadId(threadN.id)) threadN = await startNewChat();
+      if (state.loggedIn && isServerThreadId(threadN.id) && !threadN.messages) {
+        await loadThreadDetail(threadN.id);
+        threadN = getActiveThread();
+      }
+      appendUserMessage(threadN, message);
+      renderMessages();
+      renderThreadList();
+      if (!state.loggedIn) persistGuest();
+      setTyping(true, message);
+      var found = await searchAndShowNews(message, threadN);
+      if (!found) {
+        // 뉴스를 못 찾으면 GPT에게 fallback
+        try {
+          if (state.loggedIn && isServerThreadId(threadN.id)) {
+            await apiSendMessage(threadN.id, '뉴스 검색: ' + message);
+            await loadThreadDetail(threadN.id);
+          } else {
+            var histN = (threadN.messages || []).filter(function (m) { return m.id !== 'intro' && m.role; }).slice(-8).map(function (m) { return { role: m.role, content: m.content }; });
+            var assistantN = await apiGuestReply('뉴스 검색: ' + message, histN);
+            threadN.messages.push({ id: 'a-' + Date.now(), role: 'assistant', content: assistantN.content, mood: assistantN.mood || 'info', created_at: new Date().toISOString() });
+            persistGuest();
+          }
+        } catch (e) { /* ignore */ }
+      }
+      state.sending = false;
+      setTyping(false);
+      if (sendBtnN) sendBtnN.disabled = false;
+      renderMessages();
+      renderThreadList();
+      return;
+    }
+
+    // 종목검색 모드: 한 줄 회사 소개 + 현재가 카드
+    if (category === 'stock') {
+      state.sending = true;
+      var sendBtnStk = document.getElementById('lumiChatSend');
+      if (sendBtnStk) sendBtnStk.disabled = true;
+      var threadStk = getActiveThread();
+      if (!threadStk) threadStk = await startNewChat();
+      if (state.loggedIn && isLocalThreadId(threadStk.id)) threadStk = await startNewChat();
+      if (state.loggedIn && isServerThreadId(threadStk.id) && !threadStk.messages) {
+        await loadThreadDetail(threadStk.id);
+        threadStk = getActiveThread();
+      }
+      appendUserMessage(threadStk, message);
+      renderMessages();
+      renderThreadList();
+      if (!state.loggedIn) persistGuest();
+      setTyping(true, message);
+
+      // ① 한 줄 회사 소개 — 항상 guest reply 로 짧은 프롬프트 전송
+      var descHtml = '';
+      try {
+        var descPrompt =
+          message +
+          '\n[지시] 이 회사가 어떤 사업을 하는 곳인지 딱 한 문장으로만 설명해줘.' +
+          ' 투자 의견·리스크·주가 언급 없이 회사 소개 한 줄만. 다른 내용은 쓰지 마.';
+        var descReply = await apiGuestReply(descPrompt, []);
+        if (descReply && descReply.content) {
+          descHtml = escapeHtml(descReply.content.trim()).replace(/\n/g, '<br>');
+        }
+      } catch (e) { /* ignore */ }
+
+      // ② 현재가 카드
+      var priceHtml = await buildStockPriceHtml(message);
+
+      // ③ 한 말풍선으로 합산 출력
+      var combinedHtml = '';
+      if (descHtml) combinedHtml += descHtml;
+      if (priceHtml) combinedHtml += (descHtml ? '<br><br>' : '') + priceHtml;
+      if (!combinedHtml) {
+        combinedHtml = '"' + escapeHtml(message) + '" 정보를 가져오지 못했어요. 종목명을 다시 확인해봐요!';
+      }
+
+      threadStk = getActiveThread();
+      if (threadStk) {
+        ensureWelcomeMessage(threadStk);
+        threadStk.messages.push({
+          id: 'stock-' + Date.now(),
+          role: 'assistant',
+          contentHtml: combinedHtml,
+          content: '',
+          mood: 'info',
+          created_at: new Date().toISOString(),
+        });
+        if (!state.loggedIn) persistGuest();
+      }
+
+      state.sending = false;
+      setTyping(false);
+      if (sendBtnStk) sendBtnStk.disabled = false;
+      renderMessages();
+      renderThreadList();
+      return;
+    }
 
     var thread = getActiveThread();
     if (!thread) {
@@ -760,9 +1071,13 @@
       renderThreadList();
     });
     document.getElementById('lumiChatQuick').addEventListener('click', function (e) {
-      var b = e.target.closest('.lumi-chat-quick-btn');
+      if (e.target.closest('.lumi-cat-cancel-btn')) {
+        cancelCategory();
+        return;
+      }
+      var b = e.target.closest('.lumi-chat-cat-btn');
       if (!b) return;
-      sendMessage(b.getAttribute('data-q') || b.textContent);
+      handleCategoryClick(b.getAttribute('data-cat') || '');
     });
   }
 
