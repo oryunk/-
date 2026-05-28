@@ -146,7 +146,7 @@
 </div>
 
 <script>
-  const API_BASE = 'http://localhost:5000';
+  const API_BASE = window.JURIN_API_BASE || 'http://localhost:5000';
 
   async function findId() {
     const emailInput = document.getElementById('email-input');
