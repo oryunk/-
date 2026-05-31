@@ -87,6 +87,12 @@ nav {
   text-decoration: none;
 }
 
+.nav-logo-image {
+  height: 36px;
+  width: auto;
+  display: block;
+}
+
 .logo-icon {
   width: 36px;
   height: 36px;
