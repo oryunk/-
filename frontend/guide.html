@@ -1,17 +1,40 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <!-- 학습 가이드·튜토리얼 단계 안내. -->
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="assets/brand/favicon.ico?v=20260607" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/brand/favicon-32x32.png?v=20260607">
+<link rel="apple-touch-icon" sizes="180x180" href="assets/brand/apple-touch-icon.png?v=20260607">
 <title>주식 학습 가이드 - 주린닷컴</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css?v=20260438">
 <style>
-  .guide-page {
-    min-height: 100vh;
-    padding-top: 80px;
+  html {
+    height: 100%;
+    overscroll-behavior-y: none;
+  }
+
+  /* 페이지 잠금: body는 스크롤 없음, main만 필요 시 스크롤 */
+  body.guide-page {
+    height: 100%;
+    overflow: hidden;
+    margin: 0;
     background: radial-gradient(circle at 10% 0%, rgba(47, 143, 95, 0.08), transparent 40%), #fff;
+  }
+
+  main.guide-page {
+    height: 100vh;
+    padding-top: 80px;
+    box-sizing: border-box;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  body.guide-page.guide-showing-landing main.guide-page {
+    overflow-y: hidden;
   }
 
   /* 가이드: 튜토리얼 설명·가이드 연습은 MascotCoach 말풍선만, 좌하단 도크·챗봇 없음 */
@@ -21,7 +44,8 @@
   .guide-wrap {
     max-width: 1100px;
     margin: 0 auto;
-    padding: 32px 24px 48px;
+    padding: 24px 24px 32px;
+    box-sizing: border-box;
   }
   .guide-head h1 {
     font-size: 32px;
@@ -191,8 +215,9 @@
     align-items: center;
     justify-content: center;
     text-align: center;
-    min-height: calc(100vh - 80px - 64px);
-    padding: 24px 16px 48px;
+    min-height: calc(100vh - 80px - 48px);
+    max-height: calc(100vh - 80px - 48px);
+    padding: 16px;
     box-sizing: border-box;
   }
   .guide-mode-landing.is-hidden {
@@ -293,7 +318,8 @@
 <body class="guide-page guide-lumi-session">
 <nav>
   <a href="주린닷컴홈피.html" class="nav-logo">
-    <img src="assets/ui/jurin-logo.png" alt="주린닷컴 로고" class="nav-logo-image">
+    <img class="logo-icon" src="assets/brand/jurin-logo-icon.png?v=20260607" alt="" width="36" height="36" decoding="async">
+    <div class="logo-text">주린<span>닷컴</span></div>
   </a>
   <ul class="nav-menu">
     <li><a href="guide.html" class="active">가이드</a></li>
@@ -364,7 +390,7 @@
         <section class="guide-card" data-step="4">
           <h3>4단계: 시장 종류</h3>
           <p>ETF·섹터·테마의 차이와 ELW·채권 기초 개념을 익혀, 상품 성격에 맞는 선택 기준을 만듭니다.</p>
-          <button class="btn-ghost" type="button" onclick="try{sessionStorage.setItem('jurin:guide-lumi-session','1')}catch(e){}location.href='market-products.html?topic=elw'">ELW·채권 보기</button>
+          <button class="btn-ghost" type="button" onclick="try{sessionStorage.setItem('jurin:guide-lumi-session','1')}catch(e){}location.href='market-products.html?topic=elw'">ELW 알아보기</button>
         </section>
         <section class="guide-card" data-step="5">
           <h3>5단계: 나의 첫 투자</h3>
@@ -447,6 +473,11 @@
       if (progressValue) progressValue.textContent = percent + '%';
     }
 
+    function syncGuidePageScroll() {
+      var onLanding = landingEl && !landingEl.classList.contains('is-hidden');
+      document.body.classList.toggle('guide-showing-landing', !!onLanding);
+    }
+
     function showModeLanding() {
       if (landingEl) {
         landingEl.classList.remove('is-hidden');
@@ -458,6 +489,7 @@
         mainContentEl.setAttribute('hidden', '');
         mainContentEl.setAttribute('aria-hidden', 'true');
       }
+      syncGuidePageScroll();
     }
 
     /**
@@ -516,6 +548,7 @@
         mainContentEl.setAttribute('aria-hidden', 'false');
       }
       setGuideTrack(track);
+      syncGuidePageScroll();
     }
 
     if (pickBeginnerBtn) pickBeginnerBtn.addEventListener('click', function () { openGuideTrack('beginner'); });
@@ -523,6 +556,7 @@
     if (backToModeBtn) backToModeBtn.addEventListener('click', showModeLanding);
 
     showModeLanding();
+    syncGuidePageScroll();
 
     var tutorialIntroSteps = [
       {

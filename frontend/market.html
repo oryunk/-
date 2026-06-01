@@ -1,9 +1,12 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <!-- 시장 화면: 종목 목록·상세·차트·모의매매·1~3단계 튜토리얼. -->
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="assets/brand/favicon.ico?v=20260607" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/brand/favicon-32x32.png?v=20260607">
+<link rel="apple-touch-icon" sizes="180x180" href="assets/brand/apple-touch-icon.png?v=20260607">
 <title>시장 정보 - 주린닷컴</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css?v=20260438">
@@ -390,11 +393,11 @@
 
   .index-inline-chart {
     width: 100%;
-    height: 60px;
+    height: 56px;
     margin-top: 12px;
-    border-radius: 10px;
-    background: linear-gradient(180deg, var(--inline-chart-bg-top, rgba(47, 143, 95, 0.08)), var(--inline-chart-bg-bottom, rgba(47, 143, 95, 0.015)));
-    border: 1px solid var(--inline-chart-border, rgba(47, 143, 95, 0.1));
+    border-radius: 8px;
+    background: linear-gradient(180deg, var(--inline-chart-bg-top, rgba(255, 255, 255, 0)), var(--inline-chart-bg-bottom, #ffffff));
+    border: none;
     overflow: hidden;
   }
 
@@ -414,6 +417,7 @@
     background: rgba(255, 255, 255, 0.98);
     box-shadow: 0 18px 46px rgba(18, 53, 36, 0.18);
     backdrop-filter: blur(8px);
+    user-select: none;
   }
 
   .index-hover-popover::before {
@@ -484,8 +488,8 @@
     width: 100%;
     height: 112px;
     border-radius: 10px;
-    background: linear-gradient(180deg, var(--index-chart-bg-top, rgba(47, 143, 95, 0.06)), var(--index-chart-bg-bottom, rgba(47, 143, 95, 0.015)));
-    border: 1px solid var(--index-chart-border, rgba(47, 143, 95, 0.08));
+    background: linear-gradient(180deg, var(--index-chart-bg-top, rgba(255, 255, 255, 0)), var(--index-chart-bg-bottom, #ffffff));
+    border: 1px solid var(--index-chart-border, rgba(0, 0, 0, 0.06));
     overflow: hidden;
   }
 
@@ -2243,8 +2247,25 @@
     color: #fff;
   }
 
-  .sector-icon {
-    font-size: 18px;
+  .sector-btn .stock-cell-toss {
+    gap: 10px;
+    min-width: 0;
+  }
+
+  .sector-btn .stock-logo-wrap {
+    width: 52px;
+    height: 52px;
+  }
+
+  .sector-btn.active .stock-logo-wrap {
+    background: #ffffff;
+    border-color: rgba(255, 255, 255, 0.55);
+  }
+
+  .sector-btn-label {
+    line-height: 1.35;
+    font-weight: 600;
+    text-align: left;
   }
 
   .sector-toast {
@@ -3220,13 +3241,14 @@
     }
   }
 </style>
-<link rel="stylesheet" href="css/lumi-chat.css?v=20260525">
+<link rel="stylesheet" href="css/lumi-chat.css?v=20260609">
 </head>
 <body>
 
 <nav>
   <a href="주린닷컴홈피.html" class="nav-logo">
-    <img src="assets/ui/jurin-logo.png" alt="주린닷컴 로고" class="nav-logo-image">
+    <img class="logo-icon" src="assets/brand/jurin-logo-icon.png?v=20260607" alt="" width="36" height="36" decoding="async">
+    <div class="logo-text">주린<span>닷컴</span></div>
   </a>
   <ul class="nav-menu">
     <li><a href="guide.html">가이드</a></li>
@@ -3320,21 +3342,21 @@
 
     <div class="sector-section">
       <div class="sector-title">관심 섹터</div>
-      <div class="sector-grid">
-        <button class="sector-btn" data-sector="IT 및 기술" onclick="openSectorPage(this)"><span class="sector-icon">•</span> IT 및 기술</button>
-        <button class="sector-btn" data-sector="전기/전자" onclick="openSectorPage(this)"><span class="sector-icon">•</span> 전기/전자</button>
-        <button class="sector-btn" data-sector="금융" onclick="openSectorPage(this)"><span class="sector-icon">•</span> 금융</button>
-        <button class="sector-btn" data-sector="제조" onclick="openSectorPage(this)"><span class="sector-icon">•</span> 제조</button>
-        <button class="sector-btn" data-sector="바이오/제약" onclick="openSectorPage(this)"><span class="sector-icon">•</span> 바이오/제약</button>
-        <button class="sector-btn" data-sector="소비재" onclick="openSectorPage(this)"><span class="sector-icon">•</span> 소비재</button>
-        <button class="sector-btn" data-sector="통신" onclick="openSectorPage(this)"><span class="sector-icon">•</span> 통신</button>
-        <button class="sector-btn" data-sector="에너지" onclick="openSectorPage(this)"><span class="sector-icon">•</span> 에너지</button>
-        <button class="sector-btn" data-sector="부동산" onclick="openSectorPage(this)"><span class="sector-icon">•</span> 부동산</button>
-        <button class="sector-btn" data-sector="유통" onclick="openSectorPage(this)"><span class="sector-icon">•</span> 유통</button>
-        <button class="sector-btn" data-sector="화학" onclick="openSectorPage(this)"><span class="sector-icon">•</span> 화학</button>
-        <button class="sector-btn" data-sector="서비스" onclick="openSectorPage(this)"><span class="sector-icon">•</span> 서비스</button>
-        <button class="sector-btn" data-sector="지수ETF" onclick="openSectorPage(this)"><span class="sector-icon">•</span> 지수ETF</button>
-        <button class="sector-btn" data-sector="섹터ETF" onclick="openSectorPage(this)"><span class="sector-icon">•</span> 섹터ETF</button>
+      <div class="sector-grid" id="sectorBtnGrid">
+        <button class="sector-btn" type="button" data-sector="IT 및 기술" onclick="openSectorPage(this)"><span class="stock-cell-toss sector-btn-cell"><span class="stock-logo-wrap"><img class="stock-logo-img" src="assets/sector-icons/it-tech.png?v=20260603" alt="" loading="lazy" decoding="async"></span><span class="sector-btn-label">IT 및 기술</span></span></button>
+        <button class="sector-btn" type="button" data-sector="전기/전자" onclick="openSectorPage(this)"><span class="stock-cell-toss sector-btn-cell"><span class="stock-logo-wrap"><img class="stock-logo-img" src="assets/sector-icons/electronics.png?v=20260603" alt="" loading="lazy" decoding="async"></span><span class="sector-btn-label">전기/전자</span></span></button>
+        <button class="sector-btn" type="button" data-sector="금융" onclick="openSectorPage(this)"><span class="stock-cell-toss sector-btn-cell"><span class="stock-logo-wrap"><img class="stock-logo-img" src="assets/sector-icons/finance.png?v=20260603" alt="" loading="lazy" decoding="async"></span><span class="sector-btn-label">금융</span></span></button>
+        <button class="sector-btn" type="button" data-sector="제조" onclick="openSectorPage(this)"><span class="stock-cell-toss sector-btn-cell"><span class="stock-logo-wrap"><img class="stock-logo-img" src="assets/sector-icons/manufacturing.png?v=20260603" alt="" loading="lazy" decoding="async"></span><span class="sector-btn-label">제조</span></span></button>
+        <button class="sector-btn" type="button" data-sector="바이오/제약" onclick="openSectorPage(this)"><span class="stock-cell-toss sector-btn-cell"><span class="stock-logo-wrap"><img class="stock-logo-img" src="assets/sector-icons/bio-pharma.png?v=20260603" alt="" loading="lazy" decoding="async"></span><span class="sector-btn-label">바이오/제약</span></span></button>
+        <button class="sector-btn" type="button" data-sector="소비재" onclick="openSectorPage(this)"><span class="stock-cell-toss sector-btn-cell"><span class="stock-logo-wrap"><img class="stock-logo-img" src="assets/sector-icons/consumer.png?v=20260603" alt="" loading="lazy" decoding="async"></span><span class="sector-btn-label">소비재</span></span></button>
+        <button class="sector-btn" type="button" data-sector="통신" onclick="openSectorPage(this)"><span class="stock-cell-toss sector-btn-cell"><span class="stock-logo-wrap"><img class="stock-logo-img" src="assets/sector-icons/telecom.png?v=20260603" alt="" loading="lazy" decoding="async"></span><span class="sector-btn-label">통신</span></span></button>
+        <button class="sector-btn" type="button" data-sector="에너지" onclick="openSectorPage(this)"><span class="stock-cell-toss sector-btn-cell"><span class="stock-logo-wrap"><img class="stock-logo-img" src="assets/sector-icons/energy.png?v=20260603" alt="" loading="lazy" decoding="async"></span><span class="sector-btn-label">에너지</span></span></button>
+        <button class="sector-btn" type="button" data-sector="부동산" onclick="openSectorPage(this)"><span class="stock-cell-toss sector-btn-cell"><span class="stock-logo-wrap"><img class="stock-logo-img" src="assets/sector-icons/real-estate.png?v=20260603" alt="" loading="lazy" decoding="async"></span><span class="sector-btn-label">부동산</span></span></button>
+        <button class="sector-btn" type="button" data-sector="유통" onclick="openSectorPage(this)"><span class="stock-cell-toss sector-btn-cell"><span class="stock-logo-wrap"><img class="stock-logo-img" src="assets/sector-icons/distribution.png?v=20260603" alt="" loading="lazy" decoding="async"></span><span class="sector-btn-label">유통</span></span></button>
+        <button class="sector-btn" type="button" data-sector="화학" onclick="openSectorPage(this)"><span class="stock-cell-toss sector-btn-cell"><span class="stock-logo-wrap"><img class="stock-logo-img" src="assets/sector-icons/chemical.png?v=20260603" alt="" loading="lazy" decoding="async"></span><span class="sector-btn-label">화학</span></span></button>
+        <button class="sector-btn" type="button" data-sector="서비스" onclick="openSectorPage(this)"><span class="stock-cell-toss sector-btn-cell"><span class="stock-logo-wrap"><img class="stock-logo-img" src="assets/sector-icons/service.png?v=20260603" alt="" loading="lazy" decoding="async"></span><span class="sector-btn-label">서비스</span></span></button>
+        <button class="sector-btn" type="button" data-sector="지수ETF" onclick="openSectorPage(this)"><span class="stock-cell-toss sector-btn-cell"><span class="stock-logo-wrap"><img class="stock-logo-img" src="assets/sector-icons/index-etf.png?v=20260603" alt="" loading="lazy" decoding="async"></span><span class="sector-btn-label">지수ETF</span></span></button>
+        <button class="sector-btn" type="button" data-sector="섹터ETF" onclick="openSectorPage(this)"><span class="stock-cell-toss sector-btn-cell"><span class="stock-logo-wrap"><img class="stock-logo-img" src="assets/sector-icons/sector-etf.png?v=20260603" alt="" loading="lazy" decoding="async"></span><span class="sector-btn-label">섹터ETF</span></span></button>
       </div>
     </div>
     </div>
@@ -4187,12 +4209,22 @@
   }
   const stockDeepLinkFromUrl = getStockDeepLinkCodeFromUrl();
 
+  function getTradeSideFromUrl() {
+    try {
+      const raw = (new URLSearchParams(window.location.search).get('trade') || '').trim().toUpperCase();
+      if (raw === 'BUY' || raw === 'SELL') return raw;
+    } catch (_) { /* ignore */ }
+    return null;
+  }
+  const tradeDeepLinkFromUrl = getTradeSideFromUrl();
+
   function stripStockDeepLinkParamsFromUrl() {
     try {
       const url = new URL(window.location.href);
-      if (!url.searchParams.has('stock') && !url.searchParams.has('code')) return;
+      if (!url.searchParams.has('stock') && !url.searchParams.has('code') && !url.searchParams.has('trade')) return;
       url.searchParams.delete('stock');
       url.searchParams.delete('code');
+      url.searchParams.delete('trade');
       const q = url.searchParams.toString();
       window.history.replaceState({}, '', `${url.pathname}${q ? `?${q}` : ''}${url.hash}`);
     } catch (_) {}
@@ -4224,7 +4256,11 @@
       return;
     }
     openStockDetail(code);
+    const tradeSide = tradeDeepLinkFromUrl;
     stripStockDeepLinkParamsFromUrl();
+    if (tradeSide && typeof openMockTradeModal === 'function') {
+      requestAnimationFrame(() => openMockTradeModal(tradeSide));
+    }
   }
 
   document.addEventListener('DOMContentLoaded', () => {
@@ -5145,6 +5181,8 @@
   let activeIndexPopoverCard = null;
   let indexPopoverHideTimer = null;
   let indexPopoverRequestSeq = 0;
+  /** 데스크톱: 카드 위에서 마우스 버튼 누른 채 이동(드래그) 시 팝오버 차트 유지·전환 */
+  let indexGridScrubbing = false;
 
   function useIndexTapFallback() {
     return !(window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches);
@@ -5161,8 +5199,58 @@
   }
 
   function scheduleIndexPopoverHide() {
+    if (indexGridScrubbing) return;
     clearIndexPopoverHideTimer();
-    indexPopoverHideTimer = setTimeout(closeIndexHoverPopover, 120);
+    indexPopoverHideTimer = setTimeout(() => {
+      const popover = getIndexHoverPopover();
+      if (popover && !popover.hidden && popover.matches(':hover')) return;
+      if (activeIndexPopoverCard && activeIndexPopoverCard.matches(':hover')) return;
+      closeIndexHoverPopover();
+    }, 320);
+  }
+
+  function indexCardFromPoint(clientX, clientY) {
+    const hit = document.elementFromPoint(clientX, clientY);
+    return hit && hit.closest ? hit.closest('#indicesGrid .index-card[data-index-key]') : null;
+  }
+
+  function bindIndexGridScrub() {
+    const grid = document.getElementById('indicesGrid');
+    if (!grid || grid.dataset.scrubBound === '1') return;
+    grid.dataset.scrubBound = '1';
+
+    grid.addEventListener('pointerdown', (event) => {
+      if (useIndexTapFallback()) return;
+      if (event.button !== 0) return;
+      const card = event.target.closest('.index-card[data-index-key]');
+      if (!card) return;
+      indexGridScrubbing = true;
+      clearIndexPopoverHideTimer();
+      openIndexHoverPopover(card);
+    });
+
+    document.addEventListener('pointermove', (event) => {
+      if (!indexGridScrubbing || useIndexTapFallback()) return;
+      const card = indexCardFromPoint(event.clientX, event.clientY);
+      if (!card) return;
+      clearIndexPopoverHideTimer();
+      if (card !== activeIndexPopoverCard) openIndexHoverPopover(card);
+    });
+
+    document.addEventListener('pointerup', () => {
+      if (!indexGridScrubbing) return;
+      indexGridScrubbing = false;
+      requestAnimationFrame(() => {
+        const popover = getIndexHoverPopover();
+        const onPop = popover && !popover.hidden && popover.matches(':hover');
+        const onCard = activeIndexPopoverCard && activeIndexPopoverCard.matches(':hover');
+        if (!onPop && !onCard) scheduleIndexPopoverHide();
+      });
+    });
+
+    document.addEventListener('pointercancel', () => {
+      indexGridScrubbing = false;
+    });
   }
 
   function closeIndexHoverPopover() {
@@ -5182,6 +5270,23 @@
     }
   }
 
+  function buildMarketIndexCards(data) {
+    const pool = [
+      ...(Array.isArray(data.indices) ? data.indices : []),
+      ...(Array.isArray(data.global) ? data.global : []),
+      ...(Array.isArray(data.extras) ? data.extras : []),
+    ];
+    const byKey = {};
+    pool.forEach((row) => {
+      if (row && row.key) byKey[String(row.key)] = row;
+    });
+    return INDEX_PLACEHOLDER_CARDS.map((ph) => {
+      const live = byKey[ph.key];
+      if (!live) return { ...ph, error: true };
+      return { ...live, interactive: ph.interactive !== false };
+    });
+  }
+
   function getMarketCardThemeKey(card) {
     return String((card && (card.theme_key || card.key)) || '').trim();
   }
@@ -5192,26 +5297,30 @@
 
   function buildMarketCardStyle(card) {
     const theme = getMarketCardTheme(card);
+    const dir = (card && card.direction) || 'flat';
+    const chartColors = indexDirectionChartColors(dir);
     return [
       `--card-accent:${theme.accent}`,
-      `--card-border:${theme.border}`,
-      `--inline-chart-bg-top:${theme.chartBgTop}`,
-      `--inline-chart-bg-bottom:${theme.chartBgBottom}`,
-      `--inline-chart-border:${theme.chartBorder}`,
+      `--card-border:${dir === 'flat' ? theme.border : chartColors.border}`,
+      `--inline-chart-bg-top:${chartColors.chartBgTop}`,
+      `--inline-chart-bg-bottom:${chartColors.chartBgBottom}`,
+      `--inline-chart-border:${chartColors.chartBorder}`,
     ].join(';');
   }
 
   function indexCardHtml(idx, isSkeleton) {
     const name = escapeHtml(String(idx && idx.name ? idx.name : '지수'));
-    const interactive = !idx || idx.interactive !== false;
-    const keyRaw = interactive ? String((idx && idx.key) || INDEX_KEY_BY_NAME[String((idx && idx.name) || '')] || '').trim() : '';
-    const keyAttr = keyRaw ? ` data-index-key="${escapeHtml(keyRaw)}"` : '';
+    const cardKey = String((idx && idx.key) || INDEX_KEY_BY_NAME[String((idx && idx.name) || '')] || '').trim();
+    const openOverlay = !idx || idx.interactive !== false;
+    const keyAttr = cardKey ? ` data-index-key="${escapeHtml(cardKey)}"` : '';
     const nameAttr = ` data-index-name="${name}"`;
-    const staticClass = interactive && keyRaw ? '' : ' index-card--static';
+    const staticClass = openOverlay ? '' : ' index-card--static';
+    const hasPopover = Boolean(cardKey);
+    const popoverAttrs = hasPopover ? ' tabindex="0" aria-haspopup="dialog" aria-expanded="false"' : '';
     const styleAttr = ` style="${escapeHtml(buildMarketCardStyle(idx))}"`;
     if (isSkeleton) {
       return `
-        <div class="index-card${staticClass}"${interactive && keyRaw ? ' tabindex="0" aria-expanded="false"' : ''}${styleAttr}${keyAttr}${nameAttr}>
+        <div class="index-card${staticClass}"${popoverAttrs}${styleAttr}${keyAttr}${nameAttr}>
           <div class="index-name">${name}</div>
           <div class="index-value index-skeleton" style="color:var(--gray-400)">---</div>
           <div class="index-change flat index-skeleton">불러오는 중</div>
@@ -5219,14 +5328,14 @@
     }
     if (idx && idx.error) {
       return `
-        <div class="index-card${staticClass}"${interactive && keyRaw ? ' tabindex="0" aria-expanded="false"' : ''}${styleAttr}${keyAttr}${nameAttr}>
+        <div class="index-card${staticClass}"${popoverAttrs}${styleAttr}${keyAttr}${nameAttr}>
           <div class="index-name">${name}</div>
           <div class="index-value" style="color:var(--gray-400)">-</div>
           <div class="index-change flat">조회 실패</div>
         </div>`;
     }
     const dir = (idx && idx.direction) || 'flat';
-    const hasHistory = Boolean(interactive && keyRaw);
+    const hasHistory = hasPopover;
     const arrow = dir === 'up' ? '▲' : (dir === 'down' ? '▼' : '-');
     const sign = dir === 'up' ? '+' : (dir === 'down' ? '-' : '');
     const value = Number(idx && idx.value);
@@ -5240,10 +5349,10 @@
       : `${arrow} ${Number.isFinite(changePct) ? Math.abs(changePct).toFixed(2) : '0.00'}%`;
     const compactClass = valueText.length >= 9 || (idx && idx.kind === 'breadth') ? ' index-value--compact' : '';
     const inlineChartHtml = idx && idx.inline_chart === true
-      ? buildInlineCardSparklineSvg((idx && idx.points) || [], dir, getMarketCardTheme(idx), idx && idx.reference_value, idx && idx.chart_mode)
+      ? buildInlineCardSparklineSvg((idx && idx.points) || [], dir, idx && idx.reference_value, idx && idx.chart_mode)
       : '';
     return `
-      <div class="index-card ${dir}${staticClass}"${hasHistory ? ' tabindex="0" aria-haspopup="dialog" aria-expanded="false"' : ''}${styleAttr}${keyAttr}${nameAttr}>
+      <div class="index-card ${dir}${staticClass}"${hasHistory ? popoverAttrs : ''}${styleAttr}${keyAttr}${nameAttr}>
         <div class="index-name">${name}</div>
         <div class="index-value${compactClass}">${escapeHtml(valueText)}</div>
         <div class="index-change ${dir}">${escapeHtml(changeText)}</div>
@@ -5259,27 +5368,67 @@
     bindIndexCardHoverTargets();
   }
 
+  let indexSparklineGradSeq = 0;
+
   function indexPopoverDirectionColor(dir) {
-    if (dir === 'up') return '#ef5350';
-    if (dir === 'down') return '#42a5f5';
-    return '#6b7280';
+    return indexDirectionChartColors(dir).line;
+  }
+
+  function indexDirectionChartColors(dir) {
+    if (dir === 'up') {
+      return {
+        line: '#ef5350',
+        border: 'rgba(239, 83, 80, 0.28)',
+        chartBgTop: 'rgba(239, 83, 80, 0.08)',
+        chartBgBottom: 'rgba(255, 255, 255, 0)',
+        chartBorder: 'rgba(239, 83, 80, 0.1)',
+        fillStart: 0.32,
+        fillEnd: 0,
+      };
+    }
+    if (dir === 'down') {
+      return {
+        line: '#42a5f5',
+        border: 'rgba(66, 165, 245, 0.28)',
+        chartBgTop: 'rgba(66, 165, 245, 0.08)',
+        chartBgBottom: 'rgba(255, 255, 255, 0)',
+        chartBorder: 'rgba(66, 165, 245, 0.1)',
+        fillStart: 0.32,
+        fillEnd: 0,
+      };
+    }
+    return {
+      line: '#9ca3af',
+      border: 'rgba(156, 163, 175, 0.24)',
+      chartBgTop: 'rgba(156, 163, 175, 0.06)',
+      chartBgBottom: 'rgba(255, 255, 255, 0)',
+      chartBorder: 'rgba(156, 163, 175, 0.12)',
+      fillStart: 0.22,
+      fillEnd: 0,
+    };
+  }
+
+  function nextIndexSparklineGradId() {
+    indexSparklineGradSeq += 1;
+    return `idxSparkGrad${indexSparklineGradSeq}`;
   }
 
   function getIndexVisualTheme(indexKey) {
     return INDEX_VISUAL_THEMES[String(indexKey || '').trim()] || INDEX_VISUAL_THEMES.default;
   }
 
-  function applyIndexPopoverTheme(indexKey) {
+  function applyIndexPopoverTheme(indexKey, direction) {
     const popover = getIndexHoverPopover();
     if (!popover) return getIndexVisualTheme(indexKey);
     const theme = getIndexVisualTheme(indexKey);
+    const chartColors = indexDirectionChartColors(direction || 'flat');
     popover.style.setProperty('--index-popover-accent', theme.accent);
     popover.style.setProperty('--index-popover-border', theme.border);
     popover.style.setProperty('--index-chip-bg', theme.chipBg);
     popover.style.setProperty('--index-chip-text', theme.chipText);
-    popover.style.setProperty('--index-chart-bg-top', theme.chartBgTop);
-    popover.style.setProperty('--index-chart-bg-bottom', theme.chartBgBottom);
-    popover.style.setProperty('--index-chart-border', theme.chartBorder);
+    popover.style.setProperty('--index-chart-bg-top', chartColors.chartBgTop);
+    popover.style.setProperty('--index-chart-bg-bottom', chartColors.chartBgBottom);
+    popover.style.setProperty('--index-chart-border', chartColors.chartBorder);
     popover.style.setProperty('--index-stat-bg', theme.statBg);
     popover.style.setProperty('--index-stat-border', theme.statBorder);
     return theme;
@@ -5365,39 +5514,78 @@
     return `<circle cx="${point.x.toFixed(2)}" cy="${point.y.toFixed(2)}" r="3.3" fill="${lineColor}"></circle>`;
   }
 
-  function buildInlineCardSparklineSvg(points, direction, theme, referenceValue, chartMode) {
+  function buildIndexSparklineCoords(values, width, height, padX, padY, chartMode, referenceValue) {
+    const mode = String(chartMode || 'minmax');
+    if (mode === 'score') {
+      const min = Math.min.apply(null, values);
+      const max = Math.max.apply(null, values);
+      const span = Math.max(1e-9, max - min);
+      return values.map((value, index) => ({
+        x: padX + ((width - padX * 2) * index / Math.max(1, values.length - 1)),
+        y: padY + ((height - padY * 2) * (max - value) / span),
+      }));
+    }
+    if (mode === 'relative') {
+      const baseline = Number.isFinite(Number(referenceValue)) ? Number(referenceValue) : values[0];
+      const normalized = values.map(value => (baseline ? ((value - baseline) / baseline) * 100 : 0));
+      const maxAbs = Math.max(0.05, ...normalized.map(value => Math.abs(value)));
+      const min = -maxAbs;
+      const max = maxAbs;
+      const span = Math.max(1e-9, max - min);
+      return normalized.map((value, index) => ({
+        x: padX + ((width - padX * 2) * index / Math.max(1, normalized.length - 1)),
+        y: padY + ((height - padY * 2) * (max - value) / span),
+      }));
+    }
+    const min = Math.min.apply(null, values);
+    const max = Math.max.apply(null, values);
+    const span = Math.max(1e-9, max - min);
+    return values.map((value, index) => ({
+      x: padX + ((width - padX * 2) * index / Math.max(1, values.length - 1)),
+      y: padY + ((height - padY * 2) * (max - value) / span),
+    }));
+  }
+
+  function buildIndexSparklineSvgMarkup(coords, direction, width, height, padY, options) {
+    if (!coords.length) return '';
+    const colors = indexDirectionChartColors(direction);
+    const gradId = nextIndexSparklineGradId();
+    const path = buildLinearIndexPath(coords);
+    const first = coords[0];
+    const last = coords[coords.length - 1];
+    const baseY = height - padY;
+    const areaPath = `${path} L ${last.x.toFixed(2)} ${baseY.toFixed(2)} L ${first.x.toFixed(2)} ${baseY.toFixed(2)} Z`;
+    const strokeWidth = options && options.strokeWidth != null ? options.strokeWidth : 2;
+    const showDot = !(options && options.showDot === false);
+    const extra = (options && options.extraMarkup) || '';
+    return `
+      <svg viewBox="0 0 ${width} ${height}" aria-hidden="true" preserveAspectRatio="none">
+        <defs>
+          <linearGradient id="${gradId}" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="${colors.line}" stop-opacity="${colors.fillStart}"></stop>
+            <stop offset="100%" stop-color="${colors.line}" stop-opacity="${colors.fillEnd}"></stop>
+          </linearGradient>
+        </defs>
+        <path d="${areaPath}" fill="url(#${gradId})"></path>
+        <path d="${path}" fill="none" stroke="${colors.line}" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round"></path>
+        ${showDot ? `<circle cx="${last.x.toFixed(2)}" cy="${last.y.toFixed(2)}" r="2.4" fill="${colors.line}"></circle>` : ''}
+        ${extra}
+      </svg>`;
+  }
+
+  function buildInlineCardSparklineSvg(points, direction, referenceValue, chartMode) {
     const values = Array.isArray(points) ? points.map(point => Number(point.value)).filter(Number.isFinite) : [];
     if (values.length < 2) return '';
     const width = 240;
-    const height = 60;
-    const padX = 8;
-    const padY = 8;
-    const mode = String(chartMode || 'relative');
-    const baseline = Number.isFinite(Number(referenceValue)) ? Number(referenceValue) : values[0];
-    const normalized = mode === 'score'
-      ? values
-      : values.map(value => (baseline ? ((value - baseline) / baseline) * 100 : 0));
-    const maxAbs = Math.max(0.05, ...normalized.map(value => Math.abs(value)));
-    const min = -maxAbs;
-    const max = maxAbs;
-    const span = Math.max(1e-9, max - min);
-    const lineColor = indexPopoverDirectionColor(direction);
-    const coords = normalized.map((value, index) => {
-      const x = padX + ((width - padX * 2) * index / Math.max(1, normalized.length - 1));
-      const y = padY + ((height - padY * 2) * (max - value) / span);
-      return { x, y };
+    const height = 56;
+    const padX = 4;
+    const padY = 4;
+    const mode = chartMode === 'score' || chartMode === 'relative' ? chartMode : 'minmax';
+    const coords = buildIndexSparklineCoords(values, width, height, padX, padY, mode, referenceValue);
+    return buildIndexSparklineSvgMarkup(coords, direction, width, height, padY, {
+      strokeWidth: 2,
+      showDot: false,
     });
-    const zeroY = padY + ((height - padY * 2) * (max - 0) / span);
-    const path = buildLinearIndexPath(coords);
-    const areaPath = `${path} L ${coords[coords.length - 1].x.toFixed(2)} ${zeroY.toFixed(2)} L ${coords[0].x.toFixed(2)} ${zeroY.toFixed(2)} Z`;
-    const last = coords[coords.length - 1];
-    return `
-      <svg viewBox="0 0 ${width} ${height}" aria-hidden="true" preserveAspectRatio="none">
-        <line x1="${padX}" y1="${zeroY.toFixed(2)}" x2="${width - padX}" y2="${zeroY.toFixed(2)}" stroke="rgba(107, 114, 128, 0.18)" stroke-width="1" stroke-dasharray="3 3"></line>
-        <path d="${areaPath}" fill="${lineColor}" fill-opacity="0.12"></path>
-        <path d="${path}" fill="none" stroke="${lineColor}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path>
-        <circle cx="${last.x.toFixed(2)}" cy="${last.y.toFixed(2)}" r="2.8" fill="${lineColor}"></circle>
-      </svg>`;
   }
 
   function indexSparklineSvg(points, direction, theme, referenceValue, chartMode) {
@@ -5408,34 +5596,35 @@
     const padX = 12;
     const padY = 10;
     const mode = String(chartMode || 'relative');
-    const start = values[0];
-    const baseline = Number.isFinite(Number(referenceValue)) && Number(referenceValue) > 0 ? Number(referenceValue) : start;
+    const coords = buildIndexSparklineCoords(values, width, height, padX, padY, mode, referenceValue);
+    const lineMode = (theme && theme.lineMode) || 'linear';
+    const linePath = buildIndexLinePath(coords, lineMode);
+    const first = coords[0];
+    const last = coords[coords.length - 1];
+    const baseY = height - padY;
+    const areaPath = `${linePath} L ${last.x.toFixed(2)} ${baseY.toFixed(2)} L ${first.x.toFixed(2)} ${baseY.toFixed(2)} Z`;
+    const colors = indexDirectionChartColors(direction);
+    const gradId = nextIndexSparklineGradId();
+    const baseline = Number.isFinite(Number(referenceValue)) && Number(referenceValue) > 0 ? Number(referenceValue) : values[0];
     const normalized = mode === 'score'
       ? values
       : values.map(value => (baseline ? ((value - baseline) / baseline) * 100 : 0));
     const maxAbs = Math.max(mode === 'score' ? 1 : 0.12, ...normalized.map(value => Math.abs(value)));
-    const min = -maxAbs;
-    const max = maxAbs;
-    const span = Math.max(1e-9, max - min);
-    const lineColor = (theme && theme.chartLine) || indexPopoverDirectionColor(direction);
-    const coords = normalized.map((value, index) => {
-      const x = padX + ((width - padX * 2) * index / Math.max(1, values.length - 1));
-      const y = padY + ((height - padY * 2) * (max - value) / span);
-      return { x, y };
-    });
-    const zeroY = padY + ((height - padY * 2) * (max - 0) / span);
-    const lineMode = (theme && theme.lineMode) || 'linear';
-    const linePath = buildIndexLinePath(coords, lineMode);
-    const areaPath = `${linePath} L ${coords[coords.length - 1].x.toFixed(2)} ${zeroY.toFixed(2)} L ${coords[0].x.toFixed(2)} ${zeroY.toFixed(2)} Z`;
-    const last = coords[coords.length - 1];
-    const topLabel = mode === 'score' ? `${Math.round(max)}` : `${max.toFixed(2)}%`;
-    const bottomLabel = mode === 'score' ? `${Math.round(min)}` : `${min.toFixed(2)}%`;
+    const minN = -maxAbs;
+    const maxN = maxAbs;
+    const topLabel = mode === 'score' ? `${Math.round(maxN)}` : `${maxN.toFixed(2)}%`;
+    const bottomLabel = mode === 'score' ? `${Math.round(minN)}` : `${minN.toFixed(2)}%`;
     return `
       <svg viewBox="0 0 ${width} ${height}" aria-hidden="true" preserveAspectRatio="none">
-        <line x1="${padX}" y1="${zeroY.toFixed(2)}" x2="${width - padX}" y2="${zeroY.toFixed(2)}" stroke="rgba(107, 114, 128, 0.24)" stroke-width="1" stroke-dasharray="4 4"></line>
-        <path d="${areaPath}" fill="${lineColor}" fill-opacity="0.12"></path>
-        <path d="${linePath}" fill="none" stroke="${lineColor}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"></path>
-        ${buildIndexMarker(last, lineColor, theme)}
+        <defs>
+          <linearGradient id="${gradId}" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="${colors.line}" stop-opacity="${colors.fillStart}"></stop>
+            <stop offset="100%" stop-color="${colors.line}" stop-opacity="${colors.fillEnd}"></stop>
+          </linearGradient>
+        </defs>
+        <path d="${areaPath}" fill="url(#${gradId})"></path>
+        <path d="${linePath}" fill="none" stroke="${colors.line}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"></path>
+        ${buildIndexMarker(last, colors.line, theme)}
         <text x="${width - 8}" y="${padY + 2}" text-anchor="end" font-size="10" font-weight="700" fill="rgba(107, 114, 128, 0.88)">${topLabel}</text>
         <text x="${width - 8}" y="${height - 4}" text-anchor="end" font-size="10" font-weight="700" fill="rgba(107, 114, 128, 0.88)">${bottomLabel}</text>
       </svg>`;
@@ -5479,7 +5668,7 @@
   function renderIndexPopoverState(title, message, indexKey) {
     const popover = getIndexHoverPopover();
     if (!popover) return;
-    const theme = applyIndexPopoverTheme(indexKey);
+    const theme = applyIndexPopoverTheme(indexKey, 'flat');
     popover.innerHTML = `
       <div class="index-hover-popover__header">
         <div>
@@ -5499,7 +5688,7 @@
     const value = Number(payload && payload.value);
     const changePct = Number(payload && payload.change_pct);
     const summary = summarizeIndexPoints((payload && payload.points) || [], payload && payload.reference_value);
-    const theme = applyIndexPopoverTheme(payload && payload.key);
+    const theme = applyIndexPopoverTheme(payload && payload.key, dir);
     const chartHtml = indexSparklineSvg((payload && payload.points) || [], dir, theme, payload && payload.reference_value, payload && payload.chart_mode);
     const sourceLabel = payload && payload.reference_label
       ? `${String((payload && payload.range_label) || '최근 5거래일')} · ${String(payload.reference_label)} 기준`
@@ -5557,11 +5746,12 @@
     const popover = getIndexHoverPopover();
     if (!popover || popover.hidden || !card) return;
     const rect = card.getBoundingClientRect();
-    const margin = 12;
+    const margin = 8;
+    const bridge = 10;
     const popRect = popover.getBoundingClientRect();
-    let left = rect.right + margin;
+    let left = rect.right + margin - bridge;
     if ((left + popRect.width) > (window.innerWidth - 8)) {
-      left = rect.left - popRect.width - margin;
+      left = rect.left - popRect.width - margin + bridge;
     }
     if (left < 8) {
       left = Math.max(8, window.innerWidth - popRect.width - 8);
@@ -5625,6 +5815,7 @@
       if (!pop || pop.hidden) return;
       if (pop.contains(target)) return;
       if (activeIndexPopoverCard && activeIndexPopoverCard.contains(target)) return;
+      if (event.pointerType === 'mouse' && event.button !== 0) return;
       closeIndexHoverPopover();
     });
     document.addEventListener('keydown', (event) => {
@@ -5640,6 +5831,7 @@
 
   function bindIndexCardHoverTargets() {
     bindIndexPopoverGlobalHandlers();
+    bindIndexGridScrub();
     document.querySelectorAll('#indicesGrid .index-card[data-index-key]').forEach((card) => {
       if (card.dataset.bound === '1') return;
       card.dataset.bound = '1';
@@ -5648,6 +5840,7 @@
       });
       card.addEventListener('mouseleave', (event) => {
         if (useIndexTapFallback()) return;
+        if (indexGridScrubbing) return;
         const popover = getIndexHoverPopover();
         const next = event.relatedTarget;
         if (popover && next && popover.contains(next)) return;
@@ -5702,15 +5895,14 @@
       status.textContent = `${data.ts} 기준${data.cached ? ' (캐시)' : ''}`;
 
       const reopenKey = activeIndexPopoverKey;
-      const cards = Array.isArray(data.cards)
-        ? data.cards
-        : [...(Array.isArray(data.indices) ? data.indices : []), ...(Array.isArray(data.extras) ? data.extras : [])];
-      closeIndexHoverPopover();
+      const cards = buildMarketIndexCards(data);
       document.getElementById('indicesGrid').innerHTML = cards.map(idx => indexCardHtml(idx, false)).join('');
       bindIndexCardHoverTargets();
       if (reopenKey) {
         const reopenCard = document.querySelector(`#indicesGrid .index-card[data-index-key="${reopenKey}"]`);
         if (reopenCard) openIndexHoverPopover(reopenCard);
+      } else {
+        closeIndexHoverPopover();
       }
     } catch (e) {
       dot.classList.add('error');
@@ -6413,6 +6605,6 @@ document.getElementById('investorFlowList').innerHTML = '<div class="empty-state
 </script>
 <div id="jurinWatchToast" class="jurin-watch-toast" role="status" aria-live="polite" hidden></div>
 
-<script src="js/lumi-chat.js?v=20260525"></script>
+<script src="js/lumi-chat.js?v=20260609"></script>
 </body>
 </html>

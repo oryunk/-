@@ -1,20 +1,26 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <!-- 주린닷컴 메인 랜딩: 히어로, 인기종목, 뉴스 슬라이더/그리드, 로그인(common-auth). -->
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="assets/brand/favicon.ico?v=20260607" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/brand/favicon-32x32.png?v=20260607">
+<link rel="apple-touch-icon" sizes="180x180" href="assets/brand/apple-touch-icon.png?v=20260607">
 <title>주린닷컴 - 주린이를 위한 주식 AI 분석</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=20260504">
-<link rel="stylesheet" href="css/lumi-chat.css?v=20260525">
+<link rel="stylesheet" href="css/style.css?v=20260531">
+<link rel="stylesheet" href="css/index-detail-overlay.css?v=20260702">
+<script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
+<link rel="stylesheet" href="css/lumi-chat.css?v=20260609">
 <link rel="stylesheet" href="css/news-overlay.css">
 </head>
 <body>
 
 <nav>
   <a href="주린닷컴홈피.html" class="nav-logo">
-    <img src="assets/ui/jurin-logo.png" alt="주린닷컴 로고" class="nav-logo-image">
+    <img class="logo-icon" src="assets/brand/jurin-logo-icon.png?v=20260607" alt="" width="36" height="36" decoding="async">
+    <div class="logo-text">주린<span>닷컴</span></div>
   </a>
   <ul class="nav-menu">
     <li><a href="guide.html">가이드</a></li>
@@ -34,9 +40,9 @@
   </div>
 </nav>
 
-<div class="ticker-strip" aria-label="시세 요약">
+<div class="ticker-strip" aria-label="투자 참고 지수">
   <div class="ticker-wrap" id="tickerStripWrap">
-    <div class="ticker-item"><span class="ticker-name">시세</span><span class="ticker-price">불러오는 중…</span><span class="ticker-change flat">API 연결</span></div>
+    <div class="ticker-item"><span class="ticker-name">지수</span><span class="ticker-price">불러오는 중…</span><span class="ticker-change flat">API 연결</span></div>
   </div>
 </div>
 
@@ -282,6 +288,66 @@
   </div>
 </div>
 
+<div id="indexDetailOverlay" class="index-detail-overlay" hidden aria-modal="true" role="dialog" aria-labelledby="indexDetailName">
+  <nav class="index-detail-overlay__nav">
+    <a href="주린닷컴홈피.html" class="nav-logo" onclick="window.IndexDetailOverlay && window.IndexDetailOverlay.close();">
+      <img class="logo-icon" src="assets/brand/jurin-logo-icon.png?v=20260607" alt="" width="36" height="36" decoding="async">
+      <div class="logo-text">주린<span>닷컴</span></div>
+    </a>
+    <ul class="nav-menu">
+      <li><a href="guide.html">가이드</a></li>
+      <li><a href="analysis.html">AI 분석 <span class="nav-badge">AI</span></a></li>
+      <li><a href="ai-chart-prediction.html">AI 차트 예측 <span class="nav-badge">AI</span></a></li>
+      <li><a href="market-products.html?topic=elw">ELW</a></li>
+      <li><a href="market-products.html?topic=bonds">채권</a></li>
+      <li><a href="glossary.html">용어 검색</a></li>
+      <li><a class="jurin-simulation-link" href="http://127.0.0.1:5000/simulation.html">모의 투자</a></li>
+      <li><a href="market.html">시장</a></li>
+    </ul>
+    <div class="nav-right">
+      <button type="button" class="btn-ghost index-detail-overlay__close-nav" id="indexDetailClose">닫기</button>
+    </div>
+  </nav>
+  <div class="index-detail-overlay__body">
+    <main class="index-detail-overlay__main">
+      <div class="stock-detail-head index-detail-head">
+        <div class="stock-detail-top">
+          <div class="stock-detail-identity index-detail-identity">
+            <div class="index-detail-title-wrap">
+              <div class="stock-detail-name-row index-detail-name-row">
+                <span class="index-detail-overlay__region" id="indexDetailRegionIcon" aria-hidden="true">🇰🇷</span>
+                <h1 class="stock-detail-name" id="indexDetailName">KOSPI</h1>
+                <span class="index-detail-overlay__region-tag" id="indexDetailRegionTag">한국</span>
+              </div>
+              <div class="index-detail-price-row">
+                <div class="detail-price-main" id="indexDetailPrice">—</div>
+                <div class="detail-price-sub flat" id="indexDetailChange">—</div>
+              </div>
+              <div class="index-detail-overlay__meta" id="indexDetailMeta">전일 종가 기준</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="stock-detail-body index-detail-stock-body">
+        <div class="detail-toolbar" id="indexDetailTabs" role="tablist" aria-label="차트 기간"></div>
+        <div class="chart-placeholder index-detail-chart-placeholder">
+          <div id="indexDetailChartWrap" class="jurin-chart-hover-wrap" style="display:none;">
+            <div id="indexDetailChartLegend" class="chart-ohlc-hover" hidden aria-live="polite"></div>
+            <div id="indexDetailChart" style="width:100%;height:220px;"></div>
+          </div>
+          <div class="chart-skeleton" id="indexDetailChartSkeleton"></div>
+          <div class="chart-note" id="indexDetailChartNote" style="display:none;"></div>
+        </div>
+        <div class="detail-grid" id="indexDetailStats"></div>
+      </div>
+    </main>
+    <aside class="index-detail-overlay__rail" aria-label="다른 지수">
+      <div class="index-detail-overlay__rail-title">다른 지수</div>
+      <div class="index-detail-overlay__rail-list" id="indexDetailRailList"></div>
+    </aside>
+  </div>
+</div>
+
 <div class="tutorial-overlay" id="tutorialOverlay" aria-hidden="true"></div>
 
 <script>
@@ -292,11 +358,12 @@ function closeModal() {
 </script>
 <script src="js/api-base.js"></script>
 <script src="js/daily-stock-terms.js"></script>
-<script src="js/ticker-strip.js"></script>
+<script src="js/index-detail-overlay.js?v=20260702"></script>
+<script src="js/ticker-strip.js?v=20260606"></script>
 <script src="js/slider.js"></script>
 <script src="js/rss-loader.js"></script>
 <script src="js/common-auth.js"></script>
-<script src="js/lumi-chat.js?v=20260525"></script>
+<script src="js/lumi-chat.js?v=20260609"></script>
 <script src="js/app.js"></script>
 <script src="js/mascot-coach.js?v=20260450"></script>
 <script src="js/jurin-tutorial-guard.js"></script>

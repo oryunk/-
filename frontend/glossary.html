@@ -1,9 +1,12 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <!-- 용어 사전·GPT/로컬 용어 설명 검색. -->
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="assets/brand/favicon.ico?v=20260607" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/brand/favicon-32x32.png?v=20260607">
+<link rel="apple-touch-icon" sizes="180x180" href="assets/brand/apple-touch-icon.png?v=20260607">
 <title>용어 사전 - 주린닷컴</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css?v=20260428">
@@ -129,12 +132,12 @@
 
   .glossary-result {
     margin-top: 0;
-    margin-bottom: 28px;
-    min-height: 120px;
+    margin-bottom: 24px;
+    min-height: 72px;
     background: #ffffff;
     border: 1px solid rgba(47, 143, 95, 0.14);
     border-radius: 16px;
-    padding: 32px;
+    padding: 20px 24px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -159,13 +162,13 @@
   }
 
   .result-placeholder-icon {
-    font-size: 48px;
-    margin-bottom: 16px;
+    font-size: 28px;
+    margin-bottom: 8px;
     opacity: 0.5;
   }
 
   .result-placeholder-text {
-    font-size: 15px;
+    font-size: 14px;
     color: var(--gray-400);
   }
 
@@ -192,6 +195,67 @@
     text-align: left;
   }
 
+  .term-section + .term-section {
+    margin-top: 18px;
+  }
+
+  .term-section-title {
+    margin: 0 0 10px;
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--gray-500);
+    letter-spacing: 0.01em;
+  }
+
+  .term-section-body {
+    font-size: 14px;
+    line-height: 1.8;
+    color: var(--text-primary);
+  }
+
+  .term-desc-box {
+    padding: 14px 16px;
+    border-radius: 12px;
+    background: #ffffff;
+    border: 1px solid rgba(47, 143, 95, 0.14);
+  }
+
+  .term-summary-box {
+    padding: 14px 16px;
+    border-radius: 12px;
+    background: #ffffff;
+    border: 1px solid rgba(47, 143, 95, 0.14);
+  }
+
+  .term-official-box {
+    display: -webkit-box;
+    line-clamp: 3;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .term-source {
+    margin-top: 8px;
+    font-size: 12px;
+    color: var(--gray-400);
+    line-height: 1.4;
+  }
+
+  .term-source a {
+    color: var(--accent);
+    text-decoration: none;
+    font-weight: 700;
+  }
+
+  .term-easy-box {
+    padding: 14px 16px;
+    border-radius: 12px;
+    background: linear-gradient(180deg, #f8fcf9 0%, #eff8f2 100%);
+    border: 1px solid rgba(47, 143, 95, 0.12);
+    color: var(--text-primary);
+  }
+
   .important-line {
     display: inline;
     background-repeat: no-repeat;
@@ -206,7 +270,7 @@
   .important-line.brush-2,
   .important-line.brush-3,
   .important-line.brush-4 {
-    background-image: linear-gradient(transparent 52%, rgba(47, 143, 95, 0.42) 52%);
+    background-image: linear-gradient(transparent 56%, rgba(47, 143, 95, 0.26) 56%);
   }
 
   .term-examples {
@@ -230,57 +294,60 @@
     color: var(--gray-400);
   }
 
-  .popular-terms {
-    margin-top: 40px;
-  }
-
-  .popular-terms-title {
-    font-size: 20px;
-    font-weight: 700;
-    margin-bottom: 20px;
-    color: var(--text-primary);
-  }
-
-  .terms-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 16px;
-  }
-
-  .term-card {
-    background: #ffffff;
-    border: 1px solid rgba(47, 143, 95, 0.16);
-    border-radius: 12px;
-    padding: 20px;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-
-  .term-card:hover {
-    background: var(--gray-100);
-    border-color: var(--accent);
-    transform: translateY(-2px);
-  }
-
-  .term-card-name {
-    font-size: 16px;
-    font-weight: 600;
-    color: var(--text-primary);
-    margin-bottom: 8px;
-  }
-
-  .term-card-desc {
-    font-size: 13px;
-    color: var(--gray-400);
-    line-height: 1.5;
-  }
-
-  .glossary-browse-root {
+  .glossary-browse {
     margin-bottom: 36px;
   }
 
+  .glossary-browse-heading {
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--text-primary);
+    margin: 0 0 16px;
+  }
+
+  .glossary-cat-tabs {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 8px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    margin-bottom: 16px;
+    padding-bottom: 4px;
+  }
+
+  .glossary-cat-tab {
+    flex: 0 0 auto;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 8px 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(47, 143, 95, 0.22);
+    background: #ffffff;
+    color: var(--text-primary);
+    cursor: pointer;
+    font-family: inherit;
+    white-space: nowrap;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+  }
+
+  .glossary-cat-tab:hover {
+    border-color: rgba(47, 143, 95, 0.4);
+    background: rgba(47, 143, 95, 0.06);
+  }
+
+  .glossary-cat-tab.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #ffffff;
+  }
+
+  .glossary-cat-panel {
+    min-height: 0;
+  }
+
   .glossary-browse-block {
-    margin-bottom: 32px;
+    margin-bottom: 0;
     padding: 24px;
     background: #ffffff;
     border: 1px solid rgba(47, 143, 95, 0.14);
@@ -303,41 +370,43 @@
 
   .glossary-browse-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-    gap: 12px;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 10px;
   }
 
   .glossary-browse-item {
-    border-radius: 12px;
-    padding: 14px;
-    background: var(--gray-100);
-    border: 1px solid rgba(47, 143, 95, 0.12);
+    border-radius: 999px;
+    padding: 10px 14px;
+    background: #ffffff;
+    border: 1px solid rgba(47, 143, 95, 0.18);
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+  }
+
+  .glossary-browse-item:hover {
+    border-color: rgba(47, 143, 95, 0.35);
+    background: rgba(47, 143, 95, 0.06);
+  }
+
+  @media (max-width: 640px) {
+    .glossary-browse-grid {
+      grid-template-columns: 1fr;
+    }
   }
 
   .glossary-browse-name {
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 700;
     color: var(--text-primary);
-    margin-bottom: 6px;
+    margin-bottom: 0;
   }
 
   .glossary-browse-desc {
-    font-size: 12px;
-    color: var(--gray-400);
-    line-height: 1.5;
-    margin-bottom: 10px;
+    display: none;
   }
 
   .glossary-browse-ai {
-    font-size: 12px;
-    font-weight: 700;
-    padding: 8px 12px;
-    border-radius: 8px;
-    border: 1px solid rgba(47, 143, 95, 0.35);
-    background: rgba(47, 143, 95, 0.08);
-    color: var(--accent);
-    cursor: pointer;
-    font-family: inherit;
+    display: none;
   }
 
   .glossary-browse-ai:hover {
@@ -345,13 +414,14 @@
   }
 
 </style>
-<link rel="stylesheet" href="css/lumi-chat.css?v=20260525">
+<link rel="stylesheet" href="css/lumi-chat.css?v=20260609">
 </head>
 <body>
 
 <nav>
   <a href="주린닷컴홈피.html" class="nav-logo">
-    <img src="assets/ui/jurin-logo.png" alt="주린닷컴 로고" class="nav-logo-image">
+    <img class="logo-icon" src="assets/brand/jurin-logo-icon.png?v=20260607" alt="" width="36" height="36" decoding="async">
+    <div class="logo-text">주린<span>닷컴</span></div>
   </a>
   <ul class="nav-menu">
     <li><a href="guide.html">가이드</a></li>
@@ -399,56 +469,10 @@
       </div>
     </div>
 
-    <div id="glossaryCategories" class="glossary-browse-root" aria-label="증권사식 용어 카테고리"></div>
-
-    <div class="popular-terms">
-      <div class="popular-terms-title">자주 찾는 용어</div>
-      <div class="terms-grid">
-        <div class="term-card" onclick="searchPopularTerm('PER')">
-          <div class="term-card-name">PER (주가수익비율)</div>
-          <div class="term-card-desc">주가를 주당순이익으로 나눈 값. 낮을수록 저평가</div>
-        </div>
-        <div class="term-card" onclick="searchPopularTerm('ROE')">
-          <div class="term-card-name">ROE (자기자본수익률)</div>
-          <div class="term-card-desc">기업의 자본을 얼마나 효율적으로 사용했는지 나타내는 지표</div>
-        </div>
-        <div class="term-card" onclick="searchPopularTerm('배당주')">
-          <div class="term-card-name">배당주</div>
-          <div class="term-card-desc">주주들에게 이익을 배분하는 주식</div>
-        </div>
-        <div class="term-card" onclick="searchPopularTerm('시가총액')">
-          <div class="term-card-name">시가총액</div>
-          <div class="term-card-desc">주식 가격 × 발행주식수로 계산되는 기업 가치</div>
-        </div>
-        <div class="term-card" onclick="searchPopularTerm('변동성')">
-          <div class="term-card-name">변동성</div>
-          <div class="term-card-desc">주가가 얼마나 자주 변동하는지 나타내는 지표</div>
-        </div>
-        <div class="term-card" onclick="searchPopularTerm('포트폴리오')">
-          <div class="term-card-name">포트폴리오</div>
-          <div class="term-card-desc">투자자가 보유한 자산의 조합</div>
-        </div>
-        <div class="term-card" onclick="searchPopularTerm('체결강도')">
-          <div class="term-card-name">체결강도</div>
-          <div class="term-card-desc">매수·매도 체결 중 어느 쪽이 더 셌는지 요약한 지표</div>
-        </div>
-        <div class="term-card" onclick="searchPopularTerm('호가')">
-          <div class="term-card-name">호가</div>
-          <div class="term-card-desc">사고팔려는 가격대에 줄 선 물량</div>
-        </div>
-        <div class="term-card" onclick="searchPopularTerm('EPS')">
-          <div class="term-card-name">EPS</div>
-          <div class="term-card-desc">주 1주당 순이익 — PER의 분모</div>
-        </div>
-        <div class="term-card" onclick="searchPopularTerm('BPS')">
-          <div class="term-card-name">BPS</div>
-          <div class="term-card-desc">주 1주당 순자산 — PBR의 분모</div>
-        </div>
-        <div class="term-card" onclick="searchPopularTerm('배당성향')">
-          <div class="term-card-name">배당성향</div>
-          <div class="term-card-desc">이익 중 얼마를 배당으로 줄지 비율</div>
-        </div>
-      </div>
+    <div class="glossary-browse" aria-label="카테고리별 용어">
+      <h2 class="glossary-browse-heading">카테고리별 용어</h2>
+      <div id="glossaryCategoryTabs" class="glossary-cat-tabs"></div>
+      <div id="glossaryCategoryPanel" class="glossary-cat-panel"></div>
     </div>
   </div>
 </div>
@@ -539,42 +563,73 @@
   function renderImportantSummaryHtml(raw) {
     const text = normalizeTermAnswerText(raw);
     if (!text) return '';
-    const brushClass = ['brush-1', 'brush-2', 'brush-3', 'brush-4'];
     const keywordPattern = /(핵심|중요|위험|주의|활용|예시|의미|지표|수익|손실|변동성|비율|목표|추세|매수|매도|보유|%|원)/;
     const sentenceRegex = /[^.!?\n]+(?:[.!?…]+|$)/g;
-    const lines = text.split('\n').map(function (line) {
-      const sentences = (line.match(sentenceRegex) || [line]).map(function (s) { return s.trim(); }).filter(Boolean);
-      if (!sentences.length) return '';
-      const pickCount = Math.min(3, Math.max(1, Math.round(sentences.length / 3)));
-      const ranked = sentences.map(function (sentence, idx) {
-        let score = 0;
-        if (keywordPattern.test(sentence)) score += 3;
-        if (/\d/.test(sentence)) score += 2;
-        if (sentence.length >= 20 && sentence.length <= 88) score += 1;
-        return { idx: idx, score: score, rand: Math.random() };
-      });
-      ranked.sort(function (a, b) { return (b.score - a.score) || (a.rand - b.rand); });
-      const selected = new Set(ranked.slice(0, pickCount).map(function (r) { return r.idx; }));
-      return sentences.map(function (sentence, idx) {
-        const safe = escapeHtml(sentence);
-        if (!selected.has(idx)) return safe;
-        const cls = brushClass[Math.floor(Math.random() * brushClass.length)];
-        return '<span class="important-line ' + cls + '">' + safe + '</span>';
-      }).join(' ');
-    });
-    return lines.join('<br>');
+
+    const sentences = (text.match(sentenceRegex) || [])
+      .map(function (s) { return s.trim(); })
+      .filter(Boolean);
+
+    let pick = '';
+    for (let i = 0; i < sentences.length; i++) {
+      if (keywordPattern.test(sentences[i]) && sentences[i].length >= 12) {
+        pick = sentences[i];
+        break;
+      }
+    }
+    if (!pick && sentences.length) pick = sentences[0];
+
+    const escaped = escapeHtml(text);
+    if (!pick) return escaped.replace(/\n/g, '<br>');
+
+    const safePick = escapeHtml(pick);
+    const highlighted = escaped.replace(safePick, '<span class="important-line brush-2">' + safePick + '</span>');
+    return highlighted.replace(/\n/g, '<br>');
+  }
+
+  function firstSentences(text, maxCount) {
+    const sentenceRegex = /[^.!?\n]+(?:[.!?…]+|$)/g;
+    const sentences = (String(text || '').match(sentenceRegex) || [])
+      .map(function (s) { return s.trim(); })
+      .filter(Boolean);
+    if (!sentences.length) return '';
+    return sentences.slice(0, Math.max(1, maxCount || 2)).join(' ');
   }
 
   function renderAnswer(termName, answer) {
     const resultContainer = document.getElementById('resultContainer');
     resultContainer.classList.remove('loading');
 
-    const safeAnswer = renderImportantSummaryHtml(answer);
+    const normalized = normalizeTermAnswerText(answer);
+    const preset =
+      window.JurinStockTerms &&
+      typeof window.JurinStockTerms.getOfficialSummaryPreset === 'function'
+        ? window.JurinStockTerms.getOfficialSummaryPreset(termName)
+        : null;
+    const officialRaw = preset && preset.summary ? preset.summary : normalized;
+    const officialSummary = firstSentences(officialRaw, 3);
+    const bodyHtml = renderImportantSummaryHtml(normalized);
     resultContainer.innerHTML = `
       <div class="term-definition">
         <div class="term-title">${escapeHtml(termName)}</div>
         <div class="term-content">
-          ${safeAnswer}
+          <div class="term-section">
+            <div class="term-section-title">공식 설명</div>
+            <div class="term-section-body term-summary-box term-official-box">${escapeHtml(officialSummary || normalized || '')}</div>
+            ${
+              preset && preset.sourceLabel
+                ? `<div class="term-source">${
+                    preset.sourceUrl
+                      ? `출처: <a href="${escapeHtml(preset.sourceUrl)}" target="_blank" rel="noopener">${escapeHtml(preset.sourceLabel)}</a>`
+                      : `출처: ${escapeHtml(preset.sourceLabel)}`
+                  }</div>`
+                : ''
+            }
+          </div>
+          <div class="term-section">
+            <div class="term-section-title">설명</div>
+            <div class="term-section-body term-summary-box">${bodyHtml}</div>
+          </div>
         </div>
       </div>
     `;
@@ -630,8 +685,10 @@
   });
 
   document.addEventListener('DOMContentLoaded', function () {
-    if (window.JurinStockTerms && typeof JurinStockTerms.mountGlossaryBrowse === 'function') {
-      JurinStockTerms.mountGlossaryBrowse('glossaryCategories');
+    if (window.JurinStockTerms) {
+      if (typeof JurinStockTerms.mountGlossaryTabs === 'function') {
+        JurinStockTerms.mountGlossaryTabs('glossaryCategoryTabs', 'glossaryCategoryPanel');
+      }
     }
     if (window.JurinStockAutocomplete && window.JurinStockTerms && JurinStockTerms.GLOSSARY_CATEGORIES) {
       var termNames = [];
@@ -656,6 +713,6 @@
 </script>
 <script src="js/common-auth.js"></script>
 
-<script src="js/lumi-chat.js?v=20260525"></script>
+<script src="js/lumi-chat.js?v=20260609"></script>
 </body>
 </html>

@@ -1,13 +1,15 @@
-<!DOCTYPE html>
-<!-- 업종/섹터 차트(lightweight-charts). -->
+﻿<!DOCTYPE html>
+<!-- 관심섹터 — 종목 상세는 market.html과 동일 화면으로 연결 -->
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="assets/brand/favicon.ico?v=20260607" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/brand/favicon-32x32.png?v=20260607">
+<link rel="apple-touch-icon" sizes="180x180" href="assets/brand/apple-touch-icon.png?v=20260607">
 <title>섹터 상세 - 주린닷컴</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css?v=20260428">
-<script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
 <style>
   .sector-page {
     min-height: 100vh;
@@ -40,8 +42,8 @@
     font-size: 12px;
     font-weight: 700;
     color: var(--accent);
-    border: 1px solid rgba(0, 212, 255, 0.35);
-    background: rgba(0, 212, 255, 0.08);
+    border: 1px solid rgba(47, 143, 95, 0.32);
+    background: rgba(47, 143, 95, 0.1);
   }
 
   .sector-name {
@@ -50,6 +52,19 @@
     font-weight: 900;
     letter-spacing: -0.02em;
     color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .sector-badge .stock-logo-wrap {
+    width: 40px;
+    height: 40px;
+  }
+
+  .sector-name .stock-cell-toss {
+    gap: 12px;
   }
 
   .sector-desc {
@@ -160,18 +175,146 @@
     color: var(--text-primary);
   }
 
-  .stock-name {
+  .stocks-table th.watch-col-th,
+  .stocks-table td.watch-cell {
+    width: 44px;
+    text-align: center;
+    vertical-align: middle;
+    padding: 4px 2px;
+  }
+
+  .watch-heart-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    margin: 0;
+    padding: 0;
+    border: none;
+    border-radius: 10px;
+    background: transparent;
+    color: var(--gray-300, #c5c5c5);
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+    transition: color 0.15s ease, background 0.15s ease;
+  }
+
+  .watch-heart-btn:hover {
+    background: rgba(233, 30, 99, 0.08);
+    color: #e91e63;
+  }
+
+  .watch-heart-btn.is-on {
+    color: #e91e63;
     font-weight: 700;
   }
 
-  .stock-code {
-    font-size: 12px;
-    color: var(--gray-400);
-    margin-top: 2px;
+  .stock-name {
+    font-weight: 600;
+    color: var(--text-primary);
   }
 
+  .stock-cell-toss {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+  }
+
+  .stock-cell-toss .stock-name {
+    min-width: 0;
+  }
+
+  .stock-logo-wrap {
+    flex: 0 0 auto;
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    overflow: hidden;
+    background: #ffffff;
+    border: 1px solid rgba(47, 143, 95, 0.18);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .stock-logo-img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    object-position: 50% 50%;
+    display: block;
+    padding: 2px;
+    background: #ffffff;
+    box-sizing: border-box;
+  }
+
+  .stock-logo-img.stock-logo-img--squareish {
+    padding: 6px;
+  }
+
+  .stock-logo-img[data-logo-file="005930"],
+  .stock-logo-img[data-logo-file="071050"] {
+    object-fit: cover;
+    object-position: 50% 50%;
+    padding: 0;
+    border-radius: 22%;
+    transform: scale(1.08);
+    transform-origin: center center;
+  }
+
+  .stock-logo-wrap--detail {
+    width: 60px;
+    height: 60px;
+  }
+
+  .stock-logo-wrap--placeholder {
+    font-size: 15px;
+    font-weight: 800;
+    color: #2f6a4e;
+    line-height: 1;
+  }
+
+  .jurin-watch-toast {
+    position: fixed;
+    left: 50%;
+    bottom: 28px;
+    transform: translateX(-50%) translateY(12px);
+    z-index: 10050;
+    max-width: min(420px, calc(100vw - 32px));
+    padding: 12px 18px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #fff;
+    background: rgba(33, 33, 33, 0.92);
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.22);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+  }
+
+  .jurin-watch-toast:not([hidden]) {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+    pointer-events: auto;
+  }
+
+  .jurin-watch-toast.is-warn { background: rgba(180, 83, 9, 0.95); }
+  .jurin-watch-toast.is-error { background: rgba(183, 28, 28, 0.95); }
+  .jurin-watch-toast.is-ok { background: rgba(27, 94, 32, 0.95); }
+
   .stock-price {
+    font-weight: 700;
     color: var(--accent);
+  }
+
+  .stock-price.up { color: var(--market-up); }
+  .stock-price.down { color: var(--market-down); }
+  .stock-price.flat {
+    color: var(--quote-flat);
     font-weight: 700;
   }
 
@@ -180,11 +323,11 @@
   }
 
   .stock-change.up {
-    color: var(--up);
+    color: var(--market-up);
   }
 
   .stock-change.down {
-    color: var(--down);
+    color: var(--market-down);
   }
 
   .stock-change.flat {
@@ -194,8 +337,8 @@
   }
 
   @media (max-width: 900px) {
-    .stocks-table th:nth-child(5),
-    .stocks-table td:nth-child(5) {
+    .stocks-table th:nth-child(6),
+    .stocks-table td:nth-child(6) {
       display: none;
     }
   }
@@ -208,233 +351,16 @@
     transition: background 0.15s;
   }
   .stock-row:hover {
-    background: rgba(79, 158, 255, 0.07);
-  }
-  .stock-row.active {
-    background: rgba(79, 158, 255, 0.12);
-  }
-
-  /* ── 주식 상세 뷰 ────────────────────────────── */
-  .sector-detail-view.hidden { display: none; }
-
-  .stock-detail-view {
-    background: rgba(255,255,255,0.04);
-    border: 1px solid rgba(79,158,255,0.16);
-    border-radius: 16px;
-    overflow: hidden;
-    margin-top: 24px;
-  }
-
-  .stock-detail-header {
-    padding: 20px;
-    border-bottom: 1px solid rgba(79,158,255,0.15);
-    background:
-      radial-gradient(circle at 15% 10%, rgba(46,115,255,0.2), transparent 42%),
-      radial-gradient(circle at 75% 10%, rgba(0,212,255,0.16), transparent 45%),
-      linear-gradient(180deg, rgba(11,24,46,0.85), rgba(8,16,31,0.9));
-  }
-
-  .btn-back {
-    background: transparent;
-    border: 1px solid rgba(79,158,255,0.3);
-    color: var(--gray-200);
-    border-radius: 10px;
-    padding: 8px 14px;
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-    font-family: inherit;
-    transition: all 0.2s;
-  }
-  .btn-back:hover {
-    background: rgba(47,143,95,0.12);
-    color: var(--accent);
-  }
-
-  .stock-detail-head {
-    padding: 26px 24px 12px;
-    border-bottom: 1px solid rgba(79,158,255,0.18);
-  }
-  .stock-detail-top {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 12px;
-  }
-  .stock-detail-name {
-    font-size: 26px;
-    font-weight: 800;
-    letter-spacing: -0.4px;
-    color: var(--text-primary);
-  }
-  .stock-detail-code {
-    margin-top: 4px;
-    font-size: 13px;
-    color: var(--gray-400);
-    font-family: 'DM Mono', monospace;
-  }
-  .stock-detail-price {
-    margin-top: 18px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-  .detail-price-main {
-    font-size: 38px;
-    font-weight: 800;
-    letter-spacing: -0.6px;
-  }
-  .detail-price-sub {
-    display: inline-flex;
-    gap: 8px;
-    align-items: center;
-    font-size: 14px;
-    font-weight: 700;
-  }
-  .detail-price-sub.up   { color: var(--up); }
-  .detail-price-sub.down { color: var(--down); }
-  .detail-price-sub.flat {
-    color: #dce8e2;
-    font-weight: 700;
-    letter-spacing: -0.02em;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.28);
-  }
-
-  .detail-chip {
-    border-radius: 999px;
-    padding: 4px 10px;
-    font-size: 12px;
-    font-weight: 700;
-    border: 1px solid transparent;
-  }
-  .detail-chip.up   { background: rgba(255,71,71,0.16); border-color: rgba(255,71,71,0.4); color: var(--up); }
-  .detail-chip.down { background: rgba(79,158,255,0.16); border-color: rgba(79,158,255,0.4); color: var(--down); }
-  .detail-chip.flat {
-    background: rgba(255, 255, 255, 0.12);
-    border-color: rgba(255, 255, 255, 0.28);
-    color: #eef5f1;
-    font-weight: 700;
-  }
-
-  @keyframes detail-flash-up {
-    0%   { background: rgba(239, 68, 68, 0.28); }
-    100% { background: transparent; }
-  }
-  @keyframes detail-flash-down {
-    0%   { background: rgba(37, 99, 235, 0.26); }
-    100% { background: transparent; }
-  }
-  .detail-price-main.flash-up   { animation: detail-flash-up   0.7s ease-out; border-radius: 8px; }
-  .detail-price-main.flash-down { animation: detail-flash-down 0.7s ease-out; border-radius: 8px; }
-
-  .stock-detail-body {
-    padding: 16px 20px 24px;
-  }
-  .detail-toolbar {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 14px;
-  }
-  .detail-range-btn {
-    flex: 1;
-    min-width: 0;
-    border: 1px solid rgba(79,158,255,0.2);
-    background: rgba(255,255,255,0.03);
-    color: var(--gray-200);
-    border-radius: 10px;
-    padding: 8px 0;
-    font-size: 12px;
-    font-weight: 700;
-    cursor: pointer;
-    font-family: inherit;
-  }
-  .detail-range-btn.active {
-    background: rgba(79,158,255,0.18);
-    border-color: rgba(79,158,255,0.45);
-    color: #dff3ff;
-  }
-
-  .chart-placeholder {
-    border: 1px solid rgba(79,158,255,0.18);
-    border-radius: 16px;
-    padding: 14px;
-    margin-bottom: 14px;
-    background: rgba(255,255,255,0.02);
-  }
-  .chart-skeleton {
-    width: 100%;
-    height: 200px;
-    border-radius: 12px;
-    background: linear-gradient(115deg, rgba(79,158,255,0.05), rgba(79,158,255,0.18), rgba(79,158,255,0.05));
-    animation: chart-wave 1.7s linear infinite;
-  }
-  @keyframes chart-wave {
-    0%   { background-position: -260px 0; }
-    100% { background-position:  260px 0; }
-  }
-  .chart-note {
-    margin-top: 10px;
-    font-size: 12px;
-    color: var(--gray-400);
-  }
-
-  .detail-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-    margin-bottom: 14px;
-  }
-  .detail-card {
-    border-radius: 12px;
-    border: 1px solid rgba(79,158,255,0.16);
-    padding: 12px;
-    background: rgba(255,255,255,0.02);
-  }
-  .detail-label {
-    font-size: 12px;
-    color: var(--gray-400);
-    margin-bottom: 6px;
-  }
-  .detail-value {
-    font-size: 17px;
-    font-weight: 700;
-    color: var(--text-primary);
-  }
-
-  .detail-cta {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-    margin-bottom: 14px;
-  }
-  .detail-buy, .detail-sell {
-    border: none;
-    border-radius: 12px;
-    padding: 12px 10px;
-    font-size: 14px;
-    font-weight: 800;
-    cursor: pointer;
-    font-family: inherit;
-  }
-  .detail-buy  { background: linear-gradient(135deg, #ff5f64, #ff8157); color: #fff; }
-  .detail-sell { background: linear-gradient(135deg, #3182f6, #5b9cf9); color: #fff; }
-
-  .detail-foot {
-    border-radius: 12px;
-    border: 1px solid rgba(79,158,255,0.14);
-    background: rgba(255,255,255,0.02);
-    padding: 12px;
-    font-size: 13px;
-    color: var(--gray-200);
-    line-height: 1.55;
+    background: rgba(47, 143, 95, 0.08);
   }
 </style>
-<link rel="stylesheet" href="css/lumi-chat.css?v=20260525">
+<link rel="stylesheet" href="css/lumi-chat.css?v=20260609">
 </head>
 <body>
 <nav>
   <a href="주린닷컴홈피.html" class="nav-logo">
-    <img src="assets/ui/jurin-logo.png" alt="주린닷컴 로고" class="nav-logo-image">
+    <img class="logo-icon" src="assets/brand/jurin-logo-icon.png?v=20260607" alt="" width="36" height="36" decoding="async">
+    <div class="logo-text">주린<span>닷컴</span></div>
   </a>
   <ul class="nav-menu">
     <li><a href="guide.html">가이드</a></li>
@@ -458,7 +384,14 @@
     <div id="sectorMainView">
     <section class="sector-hero">
       <div class="sector-badge" id="sectorBadge">관심 섹터</div>
-      <h1 class="sector-name" id="sectorName">섹터 정보를 불러오는 중...</h1>
+      <h1 class="sector-name" id="sectorName">
+        <span class="stock-cell-toss" id="sectorHeroCell" hidden>
+          <span id="sectorHeroIconWrap" class="stock-logo-wrap stock-logo-wrap--detail">
+            <img id="sectorHeroIcon" class="stock-logo-img" src="" alt="" decoding="async">
+          </span>
+          <span id="sectorNameText">섹터 정보를 불러오는 중...</span>
+        </span>
+      </h1>
       <p class="sector-desc" id="sectorDesc">선택한 섹터의 핵심 포인트를 요약해 보여줍니다.</p>
       <div class="sector-keywords" id="sectorKeywords"></div>
       <div class="sector-actions">
@@ -477,6 +410,7 @@
       <table class="stocks-table">
         <thead>
           <tr>
+            <th class="watch-col-th" aria-label="관심 종목">♥</th>
             <th>종목명</th>
             <th>현재가</th>
             <th>전일대비</th>
@@ -485,77 +419,44 @@
           </tr>
         </thead>
         <tbody id="sectorStocksBody">
-          <tr><td colspan="5" style="text-align:center;color:var(--gray-400);padding:24px">시세 불러오는 중...</td></tr>
+          <tr><td colspan="6" style="text-align:center;color:var(--gray-400);padding:24px">시세 불러오는 중...</td></tr>
         </tbody>
       </table>
     </section>
     </div>
 
-    <!-- ── 종목 상세 뷰 ── -->
-    <div id="stockDetailView" class="sector-detail-view hidden" aria-hidden="true">
-      <div class="stock-detail-header">
-        <button class="btn-back" type="button" onclick="closeStockDetail()">← 종목 목록으로 돌아가기</button>
-      </div>
-      <div class="stock-detail-head">
-        <div class="stock-detail-top">
-          <div>
-            <div class="stock-detail-name" id="detailName">-</div>
-            <div class="stock-detail-code" id="detailCode">-</div>
-          </div>
-        </div>
-        <div class="stock-detail-price">
-          <div class="detail-price-main" id="detailPrice">₩0</div>
-          <div class="detail-price-sub flat" id="detailChange">±0 (0.00%)</div>
-        </div>
-      </div>
-      <div class="stock-detail-body">
-        <div class="detail-toolbar">
-          <button class="detail-range-btn active" type="button" data-range="1d" onclick="onRangeClick(this)">1일</button>
-          <button class="detail-range-btn" type="button" data-range="1w" onclick="onRangeClick(this)">1주</button>
-          <button class="detail-range-btn" type="button" data-range="1m" onclick="onRangeClick(this)">1개월</button>
-          <button class="detail-range-btn" type="button" data-range="1y" onclick="onRangeClick(this)">1년</button>
-        </div>
-        <div class="chart-placeholder" id="chartWrapper">
-          <div id="stockChart" style="width:100%;height:200px;display:none;"></div>
-          <div class="chart-skeleton" id="chartSkeleton"></div>
-          <div class="chart-note" id="chartNote" style="display:none;"></div>
-        </div>
-        <div class="detail-grid">
-          <div class="detail-card">
-            <div class="detail-label">거래량</div>
-            <div class="detail-value" id="detailVolume">-</div>
-          </div>
-          <div class="detail-card">
-            <div class="detail-label">상태</div>
-            <div class="detail-value" id="detailState">실시간</div>
-          </div>
-          <div class="detail-card">
-            <div class="detail-label">전일대비</div>
-            <div class="detail-value" id="detailDelta">-</div>
-          </div>
-          <div class="detail-card">
-            <div class="detail-label">등락률</div>
-            <div class="detail-value" id="detailRate">-</div>
-          </div>
-        </div>
-        <div class="detail-cta">
-          <button class="detail-buy" type="button">매수</button>
-          <button class="detail-sell" type="button">매도</button>
-        </div>
-        <div class="detail-foot" id="detailFootNote">
-          종목을 누르면 상세 정보가 열립니다.
-        </div>
-      </div>
-    </div>
-
   </div>
 </main>
 
+<div id="jurinWatchToast" class="jurin-watch-toast" role="status" aria-live="polite" hidden></div>
+
 <script src="js/api-base.js"></script>
+<script src="js/sector-icons.js"></script>
+<script src="js/common-auth.js"></script>
 <script>
   const BACKEND = window.JURIN_API_BASE || 'http://localhost:5000';
   const POLL_INTERVAL = 2500;
-  const DETAIL_POLL_INTERVAL = 2000;
+  let jurinWatchlistItems = [];
+  let sectorStocksRowsCache = [];
+
+  /** backend/price.py STOCKS — 모의투자·시세 공통 마스터 */
+  const TRADEABLE_STOCKS = {
+    '005930': '삼성전자', '000660': 'SK하이닉스', '035420': 'NAVER', '005380': '현대차',
+    '000270': '기아', '035720': '카카오', '373220': 'LG에너지솔루션', '207940': '삼성바이오로직스',
+    '068270': '셀트리온', '005490': 'POSCO홀딩스', '003670': '포스코퓨처엠', '006400': '삼성SDI',
+    '051910': 'LG화학', '012330': '현대모비스', '028260': '삼성물산', '066570': 'LG전자',
+    '096770': 'SK이노베이션', '017670': 'SK텔레콤', '015760': '한국전력', '105560': 'KB금융',
+    '055550': '신한지주', '086790': '하나금융지주', '316140': '우리금융지주', '032830': '삼성생명',
+    '000810': '삼성화재', '009150': '삼성전기', '018260': '삼성에스디에스', '267250': 'HD현대',
+    '329180': 'HD현대중공업', '010130': '고려아연', '011200': 'HMM', '047050': '포스코인터내셔널',
+    '033780': 'KT&G', '030200': 'KT', '259960': '크래프톤', '352820': '하이브',
+    '302440': 'SK바이오사이언스', '251270': '넷마블', '161390': '한국타이어앤테크놀로지',
+    '034020': '두산에너빌리티', '004020': '현대제철', '003550': 'LG', '010950': 'S-Oil',
+    '090430': '아모레퍼시픽', '011170': '롯데케미칼', '000100': '유한양행', '078930': 'GS',
+    '271560': '오리온', '005935': '삼성전자우', '036570': '엔씨소프트', '001040': 'CJ',
+    '071050': '한국금융지주', '097950': 'CJ제일제당',
+  };
+  const TRADEABLE_CODES = new Set(Object.keys(TRADEABLE_STOCKS));
 
   const sectorData = {
     'IT 및 기술': {
@@ -565,15 +466,13 @@
       stocks: [
         { name: '삼성전자', code: '005930' },
         { name: 'SK하이닉스', code: '000660' },
+        { name: 'NAVER', code: '035420' },
         { name: '카카오', code: '035720' },
-        { name: '네이버', code: '035420' },
         { name: '크래프톤', code: '259960' },
-        { name: 'NHNCLOUD', code: '101400' },
-        { name: '더존비즈온', code: '012510' },
-        { name: '한글과컴퓨터', code: '030520' },
-        { name: '카카오뱅크', code: '323410' },
-        { name: '비트나인', code: '357880' }
-      ]
+        { name: '엔씨소프트', code: '036570' },
+        { name: '넷마블', code: '251270' },
+        { name: '삼성에스디에스', code: '018260' },
+      ],
     },
     '전기/전자': {
       emoji: '',
@@ -581,16 +480,12 @@
       keywords: ['디스플레이', 'OLED', '전자부품', 'PCB'],
       stocks: [
         { name: 'LG전자', code: '066570' },
-        { name: 'LG디스플레이', code: '034220' },
         { name: '삼성전기', code: '009150' },
-        { name: 'LG이노텍', code: '011070' },
-        { name: '파트론', code: '091700' },
-        { name: '대덕전자', code: '008060' },
-        { name: '이수페타시스', code: '007660' },
-        { name: '심텍', code: '222800' },
-        { name: '코리아써키트', code: '007810' },
-        { name: '비에이치', code: '090460' }
-      ]
+        { name: 'LG', code: '003550' },
+        { name: '삼성SDI', code: '006400' },
+        { name: '삼성전자', code: '005930' },
+        { name: 'SK하이닉스', code: '000660' },
+      ],
     },
     '금융': {
       emoji: '',
@@ -598,16 +493,13 @@
       keywords: ['금리', 'NIM', '대출 성장', '배당'],
       stocks: [
         { name: 'KB금융', code: '105560' },
-        { name: 'NH투자증권', code: '005940' },
         { name: '신한지주', code: '055550' },
         { name: '하나금융지주', code: '086790' },
         { name: '우리금융지주', code: '316140' },
         { name: '삼성생명', code: '032830' },
         { name: '삼성화재', code: '000810' },
-        { name: '미래에셋증권', code: '006800' },
         { name: '한국금융지주', code: '071050' },
-        { name: '카카오페이', code: '377300' }
-      ]
+      ],
     },
     '제조': {
       emoji: '',
@@ -620,11 +512,9 @@
         { name: '현대모비스', code: '012330' },
         { name: '두산에너빌리티', code: '034020' },
         { name: 'HD현대중공업', code: '329180' },
-        { name: '현대위아', code: '011210' },
-        { name: '한국조선해양', code: '009540' },
-        { name: '현대글로비스', code: '086280' },
-        { name: '만도', code: '204320' }
-      ]
+        { name: 'HD현대', code: '267250' },
+        { name: '현대제철', code: '004020' },
+      ],
     },
     '바이오/제약': {
       emoji: '',
@@ -633,15 +523,9 @@
       stocks: [
         { name: '삼성바이오로직스', code: '207940' },
         { name: '셀트리온', code: '068270' },
-        { name: '알테오젠', code: '196170' },
         { name: '유한양행', code: '000100' },
-        { name: '한미약품', code: '128940' },
-        { name: 'HLB', code: '028300' },
-        { name: 'SK바이오팜', code: '326030' },
-        { name: '에이비엘바이오', code: '298380' },
-        { name: '삼천당제약', code: '000250' },
-        { name: '오스코텍', code: '039200' }
-      ]
+        { name: 'SK바이오사이언스', code: '302440' },
+      ],
     },
     '소비재': {
       emoji: '',
@@ -652,13 +536,9 @@
         { name: 'CJ제일제당', code: '097950' },
         { name: '오리온', code: '271560' },
         { name: '아모레퍼시픽', code: '090430' },
-        { name: 'LG생활건강', code: '051900' },
-        { name: '농심', code: '004370' },
-        { name: '하이트진로', code: '000080' },
-        { name: '롯데칠성', code: '005300' },
-        { name: '오뚜기', code: '007310' },
-        { name: '한국콜마', code: '161890' }
-      ]
+        { name: 'CJ', code: '001040' },
+        { name: 'LG', code: '003550' },
+      ],
     },
     '통신': {
       emoji: '',
@@ -667,66 +547,48 @@
       stocks: [
         { name: 'SK텔레콤', code: '017670' },
         { name: 'KT', code: '030200' },
-        { name: 'LG유플러스', code: '032640' },
-        { name: 'SK브로드밴드', code: '033630' },
-        { name: '케이티스카이라이프', code: '053210' },
-        { name: 'KT스카이라이프', code: '053210' },
-        { name: 'LG헬로비전', code: '037560' },
-        { name: '에스원', code: '012750' },
-        { name: '현대오토에버', code: '307950' },
-        { name: '인텔리안테크', code: '189300' }
-      ]
+      ],
     },
     '에너지': {
       emoji: '',
       desc: '신재생, 수소, 전력 인프라 투자 흐름과 정책 수혜가 핵심인 에너지 전환 섹터입니다.',
       keywords: ['수소', '태양광', 'ESS', '전력망 투자'],
       stocks: [
-        { name: 'HD현대일렉트릭', code: '267260' },
-        { name: '효성중공업', code: '298040' },
-        { name: 'LS ELECTRIC', code: '010120' },
-        { name: '한전기술', code: '052690' },
-        { name: '씨에스윈드', code: '112610' },
-        { name: '한화솔루션', code: '009830' },
-        { name: '대한전선', code: '001440' },
-        { name: 'S-Oil', code: '010950' },
         { name: 'SK이노베이션', code: '096770' },
-        { name: '일진파워', code: '094820' }
-      ]
+        { name: 'S-Oil', code: '010950' },
+        { name: '한국전력', code: '015760' },
+        { name: '포스코퓨처엠', code: '003670' },
+        { name: 'LG화학', code: '051910' },
+        { name: '두산에너빌리티', code: '034020' },
+        { name: '고려아연', code: '010130' },
+      ],
     },
     '부동산': {
       emoji: '',
       desc: '금리 방향과 정부 정책의 영향을 크게 받는 리츠·건설·부동산 섹터입니다.',
       keywords: ['금리', 'PF', '리츠', '주택 공급'],
       stocks: [
-        { name: '현대건설', code: '000720' },
-        { name: '대우건설', code: '047040' },
-        { name: 'GS건설', code: '006360' },
-        { name: 'DL이앤씨', code: '375500' },
-        { name: 'HDC현대산업개발', code: '294870' },
-        { name: '롯데리츠', code: '330590' },
-        { name: 'SK리츠', code: '395400' },
-        { name: '신한알파리츠', code: '293940' },
-        { name: 'ESR켄달스퀘어리츠', code: '365550' },
-        { name: '태영건설', code: '009410' }
-      ]
+        { name: '삼성물산', code: '028260' },
+        { name: 'GS', code: '078930' },
+        { name: '포스코인터내셔널', code: '047050' },
+        { name: '현대제철', code: '004020' },
+        { name: '두산에너빌리티', code: '034020' },
+        { name: 'HD현대', code: '267250' },
+        { name: 'HD현대중공업', code: '329180' },
+      ],
     },
     '유통': {
       emoji: '',
       desc: '이커머스, 대형마트, 편의점 등 내수 소비경기에 민감한 유통 섹터입니다.',
       keywords: ['이커머스', '오프라인 객수', '물류', '할인행사'],
       stocks: [
-        { name: '이마트', code: '139480' },
-        { name: '롯데쇼핑', code: '023530' },
-        { name: 'GS리테일', code: '007070' },
-        { name: '현대백화점', code: '069960' },
-        { name: 'BGF리테일', code: '282330' },
-        { name: '쿠팡', code: '000000' },
-        { name: '신세계', code: '004170' },
-        { name: '롯데하이마트', code: '071840' },
-        { name: 'CJ올리브영', code: '000000' },
-        { name: '컬리', code: '000000' }
-      ]
+        { name: '오리온', code: '271560' },
+        { name: 'CJ제일제당', code: '097950' },
+        { name: '아모레퍼시픽', code: '090430' },
+        { name: '삼성물산', code: '028260' },
+        { name: 'CJ', code: '001040' },
+        { name: 'LG', code: '003550' },
+      ],
     },
     '화학': {
       emoji: '',
@@ -736,14 +598,10 @@
         { name: 'LG화학', code: '051910' },
         { name: '롯데케미칼', code: '011170' },
         { name: 'SK이노베이션', code: '096770' },
-        { name: '한화솔루션', code: '009830' },
-        { name: '금호석유화학', code: '011780' },
-        { name: '효성화학', code: '298000' },
-        { name: '태광산업', code: '003240' },
-        { name: '코오롱인더', code: '120110' },
-        { name: '한국바스프', code: '000490' },
-        { name: '송원산업', code: '004430' }
-      ]
+        { name: 'S-Oil', code: '010950' },
+        { name: 'LG', code: '003550' },
+        { name: '포스코퓨처엠', code: '003670' },
+      ],
     },
     '서비스': {
       emoji: '',
@@ -751,52 +609,64 @@
       keywords: ['내수 회복', '광고 단가', '여행 수요', '구독 모델'],
       stocks: [
         { name: '하이브', code: '352820' },
-        { name: 'CJ ENM', code: '035760' },
-        { name: '스튜디오드래곤', code: '253450' },
-        { name: '호텔신라', code: '008770' },
-        { name: '파라다이스', code: '034230' },
-        { name: '강원랜드', code: '035250' },
-        { name: '하나투어', code: '039130' },
-        { name: '제주항공', code: '089590' },
-        { name: '에듀윌', code: '298280' },
-        { name: '메가스터디', code: '072870' }
-      ]
+        { name: '크래프톤', code: '259960' },
+        { name: '넷마블', code: '251270' },
+        { name: '엔씨소프트', code: '036570' },
+        { name: 'NAVER', code: '035420' },
+        { name: '카카오', code: '035720' },
+      ],
     },
     '지수ETF': {
       emoji: '',
       desc: 'KOSPI·KOSDAQ 등 주요 지수를 추종하는 ETF로 시장 전체 흐름에 투자합니다.',
       keywords: ['KOSPI 200', 'ETF', '인덱스', '분산투자'],
       stocks: [
-        { name: 'KODEX 200', code: '069500' },
-        { name: 'TIGER 200', code: '102110' },
-        { name: 'KODEX KOSDAQ150', code: '229200' },
-        { name: 'TIGER KOSDAQ150', code: '232080' },
-        { name: 'KODEX 레버리지', code: '122630' },
-        { name: 'TIGER 코스피', code: '091160' },
-        { name: 'KODEX 인버스', code: '114800' },
-        { name: 'TIGER 200 선물인버스2X', code: '252670' },
-        { name: 'KODEX 미국S&P500', code: '379800' },
-        { name: 'TIGER 미국나스닥100', code: '133690' }
-      ]
+        { name: '삼성전자', code: '005930' },
+        { name: 'SK하이닉스', code: '000660' },
+        { name: 'NAVER', code: '035420' },
+        { name: '현대차', code: '005380' },
+        { name: 'KB금융', code: '105560' },
+        { name: '신한지주', code: '055550' },
+        { name: '셀트리온', code: '068270' },
+        { name: 'LG에너지솔루션', code: '373220' },
+      ],
     },
     '섹터ETF': {
       emoji: '',
       desc: '특정 산업 섹터에 집중 투자하는 ETF로 섹터별 성장 트렌드를 반영합니다.',
       keywords: ['섹터 투자', '테마', 'ETF', '집중형'],
       stocks: [
-        { name: 'KODEX 반도체', code: '091160' },
-        { name: 'TIGER 2차전지테마', code: '305720' },
-        { name: 'KODEX 바이오', code: '244580' },
-        { name: 'TIGER 방산&우주', code: '357870' },
-        { name: 'KODEX AI전공정반도체', code: '396500' },
-        { name: 'TIGER 글로벌리튬&2차전지', code: '381170' },
-        { name: 'KODEX K-신재생에너지액티브', code: '396510' },
-        { name: 'TIGER 미국필라델피아반도체나스닥', code: '381180' },
-        { name: 'KODEX 은행', code: '091170' },
-        { name: 'TIGER 헬스케어', code: '143860' }
-      ]
+        { name: '삼성전자', code: '005930' },
+        { name: 'SK하이닉스', code: '000660' },
+        { name: 'LG에너지솔루션', code: '373220' },
+        { name: '삼성바이오로직스', code: '207940' },
+        { name: 'KB금융', code: '105560' },
+        { name: 'LG화학', code: '051910' },
+        { name: 'LG전자', code: '066570' },
+        { name: 'POSCO홀딩스', code: '005490' },
+      ],
     },
   };
+
+  function filterSectorTradeableStocks() {
+    Object.keys(sectorData).forEach((key) => {
+      const sec = sectorData[key];
+      if (!sec || !Array.isArray(sec.stocks)) return;
+      sec.stocks = sec.stocks.filter((s) => {
+        if (!s || !s.code || s.code === '000000' || !TRADEABLE_CODES.has(s.code)) return false;
+        s.name = TRADEABLE_STOCKS[s.code] || s.name;
+        return true;
+      });
+    });
+  }
+  filterSectorTradeableStocks();
+
+  /** 시장 페이지와 동일한 종목 상세(차트·재무·뉴스 등) */
+  function openStockDetail(code) {
+    const c = String(code || '').trim();
+    if (!/^\d{6}$/.test(c)) return;
+    window.location.href = `market.html?code=${encodeURIComponent(c)}`;
+  }
 
   const sectorAliases = {
     'IT': 'IT 및 기술',
@@ -827,12 +697,6 @@
 
   let selectedSector = null;
   let pollHandle = null;
-  let detailPollHandle = null;
-  let selectedStockCode = null;
-  let detailLastRenderedPrice = null;
-  let stockDetailCache = {};   // code -> 마지막 정상 시세
-  let stockChartInstance = null;
-  let currentChartRange = '1d';
 
   function resolveSectorName(rawName) {
     const cleaned = (rawName || '').trim();
@@ -840,6 +704,30 @@
     if (sectorData[cleaned]) return cleaned;
     if (cleaned === '의료·바이오' || cleaned === '의료바이오') return '바이오/제약';
     return sectorAliases[cleaned] || cleaned;
+  }
+
+  function applySectorPageIcons(sectorName) {
+    const heroCell = document.getElementById('sectorHeroCell');
+    const heroIcon = document.getElementById('sectorHeroIcon');
+    const badge = document.getElementById('sectorBadge');
+    const url = window.JurinSectorIcons && typeof JurinSectorIcons.urlFor === 'function'
+      ? JurinSectorIcons.urlFor(sectorName)
+      : '';
+    if (heroCell && heroIcon) {
+      if (url) {
+        heroIcon.src = url;
+        heroCell.hidden = false;
+      } else {
+        heroCell.hidden = true;
+        heroIcon.removeAttribute('src');
+      }
+    }
+    if (badge && sectorName) {
+      const iconHtml = window.JurinSectorIcons && JurinSectorIcons.imgHtml
+        ? JurinSectorIcons.imgHtml(sectorName)
+        : '';
+      badge.innerHTML = `${iconHtml}<span>${sectorName} 섹터</span>`;
+    }
   }
 
   function formatCurrency(value) {
@@ -853,10 +741,204 @@
     return n.toLocaleString();
   }
 
+  function escapeHtml(value) {
+    return String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function quoteDirection(stock) {
+    if (!stock || stock.loading) return 'flat';
+    const d = String(stock.direction || '').toLowerCase();
+    if (d === 'up' || d === 'down' || d === 'flat') return d;
+    const ch = Number(stock.change);
+    if (Number.isFinite(ch)) {
+      if (ch > 0) return 'up';
+      if (ch < 0) return 'down';
+    }
+    const r = Number(stock.rate);
+    if (Number.isFinite(r)) {
+      if (r > 0) return 'up';
+      if (r < 0) return 'down';
+    }
+    return 'flat';
+  }
+
+  const STOCK_LOGO_ASSET_VERSION = '20260512h';
+  const STOCK_LOGO_NO_SQUAREISH_CODES = new Set(['005930', '011170', '068270', '071050']);
+  const STOCK_LOGO_FILE_CODES = new Set([
+    '000080', '000100', '000250', '000270', '000660', '000720', '001040', '004020', '004370', '005380', '005490',
+    '005930', '005940', '006800', '007310', '007660', '007810', '008060', '009410', '010130', '010950', '011170',
+    '011200', '012330', '012510', '015760', '028300', '030200', '030520', '033780', '034020', '035420', '035720',
+    '036570', '039200', '042670', '047040', '055550', '066570', '068270', '071050', '078930', '086790', '090430', '090460',
+    '091160', '091700', '101400', '105560', '128940', '161390', '161890', '196170', '222800', '251270', '259960',
+    '271560', '294870', '298380', '305720', '316140', '352820', '357880', '365550', '375500',
+  ]);
+  const STOCK_LOGO_ALIAS_TO_FILE = {
+    '005935': '005930', '000810': '005930', '028260': '005930', '009150': '005930', '010140': '005930',
+    '032830': '005930', '018260': '005930', '016360': '005930', '207940': '005930', '006400': '005930',
+    '003550': '066570', '051910': '066570', '034220': '066570', '373220': '066570', '011070': '066570', '032640': '066570',
+    '051900': '066570',
+    '003670': '005490', '047050': '005490',
+    '329180': '042670', '267250': '042670',
+    '096770': '000660', '017670': '000660', '302440': '000660', '034730': '000660',
+    '001740': '000660', '018670': '000660', '326030': '000660', '285130': '000660', '395400': '000660',
+    '000150': '034020',
+    '000120': '001040', '097950': '001040',
+    '377300': '035720', '323410': '035720',
+    '293940': '055550',
+    '006360': '078930',
+    '005300': '011170', '330590': '011170',
+    '244580': '091160', '396500': '091160', '396510': '091160', '091170': '091160',
+    '357870': '305720', '381170': '305720', '381180': '305720', '143860': '305720',
+  };
+
+  function resolveStockLogoFileCode(code) {
+    const c = String(code || '').trim();
+    if (!c || c.length !== 6) return '';
+    const mapped = STOCK_LOGO_ALIAS_TO_FILE[c] || c;
+    return STOCK_LOGO_FILE_CODES.has(mapped) ? mapped : '';
+  }
+
+  function stockLogoUrlForCode(code) {
+    const fileCode = resolveStockLogoFileCode(code);
+    if (!fileCode) return '';
+    return 'assets/stock-logos/' + fileCode + '.png?v=' + STOCK_LOGO_ASSET_VERSION;
+  }
+
+  function bindStockLogoIntrinsicFit(img) {
+    if (!img || !img.classList.contains('stock-logo-img')) return;
+    const run = () => {
+      img.classList.remove('stock-logo-img--squareish');
+      const fileCode = img.getAttribute('data-logo-file') || '';
+      if (STOCK_LOGO_NO_SQUAREISH_CODES.has(fileCode)) return;
+      const w = img.naturalWidth;
+      const h = img.naturalHeight;
+      if (!w || !h) return;
+      const r = w / h;
+      if (r >= 0.88 && r <= 1.14) img.classList.add('stock-logo-img--squareish');
+    };
+    if (img.complete && img.naturalWidth) run();
+    else img.addEventListener('load', run, { once: true });
+  }
+
+  function applyStockLogoIntrinsicFit(container) {
+    if (!container || !container.querySelectorAll) return;
+    container.querySelectorAll('img.stock-logo-img').forEach(bindStockLogoIntrinsicFit);
+  }
+
+  function stockNameCellHtml(stock) {
+    const name = escapeHtml(stock.name || '');
+    const code = String(stock.code || '').trim();
+    const url = stockLogoUrlForCode(code);
+    let initial = (stock.name && String(stock.name).trim().charAt(0)) || '?';
+    initial = escapeHtml(initial);
+    if (url) {
+      const fileCode = resolveStockLogoFileCode(code);
+      const dataFile = fileCode ? ' data-logo-file="' + escapeHtml(fileCode) + '"' : '';
+      return '<div class="stock-cell-toss"><span class="stock-logo-wrap"><img class="stock-logo-img"' + dataFile + ' src="' + escapeHtml(url) + '" alt="" loading="lazy" decoding="async"/></span><span class="stock-name">' + name + '</span></div>';
+    }
+    return '<div class="stock-cell-toss"><span class="stock-logo-wrap stock-logo-wrap--placeholder" aria-hidden="true">' + initial + '</span><span class="stock-name">' + name + '</span></div>';
+  }
+
+  function jurinWatchCodesHas(code) {
+    const c = String(code || '').trim();
+    return jurinWatchlistItems.some(i => String(i.code) === c);
+  }
+
+  function showWatchToast(message, kind) {
+    const el = document.getElementById('jurinWatchToast');
+    if (!el) return;
+    el.textContent = message || '';
+    el.classList.remove('is-warn', 'is-error', 'is-ok');
+    if (kind === 'warn') el.classList.add('is-warn');
+    else if (kind === 'error') el.classList.add('is-error');
+    else el.classList.add('is-ok');
+    el.hidden = false;
+    if (showWatchToast._t) clearTimeout(showWatchToast._t);
+    showWatchToast._t = setTimeout(() => { el.hidden = true; }, 2800);
+  }
+
+  async function isAuthenticatedForWatchlist() {
+    try {
+      const res = await fetch(`${BACKEND}/api/auth/me`, { credentials: 'include' });
+      const data = await res.json().catch(() => ({}));
+      return !!(res.ok && data.success && data.user);
+    } catch (_) {
+      return false;
+    }
+  }
+
+  async function jurinRefreshWatchlist() {
+    try {
+      const res = await fetch(`${BACKEND}/api/watchlist`, { credentials: 'include' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success) jurinWatchlistItems = [];
+      else jurinWatchlistItems = Array.isArray(data.items) ? data.items.slice() : [];
+    } catch (e) {
+      jurinWatchlistItems = [];
+    }
+    if (sectorStocksRowsCache.length) renderStocksRows(sectorStocksRowsCache);
+  }
+
+  function watchHeartCellHtml(code) {
+    const c = String(code || '').trim();
+    const on = jurinWatchCodesHas(c);
+    const label = on ? '관심 해제' : '관심 추가';
+    return `<button type="button" class="watch-heart-btn ${on ? 'is-on' : ''}" title="${label}" aria-label="${label}" aria-pressed="${on ? 'true' : 'false'}" onclick="event.stopPropagation(); toggleWatchlist('${c}', '')">♥</button>`;
+  }
+
+  async function toggleWatchlist(code, name) {
+    const logged = await isAuthenticatedForWatchlist();
+    if (!logged) {
+      showWatchToast('로그인 후 관심 종목을 이용할 수 있습니다.', 'warn');
+      if (typeof openLoginModal === 'function') openLoginModal();
+      return;
+    }
+    const c = String(code || '').trim();
+    if (!/^\d{6}$/.test(c)) return;
+    try {
+      const res = await fetch(`${BACKEND}/api/watchlist/toggle`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ code: c }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 401) {
+        showWatchToast(data.message || '로그인이 필요합니다.', 'warn');
+        if (typeof openLoginModal === 'function') openLoginModal();
+        return;
+      }
+      if (!res.ok || !data.success) {
+        showWatchToast(data.message || '처리하지 못했습니다.', 'error');
+        return;
+      }
+      const displayName = (name || '').trim()
+        || (sectorStocksRowsCache.find(s => s && s.code === c) || {}).name
+        || TRADEABLE_STOCKS[c]
+        || c;
+      if (data.in_watchlist) {
+        jurinWatchlistItems = jurinWatchlistItems.filter(i => String(i.code) !== c);
+        jurinWatchlistItems.unshift({ code: c, name: displayName, created_at: new Date().toISOString() });
+      } else {
+        jurinWatchlistItems = jurinWatchlistItems.filter(i => String(i.code) !== c);
+      }
+      renderStocksRows(sectorStocksRowsCache);
+      showWatchToast(data.message || (data.in_watchlist ? '관심종목에 추가했습니다.' : '관심종목에서 제거했습니다.'), 'ok');
+    } catch (e) {
+      showWatchToast('네트워크 오류입니다.', 'error');
+    }
+  }
+
   function renderStocksRows(stocks) {
+    sectorStocksRowsCache = Array.isArray(stocks) ? stocks.slice() : [];
     const body = document.getElementById('sectorStocksBody');
     if (!Array.isArray(stocks) || stocks.length === 0) {
-      body.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--gray-400);padding:24px">표시할 종목이 없습니다.</td></tr>';
+      body.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--gray-400);padding:24px">표시할 종목이 없습니다.</td></tr>';
       return;
     }
 
@@ -864,10 +946,8 @@
       if (stock.loading) {
         return `
           <tr>
-            <td>
-              <div class="stock-name">${stock.name}</div>
-              <div class="stock-code">${stock.code}</div>
-            </td>
+            <td class="watch-cell">${watchHeartCellHtml(stock.code)}</td>
+            <td>${stockNameCellHtml(stock)}</td>
             <td colspan="4" style="color:var(--gray-400)">시세 불러오는 중...</td>
           </tr>
         `;
@@ -876,34 +956,32 @@
       if (stock.error && (stock.price === undefined || stock.price === null)) {
         return `
           <tr>
-            <td>
-              <div class="stock-name">${stock.name}</div>
-              <div class="stock-code">${stock.code}</div>
-            </td>
-            <td colspan="4" style="color:var(--gray-400)">조회 지연 (${stock.error})</td>
+            <td class="watch-cell">${watchHeartCellHtml(stock.code)}</td>
+            <td>${stockNameCellHtml(stock)}</td>
+            <td colspan="4" style="color:var(--gray-400)">조회 지연 (${escapeHtml(stock.error)})</td>
           </tr>
         `;
       }
 
-      const dir = stock.direction || 'flat';
+      const dir = quoteDirection(stock);
       const arrow = dir === 'up' ? '▲' : (dir === 'down' ? '▼' : '-');
       const sign = dir === 'up' ? '+' : (dir === 'down' ? '' : '±');
       const rate = Number(stock.rate || 0);
       const change = Math.abs(Number(stock.change || 0));
+      const changeClass = dir === 'up' ? 'up' : (dir === 'down' ? 'down' : 'flat');
 
       return `
-        <tr class="stock-row ${selectedStockCode === stock.code ? 'active' : ''}" onclick="openStockDetail('${stock.code}')">
-          <td>
-            <div class="stock-name">${stock.name}</div>
-            <div class="stock-code">${stock.code}</div>
-          </td>
-          <td class="stock-price">${formatCurrency(stock.price)}</td>
-          <td class="stock-change ${dir}">${arrow} ${formatCurrency(change)}</td>
-          <td class="stock-change ${dir}">${sign}${Math.abs(rate).toFixed(2)}%</td>
-          <td>${formatNumber(stock.volume)}${stock.stale ? ' (지연)' : ''}</td>
+        <tr class="stock-row" onclick="openStockDetail('${stock.code}')">
+          <td class="watch-cell">${watchHeartCellHtml(stock.code)}</td>
+          <td>${stockNameCellHtml(stock)}</td>
+          <td class="stock-price ${changeClass}">${formatCurrency(stock.price)}</td>
+          <td class="stock-change ${changeClass}">${arrow} ${formatCurrency(change)}</td>
+          <td class="stock-change ${changeClass}">${sign}${Math.abs(rate).toFixed(2)}%</td>
+          <td class="stock-volume">${formatNumber(stock.volume)}</td>
         </tr>
       `;
     }).join('');
+    applyStockLogoIntrinsicFit(body);
   }
 
   async function fetchSectorPrices() {
@@ -931,250 +1009,15 @@
         return { ...row, name: row.name || s.name };
       });
 
-      ordered.forEach(s => {
-        if (s && s.code && !s.loading && !s.error) stockDetailCache[s.code] = s;
-      });
-
       dot.classList.remove('error');
       status.textContent = `${data.ts} 업데이트 (${ordered.length}종목)`;
       renderStocksRows(ordered);
-
-      // 상세 뷰가 열려 있으면 시세 갱신
-      if (selectedStockCode && stockDetailCache[selectedStockCode]) {
-        renderStockDetail(stockDetailCache[selectedStockCode]);
-      }
     } catch (err) {
       dot.classList.add('error');
       status.textContent = '연결 실패';
       console.warn('[sector live-prices]', err.message);
     }
   }
-
-  async function fetchDetailLiveSync() {
-    if (!selectedStockCode || !selectedSector) return;
-    const sectorStock = selectedSector.stocks.find(s => s.code === selectedStockCode);
-    const name = (stockDetailCache[selectedStockCode] && stockDetailCache[selectedStockCode].name)
-      || (sectorStock && sectorStock.name)
-      || selectedStockCode;
-    try {
-      const namesParam = encodeURIComponent(`${selectedStockCode}:${name}`);
-      const res = await fetch(
-        `${BACKEND}/api/live-prices?codes=${encodeURIComponent(selectedStockCode)}&names=${namesParam}&page=1&page_size=1&filter=all&sync_refresh=1`
-      );
-      const data = await res.json();
-      if (!data.success || !Array.isArray(data.stocks)) return;
-      data.stocks.forEach(s => {
-        if (s && s.code && !s.loading && !s.error) stockDetailCache[s.code] = s;
-      });
-      const row = stockDetailCache[selectedStockCode];
-      if (row) renderStockDetail(row);
-    } catch (e) {
-      console.warn('[sector detail live-sync]', e.message);
-    }
-  }
-
-  // ── 종목 상세 뷰 ────────────────────────────────────
-  function openStockDetail(code) {
-    // 캐시에 시세가 없으면 loading 상태로 종목명 표시
-    const sectorStock = selectedSector && selectedSector.stocks
-      ? selectedSector.stocks.find(s => s.code === code)
-      : null;
-    const stock = stockDetailCache[code] || (sectorStock ? { ...sectorStock, loading: true } : null);
-    if (!stock) return;
-
-    selectedStockCode = code;
-    detailLastRenderedPrice = null;
-    if (detailPollHandle) {
-      clearInterval(detailPollHandle);
-      detailPollHandle = null;
-    }
-
-    // 뷰 전환
-    document.getElementById('sectorMainView').classList.add('hidden');
-    const detailView = document.getElementById('stockDetailView');
-    detailView.classList.remove('hidden');
-    detailView.setAttribute('aria-hidden', 'false');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-
-    renderStockDetail(stock);
-
-    // 범위 버튼 초기화
-    currentChartRange = '1d';
-    document.querySelectorAll('.detail-range-btn').forEach((b, i) => {
-      b.classList.toggle('active', i === 0);
-    });
-    loadChart(code, currentChartRange);
-
-    // 테이블 active 행 갱신
-    renderStocksRows(
-      selectedSector && selectedSector.stocks
-        ? selectedSector.stocks.map(s => stockDetailCache[s.code] || { ...s, loading: true })
-        : []
-    );
-
-    detailPollHandle = setInterval(fetchDetailLiveSync, DETAIL_POLL_INTERVAL);
-    fetchDetailLiveSync();
-  }
-
-  function closeStockDetail() {
-    const detailView = document.getElementById('stockDetailView');
-    if (detailView.classList.contains('hidden')) return;
-
-    if (detailPollHandle) {
-      clearInterval(detailPollHandle);
-      detailPollHandle = null;
-    }
-    detailLastRenderedPrice = null;
-    selectedStockCode = null;
-    document.getElementById('sectorMainView').classList.remove('hidden');
-    detailView.classList.add('hidden');
-    detailView.setAttribute('aria-hidden', 'true');
-
-    if (stockChartInstance) {
-      stockChartInstance.remove();
-      stockChartInstance = null;
-    }
-  }
-
-  function renderStockDetail(stock) {
-    const dir = stock.direction || 'flat';
-    const arrow = dir === 'up' ? '▲' : (dir === 'down' ? '▼' : '±');
-    const changeAbs = Math.abs(Number(stock.change || 0));
-    const rate = Number(stock.rate || 0);
-    const signedRate = dir === 'down' ? -Math.abs(rate) : Math.abs(rate);
-    const changeClass = dir === 'up' ? 'up' : (dir === 'down' ? 'down' : 'flat');
-    const sign = dir === 'up' ? '+' : (dir === 'down' ? '-' : '');
-
-    document.getElementById('detailName').textContent = stock.name || stock.code;
-    document.getElementById('detailCode').textContent = stock.code;
-
-    const priceEl = document.getElementById('detailPrice');
-    const newPrice = stock.price;
-    if (detailLastRenderedPrice != null && newPrice != null && Number(detailLastRenderedPrice) !== Number(newPrice)) {
-      priceEl.classList.remove('flash-up', 'flash-down');
-      void priceEl.offsetWidth;
-      priceEl.classList.add(Number(newPrice) > Number(detailLastRenderedPrice) ? 'flash-up' : 'flash-down');
-    }
-    detailLastRenderedPrice = newPrice;
-    priceEl.textContent = formatCurrency(stock.price || 0);
-
-    const changeEl = document.getElementById('detailChange');
-    changeEl.className = `detail-price-sub ${changeClass}`;
-    changeEl.innerHTML = `${arrow} ${formatCurrency(changeAbs)} <span class="detail-chip ${changeClass}">${sign}${Math.abs(signedRate).toFixed(2)}%</span>`;
-
-    document.getElementById('detailVolume').textContent = formatNumber(stock.volume || 0);
-    document.getElementById('detailState').textContent = stock.loading ? '불러오는 중' : (stock.stale ? '지연 시세' : '실시간');
-    document.getElementById('detailDelta').textContent = `${arrow} ${formatCurrency(changeAbs)}`;
-    document.getElementById('detailRate').textContent = `${sign}${Math.abs(signedRate).toFixed(2)}%`;
-
-    document.getElementById('detailFootNote').textContent = stock.stale
-      ? '일시적으로 지연된 시세입니다. 다음 갱신에서 자동 반영됩니다.'
-      : `${stock.name || stock.code} 실시간 요약 화면입니다.`;
-  }
-
-  // ── 차트 ─────────────────────────────────────────────
-  function onRangeClick(btn) {
-    document.querySelectorAll('.detail-range-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    currentChartRange = btn.dataset.range;
-    if (selectedStockCode) loadChart(selectedStockCode, currentChartRange);
-  }
-
-  async function loadChart(code, range) {
-    const chartDiv = document.getElementById('stockChart');
-    const skeleton  = document.getElementById('chartSkeleton');
-    const note      = document.getElementById('chartNote');
-
-    chartDiv.style.display = 'none';
-    note.style.display     = 'none';
-    skeleton.style.display = '';
-
-    try {
-      const res  = await fetch(`${BACKEND}/api/chart-data/${code}?range=${range}`);
-      const data = await res.json();
-
-      skeleton.style.display = 'none';
-
-      if (!data.success || !data.candles || data.candles.length === 0) {
-        note.textContent   = '차트 데이터를 불러올 수 없습니다.';
-        note.style.display = '';
-        return;
-      }
-
-      chartDiv.style.display = '';
-      renderChart(data.candles, data.ma5 || [], data.ma20 || [], data.intraday);
-    } catch (e) {
-      skeleton.style.display = 'none';
-      note.textContent   = '차트 로드 중 오류가 발생했습니다.';
-      note.style.display = '';
-    }
-  }
-
-  function renderChart(candles, ma5, ma20, intraday) {
-    const container = document.getElementById('stockChart');
-
-    if (stockChartInstance) {
-      stockChartInstance.remove();
-      stockChartInstance = null;
-    }
-
-    stockChartInstance = LightweightCharts.createChart(container, {
-      width:  container.clientWidth,
-      height: 200,
-      layout: {
-        background: { color: 'transparent' },
-        textColor:  '#8899aa',
-      },
-      grid: {
-        vertLines: { color: 'rgba(255,255,255,0.05)' },
-        horzLines: { color: 'rgba(255,255,255,0.05)' },
-      },
-      crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
-      rightPriceScale: {
-        borderColor:  'rgba(255,255,255,0.1)',
-        scaleMargins: { top: 0.1, bottom: 0.1 },
-      },
-      timeScale: {
-        borderColor:    'rgba(255,255,255,0.1)',
-        timeVisible:    !!intraday,
-        secondsVisible: false,
-      },
-      handleScroll: true,
-      handleScale:  true,
-    });
-
-    const candleSeries = stockChartInstance.addCandlestickSeries({
-      upColor:         '#ef5350',
-      downColor:       '#42a5f5',
-      borderUpColor:   '#ef5350',
-      borderDownColor: '#42a5f5',
-      wickUpColor:     '#ef5350',
-      wickDownColor:   '#42a5f5',
-    });
-    candleSeries.setData(candles);
-
-    if (ma5.length > 0) {
-      const s = stockChartInstance.addLineSeries({
-        color: '#d97706', lineWidth: 1,
-        priceLineVisible: false, lastValueVisible: false,
-      });
-      s.setData(ma5);
-    }
-
-    if (ma20.length > 0) {
-      const s = stockChartInstance.addLineSeries({
-        color: '#ab47bc', lineWidth: 1,
-        priceLineVisible: false, lastValueVisible: false,
-      });
-      s.setData(ma20);
-    }
-
-    stockChartInstance.timeScale().fitContent();
-  }
-
-  document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') closeStockDetail();
-  });
 
   // ── 섹터 페이지 초기화 ────────────────────────────────
   function renderSectorPage() {
@@ -1183,9 +1026,11 @@
     const data = sectorData[sectorName] || null;
 
     if (!sectorName || !data) {
-      document.getElementById('sectorName').textContent = '선택한 섹터를 찾을 수 없습니다.';
+      document.getElementById('sectorNameText').textContent = '선택한 섹터를 찾을 수 없습니다.';
       document.getElementById('sectorDesc').textContent = '시장 페이지로 돌아가서 관심 섹터 버튼을 다시 눌러주세요.';
       document.getElementById('sectorBadge').textContent = '잘못된 접근';
+      const heroCell = document.getElementById('sectorHeroCell');
+      if (heroCell) heroCell.hidden = true;
       document.getElementById('liveStatus').textContent = '대상 섹터 없음';
       renderStocksRows([]);
       return;
@@ -1194,8 +1039,8 @@
     selectedSector = data;
 
     document.title = `${sectorName} 섹터 - 주린닷컴`;
-    document.getElementById('sectorBadge').textContent = `${data.emoji} ${sectorName} 섹터`;
-    document.getElementById('sectorName').textContent = `${sectorName} 섹터 브리핑`;
+    applySectorPageIcons(sectorName);
+    document.getElementById('sectorNameText').textContent = `${sectorName} 섹터 브리핑`;
     document.getElementById('sectorDesc').textContent = data.desc;
 
     const keywordWrap = document.getElementById('sectorKeywords');
@@ -1207,8 +1052,11 @@
     pollHandle = setInterval(fetchSectorPrices, POLL_INTERVAL);
   }
 
-  document.addEventListener('DOMContentLoaded', renderSectorPage);
+  document.addEventListener('DOMContentLoaded', async () => {
+    await jurinRefreshWatchlist();
+    renderSectorPage();
+  });
 </script>
-<script src="js/lumi-chat.js?v=20260525"></script>
+<script src="js/lumi-chat.js?v=20260609"></script>
 </body>
 </html>

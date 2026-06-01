@@ -1,9 +1,12 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ELW · 채권 - 주린닷컴</title>
+<link rel="icon" href="assets/brand/favicon.ico?v=20260607" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/brand/favicon-32x32.png?v=20260607">
+<link rel="apple-touch-icon" sizes="180x180" href="assets/brand/apple-touch-icon.png?v=20260607">
+<title>ELW - 주린닷컴</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css?v=20260428">
 <style>
@@ -27,19 +30,6 @@
     box-shadow: 0 18px 44px rgba(23, 43, 32, 0.05);
   }
 
-  .product-kicker {
-    display: inline-flex;
-    align-items: center;
-    border-radius: 999px;
-    background: rgba(47, 143, 95, 0.1);
-    color: var(--accent);
-    padding: 6px 10px;
-    font-size: 11px;
-    font-weight: 800;
-    letter-spacing: 0.02em;
-    margin-bottom: 14px;
-  }
-
   .product-title {
     margin: 0 0 10px;
     font-size: 34px;
@@ -50,40 +40,10 @@
 
   .product-sub {
     margin: 0;
-    max-width: 760px;
+    max-width: 820px;
     font-size: 15px;
-    line-height: 1.8;
+    line-height: 1.85;
     color: var(--gray-500);
-  }
-
-  .product-topic-switch {
-    display: inline-flex;
-    gap: 8px;
-    margin-top: 22px;
-    padding: 8px;
-    border-radius: 999px;
-    background: #f3faf6;
-    border: 1px solid rgba(47, 143, 95, 0.14);
-  }
-
-  .product-topic-link {
-    text-decoration: none;
-    color: #416a54;
-    font-size: 14px;
-    font-weight: 700;
-    padding: 10px 16px;
-    border-radius: 999px;
-    transition: all 0.18s ease;
-  }
-
-  .product-topic-link:hover {
-    background: rgba(47, 143, 95, 0.08);
-  }
-
-  .product-topic-link.is-active {
-    background: #ffffff;
-    color: var(--accent);
-    box-shadow: 0 10px 24px rgba(47, 143, 95, 0.12);
   }
 
   .product-summary {
@@ -121,8 +81,8 @@
   .product-card-text {
     margin: 0;
     font-size: 14px;
-    line-height: 1.75;
-    color: var(--gray-500);
+    line-height: 1.65;
+    color: var(--text-primary);
   }
 
   .product-list {
@@ -213,13 +173,16 @@
     }
   }
 </style>
-<link rel="stylesheet" href="css/lumi-chat.css?v=20260525">
+<link rel="stylesheet" href="css/elw-guide.css?v=20260610">
+<link rel="stylesheet" href="css/bonds-guide.css?v=20260611">
+<link rel="stylesheet" href="css/lumi-chat.css?v=20260609">
 </head>
 <body>
 
 <nav>
   <a href="주린닷컴홈피.html" class="nav-logo">
-    <img src="assets/ui/jurin-logo.png" alt="주린닷컴 로고" class="nav-logo-image">
+    <img class="logo-icon" src="assets/brand/jurin-logo-icon.png?v=20260607" alt="" width="36" height="36" decoding="async">
+    <div class="logo-text">주린<span>닷컴</span></div>
   </a>
   <ul class="nav-menu">
     <li><a href="guide.html">가이드</a></li>
@@ -239,21 +202,17 @@
 
 <div class="product-page">
   <div class="product-shell">
-    <div class="product-hero">
-      <a href="guide.html" class="btn-back">← 가이드로</a>
-      <div class="product-kicker">초보 4단계 · 시장 종류</div>
+    <div class="product-hero" id="productHero">
       <h1 class="product-title" id="productTitle"></h1>
       <p class="product-sub" id="productSubtitle"></p>
-
-      <div class="product-topic-switch" aria-label="ELW와 채권 주제 전환">
-        <a class="product-topic-link" id="topicElwLink" href="market-products.html?topic=elw">ELW</a>
-        <a class="product-topic-link" id="topicBondsLink" href="market-products.html?topic=bonds">채권</a>
-      </div>
 
       <div class="product-summary" id="productSummary"></div>
     </div>
 
-    <div class="product-grid">
+    <div id="elwGuideRoot" class="elw-guide" hidden></div>
+    <div id="bondsGuideRoot" class="bonds-guide" hidden></div>
+
+    <div class="product-grid" id="productGrid">
       <section class="product-card">
         <h2 class="product-card-title">무엇을 하는 상품인가요?</h2>
         <p class="product-card-text" id="productPurpose"></p>
@@ -275,7 +234,7 @@
       </section>
     </div>
 
-    <section class="product-example">
+    <section class="product-example" id="productExampleSection">
       <h2 class="product-example-title">짧은 예시</h2>
       <p class="product-example-text" id="productExample"></p>
       <div class="product-footer-links" id="productFooterLinks"></div>
@@ -285,12 +244,15 @@
 
 <script src="js/api-base.js"></script>
 <script src="js/common-auth.js"></script>
+<script src="js/elw-guide.js?v=20260610"></script>
+<script src="js/bonds-guide.js?v=20260612"></script>
 <script>
   const PRODUCT_TOPICS = {
     elw: {
-      title: 'ELW는 방향성에 강하게 반응하는 상품이에요',
-      subtitle: 'ELW는 특정 주식이나 지수가 오르거나 내릴 때 그 움직임을 더 크게 반영하도록 만든 권리형 상품이에요. 적은 돈으로도 큰 변화를 노릴 수 있지만, 반대로 손실도 빠르게 커질 수 있어요.',
-      summary: '한 줄로 보면, ELW는 짧은 구간의 방향성에 베팅할 때 보는 고위험 상품에 가깝습니다.',
+      title: 'ELW',
+      subtitle:
+        '주식워런트증권(ELW, Equity Linked Warrant)은 개별 주식·주가지수 등을 기초자산으로 하여, 기초자산 가격 변동에 따라 투자수익이 결정되는 파생결합증권입니다. 만기에 정해진 행사가격으로 기초자산을 매수(콜)하거나 매도(풋)할 수 있는 권리를 부여하며, 옵션과 유사한 구조를 갖는 유가증권입니다.',
+      summary: '',
       purpose: '기초자산의 상승이나 하락 전망을 더 크게 반영해 보고 싶을 때 쓰여요. 같은 방향을 보더라도 일반 주식보다 훨씬 예민하게 움직일 수 있고, 정해진 만기 안에서만 의미가 있다는 점이 핵심이에요.',
       when: [
         '특정 종목이나 지수가 짧게 강하게 움직일 것 같다고 볼 때',
@@ -315,9 +277,10 @@
       ]
     },
     bonds: {
-      title: '채권은 돈을 빌려주고 이자를 받는 쪽에 가까워요',
-      subtitle: '채권은 정부나 회사에 돈을 빌려주고 약속된 이자와 만기를 받는 성격의 상품이에요. 주식처럼 성장 기대만 보는 것이 아니라, 안정성·금리·현금흐름을 함께 보는 데 의미가 있어요.',
-      summary: '한 줄로 보면, 채권은 수익을 아주 크게 노리기보다 비교적 안정적인 흐름과 이자 약속을 보는 상품에 가깝습니다.',
+      title: '채권',
+      subtitle:
+        '채권은 정부나 기업에 돈을 빌려주고, 정해진 이자와 만기 원금을 받는 투자 상품입니다.',
+      summary: '',
       purpose: '정해진 이자와 만기를 기준으로 비교적 안정적인 자금 운용을 볼 때 쓰여요. 주식과 다른 이유로 움직이기 때문에 자산을 나눠 담는 용도로도 많이 봐요.',
       when: [
         '변동성이 큰 장에서 조금 더 덜 흔들리는 자산을 보고 싶을 때',
@@ -361,12 +324,49 @@
     }).join('');
   }
 
+  function currentElwTab() {
+    try {
+      var params = new URLSearchParams(window.location.search);
+      var tab = (params.get('tab') || 'payoff').toLowerCase();
+      if (window.ElwGuide && typeof ElwGuide.normalizeTab === 'function') {
+        return ElwGuide.normalizeTab(tab);
+      }
+      return tab === 'use' || tab === 'risk' ? tab : 'payoff';
+    } catch (e) {
+      return 'payoff';
+    }
+  }
+
+  function currentBondsTab() {
+    try {
+      var params = new URLSearchParams(window.location.search);
+      var tab = (params.get('tab') || 'flow').toLowerCase();
+      if (window.BondsGuide && typeof BondsGuide.normalizeTab === 'function') {
+        return BondsGuide.normalizeTab(tab);
+      }
+      return tab === 'types' || tab === 'risk' ? tab : 'flow';
+    } catch (e) {
+      return 'flow';
+    }
+  }
+
   function renderProductPage(topicKey) {
     const topic = PRODUCT_TOPICS[topicKey] || PRODUCT_TOPICS.elw;
-    document.title = (topicKey === 'bonds' ? '채권' : 'ELW') + ' - 주린닷컴';
+    const isElw = topicKey === 'elw';
+    const isBonds = topicKey === 'bonds';
+
+    document.title = (isElw ? 'ELW' : '채권') + ' - 주린닷컴';
+    document.body.classList.toggle('product-topic-elw', isElw);
+    document.body.classList.toggle('product-topic-bonds', !isElw);
+
     document.getElementById('productTitle').textContent = topic.title;
     document.getElementById('productSubtitle').textContent = topic.subtitle;
-    document.getElementById('productSummary').textContent = topic.summary;
+
+    const summaryEl = document.getElementById('productSummary');
+    if (summaryEl) {
+      summaryEl.textContent = topic.summary || '';
+      summaryEl.hidden = isElw || isBonds || !topic.summary;
+    }
     document.getElementById('productPurpose').textContent = topic.purpose;
     document.getElementById('productExample').textContent = topic.example;
     renderList('productWhenList', topic.when);
@@ -378,16 +378,37 @@
       return '<a class="product-footer-link" href="' + link.href + '">' + link.label + '</a>';
     }).join('');
 
-    const isElw = topicKey === 'elw';
+    const grid = document.getElementById('productGrid');
+    const exampleSection = document.getElementById('productExampleSection');
+    const elwRoot = document.getElementById('elwGuideRoot');
+    const bondsRoot = document.getElementById('bondsGuideRoot');
+
+    if (grid) grid.hidden = isBonds ? true : false;
+    if (exampleSection) exampleSection.hidden = isElw || isBonds;
+
+    if (isElw && elwRoot && window.ElwGuide) {
+      elwRoot.hidden = false;
+      ElwGuide.mount('elwGuideRoot', { tab: currentElwTab() });
+    } else if (elwRoot) {
+      elwRoot.hidden = true;
+      elwRoot.innerHTML = '';
+    }
+
+    if (isBonds && bondsRoot && window.BondsGuide) {
+      bondsRoot.hidden = false;
+      BondsGuide.mount('bondsGuideRoot', { tab: currentBondsTab() });
+    } else if (bondsRoot) {
+      bondsRoot.hidden = true;
+      bondsRoot.innerHTML = '';
+    }
+
     document.getElementById('navElwLink').classList.toggle('active', isElw);
     document.getElementById('navBondsLink').classList.toggle('active', !isElw);
-    document.getElementById('topicElwLink').classList.toggle('is-active', isElw);
-    document.getElementById('topicBondsLink').classList.toggle('is-active', !isElw);
   }
 
   renderProductPage(currentTopic());
 </script>
 
-<script src="js/lumi-chat.js?v=20260525"></script>
+<script src="js/lumi-chat.js?v=20260609"></script>
 </body>
 </html>
