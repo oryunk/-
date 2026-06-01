@@ -5,6 +5,15 @@
 (function () {
   var GUEST_STORAGE_KEY = 'jurin:lumi-chat:v1';
   var ASSET_VER = '20260520a';
+  var LUMI_ICON_VER = '20260608';
+  var LUMI_ICONS = {
+    lumi: 'assets/lumi-icons/lumi-chat.png?v=' + LUMI_ICON_VER,
+    service: 'assets/lumi-icons/features.png?v=' + LUMI_ICON_VER,
+    term: 'assets/lumi-icons/dictionary.png?v=' + LUMI_ICON_VER,
+    news: 'assets/lumi-icons/news.png?v=' + LUMI_ICON_VER,
+    stock: 'assets/lumi-icons/stocks.png?v=' + LUMI_ICON_VER,
+  };
+  var DOCK_IMAGE = 'assets/mascot/mascot-dock.png?v=' + ASSET_VER;
   var MOOD_IMAGES = {
     welcome: 'assets/mascot/mascot-welcome.png?v=' + ASSET_VER,
     info: 'assets/mascot/mascot-info.png?v=' + ASSET_VER,
@@ -12,7 +21,15 @@
     caution: 'assets/mascot/mascot-caution.png?v=' + ASSET_VER,
     wink: 'assets/mascot/mascot-dock.png?v=' + ASSET_VER,
   };
-  var DOCK_IMAGE = 'assets/mascot/mascot-dock.png?v=' + ASSET_VER;
+
+  function lumiCatIconHtml(cat) {
+    var src = LUMI_ICONS[cat] || LUMI_ICONS.lumi;
+    return (
+      '<img class="lumi-chat-cat-icon" src="' +
+      src +
+      '" alt="" width="28" height="28" decoding="async">'
+    );
+  }
 
   var state = {
     open: false,
@@ -315,11 +332,11 @@
     var quick = document.getElementById('lumiChatQuick');
     if (!quick) return;
     var cats = [
-      { cat: 'lumi',    icon: '🤖', label: '루미챗봇' },
-      { cat: 'service', icon: '🏠', label: '제공기능' },
-      { cat: 'term',    icon: '📚', label: '용어검색' },
-      { cat: 'news',    icon: '📰', label: '뉴스검색' },
-      { cat: 'stock',   icon: '📈', label: '종목검색' },
+      { cat: 'lumi', label: '루미챗봇' },
+      { cat: 'service', label: '제공기능' },
+      { cat: 'term', label: '용어검색' },
+      { cat: 'news', label: '뉴스검색' },
+      { cat: 'stock', label: '종목검색' },
     ];
     quick.innerHTML =
       '<p class="lumi-chat-quick-label">무엇이 궁금하세요?</p>' +
@@ -327,7 +344,7 @@
       cats.map(function (c) {
         return (
           '<button type="button" class="lumi-chat-cat-btn" data-cat="' + c.cat + '">' +
-          '<span class="lumi-chat-cat-icon">' + c.icon + '</span>' +
+          lumiCatIconHtml(c.cat) +
           '<span>' + c.label + '</span>' +
           '</button>'
         );
@@ -356,9 +373,9 @@
       inputEl.focus();
     }
     var modeLabelMap = {
-      term:  '📚 용어검색 — 궁금한 용어를 입력 후 전송하세요',
-      news:  '📰 뉴스검색 — 검색할 주제를 입력 후 전송하세요',
-      stock: '📈 종목검색 — 종목명을 입력 후 전송하세요',
+      term:  '용어검색 — 궁금한 용어를 입력 후 전송하세요',
+      news:  '뉴스검색 — 검색할 주제를 입력 후 전송하세요',
+      stock: '종목검색 — 종목명을 입력 후 전송하세요',
     };
     var quick = document.getElementById('lumiChatQuick');
     if (quick) {

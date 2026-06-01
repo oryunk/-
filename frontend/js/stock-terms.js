@@ -75,6 +75,7 @@
   var GLOSSARY_CATEGORIES = [
     {
       id: 'mood',
+      tabLabel: '시세·호가',
       title: '1. 시세·호가·수급',
       subtitle: '현재가·등락, 거래량·거래대금, 투자자별 매매동향, 호가창·주문 유형 등',
       items: [
@@ -99,6 +100,7 @@
     },
     {
       id: 'value',
+      tabLabel: '밸류',
       title: '2. 밸류에이션 (기업가치평가)',
       subtitle: 'PER·PBR·PSR, EV/EBITDA, EPS·BPS, 시가총액·52주 가격대 등',
       items: [
@@ -115,6 +117,7 @@
     },
     {
       id: 'fundamentals',
+      tabLabel: '실적',
       title: '3. 실적·재무제표',
       subtitle: '매출·손익, ROE, 부채비율·유동비율·유보율 등 재무 지표',
       items: [
@@ -129,6 +132,7 @@
     },
     {
       id: 'shareholder',
+      tabLabel: '배당',
       title: '4. 배당·주주환원',
       subtitle: '배당금·배당수익률·배당성향, 자사주 매입·소각 등',
       items: [
@@ -141,6 +145,7 @@
     },
     {
       id: 'chart',
+      tabLabel: '차트',
       title: '5. 기술적 분석·차트',
       subtitle: '이동평균선·RSI 등 지표, 유상·무상증자·액면분할 등 관련 용어',
       items: [
@@ -154,6 +159,7 @@
     },
     {
       id: 'derivatives',
+      tabLabel: '파생',
       title: '6. 파생상품',
       subtitle: 'ELW, 레버리지·인버스, 만기·시간가치 등 (구조·위험도 사전 이해 필요)',
       items: [
@@ -166,6 +172,7 @@
     },
     {
       id: 'bonds',
+      tabLabel: '채권',
       title: '7. 채권',
       subtitle: '표면금리, YTM, 듀레이션, 신용등급, 금리민감도 등',
       items: [
@@ -178,6 +185,7 @@
     },
     {
       id: 'funds',
+      tabLabel: 'ETF',
       title: '8. 집합투자·ETF',
       subtitle: '총보수, 추적오차, 괴리율, 환매·분배금 등',
       items: [
@@ -190,6 +198,7 @@
     },
     {
       id: 'ipo',
+      tabLabel: '공모',
       title: '9. 공모·청약',
       subtitle: '청약증거금, 균등·비례 배정, 의무보유확약, 환불일 등',
       items: [
@@ -202,6 +211,7 @@
     },
     {
       id: 'macro',
+      tabLabel: '거시',
       title: '10. 거시·시장 환경',
       subtitle: '환율, 금리, 물가 등 전체 시장에 영향을 주는 요인',
       items: [
@@ -215,7 +225,7 @@
     },
   ];
 
-  /** 용어 검색 자동완성·자주 찾는 용어 카드용 (카테고리 밖 표기) */
+  /** 용어 검색 자동완성 후보 (카테고리 밖 표기) */
   var GLOSSARY_POPULAR_TERMS = [
     'PER',
     'ROE',
@@ -232,6 +242,74 @@
     '공시',
     '실적발표',
   ];
+
+  /** 핵심 용어: 공공/거래소 계열 정의 기반 "공식 설명 3줄" 프리셋 */
+  var OFFICIAL_SUMMARY_PRESETS = (function () {
+    function n(s) {
+      return String(s || '').trim().toLowerCase().replace(/\s+/g, '');
+    }
+    return {
+      [n('채권')]: {
+        summary:
+          '채권은 중앙정부·지방정부·공기업·금융기관·기타 법인 등이 자금 조달을 위해 발행하며, 정해진 기한 후 투자자에게 원금과 함께 이자를 상환하는 채무증서로 증권화된 금융상품입니다.',
+        sourceLabel: '공공·거래소 계열 용어 정의(요약)',
+      },
+      [n('ELW')]: {
+        summary:
+          'ELW(주식워런트증권)는 개별 주식 또는 주가지수를 기초자산으로 하며, 기초자산 가격 변동에 따라 투자수익이 결정되는 권리증서(파생결합증권)입니다. 만기에 정해진 행사가로 기초자산을 매수(콜)하거나 매도(풋)할 수 있는 권리를 부여합니다.',
+        sourceLabel: '공공·거래소 계열 용어 정의(요약)',
+      },
+      [n('PER')]: {
+        summary:
+          'PER(주가수익비율)은 주가를 주당순이익(EPS)으로 나눈 값으로, 주가가 이익 대비 얼마나 비싼지/싼지를 나타냅니다. 투자에서는 성장성·업종·이익의 질과 함께 비교해 해석합니다.',
+        sourceLabel: '투자지표 표준 정의(요약)',
+      },
+      [n('PBR')]: {
+        summary:
+          'PBR(주가순자산비율)은 주가를 주당순자산(BPS)으로 나눈 값입니다. 자산 대비 주가 수준을 비교할 때 사용합니다.',
+        sourceLabel: '투자지표 표준 정의(요약)',
+      },
+      [n('ROE')]: {
+        summary:
+          'ROE(자기자본이익률)는 당기순이익을 자기자본으로 나눈 값으로, 자본을 얼마나 효율적으로 운용했는지 보여줍니다. 부채 구조 등과 함께 봐야 왜곡 해석을 줄일 수 있습니다.',
+        sourceLabel: '투자지표 표준 정의(요약)',
+      },
+      [n('시가총액')]: {
+        summary:
+          '시가총액은 현재 주가에 발행주식 수를 곱한 기업의 규모(가치)입니다. 시장에서 기업 크기를 비교하는 대표 지표로 활용됩니다.',
+        sourceLabel: '시장 대표 지표 정의(요약)',
+      },
+      [n('배당수익률')]: {
+        summary:
+          '배당수익률은 연간 배당금을 현재 주가로 나눈 값(%)입니다. 주가 대비 현금 수익의 크기를 비교하는 데 사용합니다.',
+        sourceLabel: '배당 지표 표준 정의(요약)',
+      },
+      [n('YTM')]: {
+        summary:
+          'YTM(만기수익률)은 채권을 만기까지 보유했을 때 기대되는 연환산 수익률입니다. 시장가격과 수익·상환 구조를 반영해 실제 기대수익을 보여줍니다.',
+        sourceLabel: '채권 지표 표준 정의(요약)',
+      },
+      [n('듀레이션')]: {
+        summary:
+          '듀레이션은 금리 변화에 따른 채권 가격의 변동 민감도를 나타내는 지표입니다. 기간이 길수록 금리 영향이 커지는 경향이 있습니다.',
+        sourceLabel: '채권 지표 표준 정의(요약)',
+      },
+      [n('신용등급')]: {
+        summary:
+          '신용등급은 채권 발행자의 원리금 상환 능력을 평가해 부여하는 등급입니다. 등급이 높을수록 상대적으로 상환 위험이 낮다고 봅니다.',
+        sourceLabel: '신용평가 지표 정의(요약)',
+      },
+    };
+  })();
+
+  function normalizePresetKey(termName) {
+    return String(termName || '').trim().toLowerCase().replace(/\s+/g, '');
+  }
+
+  function getOfficialSummaryPreset(termName) {
+    var key = normalizePresetKey(termName);
+    return OFFICIAL_SUMMARY_PRESETS[key] || null;
+  }
 
   /** 금융 용어 자동완성 후보 목록 (이름·지표 라벨·인기 용어 통합) */
   function collectGlossaryAutocompleteTerms() {
@@ -329,53 +407,154 @@
     });
   }
 
-  function mountGlossaryBrowse(containerId) {
-    var root = document.getElementById(containerId);
+  var TAB_LABEL_FALLBACK = {
+    mood: '시세·호가',
+    value: '밸류',
+    fundamentals: '실적',
+    shareholder: '배당',
+    chart: '차트',
+    derivatives: '파생',
+    bonds: '채권',
+    funds: 'ETF',
+    ipo: '공모',
+    macro: '거시'
+  };
+
+  function searchTermFromBrowse(term) {
+    var input = document.getElementById('termInput');
+    if (input) input.value = term;
+    if (typeof global.searchTerm === 'function') global.searchTerm();
+    else if (typeof global.searchPopularTerm === 'function') global.searchPopularTerm(term);
+  }
+
+  function shortTabLabel(cat) {
+    if (!cat) return '';
+    if (cat.tabLabel) return cat.tabLabel;
+    if (cat.id && TAB_LABEL_FALLBACK[cat.id]) return TAB_LABEL_FALLBACK[cat.id];
+    var t = String(cat.title || '');
+    return t.replace(/^\d+\.\s*/, '').split('(')[0].trim().slice(0, 8);
+  }
+
+  function findCategoryById(catId) {
+    for (var i = 0; i < GLOSSARY_CATEGORIES.length; i++) {
+      if (GLOSSARY_CATEGORIES[i].id === catId) return GLOSSARY_CATEGORIES[i];
+    }
+    return GLOSSARY_CATEGORIES[0] || null;
+  }
+
+  function renderCategoryBlock(cat) {
+    var items = (cat.items || [])
+      .map(function (it) {
+        return (
+          '<div class="glossary-browse-item" role="button" tabindex="0" data-term="' +
+          escapeHtml(it.name) +
+          '">' +
+          '<div class="glossary-browse-name">' +
+          escapeHtml(it.name) +
+          '</div>' +
+          '</div>'
+        );
+      })
+      .join('');
+    return (
+      '<section class="glossary-browse-block" id="glossary-cat-' +
+      escapeHtml(cat.id) +
+      '">' +
+      '<h3 class="glossary-browse-title">' +
+      escapeHtml(cat.title) +
+      '</h3>' +
+      '<p class="glossary-browse-sub">' +
+      escapeHtml(cat.subtitle) +
+      '</p>' +
+      '<div class="glossary-browse-grid">' +
+      items +
+      '</div>' +
+      '</section>'
+    );
+  }
+
+  function renderCategoryPanel(cat) {
+    if (!cat) return '';
+    return renderCategoryBlock(cat);
+  }
+
+  function bindBrowseActions(root) {
     if (!root) return;
-    var html = GLOSSARY_CATEGORIES.map(function (cat) {
-      var items = cat.items
-        .map(function (it) {
-          return (
-            '<div class="glossary-browse-item">' +
-            '<div class="glossary-browse-name">' +
-            escapeHtml(it.name) +
-            '</div>' +
-            '<div class="glossary-browse-desc">' +
-            escapeHtml(it.desc) +
-            '</div>' +
-            '<button type="button" class="glossary-browse-ai" data-term="' +
-            escapeHtml(it.name) +
-            '">AI로 자세히</button>' +
-            '</div>'
-          );
-        })
-        .join('');
-      return (
-        '<section class="glossary-browse-block" id="glossary-cat-' +
-        escapeHtml(cat.id) +
-        '">' +
-        '<h3 class="glossary-browse-title">' +
-        escapeHtml(cat.title) +
-        '</h3>' +
-        '<p class="glossary-browse-sub">' +
-        escapeHtml(cat.subtitle) +
-        '</p>' +
-        '<div class="glossary-browse-grid">' +
-        items +
-        '</div>' +
-        '</section>'
-      );
-    }).join('');
-    root.innerHTML = html;
-    root.querySelectorAll('.glossary-browse-ai').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        var t = btn.getAttribute('data-term') || '';
-        var input = document.getElementById('termInput');
-        if (input) input.value = t;
-        if (typeof global.searchTerm === 'function') global.searchTerm();
-        else if (typeof global.searchPopularTerm === 'function') global.searchPopularTerm(t);
+    root.querySelectorAll('.glossary-browse-item').forEach(function (item) {
+      function activate() {
+        var t = item.getAttribute('data-term') || '';
+        if (t) searchTermFromBrowse(t);
+      }
+      item.addEventListener('click', function (e) {
+        activate();
+      });
+      item.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          activate();
+        }
       });
     });
+  }
+
+  function mountGlossaryTabs(tabsId, panelId) {
+    var tabsEl = document.getElementById(tabsId);
+    var panelEl = document.getElementById(panelId);
+    if (!tabsEl || !panelEl) return;
+
+    var activeId = GLOSSARY_CATEGORIES[0] ? GLOSSARY_CATEGORIES[0].id : '';
+
+    function setActiveTab(catId) {
+      activeId = catId;
+      tabsEl.querySelectorAll('.glossary-cat-tab').forEach(function (btn) {
+        var on = btn.getAttribute('data-cat-id') === catId;
+        btn.classList.toggle('active', on);
+        btn.setAttribute('aria-selected', on ? 'true' : 'false');
+        btn.tabIndex = on ? 0 : -1;
+      });
+      var cat = findCategoryById(catId);
+      panelEl.innerHTML = renderCategoryPanel(cat);
+      bindBrowseActions(panelEl);
+    }
+
+    tabsEl.innerHTML = '';
+    tabsEl.setAttribute('role', 'tablist');
+    GLOSSARY_CATEGORIES.forEach(function (cat, idx) {
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'glossary-cat-tab' + (idx === 0 ? ' active' : '');
+      btn.setAttribute('role', 'tab');
+      btn.setAttribute('data-cat-id', cat.id);
+      btn.setAttribute('aria-selected', idx === 0 ? 'true' : 'false');
+      btn.tabIndex = idx === 0 ? 0 : -1;
+      btn.textContent = shortTabLabel(cat);
+      btn.addEventListener('click', function () {
+        setActiveTab(cat.id);
+      });
+      btn.addEventListener('keydown', function (e) {
+        if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+        e.preventDefault();
+        var ids = GLOSSARY_CATEGORIES.map(function (c) {
+          return c.id;
+        });
+        var pos = ids.indexOf(activeId);
+        if (pos < 0) pos = 0;
+        if (e.key === 'ArrowRight') pos = (pos + 1) % ids.length;
+        else pos = (pos - 1 + ids.length) % ids.length;
+        setActiveTab(ids[pos]);
+        var nextBtn = tabsEl.querySelector('[data-cat-id="' + ids[pos] + '"]');
+        if (nextBtn) nextBtn.focus();
+      });
+      tabsEl.appendChild(btn);
+    });
+
+    panelEl.setAttribute('role', 'tabpanel');
+    setActiveTab(activeId);
+  }
+
+  /** @deprecated use mountGlossaryTabs */
+  function mountGlossaryBrowse(containerId) {
+    mountGlossaryTabs('glossaryCategoryTabs', 'glossaryCategoryPanel');
   }
 
   global.JurinStockTerms = {
@@ -384,6 +563,8 @@
     INDICATOR_HINTS: INDICATOR_HINTS,
     GLOSSARY_CATEGORIES: GLOSSARY_CATEGORIES,
     GLOSSARY_POPULAR_TERMS: GLOSSARY_POPULAR_TERMS,
+    OFFICIAL_SUMMARY_PRESETS: OFFICIAL_SUMMARY_PRESETS,
+    getOfficialSummaryPreset: getOfficialSummaryPreset,
     collectGlossaryAutocompleteTerms: collectGlossaryAutocompleteTerms,
     metricItemHtml: metricItemHtml,
     initMarketDetailHints: function () {
@@ -391,6 +572,10 @@
       initDetailCardHints();
     },
     mountGlossaryBrowse: mountGlossaryBrowse,
+    mountGlossaryTabs: mountGlossaryTabs,
+    renderCategoryPanel: renderCategoryPanel,
+    shortTabLabel: shortTabLabel,
+    searchTermFromBrowse: searchTermFromBrowse,
     escapeHtml: escapeHtml,
   };
 })(typeof window !== 'undefined' ? window : this);

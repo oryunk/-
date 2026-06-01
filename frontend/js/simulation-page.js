@@ -80,7 +80,8 @@
     }
 
     document.title = '모의 투자 - 주린닷컴';
-    setText('nav .nav-logo .logo-icon', '주');
+    var navLogoIcon = document.querySelector('nav .nav-logo .logo-icon');
+    if (navLogoIcon && navLogoIcon.tagName !== 'IMG') setText('nav .nav-logo .logo-icon', '주');
     var logoText = document.querySelector('nav .nav-logo .logo-text');
     if (logoText) logoText.innerHTML = '주린<span>닷컴</span>';
 
