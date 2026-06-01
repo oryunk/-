@@ -388,9 +388,13 @@
 }
 
 .lumi-chat-cat-icon {
-  font-size: 15px;
-  line-height: 1;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
   flex-shrink: 0;
+  display: block;
+  background: transparent;
 }
 
 /* 5번째 버튼(종목검색)은 full-width */

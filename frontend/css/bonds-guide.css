@@ -1,0 +1,595 @@
+/* Bonds guide — Jurin product-card tone (market-products.html) */
+.bonds-guide {
+  margin-top: 22px;
+}
+
+.bonds-dir-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.bonds-dir-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(47, 143, 95, 0.1);
+  border: 1px solid rgba(47, 143, 95, 0.22);
+  color: var(--accent, #2f8f5f);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.bonds-tab-switch {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  gap: 8px;
+  margin-top: 20px;
+  padding: 8px;
+  border-radius: 999px;
+  background: #f3faf6;
+  border: 1px solid rgba(47, 143, 95, 0.14);
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  max-width: 100%;
+}
+
+.bonds-tab-btn {
+  flex: 0 0 auto;
+  border: none;
+  background: transparent;
+  color: #416a54;
+  font-size: 14px;
+  font-weight: 700;
+  font-family: inherit;
+  padding: 10px 16px;
+  border-radius: 999px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.bonds-tab-btn:hover {
+  background: rgba(47, 143, 95, 0.08);
+}
+
+.bonds-tab-btn.is-active {
+  background: #ffffff;
+  color: var(--accent, #2f8f5f);
+  box-shadow: 0 10px 24px rgba(47, 143, 95, 0.12);
+}
+
+.bonds-tab-panel {
+  display: none;
+  margin-top: 18px;
+}
+
+.bonds-tab-panel.is-active {
+  display: block;
+}
+
+.bonds-section-head {
+  margin: 0 0 16px;
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--text-primary, #1a2e24);
+  letter-spacing: -0.02em;
+}
+
+.bonds-section-head:not(:first-child) {
+  margin-top: 28px;
+}
+
+.bonds-section-lead {
+  margin: 0 0 18px;
+  font-size: 14px;
+  line-height: 1.75;
+  color: var(--gray-500, #4a6658);
+}
+
+.bonds-flow-block {
+  margin-bottom: 8px;
+}
+
+.bonds-flow-card {
+  display: grid;
+  grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+  background: #ffffff;
+  border: 1px solid rgba(47, 143, 95, 0.14);
+  border-radius: 20px;
+  padding: 24px;
+  margin-bottom: 8px;
+}
+
+.bonds-flow-svg-wrap {
+  background: #fff;
+  border: 1px solid rgba(47, 143, 95, 0.1);
+  border-radius: 16px;
+  padding: 12px;
+}
+
+.bonds-flow-svg-wrap svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-width: 280px;
+  margin: 0 auto;
+}
+
+.bonds-flow-steps {
+  display: grid;
+  gap: 14px;
+}
+
+.bonds-flow-step {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #f8fcf9 0%, #eff8f2 100%);
+  border: 1px solid rgba(47, 143, 95, 0.12);
+}
+
+.bonds-flow-step p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--text-primary, #1a2e24);
+}
+
+.bonds-flow-step-num {
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  background: rgba(47, 143, 95, 0.14);
+  color: var(--accent, #2f8f5f);
+  font-size: 12px;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bonds-compare-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  margin-bottom: 8px;
+}
+
+.bonds-compare-card {
+  background: #ffffff;
+  border: 1px solid rgba(47, 143, 95, 0.14);
+  border-radius: 20px;
+  padding: 22px;
+  text-align: center;
+}
+
+.bonds-compare-card.is-bond {
+  background: linear-gradient(180deg, #f8fcf9 0%, #ffffff 100%);
+}
+
+.bonds-compare-badge {
+  display: inline-block;
+  margin-bottom: 12px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: rgba(47, 143, 95, 0.12);
+  color: var(--accent, #2f8f5f);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.bonds-compare-title {
+  margin: 0 0 8px;
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--text-primary, #1a2e24);
+}
+
+.bonds-compare-arrow {
+  margin: 8px 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--accent, #2f8f5f);
+}
+
+.bonds-compare-text {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--text-primary, #1a2e24);
+}
+
+.bonds-example-card {
+  background: #ffffff;
+  border: 1px solid rgba(47, 143, 95, 0.14);
+  border-radius: 20px;
+  padding: 24px;
+  text-align: center;
+}
+
+.bonds-example-badge {
+  display: inline-block;
+  margin-bottom: 16px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: rgba(47, 143, 95, 0.12);
+  color: var(--accent, #2f8f5f);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.bonds-example-meta {
+  display: grid;
+  gap: 10px;
+  max-width: 320px;
+  margin: 0 auto 8px;
+}
+
+.bonds-example-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: #f8fcf9;
+  border: 1px solid rgba(47, 143, 95, 0.1);
+  font-size: 14px;
+  color: var(--gray-500, #4a6658);
+}
+
+.bonds-example-row strong {
+  color: var(--text-primary, #1a2e24);
+  font-weight: 800;
+}
+
+.bonds-example-highlight {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.65;
+  color: var(--text-primary, #1a2e24);
+}
+
+.bonds-example-highlight strong {
+  color: var(--accent, #2f8f5f);
+}
+
+.bonds-type-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+  margin-bottom: 16px;
+}
+
+.bonds-type-card {
+  background: #ffffff;
+  border: 1px solid rgba(47, 143, 95, 0.14);
+  border-radius: 20px;
+  padding: 22px;
+}
+
+.bonds-type-badge {
+  display: inline-block;
+  margin-bottom: 10px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: rgba(47, 143, 95, 0.12);
+  color: var(--accent, #2f8f5f);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.bonds-type-title {
+  margin: 0 0 8px;
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--text-primary, #1a2e24);
+}
+
+.bonds-type-text {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--gray-500, #4a6658);
+}
+
+.bonds-more-types {
+  margin-bottom: 8px;
+  padding: 14px 18px;
+  border-radius: 14px;
+  background: #f8fcf9;
+  border: 1px solid rgba(47, 143, 95, 0.12);
+}
+
+.bonds-more-types summary {
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--accent, #2f8f5f);
+}
+
+.bonds-more-types p {
+  margin: 10px 0 0;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--gray-500, #4a6658);
+}
+
+.bonds-rate-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  margin-bottom: 8px;
+}
+
+.bonds-rate-card {
+  background: #ffffff;
+  border: 1px solid rgba(47, 143, 95, 0.14);
+  border-radius: 20px;
+  padding: 22px;
+}
+
+.bonds-rate-card.is-down {
+  border-color: rgba(200, 80, 60, 0.2);
+}
+
+.bonds-rate-card.is-up {
+  border-color: rgba(47, 143, 95, 0.25);
+  background: linear-gradient(180deg, #f8fcf9 0%, #ffffff 100%);
+}
+
+.bonds-rate-title {
+  margin: 0 0 14px;
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--text-primary, #1a2e24);
+}
+
+.bonds-rate-line {
+  margin: 0 0 8px;
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--text-primary, #1a2e24);
+}
+
+.bonds-rate-example {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #f8fcf9;
+  border: 1px solid rgba(47, 143, 95, 0.1);
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--gray-500, #4a6658);
+}
+
+.bonds-risk-gauge {
+  display: grid;
+  gap: 16px;
+  padding: 20px;
+  border-radius: 20px;
+  background: #ffffff;
+  border: 1px solid rgba(47, 143, 95, 0.14);
+}
+
+.bonds-risk-row {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+}
+
+.bonds-risk-label {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary, #1a2e24);
+}
+
+.bonds-risk-bar {
+  height: 10px;
+  border-radius: 999px;
+  background: #eef4f0;
+  overflow: hidden;
+}
+
+.bonds-risk-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+}
+
+.bonds-risk-fill.is-low {
+  background: #2f8f5f;
+}
+
+.bonds-risk-fill.is-mid {
+  background: #d4a017;
+}
+
+.bonds-risk-fill.is-high {
+  background: #c8503c;
+}
+
+.bonds-risk-tag {
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.bonds-risk-tag.is-green {
+  color: #2f8f5f;
+}
+
+.bonds-risk-tag.is-yellow {
+  color: #9a7200;
+}
+
+.bonds-risk-tag.is-red {
+  color: #a63d2f;
+}
+
+.bonds-indicator-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.bonds-indicator-item {
+  background: #ffffff;
+  border: 1px solid rgba(47, 143, 95, 0.14);
+  border-radius: 16px;
+  padding: 18px;
+}
+
+.bonds-indicator-term {
+  margin: 0 0 6px;
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text-primary, #1a2e24);
+}
+
+.bonds-indicator-desc {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--gray-500, #4a6658);
+}
+
+.bonds-rating-scale {
+  margin-bottom: 22px;
+  padding: 18px;
+  border-radius: 16px;
+  background: #f8fcf9;
+  border: 1px solid rgba(47, 143, 95, 0.12);
+}
+
+.bonds-rating-title {
+  margin: 0 0 12px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--gray-500, #4a6658);
+}
+
+.bonds-rating-track {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.bonds-rating-item {
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: #fff;
+  border: 1px solid rgba(47, 143, 95, 0.18);
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--text-primary, #1a2e24);
+}
+
+.bonds-rating-item.is-best {
+  background: rgba(47, 143, 95, 0.12);
+  color: var(--accent, #2f8f5f);
+}
+
+.bonds-rating-item.is-low {
+  background: rgba(200, 80, 60, 0.08);
+  color: #a63d2f;
+}
+
+.bonds-rating-arrow {
+  color: var(--gray-400, #8aa896);
+  font-size: 12px;
+}
+
+.bonds-warning-box {
+  padding: 18px 20px;
+  border-radius: 16px;
+  background: #fff8e1;
+  border: 1px solid rgba(245, 166, 35, 0.45);
+  margin-bottom: 20px;
+}
+
+.bonds-warning-title {
+  margin: 0 0 10px;
+  font-size: 15px;
+  font-weight: 800;
+  color: #8a5a00;
+}
+
+.bonds-warning-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 8px;
+}
+
+.bonds-warning-list li {
+  position: relative;
+  padding-left: 14px;
+  font-size: 13px;
+  line-height: 1.7;
+  color: #6b4e10;
+}
+
+.bonds-warning-list li::before {
+  content: '•';
+  position: absolute;
+  left: 0;
+  font-weight: 900;
+}
+
+.bonds-footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.bonds-footer-link {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+  color: var(--accent, #2f8f5f);
+  font-size: 13px;
+  font-weight: 700;
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: rgba(47, 143, 95, 0.08);
+  border: 1px solid rgba(47, 143, 95, 0.18);
+}
+
+.bonds-footer-link:hover {
+  background: rgba(47, 143, 95, 0.14);
+}
+
+@media (max-width: 900px) {
+  .bonds-flow-card {
+    grid-template-columns: 1fr;
+  }
+
+  .bonds-compare-grid,
+  .bonds-type-grid,
+  .bonds-rate-grid,
+  .bonds-indicator-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .bonds-risk-row {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .bonds-risk-tag {
+    justify-self: start;
+  }
+}
