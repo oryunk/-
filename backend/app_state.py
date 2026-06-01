@@ -170,18 +170,50 @@ LOCAL_TERM_FALLBACK = {
     ),
 }
 _INDEX_ROWS = [
-    {'key': 'kospi', 'name': 'KOSPI', 'kis_code': '0001', 'yf_ticker': '^KS11'},
-    {'key': 'kosdaq', 'name': 'KOSDAQ', 'kis_code': '1001', 'yf_ticker': '^KQ11'},
-    {'key': 'kospi200', 'name': 'KOSPI 200', 'kis_code': '2001', 'yf_ticker': '^KS200'},
+    {'key': 'kospi', 'name': 'KOSPI', 'kis_code': '0001', 'yf_ticker': '^KS11',
+     'region': 'KR', 'region_label': '한국', 'kind': 'index', 'interactive': True},
+    {'key': 'kosdaq', 'name': 'KOSDAQ', 'kis_code': '1001', 'yf_ticker': '^KQ11',
+     'region': 'KR', 'region_label': '한국', 'kind': 'index', 'interactive': True},
+    {'key': 'kospi200', 'name': 'KOSPI 200', 'kis_code': '2001', 'yf_ticker': '^KS200',
+     'region': 'KR', 'region_label': '한국', 'kind': 'index', 'interactive': True},
 ]
-_INDEX_NAME_TO_KEY = {row['name']: row['key'] for row in _INDEX_ROWS}
-_INDEX_KEY_TO_NAME = {row['key']: row['name'] for row in _INDEX_ROWS}
-_INDEX_KEY_TO_YF_TICKER = {row['key']: row['yf_ticker'] for row in _INDEX_ROWS}
+_GLOBAL_MACRO_ROWS = [
+    {'key': 'sox', 'name': '필라델피아 반도체(SOX)', 'yf_ticker': '^SOX',
+     'region': 'US', 'region_label': '미국', 'kind': 'index', 'interactive': True},
+    {'key': 'nasdaq', 'name': '나스닥 종합', 'yf_ticker': '^IXIC',
+     'region': 'US', 'region_label': '미국', 'kind': 'index', 'interactive': True},
+    {'key': 'sp500', 'name': 'S&P 500', 'yf_ticker': '^GSPC',
+     'region': 'US', 'region_label': '미국', 'kind': 'index', 'interactive': True},
+    {'key': 'usdkrw', 'name': 'USD/KRW', 'yf_ticker': 'KRW=X',
+     'region': 'KR', 'region_label': '환율', 'kind': 'fx', 'interactive': True},
+    {'key': 'vix', 'name': 'VIX', 'yf_ticker': '^VIX',
+     'region': 'US', 'region_label': '미국', 'kind': 'index', 'interactive': True},
+    {'key': 'wti', 'name': 'WTI 유가', 'yf_ticker': 'CL=F',
+     'region': 'GLOBAL', 'region_label': '국제', 'kind': 'commodity', 'interactive': True},
+    {'key': 'copper', 'name': '구리', 'yf_ticker': 'HG=F',
+     'region': 'GLOBAL', 'region_label': '국제', 'kind': 'commodity', 'interactive': True},
+]
+_ALL_INDEX_REGISTRY = _INDEX_ROWS + _GLOBAL_MACRO_ROWS
+_INDEX_NAME_TO_KEY = {row['name']: row['key'] for row in _ALL_INDEX_REGISTRY}
+_INDEX_KEY_TO_NAME = {row['key']: row['name'] for row in _ALL_INDEX_REGISTRY}
+_INDEX_KEY_TO_YF_TICKER = {row['key']: row['yf_ticker'] for row in _ALL_INDEX_REGISTRY}
+_INDEX_KEY_META = {
+    row['key']: {
+        'region': row.get('region', 'GLOBAL'),
+        'region_label': row.get('region_label', ''),
+        'kind': row.get('kind', 'index'),
+        'interactive': bool(row.get('interactive', True)),
+    }
+    for row in _ALL_INDEX_REGISTRY
+}
 _INDEX_YF_TICKERS = {row['name']: row['yf_ticker'] for row in _INDEX_ROWS}
+_TICKER_DISPLAY_ORDER = [
+    'kospi', 'kosdaq', 'nasdaq', 'sp500', 'sox', 'usdkrw', 'vix', 'wti', 'copper',
+]
 _KIS_INDEX_ROWS_FIXED = [(row['name'], row['kis_code']) for row in _INDEX_ROWS]
 _KIS_INDEX_TR = os.getenv('KIS_INDEX_TR_ID', 'FHPUP02100000')
 _KIS_INDEX_TR_FB = os.getenv('KIS_INDEX_TR_ID_MOCK', 'VFPUP02100000')
-_INDEX_CACHE = {'data': [], 'ts': 0.0}
+_INDEX_CACHE = {'data': [], 'global': [], 'extras': [], 'ts': 0.0}
 _INDEX_CACHE_TTL = int(os.getenv('MARKET_INDICES_CACHE_TTL_SEC', '15'))
 _INDEX_HISTORY_CACHE = {}
 _INDEX_HISTORY_TTL = float(os.getenv('MARKET_INDEX_HISTORY_CACHE_TTL_SEC', '60'))

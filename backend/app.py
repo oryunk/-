@@ -69,9 +69,12 @@ from app_state import (
     _INDEX_CACHE_TTL,
     _INDEX_HISTORY_CACHE,
     _INDEX_HISTORY_TTL,
+    _INDEX_KEY_META,
     _INDEX_KEY_TO_NAME,
     _INDEX_KEY_TO_YF_TICKER,
     _INDEX_NAME_TO_KEY,
+    _GLOBAL_MACRO_ROWS,
+    _TICKER_DISPLAY_ORDER,
     _INDEX_YF_TICKERS,
     _INVESTOR_FLOW_CACHE,
     _INVESTOR_FLOW_CACHE_TTL,
@@ -2937,34 +2940,116 @@ def _kis_index_row_seems_valid(name, value):
     return v > 0.0
 
 
-# Yahoo Finance 지수 일봉.
-def _yf_index_from_ticker(name, ticker):
-    """Yahoo Finance 지수 일봉."""
-    hist = yf.Ticker(ticker).history(period='30d', interval='1d')
+def _attach_sparkline_points(row, ticker, max_points=36):
+    """카드·레일 미니차트용 최근 구간 points 부착."""
+    out = dict(row or {})
+    if out.get('error'):
+        return out
+    existing = out.get('points')
+    if isinstance(existing, list) and len(existing) >= 2:
+        return out
+    if not ticker:
+        return out
+    try:
+        hist = yf.Ticker(ticker).history(period='5d', interval='30m', auto_adjust=False)
+        closes = hist['Close'].dropna() if hist is not None and not hist.empty else None
+        points = _series_to_recent_points(closes, max_points=max_points)
+        if len(points) >= 2:
+            out['points'] = points
+            prev = _series_to_prev_session_close(closes)
+            if prev is not None:
+                out.setdefault('reference_value', round(prev, 2))
+            out.setdefault('chart_mode', 'relative')
+    except Exception:
+        pass
+    return out
+
+
+# Yahoo Finance 지수 (최근 5일 30분봉 + 스파크라인 points).
+def _yf_index_from_ticker(name, ticker, kind='index'):
+    """Yahoo Finance 지수 (최근 5일 30분봉 + 스파크라인 points)."""
+    hist = yf.Ticker(ticker).history(period='5d', interval='30m', auto_adjust=False)
     closes = hist['Close'].dropna() if hist is not None and not hist.empty else None
     if closes is None or len(closes) < 2:
         raise ValueError('데이터 없음')
     curr_close = float(closes.iloc[-1])
-    prev_close = float(closes.iloc[-2])
+    prev_close = _series_to_prev_session_close(closes)
+    if prev_close is None or prev_close <= 0:
+        prev_close = float(closes.iloc[-2]) if len(closes) >= 2 else curr_close
 
     change_abs = curr_close - prev_close
     change_pct = (change_abs / prev_close * 100) if prev_close else 0.0
     direction = 'up' if change_abs > 0 else ('down' if change_abs < 0 else 'flat')
+    value_rounded = round(curr_close, 2)
+    arrow = '▲' if direction == 'up' else ('▼' if direction == 'down' else '-')
+    sign = '+' if direction == 'up' else ('-' if direction == 'down' else '')
+    points = _series_to_recent_points(closes, max_points=36)
     return {
         'name': name,
-        'value': round(curr_close, 2),
+        'value': value_rounded,
         'change_abs': round(change_abs, 2),
         'change_pct': round(change_pct, 2),
         'direction': direction,
         'source': 'yfinance',
+        'kind': kind,
+        'value_text': _format_index_value_text(value_rounded, kind),
+        'change_text': f"{arrow} {abs(change_pct):.2f}%",
+        'points': points,
+        'reference_value': round(prev_close, 2),
+        'chart_mode': 'relative',
     }
 
 
-def _index_row_with_key(name, row):
+def _index_row_with_key(name, row, key=None):
     out = dict(row or {})
     out['name'] = str(out.get('name') or name)
-    out['key'] = _INDEX_NAME_TO_KEY.get(out['name']) or _INDEX_NAME_TO_KEY.get(name) or ''
+    resolved_key = str(key or out.get('key') or _INDEX_NAME_TO_KEY.get(out['name']) or _INDEX_NAME_TO_KEY.get(name) or '').strip()
+    out['key'] = resolved_key
+    meta = _INDEX_KEY_META.get(resolved_key, {})
+    out.setdefault('region', meta.get('region', 'GLOBAL'))
+    out.setdefault('region_label', meta.get('region_label', ''))
+    out.setdefault('kind', meta.get('kind', 'index'))
+    if 'interactive' not in out:
+        out['interactive'] = bool(meta.get('interactive', True))
     return out
+
+
+def _format_index_value_text(value, kind='index'):
+    try:
+        v = float(value)
+    except (TypeError, ValueError):
+        return '-'
+    if kind == 'fx':
+        return f'{v:,.2f}'
+    if kind == 'commodity':
+        return f'{v:,.2f}'
+    if v >= 1000:
+        return f'{v:,.2f}'
+    return f'{v:,.2f}'
+
+
+def _fetch_global_macro_row(spec):
+    """글로벌·원자재 지표 1건 (yfinance / FX)."""
+    key = str(spec.get('key') or '').strip()
+    name = str(spec.get('name') or key)
+    kind = spec.get('kind', 'index')
+    if key == 'usdkrw':
+        try:
+            payload, _cached, _ts = _fx_usd_krw_payload()
+            payload = dict(payload)
+            payload['interactive'] = True
+            payload['inline_chart'] = False
+            return _index_row_with_key(name, payload, key=key)
+        except Exception as exc:
+            return _index_row_with_key(name, {'name': name, 'error': str(exc)}, key=key)
+    ticker = spec.get('yf_ticker') or _INDEX_KEY_TO_YF_TICKER.get(key)
+    if not ticker:
+        return _index_row_with_key(name, {'name': name, 'error': '티커 없음'}, key=key)
+    try:
+        row = _yf_index_from_ticker(name, ticker, kind=kind)
+        return _index_row_with_key(name, row, key=key)
+    except Exception as exc:
+        return _index_row_with_key(name, {'name': name, 'error': str(exc)}, key=key)
 
 
 def _series_to_latest_session_points(series, max_points=96):
@@ -3114,6 +3199,180 @@ def _yf_index_5d_fallback_payload(key, name, ticker):
     payload['fallback'] = 'daily'
     payload['range_label'] = '최근 5거래일 종가'
     payload['window'] = '5d'
+    return payload
+
+
+def _hist_last_calendar_days(hist: pd.DataFrame, days: int) -> pd.DataFrame:
+    """히스토리에서 최근 N일 구간만 반환."""
+    if hist is None or hist.empty or days <= 0:
+        return hist
+    try:
+        idx = hist.index
+        if len(idx) == 0:
+            return hist
+        cutoff = idx[-1] - pd.Timedelta(days=days)
+        clipped = hist.loc[idx >= cutoff]
+        return clipped if clipped is not None and not clipped.empty else hist
+    except Exception:
+        return hist
+
+
+_INDEX_RANGE_YF = {
+    # 1일: 최근 1개월 30분봉(줌·스크롤). 초기 뷰는 프론트에서 최근 구간만 확대.
+    '1d': ('1mo', '30m', True, 800),
+    '1w': ('1mo', '1h', False, 200),
+    '1m': ('6mo', '1d', False, 130),
+    '1y': ('5y', '1wk', False, 260),
+}
+_INDEX_RANGE_LABELS = {
+    '1d': '1일',
+    '1w': '1주',
+    '1m': '1개월',
+    '1y': '1년',
+}
+
+
+def _hist_last_n_trading_sessions(hist: pd.DataFrame, max_sessions: int = 15) -> pd.DataFrame:
+    """분봉 히스토리에서 최근 N거래일 구간만 반환 (1일 차트용)."""
+    if hist is None or hist.empty or max_sessions <= 0:
+        return hist
+    try:
+        idx = hist.index
+        if not isinstance(idx, pd.DatetimeIndex):
+            return hist
+        local_idx = idx.tz_convert('Asia/Seoul') if idx.tz is not None else idx
+        session_days = []
+        for ts in reversed(local_idx):
+            d = pd.Timestamp(ts).date()
+            if not session_days or session_days[-1] != d:
+                session_days.append(d)
+            if len(session_days) >= max_sessions:
+                break
+        if not session_days:
+            return hist
+        keep = set(session_days)
+        mask = [pd.Timestamp(local_idx[i]).date() in keep for i in range(len(hist))]
+        sliced = hist.loc[mask]
+        return sliced if sliced is not None and not sliced.empty else hist
+    except Exception:
+        return hist
+
+
+def _hist_last_session_slice(hist: pd.DataFrame) -> pd.DataFrame:
+    """분봉 히스토리에서 최근 거래일 구간만 반환."""
+    if hist is None or hist.empty:
+        return hist
+    try:
+        idx = hist.index
+        if not isinstance(idx, pd.DatetimeIndex):
+            return hist
+        local_idx = idx.tz_convert('Asia/Seoul') if idx.tz is not None else idx
+        last_day = pd.Timestamp(local_idx[-1]).date()
+        mask = [pd.Timestamp(local_idx[i]).date() == last_day for i in range(len(hist))]
+        sliced = hist.loc[mask]
+        return sliced if not sliced.empty else hist
+    except Exception:
+        return hist
+
+
+def _ohlcv_stats_from_hist(hist: pd.DataFrame, *, intraday: bool = False) -> dict:
+    """선택 구간 OHLCV 통계 (지수 상세 오버레이용)."""
+    if hist is None or hist.empty:
+        return {'open': None, 'high': None, 'low': None, 'volume': None}
+    frame = _hist_last_session_slice(hist) if intraday else hist
+    if frame is None or frame.empty:
+        frame = hist
+    try:
+        open_s = frame['Open'] if 'Open' in frame.columns else frame['Close']
+        high_s = frame['High'] if 'High' in frame.columns else frame['Close']
+        low_s = frame['Low'] if 'Low' in frame.columns else frame['Close']
+        vol_s = frame['Volume'] if 'Volume' in frame.columns else None
+        o = float(open_s.iloc[0])
+        h = float(high_s.max())
+        l = float(low_s.min())
+        vol = None
+        if vol_s is not None and not vol_s.dropna().empty:
+            vol = float(vol_s.dropna().sum())
+        return {
+            'open': round(o, 2),
+            'high': round(h, 2),
+            'low': round(l, 2),
+            'volume': round(vol, 0) if vol is not None and math.isfinite(vol) else None,
+        }
+    except Exception:
+        return {'open': None, 'high': None, 'low': None, 'volume': None}
+
+
+def _yf_index_range_payload(key, name, ticker, range_param: str):
+    """기간별 지수 차트 (1d/1w/1m/1y). 줌·스크롤용 촘촘한 봉 데이터 포함."""
+    spec = _INDEX_RANGE_YF.get(range_param)
+    if not spec:
+        raise ValueError('지원하지 않는 기간입니다.')
+    period, interval, intraday_flag, max_points = spec
+    chart_intraday = bool(intraday_flag or interval in ('30m', '1h', '60m', '15m', '5m'))
+    hist = yf.Ticker(ticker).history(period=period, interval=interval, auto_adjust=False)
+    if hist is None or hist.empty or 'Close' not in hist:
+        raise ValueError('지수 히스토리 데이터가 부족합니다.')
+    closes = hist['Close'].dropna()
+    if closes.empty or len(closes) < 2:
+        raise ValueError('지수 히스토리 데이터가 부족합니다.')
+    if intraday_flag:
+        points = _series_to_latest_session_points(closes, max_points=max_points)
+        prev_close = _series_to_prev_session_close(closes)
+        source = f'yfinance-{interval}'
+    else:
+        points = _series_to_daily_points(closes, max_points=max_points)
+        prev_close = float(closes.iloc[-2]) if len(closes) >= 2 else None
+        source = f'yfinance-{interval}'
+    payload = _index_history_payload_from_points(
+        key,
+        name,
+        points,
+        source,
+        intraday_flag,
+        reference_value=prev_close,
+        reference_label='전일 종가',
+    )
+    payload['range'] = range_param
+    payload['range_label'] = _INDEX_RANGE_LABELS.get(range_param, range_param)
+    if range_param == '1d' and intraday_flag:
+        payload['range_label'] = '1일 · 최근 거래일 분봉 (좌우 이동)'
+    meta = _INDEX_KEY_META.get(key, {})
+    payload['region'] = meta.get('region', 'KR' if key in ('kospi', 'kosdaq', 'kospi200') else 'GLOBAL')
+    payload['region_label'] = meta.get('region_label', '한국' if payload['region'] == 'KR' else '')
+    payload['kind'] = meta.get('kind', 'index')
+
+    if intraday_flag and range_param == '1d':
+        chart_hist = _hist_last_n_trading_sessions(hist, max_sessions=15)
+    elif intraday_flag:
+        chart_hist = _hist_last_session_slice(hist)
+    elif range_param == '1w':
+        chart_hist = _hist_last_calendar_days(hist, 7)
+    elif range_param == '1m':
+        chart_hist = _hist_last_calendar_days(hist, 31)
+    else:
+        chart_hist = hist
+    if chart_hist is not None and len(chart_hist) > max_points:
+        chart_hist = chart_hist.iloc[-max_points:]
+
+    stats_hist = _hist_last_session_slice(hist) if intraday_flag else chart_hist
+    payload['stats'] = _ohlcv_stats_from_hist(stats_hist, intraday=intraday_flag)
+    if intraday_flag:
+        payload['volume_label'] = '당일(최근 거래일) 거래량'
+    elif range_param in ('1w', '1m', '1y'):
+        payload['volume_label'] = '구간 거래량'
+    elif payload.get('kind') == 'commodity':
+        payload['volume_label'] = '거래량(선물)'
+    else:
+        payload['volume_label'] = '거래량'
+
+    chart_payload = _build_chart_payload_from_hist(chart_hist, chart_intraday)
+    if chart_payload:
+        payload['candles'] = chart_payload.get('candles') or []
+        payload['ma5'] = chart_payload.get('ma5') or []
+        payload['ma20'] = chart_payload.get('ma20') or []
+        payload['intraday'] = bool(chart_payload.get('intraday'))
+        _merge_daily_ma_into_chart_payload_yf(payload, ticker)
     return payload
 
 
@@ -3398,16 +3657,19 @@ def _kis_index_output_to_row(name, out):
 
 # 주요 시장 지수 (캐시).
 def serve_market_indices():
-    """주요 시장 지수 (캐시)."""
+    """주요 시장 지수 (캐시). 한국 indices + global 매크로 + extras(시장폭)."""
     now = time.time()
     if now - _INDEX_CACHE['ts'] < _INDEX_CACHE_TTL and _INDEX_CACHE['data']:
         cached_indices = _INDEX_CACHE['data']
+        cached_global = _INDEX_CACHE.get('global') or []
         cached_extras = _INDEX_CACHE.get('extras') or []
         return jsonify({
             'success': True,
             'indices': cached_indices,
+            'global': cached_global,
             'extras': cached_extras,
-            'cards': list(cached_indices) + list(cached_extras),
+            'cards': list(cached_indices) + list(cached_global) + list(cached_extras),
+            'ticker_order': _TICKER_DISPLAY_ORDER,
             'cached': True,
             'ts': datetime.fromtimestamp(_INDEX_CACHE['ts']).strftime('%H:%M:%S'),
         })
@@ -3424,6 +3686,9 @@ def serve_market_indices():
                 try:
                     row = _index_row_with_key(name, _kis_index_output_to_row(name, out))
                     if _kis_index_row_seems_valid(name, row.get('value')):
+                        yft_kis = _INDEX_YF_TICKERS.get(name)
+                        if yft_kis:
+                            row = _attach_sparkline_points(row, yft_kis)
                         result.append(row)
                         continue
                 except Exception:
@@ -3431,7 +3696,7 @@ def serve_market_indices():
             yft = _INDEX_YF_TICKERS.get(name)
             if yft:
                 try:
-                    result.append(_index_row_with_key(name, _yf_index_from_ticker(name, yft)))
+                    result.append(_index_row_with_key(name, _yf_index_from_ticker(name, yft, kind='index')))
                 except Exception as e:
                     result.append(_index_row_with_key(name, {'name': name, 'error': str(e)}))
             else:
@@ -3439,30 +3704,24 @@ def serve_market_indices():
     else:
         for name, yft in _INDEX_YF_TICKERS.items():
             try:
-                result.append(_index_row_with_key(name, _yf_index_from_ticker(name, yft)))
+                result.append(_index_row_with_key(name, _yf_index_from_ticker(name, yft, kind='index')))
             except Exception as e:
                 result.append(_index_row_with_key(name, {'name': name, 'error': str(e)}))
 
-    extras = []
+    global_rows = []
     try:
-        fx_payload, _fx_cached, _fx_ts = _fx_usd_krw_payload(now=now)
-        extras.append(fx_payload)
-    except Exception as fx_exc:
-        extras.append({
-            'key': 'usdkrw',
-            'kind': 'fx',
-            'interactive': False,
-            'inline_chart': True,
-            'name': 'USD/KRW',
-            'direction': 'flat',
-            'error': str(fx_exc),
-            'value_text': '-',
-            'change_text': '조회 실패',
-            'points': [],
-            'reference_value': 0,
-            'chart_mode': 'relative',
-        })
+        with ThreadPoolExecutor(max_workers=min(8, len(_GLOBAL_MACRO_ROWS) or 1)) as pool:
+            futures = [pool.submit(_fetch_global_macro_row, spec) for spec in _GLOBAL_MACRO_ROWS]
+            for fut in futures:
+                try:
+                    global_rows.append(fut.result())
+                except Exception as exc:
+                    global_rows.append({'name': '지표', 'error': str(exc), 'interactive': False})
+    except Exception:
+        for spec in _GLOBAL_MACRO_ROWS:
+            global_rows.append(_fetch_global_macro_row(spec))
 
+    extras = []
     try:
         extras.append(_market_breadth_payload(token=token))
     except Exception as breadth_exc:
@@ -3482,26 +3741,34 @@ def serve_market_indices():
         })
 
     _INDEX_CACHE['data'] = result
+    _INDEX_CACHE['global'] = global_rows
     _INDEX_CACHE['extras'] = extras
     _INDEX_CACHE['ts'] = now
     return jsonify({
         'success': True,
         'indices': result,
+        'global': global_rows,
         'extras': extras,
-        'cards': list(result) + list(extras),
+        'cards': list(result) + list(global_rows) + list(extras),
+        'ticker_order': _TICKER_DISPLAY_ORDER,
         'cached': False,
         'ts': datetime.now().strftime('%H:%M:%S'),
     })
 
 
 def serve_market_index_history(index_key):
-    """주요 지수 hover 미니차트용 최근 5거래일 히스토리."""
+    """주요 지수 차트. range 없음=5거래일(레거시 팝오버), range=1d|1w|1m|1y=상세 오버레이."""
     key = str(index_key or '').strip().lower()
     if not key:
         return jsonify({'success': False, 'message': '지원하지 않는 지수입니다.'}), 404
 
+    range_param = str(request.args.get('range') or '').strip().lower()
+    if range_param and range_param not in _INDEX_RANGE_YF:
+        return jsonify({'success': False, 'message': '지원하지 않는 기간입니다. (1d, 1w, 1m, 1y)'}), 400
+
+    cache_key = (key, range_param or 'legacy')
     now = time.time()
-    cached = _INDEX_HISTORY_CACHE.get(key)
+    cached = _INDEX_HISTORY_CACHE.get(cache_key)
     if cached and (now - float(cached.get('ts') or 0.0)) < _INDEX_HISTORY_TTL:
         payload = dict(cached.get('payload') or {})
         payload.update({
@@ -3512,32 +3779,40 @@ def serve_market_index_history(index_key):
         return jsonify(payload)
 
     try:
-        if key in _INDEX_KEY_TO_NAME:
+        if key == 'marketbreadth':
+            payload = _market_breadth_payload()
+        elif key in _INDEX_KEY_TO_NAME and key in _INDEX_KEY_TO_YF_TICKER:
             name = _INDEX_KEY_TO_NAME.get(key)
             ticker = _INDEX_KEY_TO_YF_TICKER.get(key)
-            payload = _yf_index_recent_5d_payload(key, name, ticker)
-        elif key == 'usdkrw':
-            payload, _cached, _ts = _fx_usd_krw_payload(now=now)
-        elif key == 'marketbreadth':
-            payload = _market_breadth_payload()
+            if range_param:
+                payload = _yf_index_range_payload(key, name, ticker, range_param)
+            elif key == 'usdkrw':
+                payload, _cached, _ts = _fx_usd_krw_payload(now=now)
+                payload = dict(payload)
+                meta = _INDEX_KEY_META.get(key, {})
+                payload.setdefault('region', meta.get('region', 'KR'))
+                payload.setdefault('region_label', meta.get('region_label', '환율'))
+                payload.setdefault('kind', 'fx')
+            else:
+                payload = _yf_index_recent_5d_payload(key, name, ticker)
         else:
             return jsonify({'success': False, 'message': '지원하지 않는 지수입니다.'}), 404
     except Exception:
         try:
-            if key in _INDEX_KEY_TO_NAME:
+            if key == 'marketbreadth':
+                raise
+            if key in _INDEX_KEY_TO_NAME and key in _INDEX_KEY_TO_YF_TICKER:
                 name = _INDEX_KEY_TO_NAME.get(key)
                 ticker = _INDEX_KEY_TO_YF_TICKER.get(key)
+                if range_param:
+                    raise
                 payload = _yf_index_5d_fallback_payload(key, name, ticker)
-            elif key == 'usdkrw':
-                raise
-            elif key == 'marketbreadth':
-                raise
             else:
                 return jsonify({'success': False, 'message': '지원하지 않는 지수입니다.'}), 404
         except Exception as exc:
             return jsonify({'success': False, 'message': f'지수 차트 조회 실패: {exc}'}), 200
 
-    _INDEX_HISTORY_CACHE[key] = {'payload': payload, 'ts': now}
+    _INDEX_HISTORY_CACHE[cache_key] = {'payload': payload, 'ts': now}
     body = dict(payload)
     body.update({'success': True, 'cached': False, 'ts': datetime.now().strftime('%H:%M:%S')})
     return jsonify(body)
