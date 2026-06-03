@@ -560,6 +560,25 @@
     </div>
   </div>
 
+  <div id="insufficientCashModal" class="sell-modal-overlay insufficient-cash-overlay" aria-hidden="true" role="presentation" onclick="if (event.target === this) closeInsufficientCashModal()">
+    <div class="sell-modal-panel trade-confirm-panel insufficient-cash-panel" role="alertdialog" aria-modal="true" aria-labelledby="insufficientCashHeading" onclick="event.stopPropagation()">
+      <button type="button" class="sell-modal-close" onclick="closeInsufficientCashModal()" aria-label="닫기">&#215;</button>
+      <h3 class="sell-modal-title insufficient-cash-title" id="insufficientCashHeading">예수금 부족</h3>
+      <p class="insufficient-cash-lead">매수 주문을 진행할 수 없습니다. 예수금을 확인해 주세요.</p>
+      <div class="sell-modal-row"><span>종목</span><span id="insufficientCashStockLine">&#8212;</span></div>
+      <div class="sell-modal-row"><span>수량</span><span id="insufficientCashQtyLine">&#8212;</span></div>
+      <div class="sell-modal-row"><span>예상 단가</span><span id="insufficientCashUnitLine">&#8212;</span></div>
+      <div class="insufficient-cash-summary">
+        <div class="sell-modal-row"><span>필요 결제액</span><span id="insufficientCashRequired">&#8212;</span></div>
+        <div class="sell-modal-row"><span>예수금</span><span id="insufficientCashAvailable">&#8212;</span></div>
+        <div class="sell-modal-row insufficient-cash-row--short"><span>부족 금액</span><span id="insufficientCashShortfall">&#8212;</span></div>
+      </div>
+      <div class="sell-modal-actions">
+        <button type="button" class="btn-trade insufficient-cash-ok" onclick="closeInsufficientCashModal()">확인</button>
+      </div>
+    </div>
+  </div>
+
   <div id="quickSellConfirmModal" class="sell-modal-overlay" aria-hidden="true" role="presentation" onclick="if (event.target === this) closeQuickSellConfirmModal()">
     <div class="sell-modal-panel trade-confirm-panel trade-confirm-panel--sell" role="dialog" aria-modal="true" aria-labelledby="quickSellConfirmHeading" onclick="event.stopPropagation()">
       <button type="button" class="sell-modal-close" onclick="closeQuickSellConfirmModal()" aria-label="닫기">&#215;</button>

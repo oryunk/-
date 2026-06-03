@@ -148,6 +148,7 @@
   </div>
 </div>
 
+<script src="js/email-rules.js"></script>
 <script>
   const API_BASE = window.JURIN_API_BASE || 'http://localhost:5000';
 
@@ -160,6 +161,14 @@
     if (!email) {
       showResult('error', '이메일을 입력해주세요.');
       return;
+    }
+
+    if (typeof jurinValidateEmail === 'function') {
+      const emailCheck = jurinValidateEmail(email);
+      if (!emailCheck.ok) {
+        showResult('error', emailCheck.message);
+        return;
+      }
     }
 
     // 로딩 상태

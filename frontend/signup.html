@@ -8,15 +8,22 @@
 <link rel="icon" type="image/png" sizes="32x32" href="assets/brand/favicon-32x32.png?v=20260607">
 <link rel="apple-touch-icon" sizes="180x180" href="assets/brand/apple-touch-icon.png?v=20260607">
 <title>회원가입 - 주린닷컴</title>
+<script>
+(function () {
+  if (new URLSearchParams(location.search).get('embed') === '1') {
+    document.documentElement.classList.add('auth-embed');
+  }
+})();
+</script>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css?v=20260428">
 <style>
   .auth-page {
     min-height: 100vh;
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: center;
-    padding: 40px 20px;
+    padding: 32px 20px 48px;
     background:
       radial-gradient(circle at top right, rgba(47, 143, 95, 0.12), transparent 32%),
       radial-gradient(circle at bottom left, rgba(47, 143, 95, 0.08), transparent 38%),
@@ -24,42 +31,46 @@
   }
 
   .auth-card {
+    position: relative;
     width: min(100%, 520px);
-    padding: 36px;
+    padding: 32px 28px 36px;
     border-radius: 24px;
     border: 1px solid rgba(47, 143, 95, 0.18);
     background: #ffffff;
     box-shadow: 0 20px 60px rgba(31, 47, 38, 0.1);
+    margin: 0 auto;
   }
 
-  .auth-back {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 42px;
-    height: 42px;
-    margin-bottom: 16px;
-    border-radius: 12px;
-    border: 1px solid rgba(47, 143, 95, 0.35);
-    background: rgba(47, 143, 95, 0.08);
-    color: var(--accent);
-    font-size: 22px;
-    font-weight: 700;
-    line-height: 1;
-    text-decoration: none;
-    font-family: inherit;
-    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  html:not(.auth-embed) .auth-card {
+    padding-top: 44px;
   }
 
-  .auth-back:hover {
-    background: rgba(47, 143, 95, 0.14);
-    border-color: rgba(47, 143, 95, 0.55);
-    color: #166534;
+  html.auth-embed .auth-page {
+    min-height: 0;
+    padding: 4px 12px 12px;
+    background: transparent;
   }
 
-  .auth-back:focus-visible {
-    outline: none;
-    box-shadow: 0 0 0 3px rgba(47, 143, 95, 0.25);
+  html.auth-embed .auth-card {
+    box-shadow: none;
+    border: none;
+    padding: 24px 16px 20px;
+    border-radius: 0;
+  }
+
+  html.auth-embed #signupStandaloneClose {
+    display: none;
+  }
+
+  .lumi-chat-root,
+  .lumi-chat-fab {
+    display: none !important;
+  }
+
+  #signupStandaloneClose {
+    position: absolute;
+    top: 12px;
+    right: 12px;
   }
 
   .auth-kicker {
@@ -67,74 +78,163 @@
     color: var(--accent);
     font-size: 12px;
     letter-spacing: 0.12em;
-    margin-bottom: 12px;
+    margin-bottom: 8px;
   }
 
   .auth-card h1 {
-    font-size: 32px;
-    margin-bottom: 22px;
+    font-size: 28px;
+    margin-bottom: 20px;
     color: var(--text-primary);
+    text-align: left;
+    font-weight: 800;
   }
 
   .auth-form {
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 10px;
   }
 
-  .auth-field {
+  .auth-field-group {
     display: flex;
     flex-direction: column;
+    gap: 0;
+  }
+
+  .auth-field-line {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .auth-field-label {
+    flex: 0 0 92px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    line-height: 1.3;
+    white-space: nowrap;
+    word-break: keep-all;
+  }
+
+  .auth-field-control {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .auth-input-row {
+    display: flex;
+    align-items: stretch;
     gap: 8px;
   }
 
-  .auth-field span {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--text-primary);
+  .auth-input-row .auth-input {
+    flex: 1;
+    min-width: 0;
   }
 
-  .auth-field input {
+  .auth-input {
     width: 100%;
     padding: 14px 16px;
-    border-radius: 10px;
-    border: 1px solid rgba(47, 143, 95, 0.22);
+    border-radius: 12px;
+    border: 1px solid rgba(47, 143, 95, 0.2);
     background: var(--gray-100);
     color: var(--text-primary);
     font-size: 14px;
     font-family: inherit;
+    box-sizing: border-box;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
   }
 
-  .auth-field input:focus {
+  .auth-input::placeholder {
+    color: var(--gray-400);
+    font-weight: 500;
+  }
+
+  .auth-input:focus {
     outline: none;
     border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(47, 143, 95, 0.15);
+    box-shadow: 0 0 0 3px rgba(47, 143, 95, 0.12);
+  }
+
+  .auth-input.is-invalid {
+    border-color: #e53935;
+    box-shadow: 0 0 0 2px rgba(229, 57, 53, 0.15);
+  }
+
+  .auth-field-error {
+    display: none;
+    margin: 6px 0 0 104px;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.45;
+    color: #e53935;
+  }
+
+  .auth-field-error--under-input {
+    margin: 6px 0 0;
+    width: 100%;
+    min-height: 1.45em;
+  }
+
+  .auth-field-control--stacked {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .auth-field-group[data-field="form"] .auth-field-error {
+    margin-left: 0;
+  }
+
+  .auth-field-error.is-visible {
+    display: block;
+  }
+
+  .auth-field-error.is-success {
+    color: var(--green);
+  }
+
+  .auth-send-btn {
+    flex-shrink: 0;
+    padding: 0 16px;
+    border: none;
+    border-radius: 12px;
+    background: rgba(47, 143, 95, 0.12);
+    color: var(--accent);
+    font-size: 13px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s ease, opacity 0.15s ease;
+  }
+
+  .auth-send-btn:hover:not(:disabled) {
+    background: rgba(47, 143, 95, 0.2);
+  }
+
+  .auth-send-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
   }
 
   .auth-submit {
-    margin-top: 8px;
+    margin-top: 6px;
     border: none;
-    border-radius: 10px;
-    padding: 14px 18px;
+    border-radius: 12px;
+    padding: 15px 18px;
     background: linear-gradient(135deg, var(--blue-bright), var(--accent));
     color: #ffffff;
     font-weight: 700;
     font-size: 15px;
     cursor: pointer;
+    font-family: inherit;
   }
 
-  .auth-message {
-    min-height: 20px;
-    font-size: 13px;
-    font-weight: 600;
-  }
-
-  .auth-message.error {
-    color: #ff8e8e;
-  }
-
-  .auth-message.success {
-    color: var(--green);
+  .auth-submit:disabled {
+    opacity: 0.7;
+    cursor: wait;
   }
 
   .auth-links {
@@ -157,41 +257,89 @@
 
   @media (max-width: 600px) {
     .auth-card {
-      padding: 28px 20px;
+      padding: 24px 18px 28px;
+    }
+
+    .auth-field-label {
+      flex: 0 0 88px;
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    .auth-field-error {
+      margin-left: 100px;
     }
   }
 </style>
-<link rel="stylesheet" href="css/lumi-chat.css?v=20260609">
 </head>
 <body>
 <div class="auth-page">
   <div class="auth-card">
-    <a href="주린닷컴홈피.html" class="auth-back" aria-label="메인 홈으로 돌아가기" title="메인 홈으로">&#8592;</a>
+    <button type="button" class="signup-close login-close" id="signupStandaloneClose" aria-label="회원가입 창 닫기">×</button>
     <div class="auth-kicker">JURIN.COM SIGN UP</div>
     <h1>회원가입</h1>
-    <form class="auth-form" onsubmit="submitSignup(event)">
-      <label class="auth-field">
-        <span>닉네임</span>
-        <input type="text" id="signupNickname" placeholder="표시할 닉네임을 입력하세요" autocomplete="nickname" required>
-      </label>
-      <label class="auth-field">
-        <span>아이디</span>
-        <input type="text" id="signupId" placeholder="사용할 아이디를 입력하세요" autocomplete="username" required>
-      </label>
-      <label class="auth-field">
-        <span>이메일</span>
-        <input type="email" id="signupEmail" placeholder="example@email.com" autocomplete="email" required>
-      </label>
-      <label class="auth-field">
-        <span>비밀번호</span>
-        <input type="password" id="signupPassword" placeholder="비밀번호를 입력하세요" autocomplete="new-password" required>
-      </label>
-      <label class="auth-field">
-        <span>비밀번호 확인</span>
-        <input type="password" id="signupPasswordConfirm" placeholder="비밀번호를 한 번 더 입력하세요" autocomplete="new-password" required>
-      </label>
-      <div class="auth-message" id="signupMessage"></div>
-      <button class="auth-submit" type="submit">회원가입 완료</button>
+    <form class="auth-form" onsubmit="submitSignup(event)" novalidate>
+      <div class="auth-field-group" data-field="nickname">
+        <div class="auth-field-line">
+          <label class="auth-field-label" for="signupNickname">닉네임</label>
+          <div class="auth-field-control">
+            <input type="text" class="auth-input" id="signupNickname" placeholder="2~8자 한글·영문·숫자" autocomplete="nickname" required maxlength="8">
+          </div>
+        </div>
+        <div class="auth-field-error" id="signupErrorNickname" role="alert" aria-live="polite"></div>
+      </div>
+      <div class="auth-field-group" data-field="loginId">
+        <div class="auth-field-line">
+          <label class="auth-field-label" for="signupId">아이디</label>
+          <div class="auth-field-control">
+            <input type="text" class="auth-input" id="signupId" placeholder="영문·숫자 6~12자" autocomplete="username" required maxlength="12">
+          </div>
+        </div>
+        <div class="auth-field-error" id="signupErrorLoginId" role="alert" aria-live="polite"></div>
+      </div>
+      <div class="auth-field-group" data-field="email">
+        <div class="auth-field-line">
+          <label class="auth-field-label" for="signupEmail">이메일</label>
+          <div class="auth-field-control">
+            <div class="auth-input-row">
+              <input type="email" class="auth-input" id="signupEmail" placeholder="인증할 이메일" autocomplete="email" required>
+              <button type="button" class="auth-send-btn" id="signupSendEmailCode">발송하기</button>
+            </div>
+          </div>
+        </div>
+        <div class="auth-field-error" id="signupErrorEmail" role="alert" aria-live="polite"></div>
+      </div>
+      <div class="auth-field-group" data-field="emailCode">
+        <div class="auth-field-line">
+          <label class="auth-field-label" for="signupEmailCode">인증코드</label>
+          <div class="auth-field-control auth-field-control--stacked">
+            <input type="text" class="auth-input" id="signupEmailCode" placeholder="6자리 숫자" inputmode="numeric" autocomplete="one-time-code" maxlength="6">
+            <div class="auth-field-error auth-field-error--under-input" id="signupErrorEmailCode" role="alert" aria-live="polite"></div>
+          </div>
+        </div>
+      </div>
+      <div class="auth-field-group" data-field="password">
+        <div class="auth-field-line">
+          <label class="auth-field-label" for="signupPassword">비밀번호</label>
+          <div class="auth-field-control">
+            <input type="password" class="auth-input" id="signupPassword" placeholder="영문 포함 8자 이상" autocomplete="new-password" required>
+          </div>
+        </div>
+        <div class="auth-field-error" id="signupErrorPassword" role="alert" aria-live="polite"></div>
+      </div>
+      <div class="auth-field-group" data-field="passwordConfirm">
+        <div class="auth-field-line">
+          <label class="auth-field-label" for="signupPasswordConfirm">비밀번호확인</label>
+          <div class="auth-field-control">
+            <input type="password" class="auth-input" id="signupPasswordConfirm" placeholder="다시 입력" autocomplete="new-password" required>
+          </div>
+        </div>
+        <div class="auth-field-error" id="signupErrorPasswordConfirm" role="alert" aria-live="polite"></div>
+      </div>
+      <div class="auth-field-group" data-field="form">
+        <div class="auth-field-error" id="signupErrorForm" role="alert" aria-live="polite"></div>
+      </div>
+      <button class="auth-submit" type="submit" id="signupSubmitBtn">회원가입</button>
     </form>
     <span class="auth-divider" aria-hidden="true">또는</span>
     <a class="login-google-btn" id="signupGoogleBtn" href="#">Google로 가입</a>
@@ -203,6 +351,11 @@
 </div>
 
 <script src="js/api-base.js"></script>
+<script src="js/email-rules.js"></script>
+<script src="js/password-rules.js"></script>
+<script src="js/login-id-rules.js"></script>
+<script src="js/nickname-rules.js"></script>
+<script src="js/email-code-rules.js"></script>
 <script>
   (function initSignupGoogle() {
     const btn = document.getElementById('signupGoogleBtn');
@@ -211,53 +364,630 @@
     }
   })();
 
-  function updateSignupMessage(message, type) {
-    const signupMessage = document.getElementById('signupMessage');
-    signupMessage.textContent = message;
-    signupMessage.className = `auth-message ${type}`;
+  const FIELD_ERROR_IDS = {
+    nickname: 'signupErrorNickname',
+    loginId: 'signupErrorLoginId',
+    email: 'signupErrorEmail',
+    emailCode: 'signupErrorEmailCode',
+    password: 'signupErrorPassword',
+    passwordConfirm: 'signupErrorPasswordConfirm',
+    form: 'signupErrorForm',
+  };
+
+  const FIELD_INPUT_IDS = {
+    nickname: 'signupNickname',
+    loginId: 'signupId',
+    email: 'signupEmail',
+    emailCode: 'signupEmailCode',
+    password: 'signupPassword',
+    passwordConfirm: 'signupPasswordConfirm',
+  };
+
+  function setFieldError(key, message, type) {
+    const id = FIELD_ERROR_IDS[key];
+    const el = id ? document.getElementById(id) : null;
+    const inputId = FIELD_INPUT_IDS[key];
+    const input = inputId ? document.getElementById(inputId) : null;
+    const msg = String(message || '').trim();
+
+    if (el) {
+      el.textContent = msg;
+      el.classList.remove('is-visible', 'is-success');
+      if (msg) {
+        el.classList.add('is-visible');
+        el.style.display = 'block';
+        if (type === 'success') el.classList.add('is-success');
+      } else {
+        el.style.display = '';
+      }
+    }
+
+    if (input) {
+      if (msg && type !== 'success') {
+        input.classList.add('is-invalid');
+      } else {
+        input.classList.remove('is-invalid');
+      }
+    }
   }
 
-  function validatePasswordMatch() {
+  function clearAllFieldErrors() {
+    Object.keys(FIELD_ERROR_IDS).forEach(function (key) {
+      setFieldError(key, '', '');
+    });
+    Object.keys(FIELD_INPUT_IDS).forEach(function (key) {
+      const input = document.getElementById(FIELD_INPUT_IDS[key]);
+      if (input) input.classList.remove('is-invalid');
+    });
+  }
+
+  function scrollToFieldError(key) {
+    const id = FIELD_ERROR_IDS[key];
+    const el = id ? document.getElementById(id) : null;
+    const group = el ? el.closest('.auth-field-group') : null;
+    (group || el || document.querySelector('.auth-field-error.is-visible')).scrollIntoView({
+      behavior: 'smooth',
+      block: 'center',
+    });
+  }
+
+  function scrollToFirstFieldError() {
+    const first = document.querySelector('.auth-field-error.is-visible:not(.is-success)');
+    if (!first) return;
+    const group = first.closest('.auth-field-group');
+    (group || first).scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  function isEmailVerificationServerMessage(msg) {
+    const s = String(msg || '');
+    return s.indexOf('인증코드') >= 0 || isEmailCodeWrongMessage(s);
+  }
+
+  function emailCodeWrongMessage() {
+    return (typeof jurinEmailCodeMsgWrong === 'string')
+      ? jurinEmailCodeMsgWrong
+      : '인증코드가 올바르지 않습니다.';
+  }
+
+  function isEmailCodeWrongMessage(msg) {
+    if (typeof jurinIsEmailCodeWrongMessage === 'function') {
+      return jurinIsEmailCodeWrongMessage(msg);
+    }
+    return String(msg || '').indexOf('올바르지 않') >= 0;
+  }
+
+  function mapServerErrorToField(msg) {
+    const s = String(msg || '');
+    if (s.indexOf('닉네임') >= 0) return 'nickname';
+    if (s.indexOf('아이디') >= 0 && s.indexOf('공백') >= 0) return 'loginId';
+    if (s.indexOf('비밀번호') >= 0 && s.indexOf('특수문자') >= 0 && s.indexOf('2개') >= 0) return 'password';
+    if (s.indexOf('비밀번호') >= 0 && s.indexOf('공백') >= 0) return 'password';
+    if (isEmailVerificationServerMessage(s)) {
+      return isEmailCodeWrongMessage(s) ? 'emailCode:wrong' : 'emailCode';
+    }
+    if (s.indexOf('인증 메일') >= 0) return 'email';
+    if (s.indexOf('초 후') >= 0 && s.indexOf('발송') >= 0) return 'email';
+    if (s.indexOf('이미 사용 중인 아이디') >= 0) return 'loginId';
+    if (s.indexOf('이미 존재') >= 0) return 'loginId';
+    if (s.indexOf('아이디') >= 0 && s.indexOf('6') >= 0 && s.indexOf('인증코드') < 0) return 'loginId';
+    if (s.indexOf('이메일') >= 0 || s.indexOf('@') >= 0) return 'email';
+    if (s.indexOf('비밀번호') >= 0) return 'password';
+    return 'form';
+  }
+
+  function resolveServerErrorField(message, serverField) {
+    const field = String(serverField || '').trim();
+    if (field && FIELD_ERROR_IDS[field]) return field;
+    const mapped = mapServerErrorToField(message);
+    if (mapped === 'emailCode:wrong') return 'emailCode';
+    return mapped;
+  }
+
+  function showEmailCodeError(message) {
+    const msg = String(message || '').trim();
+    if (!msg) {
+      setFieldError('emailCode', '', '');
+      return;
+    }
+    const display = isEmailCodeWrongMessage(msg) ? emailCodeWrongMessage() : msg;
+    setFieldError('emailCode', display, 'error');
+    scrollToFieldError('emailCode');
+  }
+
+  function applyServerError(message, serverField) {
+    const msg = String(message || '').trim() || '계정 생성에 실패했습니다.';
+    const mapped = mapServerErrorToField(msg);
+    const targetKey = resolveServerErrorField(msg, serverField);
+    const displayMsg = mapped === 'emailCode:wrong' ? emailCodeWrongMessage() : msg;
+
+    clearAllFieldErrors();
+
+    if (targetKey === 'loginId' && msg.indexOf('이메일') >= 0) {
+      setFieldError('loginId', msg, 'error');
+      setFieldError('email', msg, 'error');
+      scrollToFieldError('loginId');
+      return;
+    }
+
+    if (targetKey === 'emailCode') {
+      showEmailCodeError(displayMsg);
+      return;
+    }
+
+    setFieldError(targetKey, displayMsg, 'error');
+    scrollToFieldError(targetKey);
+  }
+
+  async function verifyEmailCodeWithServer(email, emailCode) {
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/check-email-code`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, emailCode }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (data && data.success === true) {
+        setFieldError('emailCode', '', '');
+        return true;
+      }
+      const serverMsg = (data && data.message) ? String(data.message) : '인증코드 확인에 실패했습니다.';
+      showEmailCodeError(serverMsg);
+      return false;
+    } catch (_) {
+      showEmailCodeError('서버에 연결할 수 없습니다. 백엔드를 실행했는지 확인하세요.');
+      return false;
+    }
+  }
+
+  function validateEmailFormat(email) {
+    if (typeof jurinValidateEmail !== 'function') return { ok: true, message: '' };
+    return jurinValidateEmail(email);
+  }
+
+  function validatePasswordRules(password) {
+    if (typeof jurinValidatePassword !== 'function') return { ok: true, message: '' };
+    return jurinValidatePassword(password);
+  }
+
+  function validateLoginIdFormat(loginId) {
+    if (typeof jurinValidateLoginId !== 'function') return { ok: true, message: '' };
+    return jurinValidateLoginId(loginId);
+  }
+
+  function validateNicknameFormat(nickname) {
+    if (typeof jurinValidateNickname !== 'function') return { ok: true, message: '' };
+    return jurinValidateNickname(nickname);
+  }
+
+  function normalizedSignupNickname() {
+    const raw = document.getElementById('signupNickname').value;
+    if (typeof jurinNormalizeNickname === 'function') return jurinNormalizeNickname(raw);
+    return String(raw || '').trim();
+  }
+
+  function validateEmailCodeFormat(code) {
+    if (typeof jurinValidateEmailCode === 'function') return jurinValidateEmailCode(code);
+    const c = String(code || '').trim();
+    if (!c) return { ok: false, message: '인증코드를 입력해주세요.' };
+    if (!/^\d{6}$/.test(c)) return { ok: false, message: '인증코드 6자리를 다시 입력해주세요.' };
+    return { ok: true, message: '' };
+  }
+
+  function validateEmailCodeField(opts) {
+    const options = opts || {};
+    const onBlur = !!options.onBlur;
+    const code = document.getElementById('signupEmailCode').value.trim();
+    if (!code) {
+      if (onBlur) {
+        setFieldError('emailCode', '', '');
+        return true;
+      }
+      showEmailCodeError('인증코드를 입력해주세요.');
+      return false;
+    }
+    const rules = validateEmailCodeFormat(code);
+    if (!rules.ok) {
+      showEmailCodeError(rules.message);
+      return false;
+    }
+    setFieldError('emailCode', '', '');
+    return true;
+  }
+
+  async function validateEmailCodeOnBlur() {
+    const email = document.getElementById('signupEmail').value.trim();
+    const code = document.getElementById('signupEmailCode').value.trim();
+    if (!code) {
+      setFieldError('emailCode', '', '');
+      return;
+    }
+    const rules = validateEmailCodeFormat(code);
+    if (!rules.ok) {
+      showEmailCodeError(rules.message);
+      return;
+    }
+    if (!email || !validateEmailFormat(email).ok) {
+      return;
+    }
+    await verifyEmailCodeWithServer(email, code);
+  }
+
+  function validateNicknameField() {
+    const nickname = document.getElementById('signupNickname').value;
+    if (!nickname) {
+      setFieldError('nickname', '', '');
+      return true;
+    }
+    const rules = validateNicknameFormat(nickname);
+    if (!rules.ok) {
+      setFieldError('nickname', rules.message, 'error');
+      return false;
+    }
+    setFieldError('nickname', '', '');
+    return true;
+  }
+
+  function validateSignupEmailField() {
+    const email = document.getElementById('signupEmail').value.trim();
+    if (!email) {
+      setFieldError('email', '', '');
+      return true;
+    }
+    const emailRules = validateEmailFormat(email);
+    if (!emailRules.ok) {
+      setFieldError('email', emailRules.message, 'error');
+      return false;
+    }
+    setFieldError('email', '', '');
+    return true;
+  }
+
+  function normalizedSignupLoginId() {
+    const raw = document.getElementById('signupId').value;
+    if (typeof jurinNormalizeLoginId === 'function') return jurinNormalizeLoginId(raw);
+    return String(raw || '').trim();
+  }
+
+  function normalizedSignupPassword(value) {
+    const raw = value != null ? value : document.getElementById('signupPassword').value;
+    if (typeof jurinNormalizePassword === 'function') return jurinNormalizePassword(raw);
+    return String(raw || '').trim();
+  }
+
+  function validateLoginIdField() {
+    const userId = document.getElementById('signupId').value;
+    if (!userId.trim()) {
+      setFieldError('loginId', '', '');
+      return true;
+    }
+    const rules = validateLoginIdFormat(userId);
+    if (!rules.ok) {
+      setFieldError('loginId', rules.message, 'error');
+      return false;
+    }
+    setFieldError('loginId', '', '');
+    return true;
+  }
+
+  function validatePasswordFields() {
     const password = document.getElementById('signupPassword').value;
     const passwordConfirm = document.getElementById('signupPasswordConfirm').value;
+    let ok = true;
+
+    if (!password && !passwordConfirm) {
+      setFieldError('password', '', '');
+      setFieldError('passwordConfirm', '', '');
+      return true;
+    }
+
+    const rules = validatePasswordRules(password);
+    if (!rules.ok) {
+      setFieldError('password', rules.message, 'error');
+      ok = false;
+    } else {
+      setFieldError('password', '', '');
+    }
 
     if (!passwordConfirm) {
-      updateSignupMessage('', '');
-      return true;
+      setFieldError('passwordConfirm', '', '');
+      return ok;
     }
 
-    if (password === passwordConfirm) {
-      updateSignupMessage('비밀번호가 일치합니다.', 'success');
-      return true;
+    const confirmRules = validatePasswordRules(passwordConfirm);
+    if (!confirmRules.ok) {
+      setFieldError('passwordConfirm', confirmRules.message, 'error');
+      return false;
     }
 
-    updateSignupMessage('비밀번호가 일치하지 않습니다.', 'error');
-    return false;
+    if (normalizedSignupPassword(password) !== normalizedSignupPassword(passwordConfirm)) {
+      setFieldError('passwordConfirm', '비밀번호가 일치하지 않습니다.', 'error');
+      return false;
+    }
+
+    if (!ok) {
+      setFieldError('passwordConfirm', '', '');
+      return false;
+    }
+
+    setFieldError('passwordConfirm', '비밀번호가 일치합니다.', 'success');
+    return true;
   }
 
   const API_BASE = window.JURIN_API_BASE || 'http://localhost:5000';
+  let nicknameCheckSeq = 0;
+  let nicknameDebounceTimer = null;
+  let loginIdCheckSeq = 0;
+  let loginIdDebounceTimer = null;
+  let emailSendCooldownTimer = null;
+  let emailSendCooldownLeft = 0;
 
-  async function submitSignup(event) {
-    event.preventDefault();
+  async function checkNicknameDuplicate() {
+    const nickname = document.getElementById('signupNickname').value;
+    if (!nickname) {
+      setFieldError('nickname', '', '');
+      return true;
+    }
+    const fmt = validateNicknameFormat(nickname);
+    if (!fmt.ok) {
+      setFieldError('nickname', fmt.message, 'error');
+      return false;
+    }
+    const seq = ++nicknameCheckSeq;
+    const nickForApi = normalizedSignupNickname();
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/check-nickname`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nickname: nickForApi }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (seq !== nicknameCheckSeq) return true;
+      if (data.available) {
+        setFieldError('nickname', '', '');
+        return true;
+      }
+      setFieldError('nickname', data.message || '중복된 닉네임입니다.', 'error');
+      return false;
+    } catch (_) {
+      return true;
+    }
+  }
 
-    const nickname = document.getElementById('signupNickname').value.trim();
-    const userId = document.getElementById('signupId').value.trim();
+  async function checkLoginIdDuplicate() {
+    const loginIdRaw = document.getElementById('signupId').value;
+    if (!loginIdRaw) {
+      setFieldError('loginId', '', '');
+      return true;
+    }
+    const fmt = validateLoginIdFormat(loginIdRaw);
+    if (!fmt.ok) {
+      setFieldError('loginId', fmt.message, 'error');
+      return false;
+    }
+    const loginId = normalizedSignupLoginId();
+    const seq = ++loginIdCheckSeq;
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/check-login-id`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ loginId }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (seq !== loginIdCheckSeq) return true;
+      if (data.available) {
+        setFieldError('loginId', '', '');
+        return true;
+      }
+      setFieldError('loginId', data.message || '이미 사용 중인 아이디입니다.', 'error');
+      return false;
+    } catch (_) {
+      return true;
+    }
+  }
+
+  function scheduleNicknameCheck() {
+    clearTimeout(nicknameDebounceTimer);
+    nicknameDebounceTimer = setTimeout(checkNicknameDuplicate, 400);
+  }
+
+  function scheduleLoginIdCheck() {
+    clearTimeout(loginIdDebounceTimer);
+    loginIdDebounceTimer = setTimeout(checkLoginIdDuplicate, 400);
+  }
+
+  function updateSendEmailBtnLabel() {
+    const btn = document.getElementById('signupSendEmailCode');
+    if (!btn) return;
+    if (emailSendCooldownLeft > 0) {
+      btn.disabled = true;
+      btn.textContent = `${emailSendCooldownLeft}초`;
+    } else {
+      btn.disabled = false;
+      btn.textContent = '발송하기';
+    }
+  }
+
+  function startEmailSendCooldown(seconds) {
+    emailSendCooldownLeft = Math.max(1, Math.floor(Number(seconds) || 60));
+    updateSendEmailBtnLabel();
+    clearInterval(emailSendCooldownTimer);
+    emailSendCooldownTimer = setInterval(function () {
+      emailSendCooldownLeft -= 1;
+      if (emailSendCooldownLeft <= 0) {
+        clearInterval(emailSendCooldownTimer);
+        emailSendCooldownLeft = 0;
+      }
+      updateSendEmailBtnLabel();
+    }, 1000);
+  }
+
+  async function sendEmailVerificationCode() {
+    setFieldError('form', '', '');
     const email = document.getElementById('signupEmail').value.trim();
+    if (!email) {
+      setFieldError('email', '이메일을 입력해주세요.', 'error');
+      return;
+    }
+    if (!validateSignupEmailField()) return;
+
+    const btn = document.getElementById('signupSendEmailCode');
+    if (btn) btn.disabled = true;
+
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/send-email-code`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json().catch(() => ({}));
+      const msg = (data && data.message) ? String(data.message) : '';
+
+      if (res.ok && data.success) {
+        setFieldError('email', '인증코드를 이메일로 발송했습니다.', 'success');
+        setFieldError('emailCode', '', '');
+        startEmailSendCooldown(60);
+        return;
+      }
+
+      if (msg.indexOf('초 후') >= 0) {
+        const m = msg.match(/(\d+)\s*초/);
+        if (m) startEmailSendCooldown(parseInt(m[1], 10));
+      }
+      setFieldError('email', msg || '인증코드 발송에 실패했습니다.', 'error');
+    } catch (_) {
+      setFieldError('email', '서버에 연결할 수 없습니다.', 'error');
+    } finally {
+      if (emailSendCooldownLeft <= 0) updateSendEmailBtnLabel();
+    }
+  }
+
+  async function validateAllFieldsOnSubmit() {
+    const nickname = document.getElementById('signupNickname').value;
+    const loginIdRaw = document.getElementById('signupId').value;
+    const email = document.getElementById('signupEmail').value.trim();
+    const emailCode = document.getElementById('signupEmailCode').value.trim();
     const password = document.getElementById('signupPassword').value;
     const passwordConfirm = document.getElementById('signupPasswordConfirm').value;
 
-    if (!nickname || !userId || !email || !password || !passwordConfirm) {
-      updateSignupMessage('닉네임, 아이디, 이메일, 비밀번호를 모두 입력해주세요.', 'error');
+    setFieldError('form', '', '');
+    let ok = true;
+
+    const nickRules = validateNicknameFormat(nickname);
+    if (!nickRules.ok) {
+      setFieldError('nickname', nickRules.message, 'error');
+      ok = false;
+    } else {
+      setFieldError('nickname', '', '');
+    }
+
+    if (!loginIdRaw.trim()) {
+      setFieldError('loginId', '아이디를 입력해주세요.', 'error');
+      ok = false;
+    } else {
+      const idRules = validateLoginIdFormat(loginIdRaw);
+      if (!idRules.ok) {
+        setFieldError('loginId', idRules.message, 'error');
+        ok = false;
+      } else {
+        setFieldError('loginId', '', '');
+      }
+    }
+
+    if (!email) {
+      setFieldError('email', '이메일을 입력해주세요.', 'error');
+      ok = false;
+    } else {
+      const emailRules = validateEmailFormat(email);
+      if (!emailRules.ok) {
+        setFieldError('email', emailRules.message, 'error');
+        ok = false;
+      } else {
+        setFieldError('email', '', '');
+      }
+    }
+
+    const codeRules = validateEmailCodeFormat(emailCode);
+    if (!codeRules.ok) {
+      showEmailCodeError(codeRules.message);
+      ok = false;
+    } else {
+      setFieldError('emailCode', '', '');
+    }
+
+    if (!password) {
+      setFieldError('password', '비밀번호를 입력해주세요.', 'error');
+      ok = false;
+    } else {
+      const pwRules = validatePasswordRules(password);
+      if (!pwRules.ok) {
+        setFieldError('password', pwRules.message, 'error');
+        ok = false;
+      } else {
+        setFieldError('password', '', '');
+      }
+    }
+
+    if (!passwordConfirm) {
+      setFieldError('passwordConfirm', '비밀번호 확인을 입력해주세요.', 'error');
+      ok = false;
+    } else {
+      const pwConfirmRules = validatePasswordRules(passwordConfirm);
+      if (!pwConfirmRules.ok) {
+        setFieldError('passwordConfirm', pwConfirmRules.message, 'error');
+        ok = false;
+      } else if (
+        password
+        && normalizedSignupPassword(password) !== normalizedSignupPassword(passwordConfirm)
+      ) {
+        setFieldError('passwordConfirm', '비밀번호가 일치하지 않습니다.', 'error');
+        ok = false;
+      } else if (password && normalizedSignupPassword(password) === normalizedSignupPassword(passwordConfirm)) {
+        setFieldError('passwordConfirm', '', '');
+      }
+    }
+
+    if (!ok) {
+      scrollToFirstFieldError();
+      return false;
+    }
+
+    if (!(await checkNicknameDuplicate())) {
+      scrollToFirstFieldError();
+      return false;
+    }
+
+    if (!(await checkLoginIdDuplicate())) {
+      scrollToFirstFieldError();
+      return false;
+    }
+
+    return true;
+  }
+
+  async function submitSignup(event) {
+    event.preventDefault();
+    setFieldError('form', '', '');
+
+    if (!(await validateAllFieldsOnSubmit())) {
       return;
     }
 
-    if (!validatePasswordMatch()) {
+    const nickname = normalizedSignupNickname();
+    const userId = normalizedSignupLoginId();
+    const email = document.getElementById('signupEmail').value.trim();
+    const emailCode = document.getElementById('signupEmailCode').value.trim();
+
+    if (!(await verifyEmailCodeWithServer(email, emailCode))) {
       return;
     }
+    const password = normalizedSignupPassword();
+    const passwordConfirm = normalizedSignupPassword(
+      document.getElementById('signupPasswordConfirm').value
+    );
 
-    const submitBtn = event.target.querySelector('button[type="submit"]');
+    const submitBtn = document.getElementById('signupSubmitBtn');
     if (submitBtn) submitBtn.disabled = true;
-    updateSignupMessage('계정을 생성하는 중입니다…', 'success');
+    setFieldError('form', '계정을 생성하는 중입니다…', 'success');
 
     try {
       const res = await fetch(`${API_BASE}/api/auth/register`, {
@@ -268,13 +998,14 @@
           nickname,
           loginId: userId,
           email,
+          emailCode,
           password,
           passwordConfirm,
         }),
       });
       const data = await res.json().catch(() => ({}));
 
-      if (res.ok && data.success) {
+      if (data && data.success === true) {
         const savedEmail = (data.user && data.user.email) ? data.user.email : email;
         const savedNickname = (data.user && data.user.nickname) ? data.user.nickname : nickname;
         try {
@@ -285,34 +1016,76 @@
             body: JSON.stringify({ loginId: userId, password }),
           });
         } catch (_) {
-          /* 세션 쿠키가 막혀도 가입은 완료됨 — 홈에서 이메일 표시용 */
+          /* 세션 쿠키가 막혀도 가입은 완료됨 */
         }
         sessionStorage.setItem('jurinUserEmail', savedEmail);
         sessionStorage.setItem('jurinUserNickname', savedNickname);
+        sessionStorage.setItem('jurinUserLoginId', userId);
+        if (document.documentElement.classList.contains('auth-embed')
+          && window.parent
+          && window.parent !== window
+          && typeof window.parent.finishSignupSuccess === 'function') {
+          try {
+            window.parent.finishSignupSuccess({
+              email: savedEmail,
+              nickname: savedNickname,
+              loginId: userId,
+            });
+            return;
+          } catch (_) { /* fall through to full navigation */ }
+        }
         window.location.href = '주린닷컴홈피.html';
         return;
       }
 
+      setFieldError('form', '', '');
       const serverMsg = (data && typeof data.message === 'string' && data.message.trim())
         ? data.message.trim()
         : '';
-      updateSignupMessage(
-        serverMsg ? `계정 생성에 실패했습니다. (${serverMsg})` : '계정 생성에 실패했습니다.',
-        'error'
-      );
+      const serverField = (data && typeof data.field === 'string') ? data.field : '';
+      applyServerError(serverMsg, serverField);
     } catch (err) {
+      setFieldError('form', '', '');
       const hint = (!navigator.onLine || (err && err.name === 'TypeError'))
         ? '서버(localhost:5000)에 연결할 수 없습니다. 백엔드를 실행했는지 확인하세요.'
         : '계정 생성에 실패했습니다.';
-      updateSignupMessage(hint, 'error');
+      setFieldError('form', hint, 'error');
+      scrollToFirstFieldError();
     } finally {
       if (submitBtn) submitBtn.disabled = false;
     }
   }
 
-  document.getElementById('signupPassword').addEventListener('input', validatePasswordMatch);
-  document.getElementById('signupPasswordConfirm').addEventListener('input', validatePasswordMatch);
+  document.getElementById('signupNickname').addEventListener('input', function () {
+    validateNicknameField();
+    scheduleNicknameCheck();
+  });
+  document.getElementById('signupNickname').addEventListener('blur', function () {
+    validateNicknameField();
+    checkNicknameDuplicate();
+  });
+  document.getElementById('signupId').addEventListener('input', function () {
+    validateLoginIdField();
+    scheduleLoginIdCheck();
+  });
+  document.getElementById('signupId').addEventListener('blur', checkLoginIdDuplicate);
+  document.getElementById('signupEmail').addEventListener('input', validateSignupEmailField);
+  document.getElementById('signupEmail').addEventListener('blur', validateSignupEmailField);
+  document.getElementById('signupSendEmailCode').addEventListener('click', sendEmailVerificationCode);
+  document.getElementById('signupEmailCode').addEventListener('input', function () {
+    setFieldError('emailCode', '', '');
+  });
+  document.getElementById('signupEmailCode').addEventListener('blur', validateEmailCodeOnBlur);
+  document.getElementById('signupPassword').addEventListener('input', validatePasswordFields);
+  document.getElementById('signupPasswordConfirm').addEventListener('input', validatePasswordFields);
+
+  var standaloneClose = document.getElementById('signupStandaloneClose');
+  if (standaloneClose) {
+    standaloneClose.addEventListener('click', function () {
+      window.location.href = '주린닷컴홈피.html';
+    });
+  }
+
 </script>
-<script src="js/lumi-chat.js?v=20260609"></script>
 </body>
 </html>

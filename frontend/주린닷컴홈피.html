@@ -36,7 +36,7 @@
     <button type="button" class="btn-ghost" id="navLoginBtn" onclick="openLoginModal()">로그인</button>
     <span class="nav-user-email" id="navUserEmail" style="display: none;" aria-live="polite"></span>
     <button type="button" class="btn-ghost" id="navLogoutBtn" style="display: none;">로그아웃</button>
-    <button type="button" class="btn-primary" onclick="window.location.href='signup.html'">무료 시작하기</button>
+    <button type="button" class="btn-primary" id="navSignupBtn" onclick="openSignupModal('home')">무료 시작하기</button>
   </div>
 </nav>
 
@@ -249,7 +249,7 @@
       <button class="login-submit" type="submit">로그인</button>
     </form>
     <div class="login-links">
-      <a href="signup.html" target="_blank" rel="noopener noreferrer">회원가입</a>
+      <a href="#" id="loginModalSignupLink">회원가입</a>
       <a href="find-id.html" target="_blank" rel="noopener noreferrer">아이디 찾기</a>
       <a href="find-password.html" target="_blank" rel="noopener noreferrer">비밀번호 찾기</a>
     </div>
