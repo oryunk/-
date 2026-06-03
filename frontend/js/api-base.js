@@ -77,7 +77,11 @@ function jurinApiBase() {
         if (!btn.hasAttribute('onclick') && !btn.getAttribute('data-signup-bound')) {
           btn.setAttribute('data-signup-bound', '1');
           btn.addEventListener('click', function () {
-            window.location.href = 'signup.html';
+            if (typeof window.openSignupModal === 'function') {
+              window.openSignupModal('home');
+            } else {
+              window.location.href = 'signup.html';
+            }
           });
         }
       } else if (btn.tagName === 'A' && !btn.getAttribute('href')) {

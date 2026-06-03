@@ -632,6 +632,168 @@
     return refPx < limPx;
   }
 
+  function getOrderableCash() {
+    var s = portfolio.summary;
+    if (s && typeof s.cash_balance === 'number' && !Number.isNaN(s.cash_balance)) {
+      return Math.max(0, Math.floor(s.cash_balance));
+    }
+    return Math.max(0, Math.floor(Number(portfolio.balance) || 0));
+  }
+
+  function sumPendingBuyReservation(excludeOrderId) {
+    var sum = 0;
+    var ex = excludeOrderId != null ? Number(excludeOrderId) : null;
+    pendingOrders.forEach(function (o) {
+      if (!o || o.side !== 'BUY') return;
+      if (ex != null && Number.isFinite(ex) && o.id === ex) return;
+      var q = Number(o.quantity) || 0;
+      var px = Number(o.limitPrice) || 0;
+      if (q <= 0 || px <= 0) return;
+      sum += estimateMockTradeCosts('BUY', px * q).netBuy;
+    });
+    return sum;
+  }
+
+  async function resolveBuyUnitPrice(limPx, stockRef) {
+    var lim = Number(limPx) || 0;
+    if (lim > 0) return Math.floor(lim);
+    var px = await getLatestMarketPrice(stockRef);
+    return Number(px) > 0 ? Math.floor(px) : 0;
+  }
+
+  function validateBuyAffordability(quantity, unitPx, excludePendingId) {
+    var qty = Math.floor(Number(quantity) || 0);
+    var px = Math.floor(Number(unitPx) || 0);
+    if (qty <= 0) {
+      return { ok: false, message: '수량은 1 이상이어야 합니다.' };
+    }
+    if (px <= 0) {
+      return { ok: false, message: '체결 기준가를 확인할 수 없습니다. 가격을 확인해 주세요.' };
+    }
+    var required = estimateMockTradeCosts('BUY', px * qty).netBuy;
+    var cash = getOrderableCash();
+    var reserved = sumPendingBuyReservation(excludePendingId);
+    var available = Math.max(0, cash - reserved);
+    if (required <= available) {
+      return {
+        ok: true,
+        required: required,
+        available: available,
+        orderableCash: cash,
+        reserved: reserved,
+      };
+    }
+    return {
+      ok: false,
+      required: required,
+      available: available,
+      orderableCash: cash,
+      reserved: reserved,
+    };
+  }
+
+  function isBalanceInsufficientMessage(msg) {
+    var s = String(msg || '');
+    return s.indexOf('부족') >= 0 || s.indexOf('잔액') >= 0;
+  }
+
+  function openInsufficientCashModal(validation, ctx) {
+    ctx = ctx || {};
+    var modal = document.getElementById('insufficientCashModal');
+    if (!modal || !validation) return;
+    var required = Math.max(0, Math.floor(Number(validation.required) || 0));
+    var available = Math.max(0, Math.floor(Number(validation.available) || 0));
+    var shortfall = Math.max(0, required - available);
+    var qty = Math.floor(Number(ctx.quantity) || 0);
+    var unitPx = Math.floor(Number(ctx.unitPx) || 0);
+
+    var stockLine = document.getElementById('insufficientCashStockLine');
+    var qtyLine = document.getElementById('insufficientCashQtyLine');
+    var unitLine = document.getElementById('insufficientCashUnitLine');
+    var reqEl = document.getElementById('insufficientCashRequired');
+    var availEl = document.getElementById('insufficientCashAvailable');
+    var shortEl = document.getElementById('insufficientCashShortfall');
+    if (stockLine) stockLine.textContent = ctx.stock || '—';
+    if (qtyLine) qtyLine.textContent = qty > 0 ? qty.toLocaleString() + '주' : '—';
+    if (unitLine) {
+      if (unitPx > 0) {
+        var unitSuffix = ctx.market ? ' (시장가)' : ctx.limitLabel || '';
+        unitLine.textContent = formatCurrency(unitPx) + unitSuffix;
+      } else {
+        unitLine.textContent = '—';
+      }
+    }
+    if (reqEl) reqEl.textContent = formatCurrency(required);
+    if (availEl) availEl.textContent = formatCurrency(available);
+    if (shortEl) shortEl.textContent = formatCurrency(shortfall);
+
+    modal.classList.add('is-open');
+    modal.setAttribute('aria-hidden', 'false');
+  }
+
+  function closeInsufficientCashModal() {
+    var modal = document.getElementById('insufficientCashModal');
+    if (!modal) return;
+    modal.classList.remove('is-open');
+    modal.setAttribute('aria-hidden', 'true');
+  }
+
+  /** 예수금 부족 매수 시도 → 주문/체결 현황에 미체결로 기록 */
+  function recordInsufficientCashUnfilled(ctx) {
+    ctx = ctx || {};
+    var stockRef = String(ctx.stockRef || '').trim();
+    var stockLabel = String(ctx.stock || ctx.stockLabel || stockRef || '').trim();
+    if (!stockRef && !stockLabel) return;
+    var unitPx = Math.floor(Number(ctx.unitPx != null ? ctx.unitPx : ctx.limPx || 0));
+    pushOrderStatusEvent({
+      stockRef: stockRef || stockLabel,
+      stock: stockLabel,
+      side: 'BUY',
+      mode: ctx.mode || 'manual',
+      status: 'failed',
+      desiredPrice: unitPx,
+      quantity: Math.floor(Number(ctx.quantity) || 0),
+      note: ctx.note || '예수금 부족',
+    });
+  }
+
+  async function showBuyInsufficientCashModal(quantity, limPx, stockRef, ctx) {
+    var unitPx = await resolveBuyUnitPrice(limPx, stockRef);
+    var v = validateBuyAffordability(quantity, unitPx);
+    if (v.ok) return false;
+    if (v.message) {
+      alert(v.message);
+      return true;
+    }
+    ctx = ctx || {};
+    ctx.unitPx = unitPx;
+    ctx.quantity = Math.floor(Number(quantity) || 0);
+    ctx.stockRef = stockRef;
+    if (ctx.stockLabel && !ctx.stock) ctx.stock = ctx.stockLabel;
+    recordInsufficientCashUnfilled(ctx);
+    openInsufficientCashModal(v, ctx);
+    return true;
+  }
+
+  async function blockBuyIfInsufficient(quantity, limPx, stockRef, ctx) {
+    var unitPx = await resolveBuyUnitPrice(limPx, stockRef);
+    var v = validateBuyAffordability(quantity, unitPx);
+    if (v.ok) return null;
+    if (v.message) {
+      alert(v.message);
+      return v;
+    }
+    ctx = ctx || {};
+    ctx.unitPx = unitPx;
+    ctx.quantity = Math.floor(Number(quantity) || 0);
+    ctx.stockRef = stockRef;
+    if (ctx.recordUnfilled !== false) {
+      recordInsufficientCashUnfilled(ctx);
+    }
+    openInsufficientCashModal(v, ctx);
+    return v;
+  }
+
   function registerPendingOrder(opts) {
     var o = opts || {};
     var pending = {
@@ -677,15 +839,29 @@
     var quantity = params.quantity;
     var limPx = Number(params.limPx || 0);
 
+    async function ensureBuyCash() {
+      if (side !== 'BUY') return true;
+      var blocked = await blockBuyIfInsufficient(quantity, limPx, stockRef, {
+        stock: stock,
+        quantity: quantity,
+        market: !(limPx > 0),
+        limitLabel: limPx > 0 ? ' (지정가)' : '',
+        recordUnfilled: false,
+      });
+      return !blocked;
+    }
+
     if (!(limPx > 0)) {
       if (!isKrRegularMarketOpenNow()) {
         rejectMarketOrderOffHours();
         return { ok: false, blocked: true };
       }
+      if (!(await ensureBuyCash())) return { ok: false, blocked: true };
       return { ok: true, execute: true };
     }
 
     if (!isKrRegularMarketOpenNow()) {
+      if (!(await ensureBuyCash())) return { ok: false, blocked: true };
       var refOff = await getLatestMarketPrice(stockRef);
       var pOff = registerPendingOrder({
         side: side,
@@ -701,6 +877,7 @@
 
     var refPx = await getLatestMarketPrice(stockRef);
     if (limitOrderNeedsPriceQueue(side, refPx, limPx)) {
+      if (!(await ensureBuyCash())) return { ok: false, blocked: true };
       var p = registerPendingOrder({
         side: side,
         stock: stock,
@@ -713,6 +890,7 @@
       return { ok: true, pending: p };
     }
 
+    if (!(await ensureBuyCash())) return { ok: false, blocked: true };
     return { ok: true, execute: true };
   }
 
@@ -754,6 +932,35 @@
       day: 'numeric',
       weekday: 'long',
     });
+  }
+
+  function formatOrderStatusReason(note) {
+    var s = String(note || '').trim();
+    if (!s) return '주문이 체결되지 않았습니다.';
+    if (isBalanceInsufficientMessage(s)) return '예수금 부족';
+    return s;
+  }
+
+  function buildOrderStatusReasonRow(reasonText) {
+    var text = formatOrderStatusReason(reasonText);
+    return (
+      '<div class="order-status-reason">' +
+        '<span class="order-status-reason-text">' +
+        escapeHtml(text) +
+        '</span>' +
+      '</div>'
+    );
+  }
+
+  function pendingOrderReasonText(order) {
+    if (!order) return '';
+    if (order.reason === 'off_hours') {
+      return '장 마감으로 예약 등록. 정규장(09:00~15:30) 개장 후 지정가 조건이 맞으면 체결됩니다.';
+    }
+    if (order.side === 'BUY') {
+      return '현재가가 목표가(지정가) 이하가 되면 체결됩니다.';
+    }
+    return '현재가가 목표가(지정가) 이상이 되면 체결됩니다.';
   }
 
   function cancelPendingOrder(orderId) {
@@ -805,7 +1012,7 @@
     if (last) {
       lastTxt =
         '<span class="order-status-sum-meta"> · 마지막: ' +
-        (last.status === 'executed' ? '체결완료' : '체결실패') +
+        (last.status === 'executed' ? '체결완료' : '미체결') +
         '</span>';
     }
     sumEl.innerHTML =
@@ -845,9 +1052,6 @@
       var badgeCls = isReserve
         ? 'order-status-badge order-status-badge--pending-reserve'
         : 'order-status-badge order-status-badge--pending-open';
-      var subNote = isReserve
-        ? ' <span class="order-status-offhours-note">장 마감</span>'
-        : '';
       return (
         '<div class="order-status-item order-status-item--pending-open">' +
           '<div class="order-status-top">' +
@@ -860,7 +1064,6 @@
                 '<span class="order-status-action order-status-action--' + actCls + '">' + side + '</span>' +
                 ' <span class="order-status-qtyparen">(' + qty + '주)</span>' +
                 ' · <span class="order-status-limit-label">목표 ' + lp + '</span>' +
-                subNote +
               '</div>' +
             '</div>' +
             '<div class="order-status-actions">' +
@@ -870,6 +1073,7 @@
           '<div class="order-status-detail order-status-detail--dateonly">' +
             '<span>' + escapeHtml(dateLine) + '</span>' +
           '</div>' +
+          buildOrderStatusReasonRow(pendingOrderReasonText(o)) +
           '<div class="order-status-footer">' +
             '<button type="button" class="order-status-cancel-btn" data-pending-cancel="' +
             escapeHtmlAttr(String(o.id)) +
@@ -884,17 +1088,16 @@
     var eventRows = orderStatusEvents.slice(0, 16).map(function (e) {
       var side = e.side === 'SELL' ? '판매' : '구매';
       var actCls = e.side === 'SELL' ? 'sell' : 'buy';
-      var badgeCls = e.status === 'failed' ? 'fail' : 'done';
-      var badgeTxt = e.status === 'failed' ? '체결실패' : '체결완료';
+      var isUnfilled = e.status === 'failed';
+      var badgeCls = isUnfilled ? 'fail' : 'done';
+      var badgeTxt = isUnfilled ? '미체결' : '체결완료';
       var qty = Number(e.quantity || 0).toLocaleString();
       var name = escapeHtml(resolveStockDisplayLabel(e.stock, e.stock));
       var dateLine = formatOrderStatusDateLine(e.atMs);
-      var failNote =
-        e.status === 'failed' && e.note
-          ? '<span class="order-status-fail-note">' + escapeHtml(e.note) + '</span>'
-          : '';
+      var itemCls = isUnfilled ? ' order-status-item--unfilled' : '';
+      var reasonRow = isUnfilled ? buildOrderStatusReasonRow(e.note) : '';
       return (
-        '<div class="order-status-item">' +
+        '<div class="order-status-item' + itemCls + '">' +
           '<div class="order-status-top">' +
             '<div class="order-status-stockblock">' +
               '<div class="order-status-name">' + name + '</div>' +
@@ -907,8 +1110,8 @@
           '</div>' +
           '<div class="order-status-detail order-status-detail--dateonly">' +
             '<span>' + escapeHtml(dateLine) + '</span>' +
-            failNote +
           '</div>' +
+          reasonRow +
         '</div>'
       );
     }).join('');
@@ -1062,6 +1265,20 @@
         try {
           var rt = await executeTradeRequest(order.side, order.stockRef, order.quantity, order.limitPrice);
           if (!rt.res.ok || !rt.data.success) {
+            var failNote = (rt.data && rt.data.message) || '';
+            if (order.side === 'BUY' && isBalanceInsufficientMessage(failNote)) {
+              pushOrderStatusEvent({
+                stockRef: order.stockRef,
+                stock: order.stock,
+                side: 'BUY',
+                mode: 'auto',
+                status: 'failed',
+                desiredPrice: order.limitPrice,
+                quantity: order.quantity,
+                note: failNote || '예수금 부족',
+              });
+              continue;
+            }
             survivors.push(order);
             continue;
           }
@@ -2571,6 +2788,11 @@
     }
     document.addEventListener('keydown', function (e) {
       if (e.key !== 'Escape') return;
+      var cashM = document.getElementById('insufficientCashModal');
+      if (cashM && cashM.classList.contains('is-open')) {
+        closeInsufficientCashModal();
+        return;
+      }
       var buyM = document.getElementById('buyModal');
       if (buyM && buyM.classList.contains('is-open')) {
         closeBuyModal();
@@ -2851,7 +3073,7 @@
   let buyModalState = { stock: '', quantity: 0 };
   var quickSellConfirmState = null;
 
-  function openBuyConfirmModal() {
+  async function openBuyConfirmModal() {
     const stockEl = document.getElementById('tradeStock');
     const qtyEl = document.getElementById('tradeQuantity');
     const stock = (stockEl && stockEl.value || '').trim();
@@ -2864,6 +3086,23 @@
     if (Number.isNaN(quantity) || quantity < 1) {
       quantity = 1;
       if (qtyEl) qtyEl.value = '1';
+    }
+    var codeHPre = document.getElementById('tradeStockCode');
+    var cPre = codeHPre && codeHPre.value ? String(codeHPre.value).trim() : '';
+    var limElPre = document.getElementById('tradeLimitPrice');
+    var limPPre = limElPre && limElPre.value ? parseInt(limElPre.value, 10) : 0;
+    var limOkPre = limPPre > 0 && !Number.isNaN(limPPre);
+    var limPxCheck = isBuyMarketMode() ? 0 : limOkPre ? limPPre : 0;
+    var stockLinePre = cPre ? stock + ' (' + cPre + ')' : stock;
+    if (
+      await showBuyInsufficientCashModal(quantity, limPxCheck, apiStock, {
+        stock: stockLinePre,
+        stockLabel: stock,
+        market: isBuyMarketMode(),
+        limitLabel: !isBuyMarketMode() && limOkPre ? ' (지정가)' : '',
+      })
+    ) {
+      return;
     }
     buyModalState = { stock: apiStock, quantity };
     const line = document.getElementById('buyModalStockLine');
@@ -2963,6 +3202,16 @@
         return;
       }
       if (!res.ok || !data.success) {
+        if (isBalanceInsufficientMessage(data.message)) {
+          var unitPxApi = await resolveBuyUnitPrice(limPx, stockRef);
+          openInsufficientCashModal(validateBuyAffordability(quantity, unitPxApi), {
+            stock: stockLabel,
+            quantity: quantity,
+            unitPx: unitPxApi,
+            market: isBuyMarketMode(),
+          });
+          return;
+        }
         pushOrderStatusEvent({
           stockRef: stockRef,
           stock: stockLabel,
@@ -3001,6 +3250,16 @@
       });
       showTradeFeedback(data, 'buy');
     } catch (err) {
+      if (isBalanceInsufficientMessage(err.message)) {
+        var unitPxCatch = await resolveBuyUnitPrice(limPx, stockRef);
+        openInsufficientCashModal(validateBuyAffordability(quantity, unitPxCatch), {
+          stock: stockLabel,
+          quantity: quantity,
+          unitPx: unitPxCatch,
+          market: isBuyMarketMode(),
+        });
+        return;
+      }
       alert(err.message || '구매 처리 중 오류가 발생했습니다.');
     }
   }
@@ -3563,6 +3822,17 @@
     var limPx = limEl2 && limEl2.value ? parseInt(limEl2.value, 10) : 0;
     if (Number.isNaN(limPx) || limPx < 0) limPx = 0;
     if (isHoldingBuyMarketMode()) limPx = 0;
+    var limPxHbCheck = isHoldingBuyMarketMode() ? 0 : limPx;
+    var limHbOk = limPx > 0 && !Number.isNaN(limPx);
+    if (
+      await showBuyInsufficientCashModal(quantity, limPxHbCheck, stockRef, {
+        stock: stockLabel,
+        market: isHoldingBuyMarketMode(),
+        limitLabel: !isHoldingBuyMarketMode() && limHbOk ? ' (지정가)' : '',
+      })
+    ) {
+      return;
+    }
     try {
       var routedHb = await handleLimitOrderSubmission({
         side: 'BUY',
@@ -3591,6 +3861,16 @@
         return;
       }
       if (!res.ok || !data.success) {
+        if (isBalanceInsufficientMessage(data.message)) {
+          var unitPxHbApi = await resolveBuyUnitPrice(limPx, stockRef);
+          openInsufficientCashModal(validateBuyAffordability(quantity, unitPxHbApi), {
+            stock: stockLabel,
+            quantity: quantity,
+            unitPx: unitPxHbApi,
+            market: isHoldingBuyMarketMode(),
+          });
+          return;
+        }
         pushOrderStatusEvent({
           stockRef: stockRef,
           stock: stockLabel,
@@ -3622,10 +3902,22 @@
       });
       showTradeFeedback(data, 'buy');
     } catch (err) {
+      if (isBalanceInsufficientMessage(err.message)) {
+        var unitPxHbCatch = await resolveBuyUnitPrice(limPx, stockRef);
+        openInsufficientCashModal(validateBuyAffordability(quantity, unitPxHbCatch), {
+          stock: stockLabel,
+          quantity: quantity,
+          unitPx: unitPxHbCatch,
+          market: isHoldingBuyMarketMode(),
+        });
+        return;
+      }
       alert(err.message || '구매 처리 중 오류가 발생했습니다.');
     }
   }
 
+  window.openBuyConfirmModal = openBuyConfirmModal;
+  window.closeInsufficientCashModal = closeInsufficientCashModal;
   window.confirmBuyFromHoldingModal = confirmBuyFromHoldingModal;
 
   function showTradeFeedback(data, source) {

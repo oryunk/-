@@ -101,11 +101,93 @@ function setAuthNavVisible(displayName) {
 }
 
 // 로그인·뉴스 오버레이 열릴 때 body 스크롤 잠금
+let signupReturnTo = null;
+
 function updateBodyScrollLock() {
   const hasOpen = Boolean(
-    document.querySelector('.login-modal.is-open, .news-modal.is-open'),
+    document.querySelector('.login-modal.is-open, .signup-modal.is-open, .news-modal.is-open'),
   );
   document.body.style.overflow = hasOpen ? 'hidden' : '';
+}
+
+function ensureSignupModal() {
+  if (document.getElementById('signupModal')) return;
+
+  const modalHtml = `
+    <div class="signup-modal" id="signupModal" aria-hidden="true">
+      <div class="signup-modal-backdrop" onclick="closeSignupModal()"></div>
+      <div class="signup-modal-panel" role="dialog" aria-modal="true" aria-label="회원가입">
+        <button class="signup-close login-close" type="button" onclick="closeSignupModal()" aria-label="회원가입 창 닫기">×</button>
+        <iframe id="signupModalFrame" class="signup-modal-frame" title="회원가입" src="about:blank"></iframe>
+      </div>
+    </div>
+  `;
+  document.body.insertAdjacentHTML('beforeend', modalHtml);
+}
+
+function openSignupModal(returnTo) {
+  signupReturnTo = returnTo === 'login' ? 'login' : null;
+  ensureSignupModal();
+  const modal = document.getElementById('signupModal');
+  const frame = document.getElementById('signupModalFrame');
+  if (!modal || !frame) return;
+
+  if (signupReturnTo === 'login') {
+    closeLoginModal();
+  }
+
+  const embedSrc = new URL('signup.html?embed=1', window.location.href).href;
+  if (frame.src !== embedSrc) {
+    frame.src = embedSrc;
+  }
+
+  modal.classList.add('is-open');
+  modal.setAttribute('aria-hidden', 'false');
+  updateBodyScrollLock();
+}
+
+function closeSignupModal() {
+  const modal = document.getElementById('signupModal');
+  const frame = document.getElementById('signupModalFrame');
+  if (!modal) return;
+
+  modal.classList.remove('is-open');
+  modal.setAttribute('aria-hidden', 'true');
+  if (frame) frame.src = 'about:blank';
+
+  const reopenLogin = signupReturnTo === 'login';
+  signupReturnTo = null;
+  updateBodyScrollLock();
+
+  if (reopenLogin) {
+    openLoginModal();
+  }
+}
+
+function finishSignupSuccess(user) {
+  if (user) {
+    const email = (user.email || '').trim();
+    const nickname = (user.nickname || '').trim();
+    const loginId = (user.loginId || '').trim();
+    if (email) sessionStorage.setItem('jurinUserEmail', email);
+    if (nickname) sessionStorage.setItem('jurinUserNickname', nickname);
+    if (loginId) sessionStorage.setItem('jurinUserLoginId', loginId);
+  }
+  signupReturnTo = null;
+  const modal = document.getElementById('signupModal');
+  const frame = document.getElementById('signupModalFrame');
+  if (modal) {
+    modal.classList.remove('is-open');
+    modal.setAttribute('aria-hidden', 'true');
+  }
+  if (frame) frame.src = 'about:blank';
+  updateBodyScrollLock();
+  refreshAuthNav();
+}
+
+function openSignupFromLogin(event) {
+  if (event) event.preventDefault();
+  openSignupModal('login');
 }
 
 // HTML에 모달이 없을 때만 주입 (홈은 이미 마크업 있음)
@@ -135,7 +217,7 @@ function ensureLoginModal() {
         </form>
         ${googleLoginBlockHtml()}
         <div class="login-links">
-          <a href="signup.html" target="_blank" rel="noopener noreferrer">회원가입</a>
+          <a href="#" id="loginModalSignupLink">회원가입</a>
           <a href="find-id.html" target="_blank" rel="noopener noreferrer">아이디 찾기</a>
           <a href="find-password.html" target="_blank" rel="noopener noreferrer">비밀번호 찾기</a>
         </div>
@@ -304,7 +386,7 @@ function showLoginError(message) {
 }
 
 function jurinNavigateSignup() {
-  window.location.href = 'signup.html';
+  openSignupModal('home');
 }
 
 // .nav-right 버튼에 id·리스너 부여 (인라인 onclick 제거)
@@ -359,16 +441,38 @@ function setupAuthNav() {
   logoutBtn.addEventListener('click', submitLogout);
 }
 
+function bindSignupLinkInLoginModal() {
+  const link = document.getElementById('loginModalSignupLink')
+    || document.querySelector('#loginModal .login-links a[href*="signup"]');
+  if (!link || link.getAttribute('data-signup-bound') === '1') return;
+  link.setAttribute('data-signup-bound', '1');
+  link.setAttribute('href', '#');
+  link.removeAttribute('target');
+  link.removeAttribute('rel');
+  link.addEventListener('click', openSignupFromLogin);
+}
+
 document.addEventListener('keydown', (event) => {
-  if (event.key === 'Escape') {
-    closeLoginModal();
+  if (event.key !== 'Escape') return;
+  const signupModal = document.getElementById('signupModal');
+  if (signupModal && signupModal.classList.contains('is-open')) {
+    closeSignupModal();
+    return;
   }
+  closeLoginModal();
 });
 
 document.addEventListener('DOMContentLoaded', () => {
   ensureLoginModal();
+  ensureSignupModal();
   injectGoogleLoginIntoModal();
+  bindSignupLinkInLoginModal();
   setupAuthNav();
   refreshAuthNav();
   handleGoogleLoginRedirect();
 });
+
+window.openSignupModal = openSignupModal;
+window.closeSignupModal = closeSignupModal;
+window.finishSignupSuccess = finishSignupSuccess;
+window.openSignupFromLogin = openSignupFromLogin;

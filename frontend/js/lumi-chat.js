@@ -80,6 +80,7 @@
       if (window.JurinGuideLumi.isActive()) return true;
     }
     if (/guide\.html/i.test(window.location.pathname || '')) return true;
+    if (/signup\.html/i.test(window.location.pathname || '')) return true;
     try {
       var params = new URLSearchParams(window.location.search);
       var t = (params.get('tutorial') || '').trim().toLowerCase();
