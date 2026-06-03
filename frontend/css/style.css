@@ -400,7 +400,8 @@ nav.nav-open .nav-hamburger-lines::after {
   box-shadow: 0 24px 64px rgba(31, 47, 38, 0.12);
 }
 
-.login-close {
+.login-close,
+.signup-close {
   position: absolute;
   top: 14px;
   right: 14px;
@@ -413,6 +414,49 @@ nav.nav-open .nav-hamburger-lines::after {
   font-size: 24px;
   line-height: 1;
   cursor: pointer;
+  z-index: 2;
+}
+
+.signup-modal {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 310;
+}
+
+.signup-modal.is-open {
+  display: flex;
+}
+
+.signup-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(31, 47, 38, 0.35);
+  backdrop-filter: blur(8px);
+}
+
+.signup-modal-panel {
+  position: relative;
+  z-index: 1;
+  width: min(96vw, 560px);
+  max-height: min(92vh, 900px);
+  padding-top: 48px;
+  box-sizing: border-box;
+  border-radius: 20px;
+  border: 1px solid rgba(47, 143, 95, 0.22);
+  background: #ffffff;
+  box-shadow: 0 24px 64px rgba(31, 47, 38, 0.12);
+  overflow: hidden;
+}
+
+.signup-modal-frame {
+  display: block;
+  width: 100%;
+  height: min(84vh, 812px);
+  border: none;
+  background: #ffffff;
 }
 
 .login-modal-header {
