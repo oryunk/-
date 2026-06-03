@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import re
 import secrets
 from urllib.parse import urlencode
 
@@ -10,6 +9,7 @@ import pymysql.err
 import requests
 from flask import Blueprint, redirect, request, session
 
+from auth_login_id import migrate_google_login_id_if_needed, unique_login_id_from_email
 from runtime_config import google_login_success_url, google_oauth_config
 
 GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
@@ -20,8 +20,6 @@ GOOGLE_SCOPES = "openid email profile"
 
 def register_google_auth_routes(bp: Blueprint, *, get_connection, db_error_message) -> None:
     """auth_bp 에 Google OAuth 라우트 등록."""
-    login_id_max = 50
-
     def _oauth_ready():
         return google_oauth_config()
 
@@ -30,47 +28,65 @@ def register_google_auth_routes(bp: Blueprint, *, get_connection, db_error_messa
         sep = "&" if "?" in base else "?"
         return redirect(f"{base}{sep}login_error={reason}")
 
-    def _unique_login_id(cursor, sub: str) -> str:
-        base = ("g_" + re.sub(r"[^a-zA-Z0-9]", "", sub))[:12] or "g_user"
-        if len(base) < 3:
-            base = "g_user"
-        candidate = base[:login_id_max]
-        cursor.execute("SELECT 1 FROM users WHERE login_id = %s LIMIT 1", (candidate,))
-        if not cursor.fetchone():
-            return candidate
-        for i in range(2, 1000):
-            suffix = str(i)
-            trimmed = base[: login_id_max - len(suffix)] + suffix
-            cursor.execute("SELECT 1 FROM users WHERE login_id = %s LIMIT 1", (trimmed,))
-            if not cursor.fetchone():
-                return trimmed
-        return f"g_{secrets.token_hex(4)}"
+    def _sanitize_nickname_chars(text: str) -> str:
+        import re
 
-    def _nickname_from_profile(name: str, email: str) -> str:
-        name = (name or "").strip()
-        if name:
-            return name[:50]
+        return re.sub(r"[^가-힣A-Za-z0-9]", "", text or "")[:8]
+
+    def _nickname_exists(cursor, nickname: str) -> bool:
+        cursor.execute(
+            "SELECT user_id FROM users WHERE nickname = %s LIMIT 1",
+            (nickname,),
+        )
+        return cursor.fetchone() is not None
+
+    def _nickname_from_profile(name: str, email: str, login_id: str, cursor) -> str:
+        from auth_api import _validate_nickname
+
         local = (email or "").split("@")[0].strip()
-        return (local or "Google 사용자")[:50]
+        candidates = [
+            _sanitize_nickname_chars(name),
+            _sanitize_nickname_chars(local),
+            _sanitize_nickname_chars(login_id or ""),
+        ]
+        for cand in candidates:
+            if _validate_nickname(cand) is None and not _nickname_exists(cursor, cand):
+                return cand
+
+        for i in range(1, 10000):
+            suffix = str(i) if i > 1 else ""
+            nick = ("주린이" + suffix)[:8]
+            if _validate_nickname(nick) is None and not _nickname_exists(cursor, nick):
+                return nick
+
+        return "주린이12"
 
     def _resolve_google_user(cursor, google_sub: str, email: str, name: str, verified: bool) -> int | None:
         cursor.execute(
             """
-            SELECT user_id, email, password_hash, google_sub
+            SELECT user_id, email, password_hash, google_sub, login_id, auth_provider
             FROM users WHERE google_sub = %s LIMIT 1
             """,
             (google_sub,),
         )
         row = cursor.fetchone()
         if row:
-            return int(row["user_id"])
+            uid = int(row["user_id"])
+            migrate_google_login_id_if_needed(
+                cursor,
+                uid,
+                row.get("email") or email,
+                row.get("login_id"),
+                auth_provider=row.get("auth_provider") or "google",
+            )
+            return uid
 
         if not email:
             return None
 
         cursor.execute(
             """
-            SELECT user_id, email, google_sub
+            SELECT user_id, email, google_sub, login_id, auth_provider
             FROM users WHERE email = %s LIMIT 1
             """,
             (email,),
@@ -88,11 +104,19 @@ def register_google_auth_routes(bp: Blueprint, *, get_connection, db_error_messa
                     """,
                     (google_sub, by_email["user_id"]),
                 )
-                return int(by_email["user_id"])
+                uid = int(by_email["user_id"])
+                migrate_google_login_id_if_needed(
+                    cursor,
+                    uid,
+                    email,
+                    by_email.get("login_id"),
+                    auth_provider="google",
+                )
+                return uid
             return None
 
-        login_id = _unique_login_id(cursor, google_sub)
-        nickname = _nickname_from_profile(name, email)
+        login_id = unique_login_id_from_email(cursor, email)
+        nickname = _nickname_from_profile(name, email, login_id, cursor)
         cursor.execute(
             """
             INSERT INTO users (
