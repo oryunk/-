@@ -75,29 +75,47 @@ function displayNameFromSessionStorage() {
   return nickname || loginId || email || null;
 }
 
-// 로그인/로그아웃에 따라 상단 버튼·환영 문구 토글
+function markAuthNavReady() {
+  document.documentElement.classList.remove('auth-nav-pending');
+  document.documentElement.classList.add('auth-nav-ready');
+}
+
+function navSignupButton() {
+  return document.getElementById('navSignupBtn')
+    || document.querySelector('nav > .nav-right[data-auth-nav] .btn-primary');
+}
+
+// 로그인/로그아웃에 따라 상단 버튼·닉네임·마이페이지 토글
 function setAuthNavVisible(displayName) {
   const loginBtn = document.getElementById('navLoginBtn');
   const logoutBtn = document.getElementById('navLogoutBtn');
+  const mypageBtn = document.getElementById('navMyPageBtn');
   const emailEl = document.getElementById('navUserEmail');
-  const signupBtn = document.querySelector('nav .nav-right .btn-primary');
+  const signupBtn = navSignupButton();
   if (!loginBtn || !emailEl) return;
   if (displayName) {
-    const welcomeText = `${displayName}님 환영합니다`;
-    loginBtn.style.display = 'none';
-    if (logoutBtn) logoutBtn.style.display = '';
-    if (signupBtn) signupBtn.style.display = 'none';
-    emailEl.textContent = welcomeText;
-    emailEl.style.display = 'inline-block';
-    emailEl.title = welcomeText;
+    loginBtn.hidden = true;
+    if (logoutBtn) logoutBtn.hidden = false;
+    if (mypageBtn) mypageBtn.hidden = false;
+    if (signupBtn) signupBtn.hidden = true;
+    emailEl.textContent = displayName;
+    emailEl.hidden = false;
+    emailEl.title = `마이페이지 (${displayName})`;
   } else {
-    loginBtn.style.display = '';
-    if (logoutBtn) logoutBtn.style.display = 'none';
-    if (signupBtn) signupBtn.style.display = '';
-    emailEl.style.display = 'none';
+    loginBtn.hidden = false;
+    if (logoutBtn) logoutBtn.hidden = true;
+    if (mypageBtn) mypageBtn.hidden = true;
+    if (signupBtn) signupBtn.hidden = false;
+    emailEl.hidden = true;
     emailEl.textContent = '';
     emailEl.removeAttribute('title');
   }
+}
+
+function bootstrapAuthNavSync() {
+  setupAuthNav();
+  setAuthNavVisible(displayNameFromSessionStorage());
+  markAuthNavReady();
 }
 
 // 로그인·뉴스 오버레이 열릴 때 body 스크롤 잠금
@@ -105,7 +123,9 @@ let signupReturnTo = null;
 
 function updateBodyScrollLock() {
   const hasOpen = Boolean(
-    document.querySelector('.login-modal.is-open, .signup-modal.is-open, .news-modal.is-open'),
+    document.querySelector(
+      '.login-modal.is-open, .signup-modal.is-open, .mypage-modal.is-open, .news-modal.is-open',
+    ),
   );
   document.body.style.overflow = hasOpen ? 'hidden' : '';
 }
@@ -190,6 +210,93 @@ function openSignupFromLogin(event) {
   openSignupModal('login');
 }
 
+function ensureMypageModal() {
+  if (document.getElementById('mypageModal')) return;
+
+  const modalHtml = `
+    <div class="mypage-modal" id="mypageModal" aria-hidden="true">
+      <div class="mypage-modal-backdrop" onclick="closeMypageModal()"></div>
+      <div class="mypage-modal-panel" role="dialog" aria-modal="true" aria-label="마이페이지">
+        <button class="mypage-close login-close" type="button" onclick="closeMypageModal()" aria-label="마이페이지 창 닫기">×</button>
+        <iframe id="mypageModalFrame" class="mypage-modal-frame" title="마이페이지" src="about:blank"></iframe>
+      </div>
+    </div>
+  `;
+  document.body.insertAdjacentHTML('beforeend', modalHtml);
+}
+
+function openMypageModal() {
+  ensureMypageModal();
+  const modal = document.getElementById('mypageModal');
+  const frame = document.getElementById('mypageModalFrame');
+  if (!modal || !frame) return;
+
+  closeLoginModal();
+  closeSignupModal();
+
+  const embedSrc = new URL('mypage.html?embed=1', window.location.href).href;
+  frame.src = embedSrc;
+
+  modal.classList.add('is-open');
+  modal.setAttribute('aria-hidden', 'false');
+  updateBodyScrollLock();
+}
+
+function closeMypageModal() {
+  const modal = document.getElementById('mypageModal');
+  const frame = document.getElementById('mypageModalFrame');
+  if (!modal) return;
+
+  modal.classList.remove('is-open');
+  modal.setAttribute('aria-hidden', 'true');
+  if (frame) frame.src = 'about:blank';
+  updateBodyScrollLock();
+}
+
+function finishMypageSuccess(user) {
+  if (user) {
+    const email = (user.email || '').trim();
+    const nickname = (user.nickname || '').trim();
+    const loginId = (user.loginId || '').trim();
+    if (email) sessionStorage.setItem('jurinUserEmail', email);
+    if (nickname) sessionStorage.setItem('jurinUserNickname', nickname);
+    if (loginId) sessionStorage.setItem('jurinUserLoginId', loginId);
+  }
+  const modal = document.getElementById('mypageModal');
+  const frame = document.getElementById('mypageModalFrame');
+  if (modal) {
+    modal.classList.remove('is-open');
+    modal.setAttribute('aria-hidden', 'true');
+  }
+  if (frame) frame.src = 'about:blank';
+  updateBodyScrollLock();
+  refreshAuthNav();
+}
+
+function bindNavMypageOpeners() {
+  const emailEl = document.getElementById('navUserEmail');
+  const mypageBtn = document.getElementById('navMyPageBtn');
+
+  if (emailEl && emailEl.getAttribute('data-mypage-bound') !== '1') {
+    emailEl.setAttribute('data-mypage-bound', '1');
+    emailEl.classList.add('nav-user-nickname-btn');
+    emailEl.setAttribute('role', 'button');
+    emailEl.setAttribute('tabindex', '0');
+    emailEl.addEventListener('click', openMypageModal);
+    emailEl.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        openMypageModal();
+      }
+    });
+  }
+
+  if (mypageBtn && mypageBtn.getAttribute('data-mypage-bound') !== '1') {
+    mypageBtn.setAttribute('data-mypage-bound', '1');
+    mypageBtn.addEventListener('click', openMypageModal);
+  }
+}
+
 // HTML에 모달이 없을 때만 주입 (홈은 이미 마크업 있음)
 function ensureLoginModal() {
   if (document.getElementById('loginModal')) return;
@@ -257,6 +364,7 @@ async function refreshAuthNav() {
 
   if (!displayName) displayName = displayNameFromSessionStorage();
   setAuthNavVisible(displayName);
+  markAuthNavReady();
 }
 
 async function submitLogout() {
@@ -391,7 +499,7 @@ function jurinNavigateSignup() {
 
 // .nav-right 버튼에 id·리스너 부여 (인라인 onclick 제거)
 function setupAuthNav() {
-  const navRight = document.querySelector('.nav-right');
+  const navRight = document.querySelector('nav > .nav-right[data-auth-nav]');
   if (!navRight) return;
 
   const primaryBtn = navRight.querySelector('.btn-primary');
@@ -406,9 +514,11 @@ function setupAuthNav() {
   loginBtn.removeAttribute('onclick');
   loginBtn.addEventListener('click', openLoginModal);
 
-  const signupBtn = navRight.querySelector('.btn-primary');
+  const signupBtn = navSignupButton();
   if (signupBtn) {
+    signupBtn.id = signupBtn.id || 'navSignupBtn';
     signupBtn.type = 'button';
+    signupBtn.textContent = '회원가입';
     signupBtn.removeAttribute('onclick');
     signupBtn.removeEventListener('click', jurinNavigateSignup);
     signupBtn.addEventListener('click', jurinNavigateSignup);
@@ -419,10 +529,27 @@ function setupAuthNav() {
     emailEl = document.createElement('span');
     emailEl.id = 'navUserEmail';
     emailEl.className = 'nav-user-email';
-    emailEl.style.display = 'none';
+    emailEl.hidden = true;
     emailEl.setAttribute('aria-live', 'polite');
-    const primaryBtn = navRight.querySelector('.btn-primary');
+    const primaryBtn = navSignupButton();
     navRight.insertBefore(emailEl, primaryBtn || null);
+  }
+
+  let mypageBtn = document.getElementById('navMyPageBtn');
+  if (!mypageBtn) {
+    mypageBtn = document.createElement('button');
+    mypageBtn.id = 'navMyPageBtn';
+    mypageBtn.type = 'button';
+    mypageBtn.className = 'btn-ghost';
+    mypageBtn.hidden = true;
+    mypageBtn.textContent = '마이페이지';
+    const logoutAnchor = document.getElementById('navLogoutBtn');
+    if (logoutAnchor) {
+      navRight.insertBefore(mypageBtn, logoutAnchor);
+    } else {
+      const primaryBtn = navSignupButton();
+      navRight.insertBefore(mypageBtn, primaryBtn || null);
+    }
   }
 
   let logoutBtn = document.getElementById('navLogoutBtn');
@@ -431,14 +558,16 @@ function setupAuthNav() {
     logoutBtn.id = 'navLogoutBtn';
     logoutBtn.type = 'button';
     logoutBtn.className = 'btn-ghost';
-    logoutBtn.style.display = 'none';
+    logoutBtn.hidden = true;
     logoutBtn.textContent = '로그아웃';
-    const primaryBtn = navRight.querySelector('.btn-primary');
+    const primaryBtn = navSignupButton();
     navRight.insertBefore(logoutBtn, primaryBtn || null);
   }
 
   logoutBtn.removeEventListener('click', submitLogout);
   logoutBtn.addEventListener('click', submitLogout);
+
+  bindNavMypageOpeners();
 }
 
 function bindSignupLinkInLoginModal() {
@@ -454,6 +583,11 @@ function bindSignupLinkInLoginModal() {
 
 document.addEventListener('keydown', (event) => {
   if (event.key !== 'Escape') return;
+  const mypageModal = document.getElementById('mypageModal');
+  if (mypageModal && mypageModal.classList.contains('is-open')) {
+    closeMypageModal();
+    return;
+  }
   const signupModal = document.getElementById('signupModal');
   if (signupModal && signupModal.classList.contains('is-open')) {
     closeSignupModal();
@@ -462,17 +596,28 @@ document.addEventListener('keydown', (event) => {
   closeLoginModal();
 });
 
+if (document.body) {
+  bootstrapAuthNavSync();
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   ensureLoginModal();
   ensureSignupModal();
+  ensureMypageModal();
   injectGoogleLoginIntoModal();
   bindSignupLinkInLoginModal();
-  setupAuthNav();
+  bootstrapAuthNavSync();
   refreshAuthNav();
   handleGoogleLoginRedirect();
 });
+
+window.markAuthNavReady = markAuthNavReady;
+window.bootstrapAuthNavSync = bootstrapAuthNavSync;
 
 window.openSignupModal = openSignupModal;
 window.closeSignupModal = closeSignupModal;
 window.finishSignupSuccess = finishSignupSuccess;
 window.openSignupFromLogin = openSignupFromLogin;
+window.openMypageModal = openMypageModal;
+window.closeMypageModal = closeMypageModal;
+window.finishMypageSuccess = finishMypageSuccess;

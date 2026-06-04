@@ -68,7 +68,7 @@ function jurinApiBase() {
 // Inject mobile/tablet hamburger nav behavior for pages that use the shared nav markup.
 (function () {
   function normalizeNavSignupButton() {
-    var buttons = document.querySelectorAll('nav .nav-right .btn-primary');
+    var buttons = document.querySelectorAll('nav > .nav-right[data-auth-nav] .btn-primary, nav .nav-right[data-auth-nav] .btn-primary');
     for (var i = 0; i < buttons.length; i++) {
       var btn = buttons[i];
       btn.textContent = '회원가입';
@@ -123,7 +123,7 @@ function jurinApiBase() {
     nav.insertAdjacentElement('afterend', backdrop);
 
     function isMobileWidth() {
-      return window.matchMedia('(max-width: 1024px)').matches;
+      return window.matchMedia('(max-width: 1024px) and (pointer: coarse)').matches;
     }
 
     function setOpen(open) {
@@ -159,13 +159,18 @@ function jurinApiBase() {
     });
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function () {
-      normalizeNavSignupButton();
-      initResponsiveNav();
-    });
-  } else {
+  function runNavEnhancements() {
     normalizeNavSignupButton();
     initResponsiveNav();
+  }
+
+  if (document.body) {
+    normalizeNavSignupButton();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', runNavEnhancements);
+  } else {
+    runNavEnhancements();
   }
 })();

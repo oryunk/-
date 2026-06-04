@@ -4,6 +4,7 @@
  * - 한글 완성형, 영문, 숫자만
  * - 글자 사이 공백만 금지 (끝 공백은 입력 중 허용, 저장 시 trim)
  * - 특수문자·자음/모음 단독 금지
+ * - 같은 문자 3회 이상 연속 금지 (예: bbb)
  */
 (function (root) {
   var MIN_LENGTH = 2;
@@ -11,6 +12,7 @@
   var JAMO_RE = /[\u1100-\u11FF\u3130-\u318F\uA960-\uA97F\uD7B0-\uD7FF]/;
   var ALLOWED_RE = /^[가-힣A-Za-z0-9]+$/;
   var INTERNAL_SPACE_RE = /\S\s+\S/;
+  var CONSECUTIVE_SAME_CHAR_RE = /(.)\1{2,}/;
 
   function normalizeNickname(nickname) {
     return String(nickname == null ? '' : nickname).trim();
@@ -36,6 +38,9 @@
     }
     if (!ALLOWED_RE.test(core)) {
       return { ok: false, message: '닉네임은 한글(완성형), 영문, 숫자만 사용할 수 있습니다.' };
+    }
+    if (CONSECUTIVE_SAME_CHAR_RE.test(core)) {
+      return { ok: false, message: '닉네임에 같은 문자를 3번 이상 연속으로 사용할 수 없습니다.' };
     }
     return { ok: true, message: '' };
   }

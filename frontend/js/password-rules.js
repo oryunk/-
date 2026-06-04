@@ -4,6 +4,7 @@
  * - 영문자(A–Z, a–z) 1자 이상 포함
  * - 글자 사이 공백만 금지 (끝 공백은 입력 중 허용, 저장·로그인 시 trim)
  * - 특수문자(영문·숫자 외)는 최대 1개
+ * - 같은 문자 3회 이상 연속 금지 (예: bbb)
  */
 (function (root) {
   var MIN_LENGTH = 8;
@@ -11,6 +12,7 @@
   var HAS_LETTER = /[A-Za-z]/;
   var INTERNAL_SPACE_RE = /\S\s+\S/;
   var SPECIAL_CHAR_RE = /[^A-Za-z0-9]/g;
+  var CONSECUTIVE_SAME_CHAR_RE = /(.)\1{2,}/;
 
   function normalizePassword(password) {
     return String(password == null ? '' : password).trim();
@@ -38,6 +40,9 @@
     }
     if (countSpecialChars(core) > MAX_SPECIAL) {
       return { ok: false, message: '비밀번호에 특수문자는 2개 이상 사용할 수 없습니다.' };
+    }
+    if (CONSECUTIVE_SAME_CHAR_RE.test(core)) {
+      return { ok: false, message: '비밀번호에 같은 문자를 3번 이상 연속으로 사용할 수 없습니다.' };
     }
     return { ok: true, message: '' };
   }

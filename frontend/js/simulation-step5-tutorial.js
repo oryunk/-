@@ -253,7 +253,7 @@
         objective: '예수금',
         mood: 'welcome',
         coach:
-          '호가는 여기까지! 모의투자 계좌 얘기할게. 주문에 쓸 수 있는 현금이 예수금이고, 처음엔 100만 원 들어 있으니 마음 편하게 연습해 봐.',
+          '호가는 여기까지! 모의투자 계좌 얘기할게. 주문에 쓸 수 있는 현금이 예수금이고, 처음엔 500만 원 들어 있으니 마음 편하게 연습해 봐.',
         targets: depositTargets,
         onEnter: function () {
           if (typeof closeOrderbookOverlay === 'function') closeOrderbookOverlay();

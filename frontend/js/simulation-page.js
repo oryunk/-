@@ -97,7 +97,7 @@
     setText('nav .nav-menu a[href="market.html"]', '시장');
     setText('#navLoginBtn', '로그인');
     var startBtn = document.querySelector('nav .btn-primary');
-    if (startBtn) startBtn.textContent = '무료 시작하기';
+    if (startBtn) startBtn.textContent = '회원가입';
 
     setText('.simulation-header .btn-back', '← 돌아가기');
     setText('.simulation-title', '모의 투자');
@@ -738,6 +738,157 @@
     modal.setAttribute('aria-hidden', 'true');
   }
 
+  var marketClosedUiTarget = 'trading-buy';
+  var simTradeNoticePrimaryHandler = null;
+  var simTradeNoticeFocusStockOnClose = false;
+
+  function resolveMarketClosedUiTarget(side) {
+    var holdingModal = document.getElementById('sellModal');
+    if (holdingModal && holdingModal.classList.contains('is-open')) {
+      var buyTab = document.getElementById('holdingModalTabBuy');
+      if (buyTab && buyTab.classList.contains('active')) return 'holding-buy';
+      return 'holding-sell';
+    }
+    if (document.getElementById('buyModal') && document.getElementById('buyModal').classList.contains('is-open')) {
+      return 'trading-buy';
+    }
+    if (
+      document.getElementById('quickSellConfirmModal') &&
+      document.getElementById('quickSellConfirmModal').classList.contains('is-open')
+    ) {
+      return 'trading-sell';
+    }
+    return side === 'SELL' ? 'trading-sell' : 'trading-buy';
+  }
+
+  function dismissOrderConfirmModalsForMarketClosed() {
+    closeBuyModal();
+    if (typeof window.closeQuickSellConfirmModal === 'function') {
+      window.closeQuickSellConfirmModal();
+    }
+    closeSellModal();
+  }
+
+  function openSimTradeNoticeModal(opts) {
+    opts = opts || {};
+    var modal = document.getElementById('simTradeNoticeModal');
+    if (!modal) return;
+    dismissOrderConfirmModalsForMarketClosed();
+
+    var titleEl = document.getElementById('simTradeNoticeTitle');
+    var leadEl = document.getElementById('simTradeNoticeLead');
+    var summaryEl = document.getElementById('simTradeNoticeSummary');
+    var tipEl = document.getElementById('simTradeNoticeTip');
+    var extraEl = document.getElementById('simTradeNoticeExtra');
+    var primaryBtn = document.getElementById('simTradeNoticePrimary');
+    var confirmBtn = document.getElementById('simTradeNoticeConfirm');
+    var actionsEl = document.getElementById('simTradeNoticeActions');
+
+    if (titleEl) titleEl.textContent = opts.title || '';
+    if (leadEl) leadEl.textContent = opts.lead || '';
+
+    var hasSummary = !!(opts.tip || opts.extra);
+    if (summaryEl) {
+      if (hasSummary) {
+        summaryEl.hidden = false;
+        if (tipEl) tipEl.textContent = opts.tip || '';
+        if (extraEl) {
+          if (opts.extra) {
+            extraEl.textContent = opts.extra;
+            extraEl.hidden = false;
+          } else {
+            extraEl.textContent = '';
+            extraEl.hidden = true;
+          }
+        }
+      } else {
+        summaryEl.hidden = true;
+      }
+    }
+
+    simTradeNoticeFocusStockOnClose = !!opts.focusStockOnClose;
+    simTradeNoticePrimaryHandler = typeof opts.onPrimary === 'function' ? opts.onPrimary : null;
+
+    var showPrimary = !!opts.showPrimary;
+    var showConfirm = opts.showConfirm !== false;
+
+    if (primaryBtn) {
+      if (showPrimary) {
+        primaryBtn.hidden = false;
+        primaryBtn.textContent = opts.primaryLabel || '확인';
+      } else {
+        primaryBtn.hidden = true;
+      }
+    }
+    if (confirmBtn) {
+      confirmBtn.hidden = !showConfirm;
+    }
+    if (actionsEl) {
+      actionsEl.hidden = !showPrimary && !showConfirm;
+    }
+
+    modal.classList.add('is-open');
+    modal.setAttribute('aria-hidden', 'false');
+  }
+
+  function closeSimTradeNoticeModal() {
+    var modal = document.getElementById('simTradeNoticeModal');
+    if (!modal) return;
+    modal.classList.remove('is-open');
+    modal.setAttribute('aria-hidden', 'true');
+    dismissOrderConfirmModalsForMarketClosed();
+    simTradeNoticePrimaryHandler = null;
+    if (simTradeNoticeFocusStockOnClose) {
+      simTradeNoticeFocusStockOnClose = false;
+      var stockInput = document.getElementById('tradeStock');
+      if (stockInput) {
+        try {
+          stockInput.focus({ preventScroll: true });
+        } catch (_) {
+          stockInput.focus();
+        }
+      }
+    }
+  }
+
+  function runSimTradeNoticePrimary() {
+    if (simTradeNoticePrimaryHandler) simTradeNoticePrimaryHandler();
+  }
+
+  function openStockRequiredNoticeModal() {
+    openSimTradeNoticeModal({
+      title: '종목을 선택해 주세요',
+      lead: '종목을 입력하거나 왼쪽 목록에서 종목을 선택해 주세요.',
+      showPrimary: false,
+      showConfirm: false,
+      focusStockOnClose: true,
+    });
+  }
+
+  function openMarketClosedModal(side) {
+    marketClosedUiTarget = resolveMarketClosedUiTarget(side === 'SELL' ? 'SELL' : 'BUY');
+    openSimTradeNoticeModal({
+      title: '장 마감 · 시장가 불가',
+      lead:
+        '장이 열려 있지 않아 시장가 주문을 넣을 수 없습니다. 지정가로 예약하거나 정규장(09:00~15:30)에 다시 시도해 주세요.',
+      tip: '지정가 주문은 장외에도 예약 등록할 수 있으며, 정규장 개장 후 조건이 맞으면 자동 체결됩니다.',
+      extra: '정규장: 평일 09:00 ~ 15:30',
+      showPrimary: true,
+      primaryLabel: '지정가로 전환',
+      onPrimary: switchToLimitFromMarketClosed,
+    });
+  }
+
+  function switchToLimitFromMarketClosed() {
+    var target = marketClosedUiTarget;
+    if (target === 'trading-sell' || target === 'holding-sell') {
+      setSellPriceType(false);
+    } else {
+      setBuyPriceType(false);
+    }
+    closeSimTradeNoticeModal();
+  }
+
   /** 예수금 부족 매수 시도 → 주문/체결 현황에 미체결로 기록 */
   function recordInsufficientCashUnfilled(ctx) {
     ctx = ctx || {};
@@ -813,19 +964,8 @@
     return pending;
   }
 
-  function rejectMarketOrderOffHours() {
-    var msg =
-      '장이 열려 있지 않아 시장가 주문을 넣을 수 없습니다. 지정가로 예약하거나 정규장(09:00~15:30)에 다시 시도해 주세요.';
-    var fb = document.getElementById('tradeFeedback');
-    if (fb) {
-      fb.style.display = 'block';
-      fb.innerHTML =
-        '<strong>주문 불가</strong>' +
-        '<div class="trade-row"><span>안내</span><span>' +
-        escapeHtml(msg) +
-        '</span></div>';
-    }
-    alert(msg);
+  function rejectMarketOrderOffHours(side) {
+    openMarketClosedModal(side === 'SELL' ? 'SELL' : 'BUY');
   }
 
   /**
@@ -853,7 +993,7 @@
 
     if (!(limPx > 0)) {
       if (!isKrRegularMarketOpenNow()) {
-        rejectMarketOrderOffHours();
+        rejectMarketOrderOffHours(side);
         return { ok: false, blocked: true };
       }
       if (!(await ensureBuyCash())) return { ok: false, blocked: true };
@@ -1223,6 +1363,51 @@
       '<div class="trade-row"><span>지정가</span><span>' + formatCurrency(order.limitPrice) + '</span></div>' +
       '<div class="trade-row"><span>현재 기준가</span><span>' + refText + '</span></div>' +
       condRow;
+  }
+
+  function tradeSubmitLockButtons() {
+    return document.querySelectorAll(
+      'button[onclick*="confirmBuyFromModal"],' +
+        'button[onclick*="confirmSellFromModal"],' +
+        'button[onclick*="confirmBuyFromHoldingModal"],' +
+        'button[onclick*="confirmQuickSellFromModal"]',
+    );
+  }
+
+  function setTradeSubmitBusyUI(busy) {
+    tradeSubmitLockButtons().forEach(function (btn) {
+      if (busy) {
+        btn.dataset.tradePrevDisabled = btn.disabled ? '1' : '0';
+        btn.disabled = true;
+        btn.setAttribute('aria-busy', 'true');
+        var label = (btn.textContent || '').trim();
+        if (label && !btn.dataset.tradeBusyLabel) {
+          btn.dataset.tradeBusyLabel = label;
+          if (/매수|매도|구매|판매/.test(label)) btn.textContent = '처리 중…';
+        }
+      } else {
+        btn.disabled = btn.dataset.tradePrevDisabled === '1';
+        delete btn.dataset.tradePrevDisabled;
+        btn.removeAttribute('aria-busy');
+        if (btn.dataset.tradeBusyLabel) {
+          btn.textContent = btn.dataset.tradeBusyLabel;
+          delete btn.dataset.tradeBusyLabel;
+        }
+      }
+    });
+  }
+
+  function tryAcquireTradeSubmit() {
+    if (tradeSubmitInFlight) return false;
+    tradeSubmitInFlight = true;
+    setTradeSubmitBusyUI(true);
+    return true;
+  }
+
+  function releaseTradeSubmit() {
+    tradeSubmitInFlight = false;
+    setTradeSubmitBusyUI(false);
+    if (typeof updateSellPanelSelect === 'function') updateSellPanelSelect();
   }
 
   async function executeTradeRequest(side, stock, quantity, price) {
@@ -2068,6 +2253,8 @@
   let pnlDetailTab = 'sales';
   let pnlCache = null;
   let pnlLoading = false;
+  /** 매수/매도 API 처리 중 중복 클릭 방지 */
+  let tradeSubmitInFlight = false;
 
   function pnlAnchorYmd() {
     var d = pnlAnchorDate;
@@ -3080,7 +3267,7 @@
     const apiStock = getTradeStockForApi();
     let quantity = parseInt(qtyEl && qtyEl.value, 10);
     if (!stock || !apiStock) {
-      alert('종목을 입력하거나 왼쪽 목록에서 종목을 선택해주세요.');
+      openStockRequiredNoticeModal();
       return;
     }
     if (Number.isNaN(quantity) || quantity < 1) {
@@ -3155,13 +3342,15 @@
   }
 
   async function confirmBuyFromModal() {
+    if (!tryAcquireTradeSubmit()) return;
+    try {
     const stockEl = document.getElementById('tradeStock');
     const qtyEl = document.getElementById('tradeQuantity');
     const stockRef = getTradeStockForApi();
     const stockLabel = getTradeStockDisplayName();
     let quantity = parseInt(qtyEl && qtyEl.value, 10);
     if (!stockRef) {
-      alert('종목을 입력해주세요.');
+      openStockRequiredNoticeModal();
       return;
     }
     if (Number.isNaN(quantity) || quantity < 1) {
@@ -3261,6 +3450,9 @@
         return;
       }
       alert(err.message || '구매 처리 중 오류가 발생했습니다.');
+    }
+    } finally {
+      releaseTradeSubmit();
     }
   }
 
@@ -3577,6 +3769,8 @@
   }
 
   async function performQuickSellTrade(key, qty, sellPx) {
+    if (!tryAcquireTradeSubmit()) return;
+    try {
     var found = portfolio.holdings[key];
     if (!found || Number(found.quantity) <= 0) {
       throw new Error('보유 종목 정보를 다시 확인해주세요.');
@@ -3622,6 +3816,9 @@
       quantity: Number(ts.quantity || qty),
     });
     showTradeFeedback(data, 'sell');
+    } finally {
+      releaseTradeSubmit();
+    }
   }
 
   window.openQuickSellConfirmModal = function () {
@@ -3740,6 +3937,8 @@
   };
 
   async function confirmSellFromModal() {
+    if (!tryAcquireTradeSubmit()) return;
+    try {
     const st = sellModalState;
     const qty = parseInt(document.getElementById('sellModalQty').value, 10);
     if (!st.name || !qty || qty < 1) {
@@ -3803,9 +4002,14 @@
     } catch (err) {
       alert(err.message || '판매 중 오류가 발생했습니다.');
     }
+    } finally {
+      releaseTradeSubmit();
+    }
   }
 
   async function confirmBuyFromHoldingModal() {
+    if (!tryAcquireTradeSubmit()) return;
+    try {
     var stockRef = getHoldingModalBuyStockForApi();
     var stockLabel = getHoldingModalBuyDisplayName();
     if (!stockRef) {
@@ -3914,10 +4118,17 @@
       }
       alert(err.message || '구매 처리 중 오류가 발생했습니다.');
     }
+    } finally {
+      releaseTradeSubmit();
+    }
   }
 
   window.openBuyConfirmModal = openBuyConfirmModal;
   window.closeInsufficientCashModal = closeInsufficientCashModal;
+  window.closeSimTradeNoticeModal = closeSimTradeNoticeModal;
+  window.closeMarketClosedModal = closeSimTradeNoticeModal;
+  window.runSimTradeNoticePrimary = runSimTradeNoticePrimary;
+  window.switchToLimitFromMarketClosed = switchToLimitFromMarketClosed;
   window.confirmBuyFromHoldingModal = confirmBuyFromHoldingModal;
 
   function showTradeFeedback(data, source) {
