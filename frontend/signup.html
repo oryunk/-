@@ -171,18 +171,6 @@
     color: #e53935;
   }
 
-  .auth-field-error--under-input {
-    margin: 6px 0 0;
-    width: 100%;
-    min-height: 1.45em;
-  }
-
-  .auth-field-control--stacked {
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
-  }
-
   .auth-field-group[data-field="form"] .auth-field-error {
     margin-left: 0;
   }
@@ -312,11 +300,11 @@
       <div class="auth-field-group" data-field="emailCode">
         <div class="auth-field-line">
           <label class="auth-field-label" for="signupEmailCode">인증코드</label>
-          <div class="auth-field-control auth-field-control--stacked">
+          <div class="auth-field-control">
             <input type="text" class="auth-input" id="signupEmailCode" placeholder="6자리 숫자" inputmode="numeric" autocomplete="one-time-code" maxlength="6">
-            <div class="auth-field-error auth-field-error--under-input" id="signupErrorEmailCode" role="alert" aria-live="polite"></div>
           </div>
         </div>
+        <div class="auth-field-error" id="signupErrorEmailCode" role="alert" aria-live="polite"></div>
       </div>
       <div class="auth-field-group" data-field="password">
         <div class="auth-field-line">

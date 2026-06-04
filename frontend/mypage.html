@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="assets/brand/favicon.ico?v=20260607" sizes="any">
+<title>마이페이지 - 주린닷컴</title>
+<script>
+(function () {
+  if (new URLSearchParams(location.search).get('embed') === '1') {
+    document.documentElement.classList.add('auth-embed');
+  }
+})();
+</script>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css?v=20260428">
+<style>
+  .auth-page {
+    min-height: 100vh;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 32px 20px 48px;
+    background:
+      radial-gradient(circle at top right, rgba(47, 143, 95, 0.12), transparent 32%),
+      radial-gradient(circle at bottom left, rgba(47, 143, 95, 0.08), transparent 38%),
+      #ffffff;
+  }
+  .auth-card {
+    position: relative;
+    width: min(100%, 520px);
+    padding: 32px 28px 36px;
+    border-radius: 24px;
+    border: 1px solid rgba(47, 143, 95, 0.18);
+    background: #ffffff;
+    box-shadow: 0 20px 60px rgba(31, 47, 38, 0.1);
+    margin: 0 auto;
+  }
+  html.auth-embed .auth-page {
+    min-height: 0;
+    padding: 4px 12px 12px;
+    background: transparent;
+  }
+  html.auth-embed .auth-card {
+    box-shadow: none;
+    border: none;
+    padding: 24px 16px 20px;
+    border-radius: 0;
+  }
+  .lumi-chat-root, .lumi-chat-fab { display: none !important; }
+  .auth-kicker {
+    font-family: 'DM Mono', monospace;
+    color: var(--accent);
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    margin-bottom: 8px;
+  }
+  .auth-card h1 { font-size: 28px; margin-bottom: 12px; font-weight: 800; }
+  .auth-lead {
+    font-size: 14px;
+    color: var(--gray-400);
+    line-height: 1.5;
+    margin-bottom: 20px;
+  }
+  .auth-form { display: flex; flex-direction: column; gap: 10px; }
+  .auth-field-group { display: flex; flex-direction: column; }
+  .auth-field-line { display: flex; align-items: center; gap: 12px; }
+  .auth-field-label {
+    flex: 0 0 92px;
+    font-size: 14px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .auth-field-control { flex: 1; min-width: 0; }
+  .auth-input-row { display: flex; gap: 8px; align-items: stretch; }
+  .auth-input-row .auth-input { flex: 1; min-width: 0; }
+  .auth-input {
+    width: 100%;
+    padding: 14px 16px;
+    border-radius: 12px;
+    border: 1px solid rgba(47, 143, 95, 0.2);
+    background: var(--gray-100);
+    font-size: 14px;
+    box-sizing: border-box;
+    font-family: inherit;
+  }
+  .auth-input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(47, 143, 95, 0.12);
+  }
+  .auth-input.is-invalid {
+    border-color: #e53935;
+    box-shadow: 0 0 0 2px rgba(229, 57, 53, 0.15);
+  }
+  .auth-input[readonly] { opacity: 0.85; cursor: default; }
+  .auth-field-error {
+    display: none;
+    margin: 6px 0 0 104px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #e53935;
+  }
+  .auth-field-group[data-field="form"] .auth-field-error { margin-left: 0; }
+  .auth-field-error.is-visible { display: block; }
+  .auth-field-error.is-success { color: var(--green); }
+  .auth-send-btn, .auth-secondary-btn {
+    flex-shrink: 0;
+    padding: 0 16px;
+    border: none;
+    border-radius: 12px;
+    background: rgba(47, 143, 95, 0.12);
+    color: var(--accent);
+    font-size: 13px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .auth-send-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+  .auth-submit {
+    margin-top: 6px;
+    border: none;
+    border-radius: 12px;
+    padding: 15px 18px;
+    background: linear-gradient(135deg, var(--blue-bright), var(--accent));
+    color: #fff;
+    font-weight: 700;
+    font-size: 15px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .auth-submit:disabled { opacity: 0.7; cursor: wait; }
+  .auth-form .mypage-google-hint {
+    margin: 4px 0 12px;
+    padding: 0;
+  }
+  .mypage-panel[hidden] { display: none !important; }
+  .mypage-login-prompt {
+    text-align: center;
+    padding: 24px 0;
+    color: var(--gray-400);
+    font-size: 14px;
+  }
+  .mypage-login-prompt button {
+    margin-top: 12px;
+    border: none;
+    border-radius: 12px;
+    padding: 12px 20px;
+    background: var(--accent);
+    color: #fff;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+  }
+</style>
+</head>
+<body>
+<div class="auth-page">
+  <div class="auth-card">
+    <div id="mypageLoading" class="auth-lead">불러오는 중…</div>
+    <div id="mypageLoginPrompt" class="mypage-login-prompt" hidden>
+      <p>로그인이 필요합니다.</p>
+      <button type="button" id="mypageOpenLoginBtn">로그인하기</button>
+    </div>
+
+    <div id="mypageVerifyPanel" class="mypage-panel" hidden>
+      <div class="auth-kicker">JURIN.COM MY PAGE</div>
+      <h1>마이페이지</h1>
+      <p class="auth-lead">프로필을 수정하려면 가입 이메일 인증이 필요합니다.</p>
+      <form class="auth-form" onsubmit="submitProfileVerify(event)" novalidate>
+        <div class="auth-field-group" data-field="email">
+          <div class="auth-field-line">
+            <label class="auth-field-label" for="mypageEmail">이메일</label>
+            <div class="auth-field-control">
+              <input type="email" class="auth-input" id="mypageEmail" readonly autocomplete="email">
+            </div>
+          </div>
+          <div class="auth-field-error" id="mypageErrorEmail" role="alert"></div>
+        </div>
+        <div class="auth-field-group" data-field="emailCode">
+          <div class="auth-field-line">
+            <label class="auth-field-label" for="mypageEmailCode">인증코드</label>
+            <div class="auth-field-control">
+              <div class="auth-input-row">
+                <input type="text" class="auth-input" id="mypageEmailCode" placeholder="6자리 숫자" inputmode="numeric" maxlength="6">
+                <button type="button" class="auth-send-btn" id="mypageSendEmailCode">발송하기</button>
+              </div>
+            </div>
+          </div>
+          <div class="auth-field-error" id="mypageErrorEmailCode" role="alert"></div>
+        </div>
+        <div class="auth-field-group" data-field="form">
+          <div class="auth-field-error" id="mypageErrorVerifyForm" role="alert"></div>
+        </div>
+        <button class="auth-submit" type="submit" id="mypageVerifySubmitBtn">인증 확인</button>
+      </form>
+    </div>
+
+    <div id="mypageEditPanel" class="mypage-panel" hidden>
+      <div class="auth-kicker">JURIN.COM MY PAGE</div>
+      <h1>프로필 수정</h1>
+      <p class="auth-lead">아이디·닉네임·비밀번호를 변경할 수 있습니다.</p>
+      <form class="auth-form" onsubmit="submitProfileSave(event)" novalidate>
+        <div class="auth-field-group" data-field="loginId">
+          <div class="auth-field-line">
+            <label class="auth-field-label" for="mypageLoginId">아이디</label>
+            <div class="auth-field-control">
+              <input type="text" class="auth-input" id="mypageLoginId" maxlength="12" autocomplete="username" required>
+            </div>
+          </div>
+          <div class="auth-field-error" id="mypageErrorLoginId" role="alert"></div>
+        </div>
+        <div id="mypagePasswordSection">
+          <div class="auth-field-group" data-field="password">
+            <div class="auth-field-line">
+              <label class="auth-field-label" for="mypagePassword">비밀번호</label>
+              <div class="auth-field-control">
+                <input type="password" class="auth-input" id="mypagePassword" placeholder="변경 시에만 입력" autocomplete="new-password">
+              </div>
+            </div>
+            <div class="auth-field-error" id="mypageErrorPassword" role="alert"></div>
+          </div>
+          <div class="auth-field-group" data-field="passwordConfirm">
+            <div class="auth-field-line">
+              <label class="auth-field-label" for="mypagePasswordConfirm">비밀번호확인</label>
+              <div class="auth-field-control">
+                <input type="password" class="auth-input" id="mypagePasswordConfirm" placeholder="변경 시에만 입력" autocomplete="new-password">
+              </div>
+            </div>
+            <div class="auth-field-error" id="mypageErrorPasswordConfirm" role="alert"></div>
+          </div>
+        </div>
+        <p class="auth-lead mypage-google-hint" id="mypageGoogleHint" hidden>Google 로그인 계정은 비밀번호를 변경할 수 없습니다.</p>
+        <div class="auth-field-group" data-field="nickname">
+          <div class="auth-field-line">
+            <label class="auth-field-label" for="mypageNickname">닉네임</label>
+            <div class="auth-field-control">
+              <input type="text" class="auth-input" id="mypageNickname" maxlength="8" autocomplete="nickname" required>
+            </div>
+          </div>
+          <div class="auth-field-error" id="mypageErrorNickname" role="alert"></div>
+        </div>
+        <div class="auth-field-group" data-field="form">
+          <div class="auth-field-error" id="mypageErrorEditForm" role="alert"></div>
+        </div>
+        <button class="auth-submit" type="submit" id="mypageSaveBtn">저장</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script src="js/api-base.js"></script>
+<script src="js/password-rules.js"></script>
+<script src="js/login-id-rules.js"></script>
+<script src="js/nickname-rules.js"></script>
+<script src="js/email-code-rules.js"></script>
+<script>
+  const API_BASE = window.JURIN_API_BASE || 'http://localhost:5000';
+  let currentUserId = null;
+  let canChangePassword = true;
+  let loginIdCheckSeq = 0;
+  let nicknameCheckSeq = 0;
+  let loginIdDebounceTimer = null;
+  let nicknameDebounceTimer = null;
+  let emailSendCooldownLeft = 0;
+  let emailSendCooldownTimer = null;
+
+  const VERIFY_ERRORS = {
+    email: 'mypageErrorEmail',
+    emailCode: 'mypageErrorEmailCode',
+    form: 'mypageErrorVerifyForm',
+  };
+  const EDIT_ERRORS = {
+    loginId: 'mypageErrorLoginId',
+    password: 'mypageErrorPassword',
+    passwordConfirm: 'mypageErrorPasswordConfirm',
+    nickname: 'mypageErrorNickname',
+    form: 'mypageErrorEditForm',
+  };
+
+  function setPanelError(map, key, message, type) {
+    const id = map[key];
+    const el = id ? document.getElementById(id) : null;
+    const msg = String(message || '').trim();
+    if (!el) return;
+    el.textContent = msg;
+    el.classList.remove('is-visible', 'is-success');
+    if (msg) {
+      el.classList.add('is-visible');
+      if (type === 'success') el.classList.add('is-success');
+    }
+  }
+
+  function showLoading(show) {
+    const el = document.getElementById('mypageLoading');
+    if (el) el.hidden = !show;
+  }
+
+  function showLoginPrompt() {
+    showLoading(false);
+    document.getElementById('mypageVerifyPanel').hidden = true;
+    document.getElementById('mypageEditPanel').hidden = true;
+    document.getElementById('mypageLoginPrompt').hidden = false;
+  }
+
+  function showVerifyPanel() {
+    showLoading(false);
+    document.getElementById('mypageLoginPrompt').hidden = true;
+    document.getElementById('mypageEditPanel').hidden = true;
+    document.getElementById('mypageVerifyPanel').hidden = false;
+  }
+
+  function showEditPanel(user) {
+    showLoading(false);
+    document.getElementById('mypageLoginPrompt').hidden = true;
+    document.getElementById('mypageVerifyPanel').hidden = true;
+    document.getElementById('mypageEditPanel').hidden = false;
+    if (user) fillEditForm(user);
+  }
+
+  function fillEditForm(user) {
+    document.getElementById('mypageLoginId').value = user.loginId || '';
+    document.getElementById('mypageNickname').value = user.nickname || '';
+    document.getElementById('mypagePassword').value = '';
+    document.getElementById('mypagePasswordConfirm').value = '';
+    const canPw = user.canChangePassword !== false;
+    canChangePassword = canPw;
+    const pwSection = document.getElementById('mypagePasswordSection');
+    const googleHint = document.getElementById('mypageGoogleHint');
+    if (pwSection) pwSection.hidden = !canPw;
+    if (googleHint) googleHint.hidden = canPw;
+  }
+
+  function applyUserToVerify(user) {
+    document.getElementById('mypageEmail').value = user.email || '';
+    currentUserId = user.userId != null ? user.userId : null;
+    fillEditForm(user);
+  }
+
+  async function loadProfileStatus() {
+    showLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/profile/status`, { credentials: 'include' });
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 401 || !data.success) {
+        showLoginPrompt();
+        return;
+      }
+      const user = data.user || {};
+      applyUserToVerify(user);
+      if (data.verified) {
+        showEditPanel(user);
+      } else {
+        showVerifyPanel();
+      }
+    } catch (_) {
+      setPanelError(VERIFY_ERRORS, 'form', '서버에 연결할 수 없습니다.', 'error');
+      showVerifyPanel();
+    }
+  }
+
+  function updateSendEmailBtnLabel() {
+    const btn = document.getElementById('mypageSendEmailCode');
+    if (!btn) return;
+    if (emailSendCooldownLeft > 0) {
+      btn.disabled = true;
+      btn.textContent = `${emailSendCooldownLeft}초`;
+    } else {
+      btn.disabled = false;
+      btn.textContent = '발송하기';
+    }
+  }
+
+  function startEmailSendCooldown(seconds) {
+    emailSendCooldownLeft = Math.max(1, Math.floor(Number(seconds) || 60));
+    updateSendEmailBtnLabel();
+    clearInterval(emailSendCooldownTimer);
+    emailSendCooldownTimer = setInterval(function () {
+      emailSendCooldownLeft -= 1;
+      if (emailSendCooldownLeft <= 0) {
+        clearInterval(emailSendCooldownTimer);
+        emailSendCooldownLeft = 0;
+      }
+      updateSendEmailBtnLabel();
+    }, 1000);
+  }
+
+  async function sendProfileEmailCode() {
+    setPanelError(VERIFY_ERRORS, 'form', '', '');
+    const btn = document.getElementById('mypageSendEmailCode');
+    if (btn) btn.disabled = true;
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/profile/send-code`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({}),
+      });
+      const data = await res.json().catch(() => ({}));
+      const msg = (data && data.message) ? String(data.message) : '';
+      if (res.ok && data.success) {
+        setPanelError(VERIFY_ERRORS, 'email', '인증코드를 이메일로 발송했습니다.', 'success');
+        startEmailSendCooldown(60);
+        return;
+      }
+      if (msg.indexOf('초 후') >= 0) {
+        const m = msg.match(/(\d+)\s*초/);
+        if (m) startEmailSendCooldown(parseInt(m[1], 10));
+      }
+      setPanelError(VERIFY_ERRORS, 'email', msg || '인증코드 발송에 실패했습니다.', 'error');
+    } catch (_) {
+      setPanelError(VERIFY_ERRORS, 'email', '서버에 연결할 수 없습니다.', 'error');
+    } finally {
+      if (emailSendCooldownLeft <= 0) updateSendEmailBtnLabel();
+    }
+  }
+
+  function validateEmailCodeFormat(code) {
+    if (typeof jurinValidateEmailCode === 'function') return jurinValidateEmailCode(code);
+    const c = String(code || '').trim();
+    if (!c) return { ok: false, message: '인증코드를 입력해주세요.' };
+    if (!/^\d{6}$/.test(c)) return { ok: false, message: '인증코드 6자리를 다시 입력해주세요.' };
+    return { ok: true, message: '' };
+  }
+
+  async function submitProfileVerify(event) {
+    event.preventDefault();
+    setPanelError(VERIFY_ERRORS, 'form', '', '');
+    const code = document.getElementById('mypageEmailCode').value.trim();
+    const rules = validateEmailCodeFormat(code);
+    if (!rules.ok) {
+      setPanelError(VERIFY_ERRORS, 'emailCode', rules.message, 'error');
+      return;
+    }
+    const btn = document.getElementById('mypageVerifySubmitBtn');
+    if (btn) btn.disabled = true;
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/profile/verify-code`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ emailCode: code }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.success) {
+        setPanelError(VERIFY_ERRORS, 'emailCode', '', '');
+        await loadProfileStatus();
+        return;
+      }
+      const field = data.field === 'emailCode' ? 'emailCode' : 'form';
+      setPanelError(VERIFY_ERRORS, field, data.message || '인증에 실패했습니다.', 'error');
+    } catch (_) {
+      setPanelError(VERIFY_ERRORS, 'form', '서버에 연결할 수 없습니다.', 'error');
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  }
+
+  function normalizedLoginId() {
+    const raw = document.getElementById('mypageLoginId').value;
+    if (typeof jurinNormalizeLoginId === 'function') return jurinNormalizeLoginId(raw);
+    return String(raw || '').trim();
+  }
+
+  function normalizedNickname() {
+    const raw = document.getElementById('mypageNickname').value;
+    if (typeof jurinNormalizeNickname === 'function') return jurinNormalizeNickname(raw);
+    return String(raw || '').trim();
+  }
+
+  function normalizedPassword(value) {
+    const raw = value != null ? value : document.getElementById('mypagePassword').value;
+    if (typeof jurinNormalizePassword === 'function') return jurinNormalizePassword(raw);
+    return String(raw || '').trim();
+  }
+
+  async function checkLoginIdDuplicate() {
+    const loginIdRaw = document.getElementById('mypageLoginId').value;
+    if (!loginIdRaw.trim()) {
+      setPanelError(EDIT_ERRORS, 'loginId', '', '');
+      return true;
+    }
+    const fmt = validateLoginIdFormat(loginIdRaw);
+    if (!fmt.ok) {
+      setPanelError(EDIT_ERRORS, 'loginId', fmt.message, 'error');
+      return false;
+    }
+    const seq = ++loginIdCheckSeq;
+    const body = { loginId: normalizedLoginId() };
+    if (currentUserId != null) body.excludeUserId = currentUserId;
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/check-login-id`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (seq !== loginIdCheckSeq) return true;
+      if (data.available) {
+        setPanelError(EDIT_ERRORS, 'loginId', '', '');
+        return true;
+      }
+      setPanelError(EDIT_ERRORS, 'loginId', data.message || '이미 사용 중인 아이디입니다.', 'error');
+      return false;
+    } catch (_) {
+      return true;
+    }
+  }
+
+  async function checkNicknameDuplicate() {
+    const nickname = document.getElementById('mypageNickname').value;
+    if (!nickname) {
+      setPanelError(EDIT_ERRORS, 'nickname', '', '');
+      return true;
+    }
+    const fmt = validateNicknameFormat(nickname);
+    if (!fmt.ok) {
+      setPanelError(EDIT_ERRORS, 'nickname', fmt.message, 'error');
+      return false;
+    }
+    const seq = ++nicknameCheckSeq;
+    const body = { nickname: normalizedNickname() };
+    if (currentUserId != null) body.excludeUserId = currentUserId;
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/check-nickname`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (seq !== nicknameCheckSeq) return true;
+      if (data.available) {
+        setPanelError(EDIT_ERRORS, 'nickname', '', '');
+        return true;
+      }
+      setPanelError(EDIT_ERRORS, 'nickname', data.message || '중복된 닉네임입니다.', 'error');
+      return false;
+    } catch (_) {
+      return true;
+    }
+  }
+
+  function validatePasswordFieldsOptional() {
+    if (!canChangePassword) return true;
+    const password = document.getElementById('mypagePassword').value;
+    const passwordConfirm = document.getElementById('mypagePasswordConfirm').value;
+    if (!password && !passwordConfirm) {
+      setPanelError(EDIT_ERRORS, 'password', '', '');
+      setPanelError(EDIT_ERRORS, 'passwordConfirm', '', '');
+      return true;
+    }
+    let ok = true;
+    const rules = validatePasswordRules(password);
+    if (!rules.ok) {
+      setPanelError(EDIT_ERRORS, 'password', rules.message, 'error');
+      ok = false;
+    } else {
+      setPanelError(EDIT_ERRORS, 'password', '', '');
+    }
+    if (!passwordConfirm) {
+      setPanelError(EDIT_ERRORS, 'passwordConfirm', '비밀번호 확인을 입력해주세요.', 'error');
+      return false;
+    }
+    const confirmRules = validatePasswordRules(passwordConfirm);
+    if (!confirmRules.ok) {
+      setPanelError(EDIT_ERRORS, 'passwordConfirm', confirmRules.message, 'error');
+      return false;
+    }
+    if (normalizedPassword(password) !== normalizedPassword(passwordConfirm)) {
+      setPanelError(EDIT_ERRORS, 'passwordConfirm', '비밀번호가 일치하지 않습니다.', 'error');
+      return false;
+    }
+    setPanelError(EDIT_ERRORS, 'passwordConfirm', '비밀번호가 일치합니다.', 'success');
+    return ok;
+  }
+
+  async function validateEditForm() {
+    setPanelError(EDIT_ERRORS, 'form', '', '');
+    let ok = true;
+    const loginIdRaw = document.getElementById('mypageLoginId').value;
+    const nickname = document.getElementById('mypageNickname').value;
+
+    if (!loginIdRaw.trim()) {
+      setPanelError(EDIT_ERRORS, 'loginId', '아이디를 입력해주세요.', 'error');
+      ok = false;
+    } else {
+      const idRules = validateLoginIdFormat(loginIdRaw);
+      if (!idRules.ok) {
+        setPanelError(EDIT_ERRORS, 'loginId', idRules.message, 'error');
+        ok = false;
+      }
+    }
+
+    const nickRules = validateNicknameFormat(nickname);
+    if (!nickRules.ok) {
+      setPanelError(EDIT_ERRORS, 'nickname', nickRules.message, 'error');
+      ok = false;
+    }
+
+    if (!validatePasswordFieldsOptional()) ok = false;
+    if (!ok) return false;
+
+    if (!(await checkNicknameDuplicate())) return false;
+    if (!(await checkLoginIdDuplicate())) return false;
+    return true;
+  }
+
+  async function submitProfileSave(event) {
+    event.preventDefault();
+    if (!(await validateEditForm())) return;
+
+    const body = {
+      loginId: normalizedLoginId(),
+      nickname: normalizedNickname(),
+    };
+    if (canChangePassword) {
+      const password = document.getElementById('mypagePassword').value;
+      const passwordConfirm = document.getElementById('mypagePasswordConfirm').value;
+      if (password || passwordConfirm) {
+        body.password = normalizedPassword(password);
+        body.passwordConfirm = normalizedPassword(passwordConfirm);
+      }
+    }
+
+    const btn = document.getElementById('mypageSaveBtn');
+    if (btn) btn.disabled = true;
+    setPanelError(EDIT_ERRORS, 'form', '저장하는 중입니다…', 'success');
+
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/profile`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(body),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.success && data.user) {
+        setPanelError(EDIT_ERRORS, 'form', '프로필이 저장되었습니다.', 'success');
+        if (window.parent && typeof window.parent.finishMypageSuccess === 'function') {
+          window.parent.finishMypageSuccess(data.user);
+        } else {
+          applyUserToVerify(data.user);
+        }
+        return;
+      }
+      const field = data.field && EDIT_ERRORS[data.field] ? data.field : 'form';
+      setPanelError(EDIT_ERRORS, field, data.message || '저장에 실패했습니다.', 'error');
+    } catch (_) {
+      setPanelError(EDIT_ERRORS, 'form', '서버에 연결할 수 없습니다.', 'error');
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  }
+
+  document.getElementById('mypageSendEmailCode').addEventListener('click', sendProfileEmailCode);
+  document.getElementById('mypageLoginId').addEventListener('input', function () {
+    clearTimeout(loginIdDebounceTimer);
+    loginIdDebounceTimer = setTimeout(checkLoginIdDuplicate, 400);
+  });
+  document.getElementById('mypageNickname').addEventListener('input', function () {
+    clearTimeout(nicknameDebounceTimer);
+    nicknameDebounceTimer = setTimeout(checkNicknameDuplicate, 400);
+  });
+  document.getElementById('mypagePasswordConfirm').addEventListener('blur', validatePasswordFieldsOptional);
+  document.getElementById('mypageOpenLoginBtn').addEventListener('click', function () {
+    if (window.parent && typeof window.parent.openLoginModal === 'function') {
+      window.parent.closeMypageModal();
+      window.parent.openLoginModal();
+    }
+  });
+
+  loadProfileStatus();
+</script>
+</body>
+</html>

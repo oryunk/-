@@ -10,31 +10,23 @@
 <title>주식 학습 가이드 - 주린닷컴</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css?v=20260438">
+<script src="js/auth-nav-boot.js"></script>
 <style>
-  html {
-    height: 100%;
-    overscroll-behavior-y: none;
-  }
-
-  /* 페이지 잠금: body는 스크롤 없음, main만 필요 시 스크롤 */
+  /* 홈·시장과 동일: body 전역 min-width 1280 + overflow-x, 세로는 문서 스크롤 */
   body.guide-page {
-    height: 100%;
-    overflow: hidden;
     margin: 0;
     background: radial-gradient(circle at 10% 0%, rgba(47, 143, 95, 0.08), transparent 40%), #fff;
   }
 
   main.guide-page {
-    height: 100vh;
-    padding-top: 80px;
+    padding-top: 16px;
     box-sizing: border-box;
-    overflow-x: hidden;
-    overflow-y: auto;
-    overscroll-behavior: contain;
   }
 
-  body.guide-page.guide-showing-landing main.guide-page {
-    overflow-y: hidden;
+  .guide-layout-shell {
+    min-width: 1280px;
+    width: 100%;
+    box-sizing: border-box;
   }
 
   /* 가이드: 튜토리얼 설명·가이드 연습은 MascotCoach 말풍선만, 좌하단 도크·챗봇 없음 */
@@ -215,8 +207,7 @@
     align-items: center;
     justify-content: center;
     text-align: center;
-    min-height: calc(100vh - 80px - 48px);
-    max-height: calc(100vh - 80px - 48px);
+    min-height: calc(100vh - 64px - 48px);
     padding: 16px;
     box-sizing: border-box;
   }
@@ -331,13 +322,16 @@
     <li><a class="jurin-simulation-link" href="http://127.0.0.1:5000/simulation.html">모의 투자</a></li>
     <li><a href="market.html">시장</a></li>
   </ul>
-  <div class="nav-right">
+  <div class="nav-right" data-auth-nav>
     <button type="button" class="btn-ghost" id="navLoginBtn">로그인</button>
-    <button class="btn-primary">무료 시작하기</button>
+    <span class="nav-user-email" id="navUserEmail" aria-live="polite" hidden></span>
+    <button type="button" class="btn-ghost" id="navLogoutBtn" hidden>로그아웃</button>
+    <button type="button" class="btn-primary" id="navSignupBtn">회원가입</button>
   </div>
 </nav>
 
 <main class="guide-page">
+  <div class="guide-layout-shell">
   <div class="guide-wrap">
     <div id="guideModeLanding" class="guide-mode-landing" aria-label="가이드 난이도 선택">
       <h1 class="guide-mode-title">어디부터 시작할까요?</h1>
@@ -410,6 +404,7 @@
       </div>
     </div>
     </div>
+  </div>
   </div>
 </main>
 <script src="js/api-base.js"></script>

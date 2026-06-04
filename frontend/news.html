@@ -10,11 +10,11 @@
 <title>경제 뉴스 - 주린닷컴</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css?v=20260428">
+<script src="js/auth-nav-boot.js"></script>
 <link rel="stylesheet" href="css/news-overlay.css">
 <style>
   .market-container {
     min-height: 100vh;
-    padding-top: 80px;
   }
 
   .market-header {
@@ -419,13 +419,15 @@
     <li><a class="jurin-simulation-link" href="http://127.0.0.1:5000/simulation.html">모의 투자</a></li>
     <li><a href="market.html">시장</a></li>
   </ul>
-  <div class="nav-right">
+  <div class="nav-right" data-auth-nav>
     <button type="button" class="btn-ghost" id="navLoginBtn">로그인</button>
-    <button class="btn-primary">무료 시작하기</button>
+    <span class="nav-user-email" id="navUserEmail" aria-live="polite" hidden></span>
+    <button type="button" class="btn-ghost" id="navLogoutBtn" hidden>로그아웃</button>
+    <button type="button" class="btn-primary" id="navSignupBtn">회원가입</button>
   </div>
 </nav>
 
-<div class="market-container">
+<div class="market-container page-below-nav">
   <div class="market-header">
     <div class="market-header-content">
       <a href="주린닷컴홈피.html" class="btn-back">← 돌아가기</a>

@@ -10,6 +10,7 @@
 <title>모의 투자 - 주린닷컴</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css?v=20260428">
+<script src="js/auth-nav-boot.js"></script>
 <link rel="stylesheet" href="css/simulation.css?v=20260555">
 <script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
 <style>
@@ -51,13 +52,15 @@
     <li><a class="jurin-simulation-link active" href="http://127.0.0.1:5000/simulation.html">모의 투자</a></li>
     <li><a href="market.html">시장</a></li>
   </ul>
-  <div class="nav-right">
+  <div class="nav-right" data-auth-nav>
     <button type="button" class="btn-ghost" id="navLoginBtn">로그인</button>
-    <button class="btn-primary">무료 회원가입</button>
+    <span class="nav-user-email" id="navUserEmail" aria-live="polite" hidden></span>
+    <button type="button" class="btn-ghost" id="navLogoutBtn" hidden>로그아웃</button>
+    <button type="button" class="btn-primary" id="navSignupBtn">회원가입</button>
   </div>
 </nav>
 
-<div class="simulation-container" id="simulationPageRoot">
+<div class="simulation-container page-below-nav" id="simulationPageRoot">
   <div class="simulation-header">
     <div class="simulation-header-content">
       <a href="주린닷컴홈피.html" class="btn-back">&larr; 홈으로</a>
@@ -575,6 +578,22 @@
       </div>
       <div class="sell-modal-actions">
         <button type="button" class="btn-trade insufficient-cash-ok" onclick="closeInsufficientCashModal()">확인</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="simTradeNoticeModal" class="sell-modal-overlay sim-trade-notice-overlay" aria-hidden="true" role="presentation" onclick="if (event.target === this) closeSimTradeNoticeModal()">
+    <div class="sell-modal-panel sim-trade-notice-panel" role="alertdialog" aria-modal="true" aria-labelledby="simTradeNoticeTitle" onclick="event.stopPropagation()">
+      <button type="button" class="sell-modal-close" onclick="closeSimTradeNoticeModal()" aria-label="닫기">&#215;</button>
+      <h3 class="sell-modal-title sim-trade-notice-title" id="simTradeNoticeTitle"></h3>
+      <p class="sim-trade-notice-lead" id="simTradeNoticeLead"></p>
+      <div class="sim-trade-notice-summary" id="simTradeNoticeSummary" hidden>
+        <p class="sim-trade-notice-tip" id="simTradeNoticeTip"></p>
+        <p class="sim-trade-notice-extra" id="simTradeNoticeExtra"></p>
+      </div>
+      <div class="sell-modal-actions sim-trade-notice-actions" id="simTradeNoticeActions">
+        <button type="button" class="btn-trade sim-trade-notice-primary" id="simTradeNoticePrimary" hidden onclick="runSimTradeNoticePrimary()">지정가로 전환</button>
+        <button type="button" class="btn-ghost-modal" id="simTradeNoticeConfirm" onclick="closeSimTradeNoticeModal()">확인</button>
       </div>
     </div>
   </div>
