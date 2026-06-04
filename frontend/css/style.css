@@ -35,6 +35,16 @@ body {
   font-family: 'Noto Sans KR', sans-serif;
   background: #ffffff;
   color: var(--text-primary);
+  /* 네이버식: 데스크톱 레이아웃 폭 유지 → Ctrl+확대 시 페이지 가로 스크롤 */
+  min-width: 1280px;
+  overflow-x: auto;
+}
+
+/* 회원가입 모달 iframe·단독 auth 페이지: 전역 min-width 미적용 */
+html.auth-embed,
+html.auth-embed body,
+body:has(> .auth-page) {
+  min-width: 0;
   overflow-x: hidden;
 }
 
@@ -55,21 +65,28 @@ body {
   background-image: linear-gradient(transparent 52%, rgba(47, 143, 95, 0.42) 52%);
 }
 
-/* NAVBAR */
+/* NAVBAR — sticky: 세로는 상단 고정, 가로는 본문과 같이 스크롤(로그인 노출) */
 nav {
-  position: fixed;
+  position: sticky;
   top: 0;
-  left: 0;
-  right: 0;
   z-index: 100;
+  width: 100%;
   background: rgba(255, 255, 255, 0.96);
   backdrop-filter: blur(12px);
   border-bottom: 1px solid rgba(47, 143, 95, 0.2);
   padding: 0 40px;
   height: 64px;
+  min-width: 1280px;
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   justify-content: space-between;
+}
+
+/* fixed 네비 보정용 padding-top: 80px 대체 (네비 64px + 여유 16px) */
+.page-below-nav {
+  padding-top: 16px;
+  box-sizing: border-box;
 }
 
 .nav-logo {
@@ -77,6 +94,7 @@ nav {
   align-items: center;
   gap: 10px;
   text-decoration: none;
+  flex-shrink: 0;
 }
 
 .logo-icon {
@@ -130,6 +148,7 @@ img.logo-icon {
   align-items: center;
   gap: 4px;
   list-style: none;
+  flex-wrap: nowrap;
 }
 
 .nav-menu a {
@@ -140,6 +159,7 @@ img.logo-icon {
   padding: 8px 14px;
   border-radius: 8px;
   transition: all 0.2s;
+  white-space: nowrap;
 }
 
 .nav-menu a:hover {
@@ -167,10 +187,83 @@ img.logo-icon {
   align-items: center;
 }
 
+/* 로그인 네비: JS 적용 전 잘못된 버튼·문구 깜빡임 방지 (auth-nav-boot.js) */
+html.auth-nav-pending [data-auth-nav] {
+  visibility: hidden;
+}
+
 .nav-mobile-panel {
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+.nav-right[data-auth-nav] {
+  flex-shrink: 0;
+}
+
+.nav-user-email.nav-user-nickname-btn {
+  cursor: pointer;
+  color: #000000;
+  font-weight: 700;
+}
+
+.nav-user-email.nav-user-nickname-btn:hover,
+.nav-user-email.nav-user-nickname-btn:focus-visible {
+  color: #000000;
+  text-decoration: underline;
+  outline: none;
+}
+
+.nav-right #navMyPageBtn,
+.nav-right #navLogoutBtn {
+  flex-shrink: 0;
+  background: linear-gradient(135deg, #2f8f5f, #4faa77);
+  border: none;
+  color: #ffffff;
+  font-weight: 700;
+  box-shadow: 0 4px 14px rgba(47, 143, 95, 0.25);
+}
+
+.nav-right #navMyPageBtn:hover,
+.nav-right #navLogoutBtn:hover {
+  color: #ffffff;
+  border: none;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(47, 143, 95, 0.32);
+}
+
+/* 데스크톱: 탭 메뉴 상단 중앙 (로고 좌 · 로그인 우). 확대는 페이지 가로 스크롤로 처리 */
+@media (pointer: fine) {
+  nav {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    align-items: center;
+  }
+
+  .nav-logo {
+    grid-column: 1;
+    justify-self: start;
+  }
+
+  .nav-mobile-panel,
+  nav > .nav-menu {
+    grid-column: 2;
+    justify-self: center;
+    overflow: visible;
+    min-width: 0;
+  }
+
+  .nav-right,
+  .nav-right[data-auth-nav] {
+    grid-column: 3;
+    justify-self: end;
+    margin-left: 0;
+  }
+
+  .nav-hamburger {
+    display: none;
+  }
 }
 
 .nav-mobile-actions {
@@ -239,8 +332,14 @@ nav.nav-open .nav-hamburger-lines::after {
   display: none;
 }
 
-@media (max-width: 1024px) {
+@media (max-width: 1024px) and (pointer: coarse) {
+  body {
+    min-width: 0;
+  }
+
   nav {
+    display: flex;
+    min-width: 0;
     padding: 0 20px;
     z-index: 700;
     justify-content: flex-start;
@@ -299,12 +398,12 @@ nav.nav-open .nav-hamburger-lines::after {
     flex-shrink: 0;
   }
 
-  .nav-right .nav-user-email {
+  .nav-right .nav-user-email:not([hidden]) {
     display: inline-block !important;
     max-width: 132px;
     font-size: 11px;
     line-height: 1.25;
-    color: #2f5b44;
+    color: #000000;
     font-weight: 700;
     white-space: nowrap;
     overflow: hidden;
@@ -457,6 +556,64 @@ nav.nav-open .nav-hamburger-lines::after {
   height: min(84vh, 812px);
   border: none;
   background: #ffffff;
+}
+
+.mypage-modal {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 315;
+}
+
+.mypage-modal.is-open {
+  display: flex;
+}
+
+.mypage-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(31, 47, 38, 0.35);
+  backdrop-filter: blur(8px);
+}
+
+.mypage-modal-panel {
+  position: relative;
+  z-index: 1;
+  width: min(96vw, 560px);
+  max-height: min(92vh, 900px);
+  padding-top: 48px;
+  box-sizing: border-box;
+  border-radius: 20px;
+  border: 1px solid rgba(47, 143, 95, 0.22);
+  background: #ffffff;
+  box-shadow: 0 24px 64px rgba(31, 47, 38, 0.12);
+  overflow: hidden;
+}
+
+.mypage-modal-frame {
+  display: block;
+  width: 100%;
+  height: min(84vh, 812px);
+  border: none;
+  background: #ffffff;
+}
+
+.mypage-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 50%;
+  background: var(--gray-100);
+  color: var(--gray-400);
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+  z-index: 2;
 }
 
 .login-modal-header {
@@ -633,7 +790,7 @@ nav.nav-open .nav-hamburger-lines::after {
 
 /* TICKER */
 .ticker-strip {
-  margin-top: 64px;
+  margin-top: 0;
   background: #f5fbf7;
   border-bottom: 1px solid rgba(47, 143, 95, 0.15);
   overflow: hidden;
@@ -1143,7 +1300,7 @@ body.mascot-coach-spotlight-dim::before {
   transform: rotate(-45deg);
 }
 
-@media (max-width: 768px) {
+@media (max-width: 768px) and (pointer: coarse) {
   .mascot-coach--spotlight .mascot-coach-body {
     grid-template-columns: 1fr;
     grid-template-rows: auto auto;
@@ -2675,7 +2832,7 @@ footer {
   transform: translateY(0);
 }
 
-@media (max-width: 900px) {
+@media (max-width: 900px) and (pointer: coarse) {
   .mascot-coach {
     left: 10px;
     right: 10px;

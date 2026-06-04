@@ -550,7 +550,8 @@ body.tutorial-step1-active .lumi-chat-panel {
   display: none !important;
 }
 
-@media (max-width: 520px) {
+/* 터치·좁은 화면만 하단 시트 (Ctrl+확대로 innerWidth만 줄면 전체화면으로 바뀌지 않음) */
+@media (max-width: 520px) and (pointer: coarse) {
   .lumi-chat-panel {
     left: 0;
     right: 0;
@@ -567,6 +568,24 @@ body.tutorial-step1-active .lumi-chat-panel {
 
   .lumi-chat-sidebar {
     width: 96px;
+  }
+}
+
+/* 데스크톱 확대·좁은 창: 좌하단 패널 유지, 가로만 뷰포트에 맞춤 */
+@media (max-width: 520px) and (pointer: fine) {
+  .lumi-chat-panel {
+    left: 14px;
+    right: auto;
+    bottom: 72px;
+    width: min(420px, calc(100vw - 28px));
+    max-width: calc(100vw - 16px);
+    height: min(620px, calc(100vh - 100px));
+    border-radius: 16px;
+  }
+
+  .lumi-chat-fab {
+    bottom: 14px;
+    left: 14px;
   }
 }
 
