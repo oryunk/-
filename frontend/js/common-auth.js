@@ -184,7 +184,7 @@ function closeSignupModal() {
   }
 }
 
-function finishSignupSuccess(user) {
+async function finishSignupSuccess(user) {
   if (user) {
     const email = (user.email || '').trim();
     const nickname = (user.nickname || '').trim();
@@ -202,7 +202,7 @@ function finishSignupSuccess(user) {
   }
   if (frame) frame.src = 'about:blank';
   updateBodyScrollLock();
-  refreshAuthNav();
+  await refreshAuthNav();
 }
 
 function openSignupFromLogin(event) {
