@@ -330,7 +330,8 @@
       <button class="auth-submit" type="submit" id="signupSubmitBtn">회원가입</button>
     </form>
     <span class="auth-divider" aria-hidden="true">또는</span>
-    <a class="login-google-btn" id="signupGoogleBtn" href="#">Google로 가입</a>
+    <!-- Google OAuth: embed 모달에서는 top 으로 이동(iframe 안 callback 방지) -->
+    <a class="login-google-btn" id="signupGoogleBtn" href="#" rel="noopener noreferrer">Google로 가입</a>
     <div class="auth-links">
       <a href="find-id.html" target="_blank" rel="noopener noreferrer">아이디 찾기</a>
       <a href="find-password.html" target="_blank" rel="noopener noreferrer">비밀번호 찾기</a>
@@ -347,8 +348,18 @@
 <script>
   (function initSignupGoogle() {
     const btn = document.getElementById('signupGoogleBtn');
-    if (btn && typeof jurinApiBase === 'function') {
-      btn.href = `${jurinApiBase()}/api/auth/google/start`;
+    if (!btn || typeof jurinApiBase !== 'function') return;
+    const startUrl = `${jurinApiBase()}/api/auth/google/start`;
+    const inEmbed = document.documentElement.classList.contains('auth-embed');
+
+    if (inEmbed) {
+      btn.addEventListener('click', function (event) {
+        event.preventDefault();
+        const topWin = window.top && window.top !== window ? window.top : window;
+        topWin.location.href = startUrl;
+      });
+    } else {
+      btn.href = startUrl;
     }
   })();
 
@@ -1014,7 +1025,7 @@
           && window.parent !== window
           && typeof window.parent.finishSignupSuccess === 'function') {
           try {
-            window.parent.finishSignupSuccess({
+            await window.parent.finishSignupSuccess({
               email: savedEmail,
               nickname: savedNickname,
               loginId: userId,
