@@ -1,5 +1,8 @@
 Use stock_db;
 
+-- 모의투자: 가입 시 500만원 계좌 자동 생성 (트리거·프로시저 정의는 이 파일만 사용)
+-- 전체 회원 초기화: backend/scripts/wipe_all_users.py
+
 -- [1] 회원 가입 시 자동 계좌 생성 트리거
 DROP TRIGGER IF EXISTS trg_after_user_insert;
 
@@ -18,8 +21,8 @@ BEGIN
         updated_at
     ) VALUES (
         NEW.user_id, 
-        1000000.00,  -- 초기 자금 100만원
-        1000000.00,  
+        5000000.00,  -- 초기 자금 500만원
+        5000000.00,  
         NOW(), 
         NOW()
     );
