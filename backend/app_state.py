@@ -270,7 +270,7 @@ _CHART_WINDOW_CAL_DAYS = {'D': 100, 'W': 700, 'M': 3000, 'Y': 36500}
 _KIS_TOKEN_USE_DB = os.getenv('KIS_TOKEN_USE_DB', 'true').strip().lower() in {'1', 'true', 'y', 'yes', 'on'}
 _KR_MARKET_OPEN_HHMM = int(os.getenv('KR_MARKET_OPEN_HHMM', '900'))
 _KR_MARKET_CLOSE_HHMM = int(os.getenv('KR_MARKET_CLOSE_HHMM', '1530'))
-_MOCK_INITIAL_CASH = int(float(os.getenv('MOCK_INITIAL_CASH', '1000000')))
+_MOCK_INITIAL_CASH = int(float(os.getenv('MOCK_INITIAL_CASH', '5000000')))
 
 if PRICE_STOCKS:
     LIVE_PRICE_STOCKS = dict(list(PRICE_STOCKS.items())[:_WEB_PRICE_MAX_COUNT])

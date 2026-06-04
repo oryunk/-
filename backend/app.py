@@ -861,7 +861,7 @@ def _searchable_stock_name(item):
         )
         if part and part.strip()
     ).strip()
-
+    
 
 def _normalize_catalog_stock_key(value) -> str:
     return str(value or '').strip().replace(' ', '').lower()

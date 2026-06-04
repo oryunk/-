@@ -7,6 +7,7 @@
 
 from flask import Blueprint, request, jsonify, session
 import re
+import time
 import pymysql
 import pymysql.err
 import bcrypt
@@ -44,6 +45,9 @@ PASSWORD_MAX_SPECIAL = 1
 _PASSWORD_HAS_LETTER = re.compile(r"[A-Za-z]")
 _PASSWORD_SPECIAL_RE = re.compile(r"[^A-Za-z0-9]")
 _EMAIL_RE = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]{2,}$")
+_CONSECUTIVE_SAME_CHAR_RE = re.compile(r"(.)\1{2,}")
+
+PROFILE_EDIT_TTL_SECONDS = 900
 
 
 def get_connection():
@@ -105,6 +109,11 @@ def _hash_password(password: str) -> str:
     return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
 
+def _has_consecutive_same_chars(value: str) -> bool:
+    """동일 문자 3회 이상 연속(예: bbb) 여부."""
+    return bool(_CONSECUTIVE_SAME_CHAR_RE.search(value or ""))
+
+
 def _validate_email(email: str) -> str | None:
     """유효하면 None, 아니면 사용자용 오류 메시지."""
     e = (email or "").strip()
@@ -133,14 +142,34 @@ def _validate_login_id(login_id: str) -> str | None:
     lid = raw.strip()
     if not _LOGIN_ID_RE.match(lid):
         return "아이디는 영문·숫자 6~12자로 입력해주세요."
+    if _has_consecutive_same_chars(lid):
+        return "아이디에 같은 문자를 3번 이상 연속으로 사용할 수 없습니다."
     return None
 
 
-def _login_id_exists(cursor, login_id: str) -> bool:
-    cursor.execute(
-        "SELECT user_id FROM users WHERE login_id = %s LIMIT 1",
-        (login_id,),
-    )
+def _parse_exclude_user_id(data) -> int | None:
+    if not data:
+        return None
+    raw = data.get("excludeUserId")
+    if raw is None or raw == "":
+        return None
+    try:
+        return int(raw)
+    except (TypeError, ValueError):
+        return None
+
+
+def _login_id_exists(cursor, login_id: str, exclude_user_id: int | None = None) -> bool:
+    if exclude_user_id is not None:
+        cursor.execute(
+            "SELECT user_id FROM users WHERE login_id = %s AND user_id != %s LIMIT 1",
+            (login_id, exclude_user_id),
+        )
+    else:
+        cursor.execute(
+            "SELECT user_id FROM users WHERE login_id = %s LIMIT 1",
+            (login_id,),
+        )
     return cursor.fetchone() is not None
 
 
@@ -162,6 +191,8 @@ def _validate_password(password: str) -> str | None:
         return "비밀번호에 영문자를 포함해주세요."
     if len(_PASSWORD_SPECIAL_RE.findall(core)) > PASSWORD_MAX_SPECIAL:
         return "비밀번호에 특수문자는 2개 이상 사용할 수 없습니다."
+    if _has_consecutive_same_chars(core):
+        return "비밀번호에 같은 문자를 3번 이상 연속으로 사용할 수 없습니다."
     return None
 
 
@@ -188,15 +219,68 @@ def _validate_nickname(nickname: str) -> str | None:
         return "닉네임은 8자 이하로 입력해주세요."
     if not _NICKNAME_ALLOWED_RE.match(core):
         return "닉네임은 한글(완성형), 영문, 숫자만 사용할 수 있습니다."
+    if _has_consecutive_same_chars(core):
+        return "닉네임에 같은 문자를 3번 이상 연속으로 사용할 수 없습니다."
     return None
 
 
-def _nickname_exists(cursor, nickname: str) -> bool:
-    cursor.execute(
-        "SELECT user_id FROM users WHERE nickname = %s LIMIT 1",
-        (nickname,),
-    )
+def _nickname_exists(cursor, nickname: str, exclude_user_id: int | None = None) -> bool:
+    if exclude_user_id is not None:
+        cursor.execute(
+            "SELECT user_id FROM users WHERE nickname = %s AND user_id != %s LIMIT 1",
+            (nickname, exclude_user_id),
+        )
+    else:
+        cursor.execute(
+            "SELECT user_id FROM users WHERE nickname = %s LIMIT 1",
+            (nickname,),
+        )
     return cursor.fetchone() is not None
+
+
+def _require_session_user_id():
+    uid = session.get("user_id")
+    if uid is None:
+        return None
+    return int(uid)
+
+
+def _is_profile_edit_verified() -> bool:
+    until = session.get("profile_edit_verified_until")
+    if until is None:
+        return False
+    try:
+        return float(until) > time.time()
+    except (TypeError, ValueError):
+        return False
+
+
+def _set_profile_edit_verified() -> None:
+    session["profile_edit_verified_until"] = time.time() + PROFILE_EDIT_TTL_SECONDS
+
+
+def _user_response_dict(user: dict) -> dict:
+    provider = (user.get("auth_provider") or "local").strip().lower()
+    has_password = bool(user.get("password_hash"))
+    return {
+        "userId": user["user_id"],
+        "email": user["email"],
+        "loginId": user["login_id"],
+        "nickname": user.get("nickname") or "",
+        "authProvider": provider,
+        "canChangePassword": has_password and provider != "google",
+    }
+
+
+def _fetch_user_by_id(cursor, user_id: int):
+    cursor.execute(
+        """
+        SELECT user_id, email, login_id, nickname, auth_provider, password_hash
+        FROM users WHERE user_id = %s
+        """,
+        (user_id,),
+    )
+    return cursor.fetchone()
 
 
 @auth_bp.route("/api/auth/check-login-id", methods=["POST"])
@@ -213,12 +297,13 @@ def check_login_id():
         }), 400
 
     login_id = _normalize_login_id(login_id_raw)
+    exclude_user_id = _parse_exclude_user_id(data)
 
     conn = None
     try:
         conn = get_connection()
         with conn.cursor() as cursor:
-            if _login_id_exists(cursor, login_id):
+            if _login_id_exists(cursor, login_id, exclude_user_id):
                 return jsonify({
                     "success": False,
                     "available": False,
@@ -246,12 +331,13 @@ def check_nickname():
         }), 400
 
     nickname = _normalize_nickname(nickname)
+    exclude_user_id = _parse_exclude_user_id(data)
 
     conn = None
     try:
         conn = get_connection()
         with conn.cursor() as cursor:
-            if _nickname_exists(cursor, nickname):
+            if _nickname_exists(cursor, nickname, exclude_user_id):
                 return jsonify({
                     "success": False,
                     "available": False,
@@ -510,24 +596,260 @@ def me():
     try:
         conn = get_connection()
         with conn.cursor() as cursor:
-            cursor.execute(
-                "SELECT user_id, email, login_id, nickname FROM users WHERE user_id = %s",
-                (uid,),
-            )
-            user = cursor.fetchone()
+            user = _fetch_user_by_id(cursor, uid)
         if not user:
             session.clear()
             return jsonify({"success": False, "message": "로그인되지 않았습니다."}), 401
 
         return jsonify({
             "success": True,
-            "user": {
-                "userId": user["user_id"],
-                "email": user["email"],
-                "loginId": user["login_id"],
-                "nickname": user.get("nickname") or "",
-            },
+            "user": _user_response_dict(user),
         })
+    except Exception as e:
+        return jsonify({"success": False, "message": _db_error_message(e)}), 500
+    finally:
+        if conn:
+            conn.close()
+
+
+@auth_bp.route("/api/auth/profile/status", methods=["GET"])
+def profile_status():
+    uid = _require_session_user_id()
+    if uid is None:
+        return jsonify({"success": False, "message": "로그인되지 않았습니다."}), 401
+
+    conn = None
+    try:
+        conn = get_connection()
+        with conn.cursor() as cursor:
+            user = _fetch_user_by_id(cursor, uid)
+        if not user:
+            session.clear()
+            return jsonify({"success": False, "message": "로그인되지 않았습니다."}), 401
+
+        verified = _is_profile_edit_verified()
+        until = session.get("profile_edit_verified_until")
+        return jsonify({
+            "success": True,
+            "verified": verified,
+            "verifiedUntil": until if verified else None,
+            "user": _user_response_dict(user),
+        })
+    except Exception as e:
+        return jsonify({"success": False, "message": _db_error_message(e)}), 500
+    finally:
+        if conn:
+            conn.close()
+
+
+@auth_bp.route("/api/auth/profile/send-code", methods=["POST"])
+def profile_send_code():
+    uid = _require_session_user_id()
+    if uid is None:
+        return jsonify({"success": False, "message": "로그인되지 않았습니다."}), 401
+
+    conn = None
+    try:
+        conn = get_connection()
+        with conn.cursor() as cursor:
+            user = _fetch_user_by_id(cursor, uid)
+        if not user:
+            session.clear()
+            return jsonify({"success": False, "message": "로그인되지 않았습니다."}), 401
+
+        email = (user.get("email") or "").strip()
+        err = issue_and_send_code(conn, email)
+        if err:
+            return jsonify({"success": False, "message": err}), 400
+        return jsonify({
+            "success": True,
+            "message": "인증코드를 이메일로 발송했습니다.",
+        })
+    except Exception as e:
+        if is_missing_table_error(e):
+            return jsonify({
+                "success": False,
+                "message": "email_verification_codes 테이블이 없습니다. SQL/add_email_verification.sql을 적용하세요.",
+            }), 500
+        return jsonify({"success": False, "message": _db_error_message(e)}), 500
+    finally:
+        if conn:
+            conn.close()
+
+
+@auth_bp.route("/api/auth/profile/verify-code", methods=["POST"])
+def profile_verify_code():
+    uid = _require_session_user_id()
+    if uid is None:
+        return jsonify({"success": False, "message": "로그인되지 않았습니다."}), 401
+
+    data = request.get_json(silent=True) or {}
+    email_code = (data.get("emailCode") or data.get("verificationCode") or "").strip()
+
+    if not email_code:
+        return jsonify({
+            "success": False,
+            "message": "인증코드를 입력해주세요.",
+            "field": "emailCode",
+        }), 400
+
+    conn = None
+    try:
+        conn = get_connection()
+        with conn.cursor() as cursor:
+            user = _fetch_user_by_id(cursor, uid)
+        if not user:
+            session.clear()
+            return jsonify({"success": False, "message": "로그인되지 않았습니다."}), 401
+
+        email = (user.get("email") or "").strip()
+        code_err = verify_email_code(conn, email, email_code)
+        if code_err:
+            return jsonify({
+                "success": False,
+                "message": code_err,
+                "field": "emailCode",
+            }), 400
+
+        _set_profile_edit_verified()
+        return jsonify({
+            "success": True,
+            "message": "이메일 인증이 완료되었습니다. 프로필을 수정할 수 있습니다.",
+        })
+    except Exception as e:
+        if is_missing_table_error(e):
+            return jsonify({
+                "success": False,
+                "message": "email_verification_codes 테이블이 없습니다. SQL/add_email_verification.sql을 적용하세요.",
+                "field": "form",
+            }), 500
+        return jsonify({
+            "success": False,
+            "message": _db_error_message(e),
+            "field": "form",
+        }), 500
+    finally:
+        if conn:
+            conn.close()
+
+
+@auth_bp.route("/api/auth/profile", methods=["PATCH"])
+def profile_update():
+    uid = _require_session_user_id()
+    if uid is None:
+        return jsonify({"success": False, "message": "로그인되지 않았습니다."}), 401
+
+    if not _is_profile_edit_verified():
+        return jsonify({
+            "success": False,
+            "message": "프로필 수정 전에 이메일 인증을 완료해 주세요.",
+        }), 403
+
+    data = request.get_json(silent=True) or {}
+    login_id_raw = _login_id_raw_from_body(data)
+    nickname = data.get("nickname") or ""
+    password = data.get("password", "")
+    password_confirm = data.get("passwordConfirm", "")
+
+    if not login_id_raw.strip() or not nickname:
+        return jsonify({"success": False, "message": "아이디와 닉네임을 입력해주세요."}), 400
+
+    nick_err = _validate_nickname(nickname)
+    if nick_err:
+        return jsonify({"success": False, "message": nick_err, "field": "nickname"}), 400
+
+    nickname = _normalize_nickname(nickname)
+
+    id_err = _validate_login_id(login_id_raw)
+    if id_err:
+        return jsonify({"success": False, "message": id_err, "field": "loginId"}), 400
+
+    login_id = _normalize_login_id(login_id_raw)
+
+    password_raw = password or ""
+    password_confirm_raw = password_confirm or ""
+    password_provided = bool(str(password_raw).strip() or str(password_confirm_raw).strip())
+
+    if password_provided:
+        if not str(password_raw).strip() or not str(password_confirm_raw).strip():
+            return jsonify({
+                "success": False,
+                "message": "비밀번호와 비밀번호 확인을 모두 입력해주세요.",
+                "field": "password",
+            }), 400
+        pw_err = _validate_password(password_raw)
+        if pw_err:
+            return jsonify({"success": False, "message": pw_err, "field": "password"}), 400
+        password_norm = _normalize_password(password_raw)
+        password_confirm_norm = _normalize_password(password_confirm_raw)
+        if password_norm != password_confirm_norm:
+            return jsonify({
+                "success": False,
+                "message": "비밀번호가 일치하지 않습니다.",
+                "field": "passwordConfirm",
+            }), 400
+
+    conn = None
+    try:
+        conn = get_connection()
+        with conn.cursor() as cursor:
+            user = _fetch_user_by_id(cursor, uid)
+            if not user:
+                session.clear()
+                return jsonify({"success": False, "message": "로그인되지 않았습니다."}), 401
+
+            is_google_only = is_google_only_account(user)
+
+            if password_provided and is_google_only:
+                return jsonify({
+                    "success": False,
+                    "message": "Google 로그인 계정은 비밀번호를 변경할 수 없습니다.",
+                    "field": "password",
+                }), 400
+
+            if _login_id_exists(cursor, login_id, uid):
+                return jsonify({
+                    "success": False,
+                    "message": LOGIN_ID_DUPLICATE_MSG,
+                    "field": "loginId",
+                }), 409
+
+            if _nickname_exists(cursor, nickname, uid):
+                return jsonify({
+                    "success": False,
+                    "message": NICKNAME_DUPLICATE_MSG,
+                    "field": "nickname",
+                }), 409
+
+            if password_provided:
+                password_hash = _hash_password(_normalize_password(password_raw))
+                cursor.execute(
+                    """
+                    UPDATE users
+                    SET login_id = %s, nickname = %s, password_hash = %s, updated_at = NOW()
+                    WHERE user_id = %s
+                    """,
+                    (login_id, nickname, password_hash, uid),
+                )
+            else:
+                cursor.execute(
+                    """
+                    UPDATE users
+                    SET login_id = %s, nickname = %s, updated_at = NOW()
+                    WHERE user_id = %s
+                    """,
+                    (login_id, nickname, uid),
+                )
+            conn.commit()
+            updated = _fetch_user_by_id(cursor, uid)
+
+        return jsonify({
+            "success": True,
+            "message": "프로필이 저장되었습니다.",
+            "user": _user_response_dict(updated),
+        })
+    except pymysql.err.IntegrityError:
+        return jsonify({"success": False, "message": "이미 사용 중인 아이디 또는 닉네임입니다."}), 409
     except Exception as e:
         return jsonify({"success": False, "message": _db_error_message(e)}), 500
     finally:

@@ -10,9 +10,18 @@ from email.utils import parsedate_to_datetime
 from typing import Any
 
 try:
-    from pymysql.err import ProgrammingError
+    from pymysql.err import OperationalError, ProgrammingError
 except ImportError:
     ProgrammingError = type('ProgrammingError', (Exception,), {})  # type: ignore[misc, assignment]
+    OperationalError = ProgrammingError  # type: ignore[misc, assignment]
+
+_DB_SCHEMA_ERRORS = (ProgrammingError, OperationalError)
+
+
+def _is_unknown_column(err: BaseException) -> bool:
+    """MySQL 1054 — pymysql 은 ProgrammingError 또는 OperationalError 로 올 수 있음."""
+    args = getattr(err, 'args', None)
+    return bool(args and args[0] == 1054)
 
 _STRIP_TAGS = re.compile(r'<[^>]+>')
 _MRSS_NS = '{http://search.yahoo.com/mrss/}'
@@ -247,8 +256,8 @@ def fetch_recent_list(conn, limit: int = 20) -> list[dict[str, Any]]:
     with conn.cursor() as cur:
         try:
             cur.execute(sql_with_digest, (limit,))
-        except ProgrammingError as e:
-            if e.args and e.args[0] == 1054:
+        except _DB_SCHEMA_ERRORS as e:
+            if _is_unknown_column(e):
                 cur.execute(sql_no_digest, (limit,))
             else:
                 raise
@@ -259,14 +268,21 @@ def fetch_recent_list(conn, limit: int = 20) -> list[dict[str, Any]]:
 def fetch_article_by_id(conn, news_id: int) -> dict[str, Any] | None:
     sql_full = """
             SELECT news_id, title, summary, url, guid, img_url, category, source,
-                   published_at, fetched_at, reader_digest
+                   published_at, fetched_at, reader_digest, reader_related_stocks
+            FROM news_articles
+            WHERE news_id = %s
+            LIMIT 1
+            """
+    sql_no_related = """
+            SELECT news_id, title, summary, url, guid, img_url, category, source,
+                   published_at, fetched_at, reader_digest, NULL AS reader_related_stocks
             FROM news_articles
             WHERE news_id = %s
             LIMIT 1
             """
     sql_legacy = """
             SELECT news_id, title, summary, url, guid, img_url, category, source,
-                   published_at, fetched_at, NULL AS reader_digest
+                   published_at, fetched_at, NULL AS reader_digest, NULL AS reader_related_stocks
             FROM news_articles
             WHERE news_id = %s
             LIMIT 1
@@ -274,9 +290,15 @@ def fetch_article_by_id(conn, news_id: int) -> dict[str, Any] | None:
     with conn.cursor() as cur:
         try:
             cur.execute(sql_full, (news_id,))
-        except ProgrammingError as e:
-            if e.args and e.args[0] == 1054:
-                cur.execute(sql_legacy, (news_id,))
+        except _DB_SCHEMA_ERRORS as e:
+            if _is_unknown_column(e):
+                try:
+                    cur.execute(sql_no_related, (news_id,))
+                except _DB_SCHEMA_ERRORS as e2:
+                    if _is_unknown_column(e2):
+                        cur.execute(sql_legacy, (news_id,))
+                    else:
+                        raise
             else:
                 raise
         row = cur.fetchone()
@@ -285,7 +307,25 @@ def fetch_article_by_id(conn, news_id: int) -> dict[str, Any] | None:
     d = dict(row)
     base = _row_to_api_item(d)
     base['fetched_at'] = d.get('fetched_at')
+    base['reader_related_stocks'] = d.get('reader_related_stocks')
     return base
+
+
+def update_reader_related_stocks(conn, news_id: int, blob: str) -> None:
+    with conn.cursor() as cur:
+        try:
+            cur.execute(
+                """
+                UPDATE news_articles
+                SET reader_related_stocks = %s
+                WHERE news_id = %s
+                """,
+                (blob, news_id),
+            )
+        except _DB_SCHEMA_ERRORS as e:
+            if _is_unknown_column(e):
+                return
+            raise
 
 
 def update_reader_digest(conn, news_id: int, text: str) -> None:
@@ -299,8 +339,8 @@ def update_reader_digest(conn, news_id: int, text: str) -> None:
                 """,
                 (text, news_id),
             )
-        except ProgrammingError as e:
-            if e.args and e.args[0] == 1054:
+        except _DB_SCHEMA_ERRORS as e:
+            if _is_unknown_column(e):
                 raise RuntimeError(
                     'news_articles.reader_digest 컬럼이 없습니다. SQL/add_news_reader_digest.sql 을 적용하세요.'
                 ) from e
