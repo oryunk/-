@@ -2,7 +2,7 @@
  * mascot2 경로 헬퍼 — 루미콘(이모티콘) vs misc(연출·일러스트)
  */
 (function (global) {
-  var VER = '20260608r';
+  var VER = '20260608s';
   var LUMICON_FILES = {
     'happy.png': true,
     'excited.png': true,
@@ -14,6 +14,11 @@
     'struggling.png': true,
     'sleepy.png': true,
     'thinking.png': true,
+    'angry.png': true,
+    'chart-analysis.png': true,
+    'good-idea.png': true,
+    'idea.png': true,
+    'studying.png': true,
   };
 
   function withVer(path) {

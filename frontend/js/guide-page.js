@@ -37,6 +37,11 @@
     'struggling.png': true,
     'sleepy.png': true,
     'thinking.png': true,
+    'angry.png': true,
+    'chart-analysis.png': true,
+    'good-idea.png': true,
+    'idea.png': true,
+    'studying.png': true,
   };
 
   function mascot2Asset(name) {
