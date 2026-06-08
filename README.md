@@ -28,7 +28,6 @@
 │   ├── signup.html 등
 │   ├── css/style.css
 │   └── js/                 api-base.js, app.js, rss-loader.js 등
-├── .vscode/                tasks.json — 폴더 열 때 Flask 실행 등
 └── README.md               이 파일
 ```
 
@@ -134,6 +133,10 @@ const response = await fetch('http://localhost:5000/api/analyze', {
 { "status": "ok", "message": "서버가 정상 작동 중입니다." }
 ```
 
+### `GET /api/auth/google/status`
+
+Google OAuth 설정 진단 (`redirect_uri`를 Cloud Console과 대조). 비밀키는 반환하지 않습니다.
+
 ### `POST /api/terms/explain`
 
 용어 설명.
@@ -168,6 +171,9 @@ const response = await fetch('http://localhost:5000/api/analyze', {
 
 **로그인·모의투자가 안 됨**  
 브라우저에서 **`http://127.0.0.1:5000`** 으로 frontend를 열었는지 확인 (`file://` 또는 `:5500`만 쓰면 쿠키가 분리될 수 있음).
+
+**Google 로그인 403 / 연동 UI**  
+[`backend/docs/GOOGLE_OAUTH_SETUP.md`](backend/docs/GOOGLE_OAUTH_SETUP.md) — `GOOGLE_REDIRECT_URI`·Console URI 대조, 테스트 사용자, wipe 후 DB. 진단: `GET /api/auth/google/status`, `python backend/scripts/check_google_oauth_env.py`.
 
 ---
 
