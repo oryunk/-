@@ -1,7 +1,9 @@
 Use stock_db;
 
 -- 모의투자: 가입 시 500만원 계좌 자동 생성 (트리거·프로시저 정의는 이 파일만 사용)
--- 전체 회원 초기화: backend/scripts/wipe_all_users.py
+-- ⚠️ 이 파일만 실행하면 users 행은 삭제되지 않음.
+-- 전체 회원 삭제: SQL/wipe_all_users.sql (또는 backend/scripts/wipe_all_users.py)
+-- Google 가입·모의계좌 점검: SQL/google_oauth_post_wipe_check.sql (add_google_oauth.sql 선행)
 
 -- [1] 회원 가입 시 자동 계좌 생성 트리거
 DROP TRIGGER IF EXISTS trg_after_user_insert;
