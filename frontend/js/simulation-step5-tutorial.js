@@ -234,10 +234,10 @@
         },
       },
       {
-        objective: '호가창',
+        objective: '호가',
         mood: 'caution',
         coach:
-          '여기 호가창! 사고·팔고 싶은 가격을 적어 두는 곳이고 그걸 호가라고 해. 장이 닫힌 뒤 지정가 넣으면 바로 안 사지고 예약으로 대기했다가, 다음 장에 조건 맞으면 체결돼.',
+          '여기 호가! 사고·팔고 싶은 가격을 적어 두는 곳이고 그걸 호가라고 해. 장이 닫힌 뒤 지정가 넣으면 바로 안 사지고 예약으로 대기했다가, 다음 장에 조건 맞으면 체결돼.',
         targets: function () {
           var ob = document.getElementById('orderbookOverlay');
           return ob && ob.classList.contains('is-open') ? [ob] : [];
@@ -438,7 +438,7 @@
 
     function needsCalloutRefresh(idx) {
       if (isDetailSpotlightStep(idx)) return true;
-      if (idx === STEP_DEPOSIT || isTradeGuideStep(idx)) return true;
+      if (idx === STEP_DEPOSIT || isTradeGuideStep(idx) || idx === STEP_ORDERBOOK) return true;
       return false;
     }
 

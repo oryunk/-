@@ -47,26 +47,59 @@
     var parts = [];
     parts.push('<div class="mock-cost-row"><span>거래금액</span><span>' + formatCurrency(c.gross) + '</span></div>');
     parts.push(
-      '<div class="mock-cost-row"><span>매매수수료(약 0.015%)</span><span>' + formatCurrency(c.fee) + '</span></div>'
+      '<div class="mock-cost-row"><span>매매수수료 (0.015%)</span><span>' + formatCurrency(c.fee) + '</span></div>'
     );
     if (s === 'SELL') {
       parts.push(
-        '<div class="mock-cost-row"><span>증권거래세(약 0.18%)</span><span>' + formatCurrency(c.tax) + '</span></div>'
+        '<div class="mock-cost-row"><span>증권거래세 (0.18%)</span><span>' + formatCurrency(c.tax) + '</span></div>'
       );
       parts.push(
-        '<div class="mock-cost-row mock-cost-row--emph"><span>예상 입금액</span><span>' +
+        '<div class="mock-cost-row mock-cost-row--total"><span>예상 입금액</span><span>' +
           formatCurrency(c.netSell) +
           '</span></div>'
       );
     } else {
       parts.push(
-        '<div class="mock-cost-row mock-cost-row--emph"><span>예상 결제액</span><span>' +
+        '<div class="mock-cost-row mock-cost-row--total"><span>총 결제 금액</span><span>' +
           formatCurrency(c.netBuy) +
           '</span></div>'
       );
     }
     el.innerHTML = parts.join('');
     el.style.display = '';
+  }
+
+  function formatTradeConfirmStockHtml(name, code) {
+    var n = escapeHtml(String(name || '').trim());
+    var c = String(code || '').trim();
+    if (!n) return '—';
+    if (c) return n + ' <span class="trade-confirm-code">' + escapeHtml(c) + '</span>';
+    return n;
+  }
+
+  function setTradeConfirmStockLine(el, name, code) {
+    if (!el) return;
+    el.innerHTML = formatTradeConfirmStockHtml(name, code);
+  }
+
+  function setTradeConfirmPriceLine(el, amountText, tagLabel) {
+    if (!el) return;
+    var amt = String(amountText || '').trim();
+    var tag = String(tagLabel || '').trim();
+    if (!amt || amt === '—') {
+      el.textContent = '—';
+      return;
+    }
+    if (!tag) {
+      el.textContent = amt;
+      return;
+    }
+    el.innerHTML =
+      '<span class="trade-confirm-value">' +
+      escapeHtml(amt) +
+      '<span class="trade-confirm-price-tag">' +
+      escapeHtml(tag) +
+      '</span></span>';
   }
 
   function localizeSimulationUi() {
@@ -86,20 +119,19 @@
     if (logoText) logoText.innerHTML = '주린<span>닷컴</span>';
 
     setText('nav .nav-menu a[href="guide.html"]', '가이드');
-    setText('nav .nav-menu a[href="analysis.html"]', 'AI 분석');
-    setText('nav .nav-menu a[href="ai-chart-prediction.html"]', 'AI 차트 예측 ');
-    var aiBadge = document.querySelector('nav .nav-menu a[href="ai-chart-prediction.html"] .nav-badge');
-    if (aiBadge) aiBadge.textContent = 'AI';
+    var analysisLink = document.querySelector('nav .nav-menu a[href="analysis.html"]');
+    if (analysisLink) analysisLink.innerHTML = 'AI 분석 <span class="nav-badge">AI</span>';
+    var chartLink = document.querySelector('nav .nav-menu a[href="ai-chart-prediction.html"]');
+    if (chartLink) chartLink.innerHTML = 'AI 차트 예측 <span class="nav-badge">AI</span>';
     setText('nav .nav-menu a[href="glossary.html"]', '용어 검색');
-    setText('nav .nav-menu a[href="simulation.html"]', '모의 투자 ');
-    var newBadge = document.querySelector('nav .nav-menu a[href="simulation.html"] .nav-badge');
-    if (newBadge) newBadge.textContent = 'NEW';
-    setText('nav .nav-menu a[href="market.html"]', '시장');
+    var simLink = document.querySelector('nav .nav-menu a.jurin-simulation-link');
+    if (simLink) simLink.textContent = '모의 투자';
+    var marketLink = document.querySelector('nav .nav-menu a[href="market.html"]');
+    if (marketLink) marketLink.innerHTML = '시장 <span class="nav-badge">LIVE</span>';
     setText('#navLoginBtn', '로그인');
     var startBtn = document.querySelector('nav .btn-primary');
     if (startBtn) startBtn.textContent = '회원가입';
 
-    setText('.simulation-header .btn-back', '← 돌아가기');
     setText('.simulation-title', '모의 투자');
     setText('.simulation-sub', '실전처럼 매매를 연습해보세요');
 
@@ -110,17 +142,16 @@
     var obRef = document.getElementById('orderbookRefreshBtn');
     if (obRef) obRef.textContent = '새로고침';
     var obBack = document.getElementById('orderbookCloseBtn');
-    if (obBack) obBack.textContent = '시장 목록';
+    if (obBack) obBack.textContent = '목록';
     setText('.orderbook-pane-title', '호가');
 
     var th = document.querySelectorAll('.discovery-table thead th');
-    if (th.length >= 7) {
+    if (th.length >= 6) {
       th[1].textContent = '종목';
       th[2].textContent = '현재가';
       th[3].textContent = '시가';
-      th[4].textContent = '등락';
-      th[5].textContent = '거래량';
-      th[6].textContent = '거래대금';
+      th[4].textContent = '거래량';
+      th[5].textContent = '거래대금';
     }
 
     setText('.portfolio-title', '내 자산 현황');
@@ -171,7 +202,7 @@
     if (sellBtn) sellBtn.textContent = '매도';
 
     setText('.order-status-title', '주문/체결 현황');
-    setText('#orderStatusSummary', '아직 주문 상태가 없습니다.');
+    setText('#orderStatusSummary', '오늘 체결·미체결 내역이 없습니다.');
     setText('.history-title', '거래 내역');
     setText('#historyPeriodLabel', '조회 기간');
     setText('#historyRangeFromLabel', '시작');
@@ -200,20 +231,19 @@
     setText('#holdingBuyRefPriceLabel', '참고 시세');
     setText('#holdingBuyEstLabel', '예상 구매금액');
     var sellExec = document.querySelector('.holding-modal-cta-sell');
-    if (sellExec) sellExec.textContent = '매도';
+    if (sellExec) sellExec.textContent = '판매하기';
     var holdingBuyExec = document.querySelector('.holding-modal-cta-buy');
-    if (holdingBuyExec) holdingBuyExec.textContent = '매수';
+    if (holdingBuyExec) holdingBuyExec.textContent = '구매하기';
 
-    setText('#buyModalHeading', '매수');
-    setText('#buyModal .sell-modal-row:nth-of-type(1) span:first-child', '종목');
-    setText('#buyModal .sell-modal-row:nth-of-type(2) span:first-child', '수량');
-    setText('#buyModal .sell-modal-row:nth-of-type(3) span:first-child', '예상가');
-    setText('#buyModal .trade-confirm-note', '위 내용으로 구매를 진행합니다.');
+    setText('#buyModalHeading', '매수 주문');
+    setText('#buyModal .trade-confirm-row:nth-of-type(1) span:first-child', '종목');
+    setText('#buyModal .trade-confirm-row:nth-of-type(2) span:first-child', '수량');
+    setText('#buyModal .trade-confirm-row:nth-of-type(3) span:first-child', '예상가');
     var buyExec = document.querySelector('#buyModal .btn-trade');
-    if (buyExec) buyExec.textContent = '구매';
-    setText('#quickSellConfirmHeading', '매도');
+    if (buyExec) buyExec.textContent = '구매하기';
+    setText('#quickSellConfirmHeading', '매도 주문');
     var quickSellExec = document.querySelector('#quickSellConfirmModal .btn-trade.sell');
-    if (quickSellExec) quickSellExec.textContent = '판매';
+    if (quickSellExec) quickSellExec.textContent = '판매하기';
 
     setText('#simHoldingTabChart', '차트');
     setText('#simHoldingTabInfo', '종목정보');
@@ -446,11 +476,41 @@
     updateTradeTickHint();
   }
 
+  function resetOrderbookOverlaySizing() {
+    var el = document.getElementById('orderbookOverlay');
+    if (!el) return;
+    el.style.height = '';
+    el.style.minHeight = '';
+    el.style.maxHeight = '';
+  }
+
+  function syncOrderbookOverlayHeight() {
+    var overlay = document.getElementById('orderbookOverlay');
+    if (!overlay || !overlay.classList.contains('is-open')) return;
+    var parent = overlay.closest('.sim-rank-wrap');
+    if (!parent) return;
+
+    var h = parent.clientHeight;
+    if (h > 0) {
+      overlay.style.height = h + 'px';
+      overlay.style.minHeight = h + 'px';
+      overlay.style.maxHeight = h + 'px';
+    }
+  }
+
+  function renderOrderbookLoadingState() {
+    var wrap = document.getElementById('orderbookTableWrap');
+    if (!wrap) return;
+    wrap.innerHTML = '<div class="orderbook-loading" role="status" aria-live="polite">호가 불러오는 중…</div>';
+    syncOrderbookOverlayHeight();
+  }
+
   function openOrderbookOverlay() {
     var el = document.getElementById('orderbookOverlay');
     if (el) {
       el.classList.add('is-open');
       el.setAttribute('aria-hidden', 'false');
+      syncOrderbookOverlayHeight();
     }
   }
 
@@ -465,6 +525,7 @@
     if (el) {
       el.classList.remove('is-open');
       el.setAttribute('aria-hidden', 'true');
+      resetOrderbookOverlaySizing();
     }
   }
 
@@ -518,8 +579,10 @@
       }
       pendingOrders.forEach(function (o) {
         if (o && typeof o.id === 'number' && o.id >= pendingOrderSeq) pendingOrderSeq = o.id + 1;
+        ensurePendingOrderSessionFields(o);
       });
     } catch (e) { /* ignore */ }
+    purgeStaleOrderBoardItems();
   }
 
   /** 미로그인·로그아웃 시: 로컬 주문/체결 UI는 다른 사용자·이전 세션과 섞이지 않도록 제거 */
@@ -618,12 +681,220 @@
   var KR_MARKET_CLOSE_HHMM = 1530;
 
   /** 백엔드 _is_kr_regular_market_open_now 와 동일: 평일 09:00~15:30 */
+  function isKrTradingDay(date) {
+    var d = date instanceof Date ? date : new Date(date || Date.now());
+    var dow = d.getDay();
+    return dow !== 0 && dow !== 6;
+  }
+
   function isKrRegularMarketOpenNow() {
     var now = new Date();
-    var dow = now.getDay();
-    if (dow === 0 || dow === 6) return false;
+    if (!isKrTradingDay(now)) return false;
     var hhmm = now.getHours() * 100 + now.getMinutes();
     return hhmm >= KR_MARKET_OPEN_HHMM && hhmm <= KR_MARKET_CLOSE_HHMM;
+  }
+
+  function isKrRegularMarketClosedAfterHours(nowMs) {
+    var now = new Date(nowMs == null ? Date.now() : nowMs);
+    if (!isKrTradingDay(now)) return false;
+    var hhmm = now.getHours() * 100 + now.getMinutes();
+    return hhmm > KR_MARKET_CLOSE_HHMM;
+  }
+
+  /** 장외 예약의 첫 유효 정규장(등록일 다음 날부터 첫 평일) */
+  function getNextKrTradingSessionYmd(fromMs) {
+    fromMs = fromMs == null ? Date.now() : Number(fromMs);
+    var d = new Date(fromMs);
+    if (Number.isNaN(d.getTime())) d = new Date();
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() + 1);
+    for (var i = 0; i < 14; i++) {
+      if (isKrTradingDay(d)) return tradeLocalYmd(d.getTime());
+      d.setDate(d.getDate() + 1);
+    }
+    return tradeLocalYmd(fromMs);
+  }
+
+  function resolvePendingOrderTargetSessionYmd(order) {
+    if (!order) return '';
+    var stored = String(order.targetSessionYmd || '').trim();
+    if (stored) return stored;
+    if (order.reason === 'off_hours') {
+      return getNextKrTradingSessionYmd(Number(order.createdAt));
+    }
+    return tradeLocalYmd(Number(order.createdAt));
+  }
+
+  function ensurePendingOrderSessionFields(order) {
+    if (!order || order.reason !== 'off_hours') return order;
+    if (!order.targetSessionYmd) {
+      order.targetSessionYmd = getNextKrTradingSessionYmd(Number(order.createdAt));
+    }
+    return order;
+  }
+
+  function resolveOrderStockCode(order) {
+    if (!order) return '';
+    var ref = String(order.stockRef || '').trim();
+    var stock = String(order.stock || '').trim();
+    if (isSixDigitCode(ref)) return ref;
+    if (isSixDigitCode(stock)) return stock;
+    return ref || stock;
+  }
+
+  function formatYmdDotWithWeekday(ymd) {
+    var ms = ymdToLocalStartMs(ymd);
+    if (!ms) return '—';
+    var d = new Date(ms);
+    var y = d.getFullYear();
+    var mo = String(d.getMonth() + 1).padStart(2, '0');
+    var day = String(d.getDate()).padStart(2, '0');
+    var wd = d.toLocaleDateString('ko-KR', { weekday: 'short' });
+    return y + '.' + mo + '.' + day + ' (' + wd + ')';
+  }
+
+  function formatPendingValidityRangeText(order) {
+    ensurePendingOrderSessionFields(order);
+    var startYmd = getNextKrTradingSessionYmd(Number(order.createdAt));
+    var endYmd = resolvePendingOrderTargetSessionYmd(order);
+    if (!endYmd) return '';
+    var startTxt = formatYmdDotWithWeekday(startYmd);
+    if (startYmd === endYmd) return startTxt + ' 장 마감';
+    var endMs = ymdToLocalStartMs(endYmd);
+    var endD = new Date(endMs);
+    var endMo = String(endD.getMonth() + 1).padStart(2, '0');
+    var endDay = String(endD.getDate()).padStart(2, '0');
+    var endWd = endD.toLocaleDateString('ko-KR', { weekday: 'short' });
+    return startTxt + ' ~ ' + endMo + '.' + endDay + ' (' + endWd + ') 장 마감';
+  }
+
+  function orderStatusLogoHtml(codeRaw, nameRaw) {
+    var J = window.JurinStockLogos;
+    var initial = escapeHtml((nameRaw && String(nameRaw).trim().charAt(0)) || '?');
+    if (!J) {
+      return (
+        '<span class="stock-logo-wrap stock-logo-wrap--placeholder order-status-card-logo" aria-hidden="true">' +
+        initial +
+        '</span>'
+      );
+    }
+    var url = J.stockLogoUrlForCode(codeRaw);
+    if (url) {
+      var fileCode = J.resolveStockLogoFileCode(codeRaw);
+      var dataFile = fileCode ? ' data-logo-file="' + escapeHtmlAttr(fileCode) + '"' : '';
+      return (
+        '<span class="stock-logo-wrap order-status-card-logo"><img class="stock-logo-img"' +
+        dataFile +
+        ' src="' +
+        escapeHtml(url) +
+        '" alt="" loading="lazy" decoding="async"/></span>'
+      );
+    }
+    return (
+      '<span class="stock-logo-wrap stock-logo-wrap--placeholder order-status-card-logo" aria-hidden="true">' +
+      initial +
+      '</span>'
+    );
+  }
+
+  function orderCompactFooterIcon(type) {
+    if (type === 'calendar' || type === 'wait') {
+      return (
+        '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">' +
+        '<rect x="3" y="4" width="18" height="18" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/>' +
+        '<path d="M3 10h18M8 2v4M16 2v4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>' +
+        '</svg>'
+      );
+    }
+    if (type === 'done') {
+      return (
+        '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">' +
+        '<circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"/>' +
+        '<path d="M8 12.2l2.4 2.4L16 9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>' +
+        '</svg>'
+      );
+    }
+    if (type === 'fail') {
+      return (
+        '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">' +
+        '<circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"/>' +
+        '<path d="M9 9l6 6M15 9l-6 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>' +
+        '</svg>'
+      );
+    }
+    return '';
+  }
+
+  function buildOrderCompactFooterItem(type, text) {
+    return (
+      '<span class="order-compact-footer-item order-compact-footer-item--' + type + '">' +
+      '<span class="order-compact-footer-icon">' +
+      orderCompactFooterIcon(type) +
+      '</span>' +
+      '<span class="order-compact-footer-text">' +
+      text +
+      '</span>' +
+      '</span>'
+    );
+  }
+
+  function buildTradeReceiptRow(label, value) {
+    return (
+      '<div class="trade-receipt-row">' +
+      '<span class="trade-receipt-label">' +
+      escapeHtml(label) +
+      '</span>' +
+      '<span class="trade-receipt-value">' +
+      value +
+      '</span>' +
+      '</div>'
+    );
+  }
+
+  function buildTradeReceiptHtml(opts) {
+    opts = opts || {};
+    var title = opts.title || '';
+    var stockName = escapeHtml(opts.stockName || '—');
+    var sideMeta = escapeHtml(
+      (opts.sideKo || '') + ' · ' + Number(opts.quantity || 0).toLocaleString() + '주',
+    );
+    var priceLabel = escapeHtml(opts.priceLabel || '지정가');
+    var priceValue = escapeHtml(opts.priceValue || '—');
+    var refLabel = escapeHtml(opts.refLabel || '현재 기준가');
+    var refValue = escapeHtml(opts.refValue || '—');
+    var condText = escapeHtml(opts.condText || '');
+    return (
+      '<div class="trade-receipt">' +
+      '<div class="trade-receipt-head">' +
+      '<span class="trade-receipt-head-icon">' +
+      orderCompactFooterIcon('calendar') +
+      '</span>' +
+      '<strong class="trade-receipt-title">' +
+      escapeHtml(title) +
+      '</strong>' +
+      '</div>' +
+      '<div class="trade-receipt-body">' +
+      buildTradeReceiptRow('종목', stockName) +
+      buildTradeReceiptRow('구분', sideMeta) +
+      buildTradeReceiptRow(priceLabel, priceValue) +
+      buildTradeReceiptRow(refLabel, refValue) +
+      buildTradeReceiptRow('자동 체결 조건', condText) +
+      '</div>' +
+      '</div>'
+    );
+  }
+
+  function buildOrderStatusSummaryHtml(waitCnt, doneCnt, failCnt, lastTxt) {
+    return (
+      '<div class="order-status-stats">' +
+      buildOrderCompactFooterItem('wait', '유효한 예약·대기 ' + waitCnt + '건') +
+      '<span class="order-status-stat-sep" aria-hidden="true"></span>' +
+      buildOrderCompactFooterItem('done', '체결완료 ' + doneCnt + '건') +
+      '<span class="order-status-stat-sep" aria-hidden="true"></span>' +
+      buildOrderCompactFooterItem('fail', '미체결 ' + failCnt + '건') +
+      '</div>' +
+      (lastTxt || '')
+    );
   }
 
   function limitOrderNeedsPriceQueue(side, refPx, limPx) {
@@ -775,6 +1046,7 @@
     if (!modal) return;
     dismissOrderConfirmModalsForMarketClosed();
 
+    var panelEl = document.getElementById('simTradeNoticePanel');
     var titleEl = document.getElementById('simTradeNoticeTitle');
     var leadEl = document.getElementById('simTradeNoticeLead');
     var summaryEl = document.getElementById('simTradeNoticeSummary');
@@ -783,6 +1055,9 @@
     var primaryBtn = document.getElementById('simTradeNoticePrimary');
     var confirmBtn = document.getElementById('simTradeNoticeConfirm');
     var actionsEl = document.getElementById('simTradeNoticeActions');
+    var isSimple = opts.variant === 'simple';
+
+    if (panelEl) panelEl.classList.toggle('sim-trade-notice-panel--simple', isSimple);
 
     if (titleEl) titleEl.textContent = opts.title || '';
     if (leadEl) leadEl.textContent = opts.lead || '';
@@ -822,9 +1097,13 @@
     }
     if (confirmBtn) {
       confirmBtn.hidden = !showConfirm;
+      confirmBtn.textContent = opts.confirmLabel || '확인';
+      confirmBtn.classList.toggle('sim-trade-notice-confirm-btn', isSimple);
+      confirmBtn.classList.toggle('btn-ghost-modal', !isSimple);
     }
     if (actionsEl) {
       actionsEl.hidden = !showPrimary && !showConfirm;
+      actionsEl.classList.toggle('sim-trade-notice-actions--simple', isSimple);
     }
 
     modal.classList.add('is-open');
@@ -857,10 +1136,12 @@
 
   function openStockRequiredNoticeModal() {
     openSimTradeNoticeModal({
+      variant: 'simple',
       title: '종목을 선택해 주세요',
-      lead: '종목을 입력하거나 왼쪽 목록에서 종목을 선택해 주세요.',
+      lead: '왼쪽 목록에서 종목을 선택하세요.',
       showPrimary: false,
-      showConfirm: false,
+      showConfirm: true,
+      confirmLabel: '확인',
       focusStockOnClose: true,
     });
   }
@@ -871,7 +1152,7 @@
       title: '장 마감 · 시장가 불가',
       lead:
         '장이 열려 있지 않아 시장가 주문을 넣을 수 없습니다. 지정가로 예약하거나 정규장(09:00~15:30)에 다시 시도해 주세요.',
-      tip: '지정가 주문은 장외에도 예약 등록할 수 있으며, 정규장 개장 후 조건이 맞으면 자동 체결됩니다.',
+      tip: '예약은 다음 정규장까지 유효하며, 해당 장(09:00~15:30)에서 지정가 조건이 맞으면 자동 체결됩니다.',
       extra: '정규장: 평일 09:00 ~ 15:30',
       showPrimary: true,
       primaryLabel: '지정가로 전환',
@@ -947,6 +1228,8 @@
 
   function registerPendingOrder(opts) {
     var o = opts || {};
+    var createdAt = Date.now();
+    var reason = o.reason === 'off_hours' ? 'off_hours' : 'price';
     var pending = {
       id: pendingOrderSeq++,
       side: o.side === 'SELL' ? 'SELL' : 'BUY',
@@ -954,9 +1237,12 @@
       stockRef: o.stockRef,
       quantity: o.quantity,
       limitPrice: o.limitPrice,
-      createdAt: Date.now(),
-      reason: o.reason === 'off_hours' ? 'off_hours' : 'price',
+      createdAt: createdAt,
+      reason: reason,
     };
+    if (reason === 'off_hours') {
+      pending.targetSessionYmd = getNextKrTradingSessionYmd(createdAt);
+    }
     pendingOrders.push(pending);
     saveOrderBoardState();
     renderOrderStatusBoard();
@@ -1094,9 +1380,7 @@
 
   function pendingOrderReasonText(order) {
     if (!order) return '';
-    if (order.reason === 'off_hours') {
-      return '장 마감으로 예약 등록. 정규장(09:00~15:30) 개장 후 지정가 조건이 맞으면 체결됩니다.';
-    }
+    if (order.reason === 'off_hours') return '';
     if (order.side === 'BUY') {
       return '현재가가 목표가(지정가) 이하가 되면 체결됩니다.';
     }
@@ -1120,6 +1404,7 @@
     var fb = document.getElementById('tradeFeedback');
     if (fb) {
       var sideKo = removed.side === 'SELL' ? '판매' : '구매';
+      fb.className = 'trade-feedback';
       fb.style.display = 'block';
       fb.innerHTML =
         '<strong>주문 취소</strong>' +
@@ -1136,7 +1421,278 @@
     }
   }
 
+  var pendingOrderEditState = { id: null };
+
+  function findPendingOrderById(orderId) {
+    var id = Number(orderId);
+    if (!Number.isFinite(id)) return null;
+    for (var i = 0; i < pendingOrders.length; i++) {
+      var o = pendingOrders[i];
+      if (o && o.id === id) return o;
+    }
+    return null;
+  }
+
+  function openPendingOrderEditModal(orderId) {
+    var order = findPendingOrderById(orderId);
+    if (!order) return;
+    if (shouldExpirePendingOrder(order)) {
+      renderOrderStatusBoard();
+      return;
+    }
+    ensurePendingOrderSessionFields(order);
+    pendingOrderEditState = { id: order.id };
+    var modal = document.getElementById('pendingOrderEditModal');
+    var panel = document.getElementById('pendingOrderEditPanel');
+    var heading = document.getElementById('pendingOrderEditHeading');
+    var stockLine = document.getElementById('pendingOrderEditStockLine');
+    var qtyLine = document.getElementById('pendingOrderEditQtyLine');
+    var typeLine = document.getElementById('pendingOrderEditTypeLine');
+    var validLine = document.getElementById('pendingOrderEditValidLine');
+    var inp = document.getElementById('pendingOrderEditLimitPrice');
+    var saveBtn = document.getElementById('pendingOrderEditSaveBtn');
+    var isReserve = order.reason === 'off_hours';
+    var isSell = order.side === 'SELL';
+    if (heading) heading.textContent = isReserve ? '예약 가격 수정' : '대기 가격 수정';
+    if (panel) {
+      panel.classList.remove('trade-confirm-panel--buy', 'trade-confirm-panel--sell');
+      panel.classList.add(isSell ? 'trade-confirm-panel--sell' : 'trade-confirm-panel--buy');
+    }
+    if (saveBtn) {
+      saveBtn.classList.toggle('sell', isSell);
+      saveBtn.textContent = '저장';
+    }
+    var stockRef = order.stockRef || order.stock;
+    var code = isSixDigitCode(String(stockRef || '').trim()) ? String(stockRef).trim() : '';
+    var stockName = resolveStockDisplayLabel(stockRef, order.stock);
+    if (stockLine) stockLine.innerHTML = formatTradeConfirmStockHtml(stockName, code);
+    if (qtyLine) qtyLine.textContent = Number(order.quantity || 0).toLocaleString() + '주';
+    if (typeLine) typeLine.textContent = isReserve ? '예약' : '장중 대기';
+    if (validLine) {
+      validLine.textContent = '';
+      validLine.hidden = true;
+    }
+    if (inp) inp.value = String(Math.floor(Number(order.limitPrice) || 0));
+    if (!modal) return;
+    modal.classList.add('is-open');
+    modal.setAttribute('aria-hidden', 'false');
+    try {
+      if (inp) inp.focus({ preventScroll: true });
+    } catch (_) {
+      if (inp) inp.focus();
+    }
+  }
+
+  function closePendingOrderEditModal() {
+    var modal = document.getElementById('pendingOrderEditModal');
+    if (modal) {
+      modal.classList.remove('is-open');
+      modal.setAttribute('aria-hidden', 'true');
+    }
+    pendingOrderEditState = { id: null };
+  }
+
+  function bumpPendingOrderEditLimitPrice(direction) {
+    var order = findPendingOrderById(pendingOrderEditState.id);
+    var inp = document.getElementById('pendingOrderEditLimitPrice');
+    if (!inp) return;
+    var cur = inp.value !== '' ? parseInt(inp.value, 10) : NaN;
+    var ref = !Number.isNaN(cur) && cur > 0 ? cur : order ? Number(order.limitPrice) || 0 : 0;
+    if (!Number.isFinite(ref) || ref <= 0) ref = 50000;
+    var tick = krxTickSize(ref);
+    var next;
+    if (!Number.isNaN(cur) && cur > 0) {
+      next = cur + direction * tick;
+      if (next < tick) next = tick;
+    } else {
+      var rounded = Math.floor(ref / tick) * tick;
+      if (direction > 0) {
+        next = rounded <= 0 ? tick : rounded + tick;
+      } else {
+        next = Math.max(tick, rounded - tick);
+      }
+    }
+    inp.value = String(next);
+  }
+
+  async function confirmPendingOrderPriceEdit() {
+    var order = findPendingOrderById(pendingOrderEditState.id);
+    if (!order) {
+      closePendingOrderEditModal();
+      return;
+    }
+    var inp = document.getElementById('pendingOrderEditLimitPrice');
+    var raw = inp && inp.value !== '' ? parseInt(inp.value, 10) : NaN;
+    if (Number.isNaN(raw) || raw <= 0) {
+      alert('가격을 올바르게 입력해 주세요.');
+      return;
+    }
+    var tick = krxTickSize(raw);
+    var px = Math.floor(raw / tick) * tick;
+    if (px < tick) px = tick;
+    var prevPx = Math.floor(Number(order.limitPrice) || 0);
+    if (px === prevPx) {
+      closePendingOrderEditModal();
+      return;
+    }
+    if (order.side === 'BUY') {
+      var unitPx = await resolveBuyUnitPrice(px, order.stockRef || order.stock);
+      var v = validateBuyAffordability(order.quantity, unitPx, order.id);
+      if (!v.ok) {
+        if (v.message) {
+          alert(v.message);
+          return;
+        }
+        openInsufficientCashModal(v, {
+          stock: order.stock,
+          quantity: order.quantity,
+          unitPx: unitPx,
+          limitLabel: ' (지정가)',
+        });
+        return;
+      }
+    }
+    order.limitPrice = px;
+    saveOrderBoardState();
+    closePendingOrderEditModal();
+    renderOrderStatusBoard();
+    var fb = document.getElementById('tradeFeedback');
+    if (fb) {
+      var sideKo = order.side === 'SELL' ? '판매' : '구매';
+      var kind = order.reason === 'off_hours' ? '예약' : '대기';
+      fb.className = 'trade-feedback';
+      fb.style.display = 'block';
+      fb.innerHTML =
+        '<strong>' + kind + ' 가격 변경</strong>' +
+        '<div class="trade-row"><span>종목</span><span>' +
+        escapeHtml(resolveStockDisplayLabel(order.stockRef || order.stock, order.stock)) +
+        '</span></div>' +
+        '<div class="trade-row"><span>목표가</span><span>' +
+        formatCurrency(prevPx) +
+        ' → ' +
+        formatCurrency(px) +
+        '</span></div>' +
+        '<div class="trade-row"><span>내용</span><span>' +
+        sideKo +
+        ' · ' +
+        Number(order.quantity || 0).toLocaleString() +
+        '주</span></div>';
+    }
+  }
+
+  function isOrderBoardToday(ms) {
+    return tradeLocalYmd(ms) === tradeLocalYmd(Date.now());
+  }
+
+  function pendingOrderExpiryNote(order) {
+    if (!order) return '기간 만료 · 자동 취소';
+    if (order.reason === 'price') return '당일 미체결 · 자동 취소';
+    if (order.reason === 'off_hours') return '기간 만료 · 자동 취소';
+    return '자동 취소';
+  }
+
+  /** 장중 대기: 당일만 유효. 예약: targetSessionYmd 정규장 마감 후 만료. */
+  function shouldExpirePendingOrder(order, nowMs) {
+    nowMs = nowMs == null ? Date.now() : nowMs;
+    if (!order) return true;
+    if (order.reason === 'price') {
+      return !isOrderBoardToday(Number(order.createdAt));
+    }
+    if (order.reason === 'off_hours') {
+      ensurePendingOrderSessionFields(order);
+      var sessionYmd = resolvePendingOrderTargetSessionYmd(order);
+      if (!sessionYmd) return false;
+      var todayYmd = tradeLocalYmd(nowMs);
+      if (todayYmd > sessionYmd) return true;
+      if (todayYmd === sessionYmd) return isKrRegularMarketClosedAfterHours(nowMs);
+      return false;
+    }
+    return !isOrderBoardToday(Number(order.createdAt));
+  }
+
+  function isPendingOrderVisibleToday(order) {
+    return order && !shouldExpirePendingOrder(order);
+  }
+
+  function sumExpiredBuyReservation(orders) {
+    var sum = 0;
+    (orders || []).forEach(function (o) {
+      if (!o || o.side !== 'BUY') return;
+      var q = Number(o.quantity) || 0;
+      var px = Number(o.limitPrice) || 0;
+      if (q <= 0 || px <= 0) return;
+      sum += estimateMockTradeCosts('BUY', px * q).netBuy;
+    });
+    return sum;
+  }
+
+  function recordPendingOrderExpiry(order) {
+    if (!order) return;
+    orderStatusEvents.unshift({
+      at: nowStamp(),
+      atMs: Date.now(),
+      stock: resolveStockDisplayLabel(order.stockRef || order.stock, order.stock),
+      side: order.side === 'SELL' ? 'SELL' : 'BUY',
+      mode: 'auto',
+      status: 'failed',
+      desiredPrice: Number(order.limitPrice || 0),
+      executedPrice: 0,
+      quantity: Number(order.quantity || 0),
+      note: pendingOrderExpiryNote(order),
+    });
+    if (orderStatusEvents.length > 40) orderStatusEvents = orderStatusEvents.slice(0, 40);
+  }
+
+  function showExpiredPendingOrdersFeedback(expiredPending) {
+    if (!expiredPending || !expiredPending.length) return;
+    var released = sumExpiredBuyReservation(expiredPending);
+    var fb = document.getElementById('tradeFeedback');
+    if (!fb) return;
+    fb.className = 'trade-feedback';
+    fb.style.display = 'block';
+    var lines =
+      '<strong>주문 자동 취소</strong>' +
+      '<div class="trade-row"><span>처리</span><span>' +
+      expiredPending.length.toLocaleString() +
+      '건 · ' +
+      pendingOrderExpiryNote(expiredPending[0]) +
+      '</span></div>';
+    if (released > 0) {
+      lines +=
+        '<div class="trade-row"><span>예수금 반환</span><span>' +
+        formatCurrency(released) +
+        ' (주문 예약 해제)</span></div>';
+    }
+    fb.innerHTML = lines;
+  }
+
+  function purgeStaleOrderBoardItems() {
+    var changed = false;
+    var expiredPending = pendingOrders.filter(function (o) {
+      return shouldExpirePendingOrder(o);
+    });
+    if (expiredPending.length > 0) {
+      expiredPending.forEach(recordPendingOrderExpiry);
+      pendingOrders = pendingOrders.filter(function (o) {
+        return !shouldExpirePendingOrder(o);
+      });
+      changed = true;
+      showExpiredPendingOrdersFeedback(expiredPending);
+      if (typeof updatePortfolio === 'function') updatePortfolio();
+    }
+    var nextEvents = orderStatusEvents.filter(function (e) {
+      return e && isOrderBoardToday(e.atMs);
+    });
+    if (nextEvents.length !== orderStatusEvents.length) {
+      orderStatusEvents = nextEvents;
+      changed = true;
+    }
+    if (changed) saveOrderBoardState();
+    return changed;
+  }
+
   function renderOrderStatusBoard() {
+    purgeStaleOrderBoardItems();
     var listEl = document.getElementById('orderStatusList');
     var sumEl = document.getElementById('orderStatusSummary');
     if (!listEl || !sumEl) {
@@ -1144,77 +1700,102 @@
       return;
     }
 
-    var waitCnt = pendingOrders.length;
-    var doneCnt = orderStatusEvents.filter(function (e) { return e.status === 'executed'; }).length;
-    var failCnt = orderStatusEvents.filter(function (e) { return e.status === 'failed'; }).length;
-    var last = orderStatusEvents.length > 0 ? orderStatusEvents[0] : null;
+    var visiblePending = pendingOrders.filter(isPendingOrderVisibleToday);
+    var visibleEvents = orderStatusEvents.filter(function (e) {
+      return e && isOrderBoardToday(e.atMs);
+    });
+
+    var waitCnt = visiblePending.length;
+    var doneCnt = visibleEvents.filter(function (e) { return e.status === 'executed'; }).length;
+    var failCnt = visibleEvents.filter(function (e) { return e.status === 'failed'; }).length;
+    var last = visibleEvents.length > 0 ? visibleEvents[0] : null;
     var lastTxt = '';
     if (last) {
       lastTxt =
-        '<span class="order-status-sum-meta"> · 마지막: ' +
+        '<p class="order-status-last-meta">마지막: ' +
         (last.status === 'executed' ? '체결완료' : '미체결') +
-        '</span>';
+        '</p>';
     }
-    sumEl.innerHTML =
-      '<span class="order-status-sum order-status-sum--done">체결완료 ' +
-      doneCnt +
-      '건</span><span class="order-status-sum-sep"> · </span>' +
-      '<span class="order-status-sum order-status-sum--wait">대기 ' +
-      waitCnt +
-      '건</span><span class="order-status-sum-sep"> · </span>' +
-      '<span class="order-status-sum order-status-sum--failcount">미체결 ' +
-      failCnt +
-      '건</span>' +
-      lastTxt;
+    sumEl.innerHTML = buildOrderStatusSummaryHtml(waitCnt, doneCnt, failCnt, lastTxt);
 
-    if (orderStatusEvents.length === 0 && waitCnt === 0) {
+    if (visibleEvents.length === 0 && waitCnt === 0) {
       listEl.innerHTML = '';
-      sumEl.innerHTML =
-        '<span class="order-status-sum order-status-sum--done">체결완료 0건</span>' +
-        '<span class="order-status-sum-sep"> · </span>' +
-        '<span class="order-status-sum order-status-sum--wait">대기 0건</span>' +
-        '<span class="order-status-sum-sep"> · </span>' +
-        '<span class="order-status-sum order-status-sum--failcount">미체결 0건</span>';
+      sumEl.innerHTML = buildOrderStatusSummaryHtml(
+        0,
+        0,
+        0,
+        '<p class="order-status-empty-meta">오늘 체결·미체결 내역이 없습니다.</p>'
+      );
       saveOrderBoardState();
       return;
     }
 
-    var pendingRows = pendingOrders.map(function (o) {
+    var pendingRows = visiblePending.map(function (o) {
+      ensurePendingOrderSessionFields(o);
       var side = o.side === 'SELL' ? '판매' : '구매';
       var actCls = o.side === 'SELL' ? 'sell' : 'buy';
       var qty = Number(o.quantity || 0).toLocaleString();
-      var name = escapeHtml(resolveStockDisplayLabel(o.stockRef || o.stock, o.stock));
-      var dateLine = formatOrderStatusDateLine(Number(o.createdAt));
+      var stockLabel = resolveStockDisplayLabel(o.stockRef || o.stock, o.stock);
+      var name = escapeHtml(stockLabel);
+      var stockCode = resolveOrderStockCode(o);
+      var logo = orderStatusLogoHtml(stockCode, stockLabel);
       var lp = formatCurrency(Number(o.limitPrice || 0));
       var isReserve = o.reason === 'off_hours';
-      var waitSuffix = isReserve ? '(예약)' : '(대기)';
-      var badgeTxt = isReserve ? '예약' : '대기';
+      var badgeTxt = isReserve ? '예약중' : '대기중';
       var badgeCls = isReserve
         ? 'order-status-badge order-status-badge--pending-reserve'
         : 'order-status-badge order-status-badge--pending-open';
+      var validityLabel = isReserve ? '유효기간' : '유효시간';
+      var validityValue = isReserve
+        ? formatPendingValidityRangeText(o)
+        : '오늘 장중 · 당일 장 마감까지';
+      var scheduleLabel = isReserve ? '자동 체결 예정' : '조건 충족 시 체결';
       return (
-        '<div class="order-status-item order-status-item--pending-open">' +
-          '<div class="order-status-top">' +
-            '<div class="order-status-stockblock">' +
-              '<div class="order-status-name order-status-name--pending">' +
-                name +
-                '<span class="order-status-wait-suffix">' + waitSuffix + '</span>' +
-              '</div>' +
-              '<div class="order-status-sideqty order-status-sideqty--pending">' +
-                '<span class="order-status-action order-status-action--' + actCls + '">' + side + '</span>' +
-                ' <span class="order-status-qtyparen">(' + qty + '주)</span>' +
-                ' · <span class="order-status-limit-label">목표 ' + lp + '</span>' +
+        '<div class="order-status-card order-status-card--pending">' +
+          '<div class="order-status-card-main">' +
+            '<div class="order-status-card-identity">' +
+              logo +
+              '<div class="order-status-card-info">' +
+                '<div class="order-status-card-title-row">' +
+                  '<span class="order-status-card-name">' + name + '</span>' +
+                  '<span class="' + badgeCls + '">' + badgeTxt + '</span>' +
+                '</div>' +
+                '<div class="order-status-card-meta">' +
+                  '<span class="order-status-action order-status-action--' + actCls + '">' + side + '</span>' +
+                  ' ' + qty + '주 <span class="order-status-card-meta-sep">|</span> 목표가 ' + lp +
+                '</div>' +
               '</div>' +
             '</div>' +
-            '<div class="order-status-actions">' +
-              '<span class="' + badgeCls + '">' + badgeTxt + '</span>' +
+            '<div class="order-status-card-col order-status-card-col--validity">' +
+              '<span class="order-status-card-col-icon" aria-hidden="true">' +
+                '<svg viewBox="0 0 24 24" focusable="false">' +
+                '<rect x="3" y="4" width="18" height="18" rx="2" fill="none" stroke="currentColor" stroke-width="1.7"/>' +
+                '<path d="M3 10h18M8 2v4M16 2v4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>' +
+                '</svg>' +
+              '</span>' +
+              '<div class="order-status-card-col-body">' +
+                '<span class="order-status-card-col-label">' + validityLabel + '</span>' +
+                '<span class="order-status-card-col-value">' + escapeHtml(validityValue) + '</span>' +
+              '</div>' +
+            '</div>' +
+            '<div class="order-status-card-col order-status-card-col--schedule">' +
+              '<span class="order-status-card-col-icon" aria-hidden="true">' +
+                '<svg viewBox="0 0 24 24" focusable="false">' +
+                '<circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.7"/>' +
+                '<path d="M12 7v5l3 2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>' +
+                '</svg>' +
+              '</span>' +
+              '<div class="order-status-card-col-body">' +
+                '<span class="order-status-card-col-label">' + scheduleLabel + '</span>' +
+              '</div>' +
             '</div>' +
           '</div>' +
-          '<div class="order-status-detail order-status-detail--dateonly">' +
-            '<span>' + escapeHtml(dateLine) + '</span>' +
-          '</div>' +
-          buildOrderStatusReasonRow(pendingOrderReasonText(o)) +
-          '<div class="order-status-footer">' +
+          '<div class="order-status-card-actions">' +
+            '<button type="button" class="order-status-edit-btn" data-pending-edit="' +
+            escapeHtmlAttr(String(o.id)) +
+            '" aria-label="' +
+            escapeHtmlAttr((o.stock || o.stockRef || '종목') + ' 목표가 수정') +
+            '">가격 수정</button>' +
             '<button type="button" class="order-status-cancel-btn" data-pending-cancel="' +
             escapeHtmlAttr(String(o.id)) +
             '" aria-label="' +
@@ -1225,31 +1806,39 @@
       );
     }).join('');
 
-    var eventRows = orderStatusEvents.slice(0, 16).map(function (e) {
+    var eventRows = visibleEvents.slice(0, 16).map(function (e) {
       var side = e.side === 'SELL' ? '판매' : '구매';
       var actCls = e.side === 'SELL' ? 'sell' : 'buy';
       var isUnfilled = e.status === 'failed';
       var badgeCls = isUnfilled ? 'fail' : 'done';
       var badgeTxt = isUnfilled ? '미체결' : '체결완료';
       var qty = Number(e.quantity || 0).toLocaleString();
-      var name = escapeHtml(resolveStockDisplayLabel(e.stock, e.stock));
+      var stockLabel = resolveStockDisplayLabel(e.stock, e.stock);
+      var name = escapeHtml(stockLabel);
+      var stockCode = isSixDigitCode(String(e.stock || '').trim()) ? String(e.stock).trim() : '';
+      var logo = orderStatusLogoHtml(stockCode, stockLabel);
       var dateLine = formatOrderStatusDateLine(e.atMs);
-      var itemCls = isUnfilled ? ' order-status-item--unfilled' : '';
+      var cardCls = isUnfilled ? ' order-status-card--unfilled' : ' order-status-card--done';
       var reasonRow = isUnfilled ? buildOrderStatusReasonRow(e.note) : '';
       return (
-        '<div class="order-status-item' + itemCls + '">' +
-          '<div class="order-status-top">' +
-            '<div class="order-status-stockblock">' +
-              '<div class="order-status-name">' + name + '</div>' +
-              '<div class="order-status-sideqty">' +
-                '<span class="order-status-action order-status-action--' + actCls + '">' + side + '</span>' +
-                ' <span class="order-status-qtyparen">(' + qty + '주)</span>' +
+        '<div class="order-status-card order-status-card--event' + cardCls + '">' +
+          '<div class="order-status-card-main order-status-card-main--event">' +
+            '<div class="order-status-card-identity">' +
+              logo +
+              '<div class="order-status-card-info">' +
+                '<div class="order-status-card-title-row">' +
+                  '<span class="order-status-card-name">' + name + '</span>' +
+                  '<span class="order-status-badge ' + badgeCls + '">' + badgeTxt + '</span>' +
+                '</div>' +
+                '<div class="order-status-card-meta">' +
+                  '<span class="order-status-action order-status-action--' + actCls + '">' + side + '</span>' +
+                  ' ' + qty + '주' +
+                '</div>' +
               '</div>' +
             '</div>' +
-            '<span class="order-status-badge ' + badgeCls + '">' + badgeTxt + '</span>' +
-          '</div>' +
-          '<div class="order-status-detail order-status-detail--dateonly">' +
-            '<span>' + escapeHtml(dateLine) + '</span>' +
+            '<div class="order-status-card-col order-status-card-col--event-time">' +
+              '<span class="order-status-card-col-value">' + escapeHtml(dateLine) + '</span>' +
+            '</div>' +
           '</div>' +
           reasonRow +
         '</div>'
@@ -1257,6 +1846,7 @@
     }).join('');
 
     listEl.innerHTML = pendingRows + eventRows;
+    bindStockLogosIn(listEl);
     saveOrderBoardState();
   }
 
@@ -1350,19 +1940,19 @@
     const refText = rp > 0 ? formatCurrency(rp) : '확인 불가';
     const isReserve = order.reason === 'off_hours';
     const title = isReserve ? '장 마감 · 예약 주문' : '주문 대기 등록';
-    const condRow = isReserve
-      ? '<div class="trade-row"><span>체결 시점</span><span>정규장(09:00~15:30) 개장 후, 지정가 조건이 맞으면 자동 체결</span></div>'
-      : '<div class="trade-row"><span>자동 체결 조건</span><span>' + cond + '</span></div>';
+    el.className = 'trade-feedback trade-receipt-wrap';
     el.style.display = 'block';
-    el.innerHTML =
-      '<strong>' + title + '</strong>' +
-      '<div class="trade-row"><span>종목</span><span>' +
-      escapeHtml(resolveStockDisplayLabel(order.stockRef || order.stock, order.stock)) +
-      '</span></div>' +
-      '<div class="trade-row"><span>구분</span><span>' + sideKo + ' · ' + Number(order.quantity).toLocaleString() + '주</span></div>' +
-      '<div class="trade-row"><span>지정가</span><span>' + formatCurrency(order.limitPrice) + '</span></div>' +
-      '<div class="trade-row"><span>현재 기준가</span><span>' + refText + '</span></div>' +
-      condRow;
+    el.innerHTML = buildTradeReceiptHtml({
+      title: title,
+      stockName: resolveStockDisplayLabel(order.stockRef || order.stock, order.stock),
+      sideKo: sideKo,
+      quantity: order.quantity,
+      priceLabel: '지정가',
+      priceValue: formatCurrency(order.limitPrice),
+      refLabel: '현재 기준가',
+      refValue: refText,
+      condText: cond,
+    });
   }
 
   function tradeSubmitLockButtons() {
@@ -1511,14 +2101,15 @@
     if (btn) btn.disabled = !on;
   }
 
-  function refreshOrderbookPanel() {
+  function refreshOrderbookPanel(options) {
     if (selectedOrderbookCode && /^\d{6}$/.test(selectedOrderbookCode)) {
-      loadOrderbookPanel(selectedOrderbookCode);
+      loadOrderbookPanel(selectedOrderbookCode, options || {});
     }
   }
 
   async function loadOrderbookPanel(code, options) {
     var opts = options || {};
+    var silent = !!opts.silent;
     var paneTitle = document.querySelector('.orderbook-pane-title');
     if (paneTitle) paneTitle.textContent = '호가';
     var meta = document.getElementById('orderbookMeta');
@@ -1530,24 +2121,32 @@
       setOrderbookRefreshEnabled(false);
       clearOrderbookPoll();
       closeOrderbookOverlay();
-      if (meta) meta.textContent = '시장 종목을 선택하면 호가 창이 목록 위에 겹쳐 표시됩니다.';
+      if (meta) meta.textContent = '시장 종목을 선택하면 호가가 표시됩니다.';
+      resetOrderbookOverlaySizing();
       wrap.innerHTML = '';
       return;
     }
     selectedOrderbookCode = code;
     setOrderbookRefreshEnabled(true);
     openOrderbookOverlay();
-    if (meta) meta.textContent = '불러오는중...';
+    if (meta) meta.textContent = '';
     var cached = askingPriceCacheByCode[code];
-    if (cached && cached.data) {
+    var hasVisibleTable = !!wrap.querySelector('.orderbook-table');
+    if (silent && ((cached && cached.data) || hasVisibleTable)) {
+      if (cached && cached.data && !hasVisibleTable) {
+        renderOrderbookTable(cached.data);
+      }
+    } else if (cached && cached.data) {
       renderOrderbookTable(cached.data);
       if (meta) meta.textContent = '최근 호가를 먼저 표시했습니다. 최신값 확인 중...';
+    } else {
+      renderOrderbookLoadingState();
     }
     try {
       var data = await fetchAskingPriceWithGuard(code, { force: !!opts.force });
       if (!data || !data.success) {
-        if (cached && cached.data) {
-          if (meta) meta.textContent = '호가 서버 제한으로 최근 값 유지 중입니다.';
+        if ((cached && cached.data) || hasVisibleTable) {
+          if (!silent && meta) meta.textContent = '호가 서버 제한으로 최근 값 유지 중입니다.';
           return;
         }
         throw new Error('호가 서버 제한으로 잠시 후 다시 시도됩니다.');
@@ -1555,8 +2154,10 @@
       renderOrderbookTable(data);
       if (meta) meta.textContent = '';
     } catch (err) {
-      if (meta) meta.textContent = (err && err.message) ? String(err.message) : '호가를 불러오지 못했습니다.';
-      if (!(cached && cached.data)) wrap.innerHTML = '';
+      if (!silent && meta) {
+        meta.textContent = (err && err.message) ? String(err.message) : '호가를 불러오지 못했습니다.';
+      }
+      if (!(cached && cached.data) && !hasVisibleTable) wrap.innerHTML = '';
     }
   }
 
@@ -1587,6 +2188,7 @@
     }
     rows.push('</tbody></table>');
     wrap.innerHTML = rows.join('');
+    syncOrderbookOverlayHeight();
     wrap.querySelectorAll('.orderbook-row').forEach(function (tr) {
       tr.addEventListener('click', function () {
         var pr = parseInt(tr.getAttribute('data-price'), 10);
@@ -2033,10 +2635,47 @@
     }
   }
 
+  var simPendingView = null;
+
+  async function requireSimLogin(nextView) {
+    var logged = await simIsLoggedIn();
+    if (logged) return true;
+    simPendingView = nextView || null;
+    if (typeof openLoginModal === 'function') openLoginModal();
+    return false;
+  }
+
+  function simHandleUnauthorized() {
+    if (typeof openLoginModal === 'function') openLoginModal();
+  }
+
+  function renderSimPnlLoginRequired() {
+    setMockPnlHint('');
+    var listEl = document.getElementById('simPnlSalesList');
+    if (listEl) {
+      listEl.innerHTML = '<div class="sim-pnl-empty">로그인 후 이용할 수 있습니다.</div>';
+    }
+    var totalEl = document.getElementById('simPnlTotal');
+    if (totalEl) {
+      totalEl.textContent = '—';
+      totalEl.className = 'sim-pnl-total';
+    }
+  }
+
+  function navigateSimMainView(view) {
+    var v = String(view || 'portfolio');
+    if (v === 'pnl' || v === 'ranking' || v === 'reset') {
+      requireSimLogin(v).then(function (ok) {
+        if (ok) setSimMainView(v);
+      });
+      return;
+    }
+    setSimMainView(v);
+  }
+
   async function simToggleWatchlist(code, name) {
     var logged = await simIsLoggedIn();
     if (!logged) {
-      alert('로그인 후 관심 종목을 이용할 수 있습니다.');
       if (typeof openLoginModal === 'function') openLoginModal();
       return;
     }
@@ -2053,8 +2692,7 @@
         return {};
       });
       if (res.status === 401) {
-        alert(data.message || '로그인이 필요합니다.');
-        if (typeof openLoginModal === 'function') openLoginModal();
+        simHandleUnauthorized();
         return;
       }
       if (!res.ok || !data.success) {
@@ -2199,10 +2837,19 @@
   (function chainSimLogout() {
     var prevLogout = typeof window.afterJurinLogout === 'function' ? window.afterJurinLogout : null;
     window.afterJurinLogout = function () {
+      simPendingView = null;
+      if (simMainView === 'pnl' || simMainView === 'ranking' || simMainView === 'reset') {
+        setSimMainView('portfolio');
+      }
       if (typeof window.simClearWatchlistUi === 'function') {
         window.simClearWatchlistUi();
       }
       clearMockOrderBoardLocal();
+      loadPortfolioFromServer().then(function () {
+        updatePortfolio();
+        renderHoldings();
+        renderHistory();
+      });
       if (prevLogout) {
         try {
           prevLogout();
@@ -2219,8 +2866,14 @@
       updatePortfolio();
       renderHoldings();
       renderHistory();
-      maybeRefreshRealizedPnl();
-      maybeRefreshMockRanking();
+      if (simPendingView) {
+        var pending = simPendingView;
+        simPendingView = null;
+        setSimMainView(pending);
+      } else {
+        maybeRefreshRealizedPnl();
+        maybeRefreshMockRanking();
+      }
     });
     simRefreshWatchlist().catch(function () {});
   };
@@ -2248,9 +2901,11 @@
   let simMainView = 'portfolio';
   let simRankingLoading = false;
   let simRankingCache = null;
+  let simRankingExpanded = false;
+  const SIM_RANKING_REST_PREVIEW = 5;
+  const SIM_RANKING_MASCOT_SRC = 'assets/mascot2/success.png?v=20260607';
   let pnlGranularity = 'day';
   let pnlAnchorDate = new Date();
-  let pnlDetailTab = 'sales';
   let pnlCache = null;
   let pnlLoading = false;
   /** 매수/매도 API 처리 중 중복 클릭 방지 */
@@ -2284,22 +2939,52 @@
     }
   }
 
+  let simWorkspacePaneSyncBound = false;
+
+  function syncSimWorkspacePaneHeight() {
+    var workspace = document.querySelector('.sim-workspace');
+    var main = document.querySelector('.simulation-main');
+    var sidebar = document.querySelector('.market-sidebar');
+    if (!workspace || !main || !sidebar) return;
+
+    sidebar.style.height = '';
+    sidebar.style.maxHeight = '';
+    workspace.classList.remove('sim-workspace--pane-synced');
+  }
+
+  function bindSimWorkspacePaneSync() {
+    if (simWorkspacePaneSyncBound) return;
+    simWorkspacePaneSyncBound = true;
+    var main = document.querySelector('.simulation-main');
+    if (main && typeof ResizeObserver !== 'undefined') {
+      var ro = new ResizeObserver(function () {
+        syncSimWorkspacePaneHeight();
+      });
+      ro.observe(main);
+    }
+    window.addEventListener('resize', syncSimWorkspacePaneHeight);
+  }
+
   function setSimMainView(view) {
     var v = String(view || 'portfolio');
-    if (v === 'pnl' || v === 'ranking') simMainView = v;
+    if (v === 'pnl' || v === 'ranking' || v === 'reset') simMainView = v;
     else simMainView = 'portfolio';
     var portPanel = document.getElementById('simViewPortfolio');
     var pnlPanel = document.getElementById('simViewRealizedPnl');
     var rankPanel = document.getElementById('simViewRanking');
+    var resetPanel = document.getElementById('simViewReset');
     var tabPort = document.getElementById('simViewTabPortfolio');
     var tabPnl = document.getElementById('simViewTabPnl');
     var tabRank = document.getElementById('simViewTabRanking');
+    var tabReset = document.getElementById('simViewTabReset');
     var isPort = simMainView === 'portfolio';
     var isPnl = simMainView === 'pnl';
     var isRank = simMainView === 'ranking';
+    var isReset = simMainView === 'reset';
     if (portPanel) portPanel.hidden = !isPort;
     if (pnlPanel) pnlPanel.hidden = !isPnl;
     if (rankPanel) rankPanel.hidden = !isRank;
+    if (resetPanel) resetPanel.hidden = !isReset;
     if (tabPort) {
       tabPort.classList.toggle('active', isPort);
       tabPort.setAttribute('aria-selected', isPort ? 'true' : 'false');
@@ -2312,8 +2997,14 @@
       tabRank.classList.toggle('active', isRank);
       tabRank.setAttribute('aria-selected', isRank ? 'true' : 'false');
     }
+    if (tabReset) {
+      tabReset.classList.toggle('active', isReset);
+      tabReset.setAttribute('aria-selected', isReset ? 'true' : 'false');
+    }
     if (isPnl) loadRealizedPnl();
     if (isRank) loadMockMonthlyRanking();
+    if (isReset) setSimResetHint('');
+    requestAnimationFrame(syncSimWorkspacePaneHeight);
   }
 
   function setSimRankingHint(html) {
@@ -2335,62 +3026,200 @@
     return sign + n.toFixed(2) + '%';
   }
 
-  function renderMockMonthlyRanking(data) {
-    var listEl = document.getElementById('simRankingList');
-    var periodEl = document.getElementById('simRankingPeriodLabel');
-    var noteEl = document.getElementById('simRankingNote');
-    var myEl = document.getElementById('simRankingMyRank');
-    if (!listEl) return;
-    if (periodEl && data.period_label) {
-      periodEl.textContent = data.period_label + ' 모의투자 랭킹';
+  function rankingRateClass(rate) {
+    var n = Number(rate);
+    if (n > 0) return 'up';
+    if (n < 0) return 'down';
+    return 'flat';
+  }
+
+  function rankingRateHtml(rate, extraClass) {
+    return (
+      '<span class="sim-ranking-rate ' +
+      rankingRateClass(rate) +
+      (extraClass ? ' ' + extraClass : '') +
+      '">' +
+      escapeHtml(formatRankingReturn(rate)) +
+      '</span>'
+    );
+  }
+
+  function buildRankingPlaceholderRow(rank) {
+    return {
+      rank: rank,
+      nickname: null,
+      return_rate: null,
+      is_me: false,
+      _placeholder: true,
+    };
+  }
+
+  function buildRankingDisplayItems(items, expanded) {
+    items = Array.isArray(items) ? items : [];
+    var byRank = {};
+    items.forEach(function (it) {
+      var r = Number(it.rank);
+      if (r > 0) byRank[r] = it;
+    });
+
+    var maxRank;
+    if (expanded) {
+      maxRank = Math.max(
+        3,
+        items.reduce(function (max, it) {
+          return Math.max(max, Number(it.rank) || 0);
+        }, 0),
+      );
+    } else {
+      maxRank = SIM_RANKING_REST_PREVIEW;
     }
-    if (noteEl && data.note) noteEl.textContent = data.note;
+
+    var rows = [];
+    for (var r = 1; r <= maxRank; r++) {
+      if (byRank[r]) {
+        rows.push(byRank[r]);
+      } else if (r <= 3 || !expanded) {
+        rows.push(buildRankingPlaceholderRow(r));
+      }
+    }
+    return rows;
+  }
+
+  function renderRankingSpeechBubble(first) {
+    var hasFirst = first && String(first.nickname || '').trim();
+    var name = hasFirst ? escapeHtml(String(first.nickname).trim()) : '—';
+    var bubbleText = hasFirst
+      ? '이번달 모의투자 1등은 <strong>' + name + '</strong>님입니다~! 축하합니다!'
+      : '이번달 모의투자 1등은 <strong>—</strong> 님입니다~! 축하합니다!';
+    var leaderAvatar = '';
+    if (hasFirst && typeof jurinAvatarHtml === 'function') {
+      leaderAvatar =
+        '<div class="sim-ranking-bubble-avatar">' +
+        jurinAvatarHtml({
+          avatarUrl: first.avatarUrl,
+          displayName: first.nickname,
+          sizeClass: 'sim-ranking-avatar sim-ranking-avatar--bubble',
+        }) +
+        '</div>';
+    }
+    return (
+      '<div class="sim-ranking-aside">' +
+      '<div class="sim-ranking-bubble">' +
+      leaderAvatar +
+      '<p class="sim-ranking-bubble-text">' +
+      bubbleText +
+      '</p>' +
+      '</div>' +
+      '<div class="sim-ranking-mascot-wrap" aria-hidden="true">' +
+      '<img src="' +
+      SIM_RANKING_MASCOT_SRC +
+      '" alt="" width="96" height="96" decoding="async" loading="lazy">' +
+      '</div>' +
+      '</div>'
+    );
+  }
+
+  function renderRankingListRow(it) {
+    var rank = Number(it.rank) || 0;
+    var me = it.is_me ? ' sim-ranking-list-row--me' : '';
+    var isPlaceholder =
+      !!it._placeholder || !String(it.nickname || '').trim();
+    var name = isPlaceholder ? '—' : escapeHtml(it.nickname || '주린이');
+    var rateCell =
+      isPlaceholder && !Number.isFinite(Number(it.return_rate))
+        ? '<span class="sim-ranking-rate sim-ranking-rate--list flat">—</span>'
+        : rankingRateHtml(it.return_rate, 'sim-ranking-rate--list');
+    var topCls = rank >= 1 && rank <= 3 ? ' sim-ranking-list-row--top sim-ranking-list-row--top' + rank : '';
+    var avatarHtml = '';
+    if (!isPlaceholder && typeof jurinAvatarHtml === 'function') {
+      avatarHtml = jurinAvatarHtml({
+        avatarUrl: it.avatarUrl,
+        displayName: it.nickname || '주린이',
+        sizeClass: 'sim-ranking-avatar',
+      });
+    }
+    return (
+      '<li class="sim-ranking-list-row' +
+      me +
+      topCls +
+      '">' +
+      '<span class="sim-ranking-list-rank">' +
+      rank +
+      '위</span>' +
+      '<span class="sim-ranking-list-name">' +
+      avatarHtml +
+      '<span class="sim-ranking-list-name-text">' +
+      name +
+      '</span></span>' +
+      rateCell +
+      '</li>'
+    );
+  }
+
+  function renderRankingHybridBoard(first, listItems, totalCount) {
+    var listHtml =
+      '<ul class="sim-ranking-list">' +
+      listItems.map(renderRankingListRow).join('') +
+      '</ul>';
+    return (
+      '<div class="sim-ranking-hybrid">' +
+      '<div class="sim-ranking-list-panel">' +
+      listHtml +
+      '</div>' +
+      renderRankingSpeechBubble(first) +
+      '</div>'
+    );
+  }
+
+  function updateRankingFooter(totalCount, hiddenCount) {
+    var footerEl = document.getElementById('simRankingFooter');
+    var moreBtn = document.getElementById('simRankingMoreBtn');
+    if (!footerEl || !moreBtn) return;
+    if (totalCount <= SIM_RANKING_REST_PREVIEW || hiddenCount <= 0) {
+      footerEl.hidden = true;
+      return;
+    }
+    footerEl.hidden = false;
+    moreBtn.textContent = simRankingExpanded ? '랭킹 접기 ∧' : '전체 랭킹 보기 ›';
+    moreBtn.setAttribute('aria-expanded', simRankingExpanded ? 'true' : 'false');
+    moreBtn.setAttribute(
+      'aria-label',
+      simRankingExpanded ? '랭킹 목록 접기' : '전체 랭킹 ' + hiddenCount + '명 더 보기',
+    );
+  }
+
+  function renderMockMonthlyRanking(data) {
+    var bodyEl = document.getElementById('simRankingBody');
+    var periodEl = document.getElementById('simRankingPeriodLabel');
+    var myEl = document.getElementById('simRankingMyRank');
+    if (!bodyEl) return;
+    if (periodEl) {
+      periodEl.textContent = data.period_label || '이달의 랭킹';
+    }
     if (myEl) {
       if (data.my_rank != null && Number(data.my_rank) > 0) {
         myEl.hidden = false;
         myEl.textContent = '내 순위: ' + data.my_rank + '위';
       } else if (data.my_rank === null && data.total_participants > 0) {
         myEl.hidden = false;
-        myEl.textContent = '이번 달 활동 후 랭킹에 포함됩니다.';
+        myEl.textContent = '내 순위: —';
       } else {
-        myEl.hidden = true;
-        myEl.textContent = '';
+        myEl.hidden = false;
+        myEl.textContent = '내 순위: —';
       }
     }
     var items = Array.isArray(data.items) ? data.items : [];
-    if (!items.length) {
-      listEl.innerHTML =
-        '<li class="sim-ranking-empty">아직 이번 달 랭킹 참가자가 없습니다. 모의투자를 시작해 보세요!</li>';
-      return;
-    }
-    listEl.innerHTML = items
-      .map(function (it) {
-        var rank = Number(it.rank) || 0;
-        var tier =
-          rank === 1 ? 'sim-ranking-row--gold' : rank === 2 ? 'sim-ranking-row--silver' : rank === 3 ? 'sim-ranking-row--bronze' : '';
-        var me = it.is_me ? ' sim-ranking-row--me' : '';
-        var trophy = rank === 1 ? '<span class="sim-ranking-trophy" aria-hidden="true">🏆</span>' : '<span class="sim-ranking-trophy sim-ranking-trophy--spacer" aria-hidden="true"></span>';
-        var rateCls = Number(it.return_rate) > 0 ? 'up' : Number(it.return_rate) < 0 ? 'down' : 'flat';
-        return (
-          '<li class="sim-ranking-row ' +
-          tier +
-          me +
-          '">' +
-          trophy +
-          '<span class="sim-ranking-rank">' +
-          rank +
-          '위</span>' +
-          '<span class="sim-ranking-name">' +
-          escapeHtml(it.nickname || '주린이') +
-          '</span>' +
-          '<span class="sim-ranking-rate ' +
-          rateCls +
-          '">' +
-          escapeHtml(formatRankingReturn(it.return_rate)) +
-          '</span></li>'
-        );
-      })
-      .join('');
+    var first =
+      items.find(function (it) {
+        return Number(it.rank) === 1;
+      }) || null;
+    var displayItems = buildRankingDisplayItems(items, simRankingExpanded);
+    var hiddenCount = items.length
+      ? Math.max(0, items.length - (simRankingExpanded ? items.length : SIM_RANKING_REST_PREVIEW))
+      : 0;
+
+    bodyEl.innerHTML = renderRankingHybridBoard(first, displayItems, items.length);
+    updateRankingFooter(items.length, hiddenCount);
   }
 
   async function loadMockMonthlyRanking(force) {
@@ -2399,10 +3228,13 @@
       renderMockMonthlyRanking(simRankingCache);
       return;
     }
-    var listEl = document.getElementById('simRankingList');
-    if (listEl) {
-      listEl.innerHTML = '<li class="sim-ranking-empty">랭킹을 불러오는 중…</li>';
+    simRankingExpanded = false;
+    var bodyEl = document.getElementById('simRankingBody');
+    if (bodyEl) {
+      bodyEl.innerHTML = renderRankingHybridBoard(null, buildRankingDisplayItems([], false), 0);
     }
+    var footerEl = document.getElementById('simRankingFooter');
+    if (footerEl) footerEl.hidden = true;
     setSimRankingHint('');
     simRankingLoading = true;
     try {
@@ -2412,14 +3244,26 @@
       });
       if (!res.ok || !data.success) {
         setSimRankingHint(escapeHtml(data.message || '랭킹을 불러오지 못했습니다.'));
-        if (listEl) listEl.innerHTML = '<li class="sim-ranking-empty">—</li>';
+        if (bodyEl) {
+          bodyEl.innerHTML = renderRankingHybridBoard(
+            null,
+            buildRankingDisplayItems([], false),
+            0,
+          );
+        }
         return;
       }
       simRankingCache = data;
       renderMockMonthlyRanking(data);
     } catch (e) {
       setSimRankingHint('네트워크 오류입니다. 백엔드 연결을 확인해 주세요.');
-      if (listEl) listEl.innerHTML = '<li class="sim-ranking-empty">—</li>';
+      if (bodyEl) {
+        bodyEl.innerHTML = renderRankingHybridBoard(
+          null,
+          buildRankingDisplayItems([], false),
+          0,
+        );
+      }
     } finally {
       simRankingLoading = false;
     }
@@ -2434,15 +3278,6 @@
     });
     var nav = document.getElementById('simPnlNav');
     if (nav) nav.classList.toggle('is-disabled', pnlGranularity === 'all');
-  }
-
-  function syncPnlDetailTabs() {
-    document.querySelectorAll('.sim-pnl-detail-tab[data-pnl-detail]').forEach(function (btn) {
-      var t = btn.getAttribute('data-pnl-detail');
-      var on = t === pnlDetailTab;
-      btn.classList.toggle('active', on);
-      btn.setAttribute('aria-selected', on ? 'true' : 'false');
-    });
   }
 
   function formatPnlSigned(n) {
@@ -2473,38 +3308,11 @@
       totalEl.className = 'sim-pnl-total ' + changeDirClass(total);
     }
 
-    var bd = data.breakdown || {};
-    function setBd(id, key) {
-      var el = document.getElementById(id);
-      if (!el) return;
-      var val = Number(bd[key] || 0);
-      el.textContent = formatCurrency(val);
-      el.classList.remove('up', 'down', 'muted');
-      if (key === 'sales') el.classList.add(changeDirClass(val));
-      else el.classList.add('muted');
-    }
-    setBd('simPnlSales', 'sales');
-    setBd('simPnlDividend', 'dividend');
-    setBd('simPnlLending', 'lending');
-    setBd('simPnlBond', 'bond');
-    setBd('simPnlInterest', 'interest');
-
     var noteEl = document.getElementById('simPnlNote');
     if (noteEl && data.note) noteEl.textContent = data.note;
 
     var listEl = document.getElementById('simPnlSalesList');
     if (!listEl) return;
-
-    if (pnlDetailTab === 'dividend') {
-      listEl.innerHTML =
-        '<div class="sim-pnl-empty">모의투자에서는 배당금이 발생하지 않습니다.</div>';
-      return;
-    }
-    if (pnlDetailTab === 'interest') {
-      listEl.innerHTML =
-        '<div class="sim-pnl-empty">모의투자에서는 계좌이자가 발생하지 않습니다.</div>';
-      return;
-    }
 
     var trades = Array.isArray(data.sales_trades) ? data.sales_trades : [];
     if (trades.length === 0) {
@@ -2561,27 +3369,7 @@
         return {};
       });
       if (res.status === 401) {
-        var loc = window.location;
-        var openUrl = urlToOpenSimulationOnFlask();
-        var msg;
-        if (String(loc.port || '') === '5000') {
-          msg = '로그인 세션이 없습니다. 상단에서 <strong>로그인</strong>한 뒤 새로고침하세요.';
-        } else {
-          msg =
-            '로그인이 필요합니다. Flask 서버 주소로 접속해 로그인하세요.<br /><a href="' +
-            openUrl +
-            '">' +
-            openUrl +
-            '</a>';
-        }
-        setMockPnlHint(msg);
-        renderRealizedPnlView({
-          success: true,
-          total_realized: 0,
-          breakdown: { sales: 0, dividend: 0, lending: 0, bond: 0, interest: 0 },
-          sales_trades: [],
-          period: { label: '실현수익', prev_anchor: null, next_anchor: null },
-        });
+        renderSimPnlLoginRequired();
         return;
       }
       if (!res.ok || !data.success) {
@@ -2619,7 +3407,7 @@
   function bindSimPnlUi() {
     document.querySelectorAll('.sim-view-tab[data-sim-view]').forEach(function (btn) {
       btn.addEventListener('click', function () {
-        setSimMainView(btn.getAttribute('data-sim-view'));
+        navigateSimMainView(btn.getAttribute('data-sim-view'));
       });
     });
     document.querySelectorAll('.sim-pnl-chip[data-pnl-gran]').forEach(function (btn) {
@@ -2634,36 +3422,45 @@
     var nextBtn = document.getElementById('simPnlNext');
     if (prevBtn) prevBtn.addEventListener('click', pnlNavigatePrev);
     if (nextBtn) nextBtn.addEventListener('click', pnlNavigateNext);
-    document.querySelectorAll('.sim-pnl-detail-tab[data-pnl-detail]').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        pnlDetailTab = btn.getAttribute('data-pnl-detail') || 'sales';
-        syncPnlDetailTabs();
-        if (pnlCache) renderRealizedPnlView(pnlCache);
-        else loadRealizedPnl();
-      });
-    });
-    document.querySelectorAll('.sim-pnl-filter-chip[data-pnl-market]').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        document.querySelectorAll('.sim-pnl-filter-chip').forEach(function (b) {
-          b.classList.toggle('active', b === btn);
-        });
-        if (pnlCache) renderRealizedPnlView(pnlCache);
-      });
-    });
     var card = document.getElementById('realizedProfitCard');
     if (card) {
       card.addEventListener('click', function () {
-        setSimMainView('pnl');
+        navigateSimMainView('pnl');
       });
       card.addEventListener('keydown', function (e) {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
-          setSimMainView('pnl');
+          navigateSimMainView('pnl');
         }
       });
     }
+    var rankingMoreBtn = document.getElementById('simRankingMoreBtn');
+    if (rankingMoreBtn && rankingMoreBtn.getAttribute('data-ranking-more-bound') !== '1') {
+      rankingMoreBtn.setAttribute('data-ranking-more-bound', '1');
+      rankingMoreBtn.addEventListener('click', function () {
+        simRankingExpanded = !simRankingExpanded;
+        if (simRankingCache) renderMockMonthlyRanking(simRankingCache);
+      });
+    }
+    var mockResetActionBtn = document.getElementById('simMockResetActionBtn');
+    if (mockResetActionBtn && mockResetActionBtn.getAttribute('data-mock-reset-bound') !== '1') {
+      mockResetActionBtn.setAttribute('data-mock-reset-bound', '1');
+      mockResetActionBtn.addEventListener('click', async function () {
+        if (!(await simIsLoggedIn())) {
+          if (typeof openLoginModal === 'function') openLoginModal();
+          return;
+        }
+        openMockResetConfirmModal();
+      });
+    }
+    var mockResetConfirmBtn = document.getElementById('simMockResetConfirmBtn');
+    if (mockResetConfirmBtn && mockResetConfirmBtn.getAttribute('data-mock-reset-bound') !== '1') {
+      mockResetConfirmBtn.setAttribute('data-mock-reset-bound', '1');
+      mockResetConfirmBtn.addEventListener('click', function () {
+        resetMockAccount();
+      });
+    }
     syncPnlGranularityChips();
-    syncPnlDetailTabs();
   }
 
   function maybeRefreshRealizedPnl() {
@@ -2677,10 +3474,121 @@
     }
   }
 
-  // 페이지 로드 시 초기화 (로그인 여부와 관계없이 화면 표시; 미로그인 시 API는 빈 자산·매매 시 로그인 필요 안내)
+  var simMockResetBusy = false;
+
+  function setSimResetHint(html) {
+    var el = document.getElementById('simResetHint');
+    if (!el) return;
+    if (html) {
+      el.style.display = 'block';
+      el.innerHTML = html;
+    } else {
+      el.style.display = 'none';
+      el.innerHTML = '';
+    }
+  }
+
+  function formatMockInitialCashLabel(amount) {
+    var n = Number(amount || 0);
+    if (n >= 10000 && n % 10000 === 0) {
+      return (n / 10000).toLocaleString() + '만원';
+    }
+    return formatCurrency(n);
+  }
+
+  function openMockResetConfirmModal() {
+    var initialLabel = formatMockInitialCashLabel(
+      (portfolio && portfolio.initialCash) || 5000000,
+    );
+    var descEl = document.getElementById('simMockResetConfirmDesc');
+    if (descEl) {
+      descEl.textContent =
+        '모든 내역(보유 종목, 거래·주문, 수익 분석)과 예수금이 ' +
+        initialLabel +
+        '으로 돌아갑니다.';
+    }
+    var modal = document.getElementById('simMockResetConfirmModal');
+    if (!modal) return;
+    modal.classList.add('is-open');
+    modal.setAttribute('aria-hidden', 'false');
+    var submitBtn = document.getElementById('simMockResetConfirmBtn');
+    if (submitBtn) submitBtn.focus();
+  }
+
+  function closeMockResetConfirmModal() {
+    var modal = document.getElementById('simMockResetConfirmModal');
+    if (!modal) return;
+    modal.classList.remove('is-open');
+    modal.setAttribute('aria-hidden', 'true');
+  }
+
+  async function resetMockAccount() {
+    if (simMockResetBusy) return;
+    closeMockResetConfirmModal();
+    if (!(await simIsLoggedIn())) {
+      if (typeof openLoginModal === 'function') openLoginModal();
+      return;
+    }
+
+    var resetBtn = document.getElementById('simMockResetActionBtn');
+    var resetConfirmBtn = document.getElementById('simMockResetConfirmBtn');
+    simMockResetBusy = true;
+    if (resetBtn) resetBtn.disabled = true;
+    if (resetConfirmBtn) resetConfirmBtn.disabled = true;
+    setSimResetHint('');
+
+    try {
+      var res = await fetch(simApiBase() + '/api/mock/reset', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: '{}',
+      });
+      var data = await res.json().catch(function () {
+        return {};
+      });
+      if (!res.ok || !data.success) {
+        setSimResetHint(escapeHtml(data.message || '초기화에 실패했습니다.'));
+        return;
+      }
+
+      simRankingCache = null;
+      simRankingExpanded = false;
+      pnlCache = null;
+      clearMockOrderBoardLocal();
+      await loadPortfolioFromServer();
+      updatePortfolio();
+      renderHoldings();
+      renderHistory();
+      setSimMainView('portfolio');
+
+      openSimTradeNoticeModal({
+        variant: 'simple',
+        title: '초기화 완료',
+        lead:
+          '모의투자 내역이 모두 삭제되었고, 예수금이 ' +
+          formatMockInitialCashLabel(data.initial_cash || data.cash_balance || 5000000) +
+          '으로 돌아갔습니다.',
+        showPrimary: false,
+        showConfirm: true,
+        confirmLabel: '확인',
+      });
+    } catch (e) {
+      setSimResetHint('네트워크 오류입니다. 백엔드 연결을 확인해 주세요.');
+    } finally {
+      simMockResetBusy = false;
+      if (resetBtn) resetBtn.disabled = false;
+      if (resetConfirmBtn) resetConfirmBtn.disabled = false;
+    }
+  }
+
+  // 페이지 로드 시 초기화 (미로그인 시 진입 즉시 로그인 모달)
   document.addEventListener('DOMContentLoaded', async function() {
     localizeSimulationUi();
     if (typeof refreshAuthNav === 'function') refreshAuthNav();
+    if (!(await simIsLoggedIn()) && typeof openLoginModal === 'function') {
+      openLoginModal();
+    }
 
     var holdingTabSell = document.getElementById('holdingModalTabSell');
     var holdingTabBuy = document.getElementById('holdingModalTabBuy');
@@ -2718,11 +3626,30 @@
     var orderStatusListEl = document.getElementById('orderStatusList');
     if (orderStatusListEl) {
       orderStatusListEl.addEventListener('click', function (e) {
+        var editBtn = e.target.closest('[data-pending-edit]');
+        if (editBtn) {
+          e.preventDefault();
+          var editId = parseInt(editBtn.getAttribute('data-pending-edit'), 10);
+          if (!Number.isNaN(editId)) openPendingOrderEditModal(editId);
+          return;
+        }
         var cancelBtn = e.target.closest('[data-pending-cancel]');
         if (!cancelBtn) return;
         e.preventDefault();
         var pid = parseInt(cancelBtn.getAttribute('data-pending-cancel'), 10);
         if (!Number.isNaN(pid)) cancelPendingOrder(pid);
+      });
+    }
+    var pendingEditPlus = document.getElementById('pendingOrderEditLimitPricePlus');
+    var pendingEditMinus = document.getElementById('pendingOrderEditLimitPriceMinus');
+    if (pendingEditPlus) {
+      pendingEditPlus.addEventListener('click', function () {
+        bumpPendingOrderEditLimitPrice(1);
+      });
+    }
+    if (pendingEditMinus) {
+      pendingEditMinus.addEventListener('click', function () {
+        bumpPendingOrderEditLimitPrice(-1);
       });
     }
 
@@ -2999,6 +3926,7 @@
     });
 
     bindSimPnlUi();
+    bindSimWorkspacePaneSync();
 
     await simRefreshWatchlist();
     await loadPortfolioFromServer();
@@ -3009,7 +3937,7 @@
     if (isSellMarketMode()) setSellPriceType(true);
     renderOrderStatusBoard();
     loadTradedValueBoard();
-    setInterval(loadTradedValueBoard, 25000);
+    requestAnimationFrame(syncSimWorkspacePaneHeight);
     var sellLimInp = document.getElementById('sellModalLimitPrice');
     if (sellLimInp) sellLimInp.addEventListener('input', updateSellModalEst);
     setInterval(async function () {
@@ -3024,6 +3952,24 @@
     }, 25000);
   });
 
+  function discoveryTableStateRowHtml(message, extraClass) {
+    var cls = 'discovery-table-state-cell' + (extraClass ? ' ' + extraClass : '');
+    return (
+      '<tr class="discovery-table-state-row">' +
+      '<td aria-hidden="true"></td>' +
+      '<td colspan="2" class="' + cls + '">' + message + '</td>' +
+      '<td colspan="3" class="discovery-table-state-rest" aria-hidden="true"></td>' +
+      '</tr>'
+    );
+  }
+
+  function syncDiscoveryTableLayout() {
+    var table = document.querySelector('.market-sidebar .discovery-table');
+    var tbody = document.getElementById('discoveryTableBody');
+    if (!table) return;
+    table.classList.toggle('is-state-only', !!(tbody && tbody.querySelector('.discovery-table-state-row')));
+  }
+
   async function loadTradedValueBoard(options) {
     var opts = options || {};
     var silent = !!opts.silent;
@@ -3036,13 +3982,19 @@
     if (!q && rankInp) q = String(rankInp.value || '').trim();
 
     if (!silent) {
-      tbody.innerHTML = '<tr><td colspan="7" style="color: var(--gray-400);">시세를 불러오는 중...</td></tr>';
+      tbody.innerHTML = discoveryTableStateRowHtml('시세를 불러오는 중...');
+      syncDiscoveryTableLayout();
     }
 
     try {
       var rankUrl = `${simApiBase()}/api/mock/traded-value-rank?limit=100`;
       if (q) rankUrl += '&q=' + encodeURIComponent(q);
-      const res = await fetch(rankUrl);
+      const rankAbort = new AbortController();
+      const rankTimer = setTimeout(function () {
+        rankAbort.abort();
+      }, 25000);
+      const res = await fetch(rankUrl, { signal: rankAbort.signal });
+      clearTimeout(rankTimer);
       const data = await res.json().catch(() => ({}));
 
       if (!res.ok || !data.success || !Array.isArray(data.items)) {
@@ -3065,23 +4017,41 @@
           '</strong></div><div class="discovery-code">' +
           escapeHtml(codeStr) +
           '</div>';
+        const priceCell =
+          '<div class="discovery-price-stack">' +
+          '<div class="discovery-price">' +
+          formatCurrency(Number(item.price || 0)) +
+          '</div>' +
+          '<div class="holding-change ' +
+          dir +
+          '">' +
+          rateStr +
+          '</div></div>';
         return `
           <tr class="discovery-row" data-code="${escapeHtmlAttr(codeStr)}" data-name="${encodeURIComponent(nameStr)}" data-price="${Number(item.price || 0)}" data-change-rate="${rate}" data-open-price="${openPx > 0 ? openPx : ''}" data-volume="${Number(item.volume || 0)}" data-traded-value="${Number(item.traded_value || 0)}">
             <td>${idx + 1}</td>
             <td>${nameCell}</td>
-            <td>${formatCurrency(Number(item.price || 0))}</td>
+            <td class="discovery-col-price">${priceCell}</td>
             <td>${openCell}</td>
-            <td class="holding-change ${dir}">${rateStr}</td>
             <td>${formatLargeNumber(Number(item.volume || 0))}</td>
             <td>${formatLargeCurrency(Number(item.traded_value || 0))}</td>
           </tr>
         `;
       }).join('');
 
-      tbody.innerHTML = rows || '<tr><td colspan="7" style="color: var(--gray-400);">표시할 데이터가 없습니다.</td></tr>';
+      tbody.innerHTML = rows || discoveryTableStateRowHtml('표시할 데이터가 없습니다.');
     } catch (err) {
-      tbody.innerHTML = `<tr><td colspan="7" style="color: #ff8e8e;">${err.message || '시세를 불러오지 못했습니다.'}</td></tr>`;
+      if (silent) return;
+      var errMsg =
+        err && err.name === 'AbortError'
+          ? '시세 조회 시간이 초과되었습니다. 서버를 재시작한 뒤 다시 시도해 주세요.'
+          : err.message || '시세를 불러오지 못했습니다.';
+      tbody.innerHTML = discoveryTableStateRowHtml(escapeHtml(errMsg), 'discovery-table-state-cell--error');
     }
+    syncDiscoveryTableLayout();
+    var rankScroll = document.querySelector('.market-sidebar-scroll');
+    if (rankScroll) rankScroll.scrollLeft = 0;
+    requestAnimationFrame(syncSimWorkspacePaneHeight);
   }
 
   function applyQuoteToTrade(code, price, name) {
@@ -3110,7 +4080,7 @@
       loadOrderbookPanel(codeStr);
       clearOrderbookPoll();
       orderbookPollTimer = setInterval(function () {
-        refreshOrderbookPanel();
+        refreshOrderbookPanel({ silent: true });
       }, 30000);
     }
   }
@@ -3156,25 +4126,7 @@
           accountCreatedMs: 0,
         };
         clearMockOrderBoardLocal();
-        var loc = window.location;
-        var port = String(loc.port || '');
-        var onApiPort = port === '5000';
-        var openUrl = urlToOpenSimulationOnFlask();
-        var fromFile = loc.protocol === 'file:' || !loc.hostname;
-        var msg;
-        if (onApiPort) {
-          msg = '로그인 세션이 없습니다. 상단에서 <strong>로그인</strong>한 뒤 새로고침하세요.';
-        } else if (fromFile) {
-          msg = '지금은 <strong>파일을 직접 연 방식(file://)</strong>이라 로그인 쿠키가 서버에 전달되지 않습니다. ' +
-            '<code>backend</code> 폴더에서 Flask를 켠 뒤(<code>python app.py</code>), 주소창에 아래를 입력해 접속하세요.<br />' +
-            '<a href="' + openUrl + '">' + openUrl + '</a>';
-        } else {
-          msg = '이 페이지가 <strong>포트 ' + (port || '기본') + '</strong>에서 열려 있어 로그인 쿠키가 API(:5000)에 전달되지 않을 수 있습니다. ' +
-            'Flask 실행 후 아래 주소로 접속하세요.<br />' +
-            '<a href="' + openUrl + '">' + openUrl + '</a>';
-        }
-        setMockPortfolioHint(msg);
-        console.warn('[mock-portfolio] 401 — file:// 이 아닌 http://127.0.0.1:5000/simulation.html 로 열고 로그인하세요.');
+        setMockPortfolioHint('');
         return;
       }
       if (!res.ok || !data.success || !data.account) {
@@ -3270,6 +4222,7 @@
       openStockRequiredNoticeModal();
       return;
     }
+    if (!(await requireSimLogin())) return;
     if (Number.isNaN(quantity) || quantity < 1) {
       quantity = 1;
       if (qtyEl) qtyEl.value = '1';
@@ -3299,17 +4252,20 @@
     var c = codeH && codeH.value ? String(codeH.value).trim() : '';
     var limEl = document.getElementById('tradeLimitPrice');
     var limP = limEl && limEl.value ? parseInt(limEl.value, 10) : 0;
-    if (line) line.textContent = c ? stock + ' (' + c + ')' : stock;
+    if (line) line.innerHTML = formatTradeConfirmStockHtml(stock, c);
     if (qtyLine) qtyLine.textContent = quantity.toLocaleString() + '주';
     if (priceLine) {
       var limOk = limP > 0 && !Number.isNaN(limP);
       if (isBuyMarketMode()) {
         var refM = limOk ? limP : buyReferencePrice();
-        priceLine.textContent =
-          refM > 0 ? formatCurrency(refM) + ' (시장가)' : '현재 시세 부근 체결 예상 (시장가)';
+        if (refM > 0) {
+          setTradeConfirmPriceLine(priceLine, formatCurrency(refM), '시장가');
+        } else {
+          priceLine.textContent = '현재 시세 부근 체결 예상 (시장가)';
+        }
       } else {
         var effPx = limOk ? limP : referencePriceForTick();
-        priceLine.textContent = formatCurrency(effPx) + (limOk ? ' (지정가)' : ' (시세 기준)');
+        setTradeConfirmPriceLine(priceLine, formatCurrency(effPx), limOk ? '지정가' : '시세 기준');
       }
     }
     var limOk2 = limP > 0 && !Number.isNaN(limP);
@@ -3381,13 +4337,7 @@
       const data = out.data;
       if (res.status === 401) {
         closeBuyModal();
-        var loc = window.location;
-        var openUrl = urlToOpenSimulationOnFlask();
-        var hint =
-          '로그인 세션이 없어 구매할 수 없습니다. Flask(<code>:5000</code>)에서 이 페이지를 연 뒤 상단에서 로그인하세요.<br />' +
-          '<a href="' + openUrl + '">' + openUrl + '</a>';
-        setMockPortfolioHint(hint);
-        alert(data.message || '로그인이 필요합니다.');
+        simHandleUnauthorized();
         return;
       }
       if (!res.ok || !data.success) {
@@ -3653,7 +4603,7 @@
     };
     const line = document.getElementById('sellModalStockLine');
     if (line) {
-      line.textContent = foundName + (sellModalState.code ? ' · ' + sellModalState.code : '');
+      line.innerHTML = formatTradeConfirmStockHtml(foundName, sellModalState.code);
     }
     const qtyInput = document.getElementById('sellModalQty');
     qtyInput.max = sellModalState.maxQty;
@@ -3789,6 +4739,10 @@
     const out = await executeTradeRequest('SELL', stockRef, qty, sellPx);
     const res = out.res;
     const data = out.data;
+    if (res.status === 401) {
+      simHandleUnauthorized();
+      return;
+    }
     if (!res.ok || !data.success) {
       pushOrderStatusEvent({
         stock: key,
@@ -3821,7 +4775,8 @@
     }
   }
 
-  window.openQuickSellConfirmModal = function () {
+  window.openQuickSellConfirmModal = async function () {
+    if (!(await requireSimLogin())) return;
     var sel = document.getElementById('tradeSellStock');
     var qtyEl = document.getElementById('tradeSellQuantity');
     var limEl = document.getElementById('tradeSellLimitPrice');
@@ -3859,14 +4814,21 @@
     var stockLine = document.getElementById('quickSellModalStockLine');
     var qtyLine = document.getElementById('quickSellModalQtyLine');
     var priceLine = document.getElementById('quickSellModalPriceLine');
-    if (stockLine) stockLine.textContent = codeDisp ? key + ' (' + codeDisp + ')' : key;
+    if (stockLine) stockLine.innerHTML = formatTradeConfirmStockHtml(key, codeDisp);
     if (qtyLine) qtyLine.textContent = qty.toLocaleString() + '주';
     if (priceLine) {
       if (isSellMarketMode()) {
-        priceLine.textContent =
-          unit > 0 ? formatCurrency(unit) + ' (시장가)' : '현재 시세 부근 체결 예상 (시장가)';
+        if (unit > 0) {
+          setTradeConfirmPriceLine(priceLine, formatCurrency(unit), '시장가');
+        } else {
+          priceLine.textContent = '현재 시세 부근 체결 예상 (시장가)';
+        }
       } else {
-        priceLine.textContent = unit > 0 ? formatCurrency(unit) + ' (지정가)' : '—';
+        if (unit > 0) {
+          setTradeConfirmPriceLine(priceLine, formatCurrency(unit), '지정가');
+        } else {
+          priceLine.textContent = '—';
+        }
       }
     }
     renderMockCostBreakdown(document.getElementById('quickSellModalCostBreakdown'), 'SELL', gross);
@@ -3907,6 +4869,7 @@
   };
 
   window.executeQuickSell = async function () {
+    if (!(await requireSimLogin())) return;
     var sel = document.getElementById('tradeSellStock');
     var qtyEl = document.getElementById('tradeSellQuantity');
     var limEl = document.getElementById('tradeSellLimitPrice');
@@ -3971,6 +4934,11 @@
       const out = await executeTradeRequest('SELL', stockRef, qty, sellPx);
       const res = out.res;
       const data = out.data;
+      if (res.status === 401) {
+        closeSellModal();
+        simHandleUnauthorized();
+        return;
+      }
       if (!res.ok || !data.success) {
         pushOrderStatusEvent({
           stock: st.name || stockRef,
@@ -4010,6 +4978,7 @@
   async function confirmBuyFromHoldingModal() {
     if (!tryAcquireTradeSubmit()) return;
     try {
+    if (!(await requireSimLogin())) return;
     var stockRef = getHoldingModalBuyStockForApi();
     var stockLabel = getHoldingModalBuyDisplayName();
     if (!stockRef) {
@@ -4056,12 +5025,7 @@
       const data = out.data;
       if (res.status === 401) {
         closeSellModal();
-        var openUrl401 = urlToOpenSimulationOnFlask();
-        var hint401 =
-          '로그인 세션이 없어 구매할 수 없습니다. Flask(<code>:5000</code>)에서 이 페이지를 연 뒤 상단에서 로그인하세요.<br />' +
-          '<a href="' + openUrl401 + '">' + openUrl401 + '</a>';
-        setMockPortfolioHint(hint401);
-        alert(data.message || '로그인이 필요합니다.');
+        simHandleUnauthorized();
         return;
       }
       if (!res.ok || !data.success) {
@@ -4125,7 +5089,10 @@
 
   window.openBuyConfirmModal = openBuyConfirmModal;
   window.closeInsufficientCashModal = closeInsufficientCashModal;
+  window.closePendingOrderEditModal = closePendingOrderEditModal;
+  window.confirmPendingOrderPriceEdit = confirmPendingOrderPriceEdit;
   window.closeSimTradeNoticeModal = closeSimTradeNoticeModal;
+  window.closeMockResetConfirmModal = closeMockResetConfirmModal;
   window.closeMarketClosedModal = closeSimTradeNoticeModal;
   window.runSimTradeNoticePrimary = runSimTradeNoticePrimary;
   window.switchToLimitFromMarketClosed = switchToLimitFromMarketClosed;
@@ -4148,6 +5115,7 @@
       `<div class="trade-row"><span>종목</span><span>${nameLine}</span></div>` +
       `<div class="trade-row"><span>체결</span><span>${sideKo} · ${Number(t.quantity || 0).toLocaleString()}주 · ${formatCurrency(Number(t.price || 0))}</span></div>`;
 
+    el.className = 'trade-feedback';
     el.style.display = 'block';
     el.innerHTML = '<strong>체결 완료</strong>' + summary;
     if (other) other.style.display = 'none';
@@ -5340,6 +6308,10 @@
     });
   }
 
+  function dismissOrderbookPanel() {
+    loadOrderbookPanel('');
+  }
+
   function closeSimHoldingDetailSheet() {
     var sheet = document.getElementById('simHoldingDetailSheet');
     if (!sheet) return;
@@ -5404,6 +6376,10 @@
     };
     updateSimHoldingDetailHead({ name: '—', code: '', price: 0, changeRate: NaN });
     collapseSimStockHistoryPanel();
+    if (simMainView === 'pnl' || simMainView === 'ranking' || simMainView === 'reset') {
+      dismissOrderbookPanel();
+    }
+    requestAnimationFrame(syncSimWorkspacePaneHeight);
   }
 
   function scrollSimHoldingDetailIntoView() {
@@ -5468,6 +6444,7 @@
     sheet.setAttribute('aria-hidden', 'false');
     loadSimHoldingChart(chartCode, '1d');
     scrollSimHoldingDetailIntoView();
+    requestAnimationFrame(syncSimWorkspacePaneHeight);
     var closeBtn = document.getElementById('simHoldingDetailClose');
     if (closeBtn) {
       try {
@@ -5538,6 +6515,7 @@
     sheet.setAttribute('aria-hidden', 'false');
     loadSimHoldingChart(chartCode, '1d');
     scrollSimHoldingDetailIntoView();
+    requestAnimationFrame(syncSimWorkspacePaneHeight);
 
     var closeBtn = document.getElementById('simHoldingDetailClose');
     if (closeBtn) {

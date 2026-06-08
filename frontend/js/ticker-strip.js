@@ -243,9 +243,16 @@
 
     let indicesPayload = { cards: [], ticker_order: DEFAULT_TICKER_ORDER };
 
+    const indicesPromise = fetch(`${BACKEND}/api/market-indices?lite=1`)
+      .then((res) => res.json().catch(() => ({})))
+      .catch((e) => {
+        console.warn('[ticker-strip]', e.message);
+        return {};
+      });
+    const popularPromise = fetchPopularTablePrices();
+
     try {
-      const res = await fetch(`${BACKEND}/api/market-indices`);
-      const data = await res.json().catch(() => ({}));
+      const data = await indicesPromise;
       if (data && data.success) indicesPayload = data;
     } catch (e) {
       console.warn('[ticker-strip]', e.message);
@@ -256,7 +263,7 @@
     wrap.innerHTML = onePass + onePass;
     bindTickerIndexClicks(wrap);
 
-    await fetchPopularTablePrices();
+    await popularPromise;
   }
 
   document.addEventListener('DOMContentLoaded', () => {

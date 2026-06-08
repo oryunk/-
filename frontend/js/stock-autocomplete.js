@@ -75,16 +75,29 @@
       var limit = opts.limit != null ? opts.limit : 12;
       var debounceMs = opts.debounceMs != null ? opts.debounceMs : 200;
       var onSelect = opts.onSelect;
+      var isActive =
+        typeof opts.isActive === 'function'
+          ? opts.isActive
+          : function () {
+              return true;
+            };
       var origin = apiOrigin(opts);
       var wrap = ensureWrap(inputEl);
       if (inputEl.getAttribute('autocomplete') == null) inputEl.setAttribute('autocomplete', 'off');
       var dd = document.createElement('div');
-      dd.className = 'jurin-ac-dd' + (opts.compact ? ' jurin-ac-dd--compact' : '');
+      dd.className =
+        'jurin-ac-dd' +
+        (opts.compact ? ' jurin-ac-dd--compact' : '') +
+        (opts.dropUp ? ' jurin-ac-dd--drop-up' : '');
       dd.setAttribute('role', 'listbox');
       wrap.appendChild(dd);
       var reqId = 0;
 
       var run = debounce(function () {
+        if (!isActive()) {
+          hideDropdown(dd);
+          return;
+        }
         var q = String(inputEl.value || '').trim();
         if (q.length < minChars) {
           hideDropdown(dd);
@@ -162,14 +175,25 @@
       var maxItems = opts.maxItems != null ? opts.maxItems : 14;
       var debounceMs = opts.debounceMs != null ? opts.debounceMs : 120;
       var onSelect = opts.onSelect;
+      var isActive =
+        typeof opts.isActive === 'function'
+          ? opts.isActive
+          : function () {
+              return true;
+            };
       var wrap = ensureWrap(inputEl);
       if (inputEl.getAttribute('autocomplete') == null) inputEl.setAttribute('autocomplete', 'off');
       var dd = document.createElement('div');
-      dd.className = 'jurin-ac-dd jurin-ac-dd--local';
+      dd.className =
+        'jurin-ac-dd jurin-ac-dd--local' + (opts.dropUp ? ' jurin-ac-dd--drop-up' : '');
       dd.setAttribute('role', 'listbox');
       wrap.appendChild(dd);
 
       var run = debounce(function () {
+        if (!isActive()) {
+          hideDropdown(dd);
+          return;
+        }
         var q = String(inputEl.value || '').trim();
         if (q.length < 1) {
           hideDropdown(dd);

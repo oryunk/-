@@ -243,7 +243,7 @@
     '실적발표',
   ];
 
-  /** 핵심 용어: 공공/거래소 계열 정의 기반 "공식 설명 3줄" 프리셋 */
+  /** 핵심 용어: 공공/거래소 계열 정의 기반 정의 요약 프리셋 */
   var OFFICIAL_SUMMARY_PRESETS = (function () {
     function n(s) {
       return String(s || '').trim().toLowerCase().replace(/\s+/g, '');

@@ -300,8 +300,8 @@
       '      <div class="mascot-coach-text" id="mascotCoachText">설명을 표시할 수 있어요.</div>' +
       '      <div class="mascot-coach-actions">' +
       '        <button type="button" class="tutorial-btn-ghost mascot-coach-back" id="mascotCoachBack" style="display:none" aria-hidden="true">돌아가기</button>' +
-      '        <button type="button" class="tutorial-btn-ghost" id="mascotCoachConfirm">확인</button>' +
-      '        <button type="button" class="tutorial-btn-ghost mascot-coach-btn-exit" id="mascotCoachDismiss" aria-label="종료">종료</button>' +
+      '        <button type="button" class="mascot-coach-btn-end" id="mascotCoachDismiss" aria-label="튜토리얼 종료">튜토리얼 종료</button>' +
+      '        <button type="button" class="mascot-coach-btn-confirm" id="mascotCoachConfirm">확인</button>' +
       '      </div>' +
       '    </div>' +
       '  </div>' +
@@ -479,7 +479,10 @@
     confirmHandler = (payload && typeof payload.onConfirm === 'function') ? payload.onConfirm : null;
     backHandler = (payload && typeof payload.onBack === 'function') ? payload.onBack : null;
     if (confirmBtn) {
-      confirmBtn.textContent = (payload && payload.confirmLabel) ? String(payload.confirmLabel) : '확인';
+      var confirmLabel = payload && payload.confirmLabel ? String(payload.confirmLabel) : '확인';
+      confirmBtn.textContent = confirmLabel;
+      confirmBtn.className =
+        confirmLabel === 'O' ? 'mascot-coach-btn-confirm mascot-coach-btn-confirm--quiz' : 'mascot-coach-btn-confirm';
     }
     if (backBtn) {
       backBtn.className = 'tutorial-btn-ghost mascot-coach-back';
@@ -494,10 +497,10 @@
       }
     }
     if (dismissBtn) {
-      var dismissText = (payload && payload.dismissLabel) ? String(payload.dismissLabel) : '종료';
+      var dismissText = payload && payload.dismissLabel ? String(payload.dismissLabel) : '튜토리얼 종료';
       dismissBtn.textContent = dismissText;
       dismissBtn.setAttribute('aria-label', dismissText);
-      dismissBtn.classList.toggle('mascot-coach-btn-exit', dismissText === '종료');
+      dismissBtn.className = dismissText === 'X' ? 'tutorial-btn-ghost mascot-coach-btn-quiz' : 'mascot-coach-btn-end';
     }
 
     if (img && fallback) {

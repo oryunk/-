@@ -67,79 +67,6 @@
       indexChartInstance.remove();
       indexChartInstance = null;
     }
-    const legend = el('indexDetailChartLegend');
-    if (legend) {
-      legend.hidden = true;
-      legend.innerHTML = '';
-    }
-  }
-
-  function formatChartCrosshairTime(time, intraday) {
-    if (time == null) return '';
-    if (typeof time === 'object' && time !== null && 'year' in time) {
-      const y = time.year;
-      const m = String(time.month).padStart(2, '0');
-      const d = String(time.day).padStart(2, '0');
-      return `${y}-${m}-${d}`;
-    }
-    if (typeof time === 'number' && Number.isFinite(time)) {
-      const dt = new Date(time * 1000);
-      if (intraday) {
-        return dt.toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-      }
-      return dt.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
-    }
-    return String(time);
-  }
-
-  function candleBarFromSeriesData(seriesData, seriesApi) {
-    if (!seriesData || typeof seriesData.get !== 'function') return null;
-    const bar = seriesData.get(seriesApi);
-    if (!bar || typeof bar !== 'object') return null;
-    const o = Number(bar.open);
-    const h = Number(bar.high);
-    const l = Number(bar.low);
-    const c = Number(bar.close);
-    if (![o, h, l, c].every((x) => Number.isFinite(x))) return null;
-    return { open: o, high: h, low: l, close: c };
-  }
-
-  function bindIndexChartLegend(chart, candleSeries, intraday) {
-    const legend = el('indexDetailChartLegend');
-    if (!legend || !chart || !candleSeries) return;
-    chart.subscribeCrosshairMove((param) => {
-      const map =
-        param.seriesData && typeof param.seriesData.get === 'function'
-          ? param.seriesData
-          : param.seriesPrices && typeof param.seriesPrices.get === 'function'
-            ? param.seriesPrices
-            : null;
-      const bar = map ? candleBarFromSeriesData(map, candleSeries) : null;
-      if (!bar || param.time == null) {
-        legend.hidden = true;
-        return;
-      }
-      legend.hidden = false;
-      const t = formatChartCrosshairTime(param.time, intraday);
-      legend.innerHTML =
-        '<div class="chart-ohlc-hover-time">' +
-        esc(t) +
-        '</div>' +
-        '<div class="chart-ohlc-hover-grid">' +
-        '<span><b>시</b> ' +
-        esc(formatIndexPrice(bar.open)) +
-        '</span>' +
-        '<span><b>고</b> ' +
-        esc(formatIndexPrice(bar.high)) +
-        '</span>' +
-        '<span><b>저</b> ' +
-        esc(formatIndexPrice(bar.low)) +
-        '</span>' +
-        '<span><b>종</b> ' +
-        esc(formatIndexPrice(bar.close)) +
-        '</span>' +
-        '</div>';
-    });
   }
 
   function applyDefaultChartViewport(candles, intraday, rangeId) {
@@ -245,7 +172,6 @@
     }
 
     applyDefaultChartViewport(candles, !!intraday, rangeId || activeRange);
-    bindIndexChartLegend(indexChartInstance, candleSeries, !!intraday);
 
     chartResizeObserver = new ResizeObserver(() => {
       if (indexChartInstance && container) {

@@ -35,6 +35,55 @@ function jurinApiBase() {
   return 'http://localhost:5000';
 }
 
+/** Google OAuth redirect_uri 와 동일 origin 으로 /start 이동 (localhost·127.0.0.1 세션 불일치 방지) */
+var _googleOAuthApiOrigin = null;
+
+function jurinGoogleOAuthStartUrl() {
+  var base = _googleOAuthApiOrigin || jurinApiBase();
+  return String(base).replace(/\/$/, '') + '/api/auth/google/start';
+}
+
+function jurinPrefetchGoogleOAuthOrigin() {
+  if (_googleOAuthApiOrigin) {
+    return Promise.resolve(_googleOAuthApiOrigin);
+  }
+  return fetch(jurinApiBase() + '/api/auth/google/status', { credentials: 'include' })
+    .then(function (res) {
+      return res.ok ? res.json() : {};
+    })
+    .then(function (data) {
+      if (data && data.redirect_uri) {
+        try {
+          _googleOAuthApiOrigin = new URL(data.redirect_uri).origin;
+          if (typeof window !== 'undefined') {
+            window.JURIN_API_BASE = _googleOAuthApiOrigin;
+          }
+        } catch (e) { /* ignore */ }
+      }
+      return _googleOAuthApiOrigin || jurinApiBase();
+    })
+    .catch(function () {
+      return jurinApiBase();
+    });
+}
+
+function jurinNavigateGoogleOAuthStart(event) {
+  if (event && typeof event.preventDefault === 'function') {
+    event.preventDefault();
+  }
+  var topWin = window.top && window.top !== window ? window.top : window;
+  jurinPrefetchGoogleOAuthOrigin().then(function () {
+    topWin.location.href = jurinGoogleOAuthStartUrl();
+  });
+}
+
+if (typeof window !== 'undefined') {
+  window.jurinGoogleOAuthStartUrl = jurinGoogleOAuthStartUrl;
+  window.jurinPrefetchGoogleOAuthOrigin = jurinPrefetchGoogleOAuthOrigin;
+  window.jurinNavigateGoogleOAuthStart = jurinNavigateGoogleOAuthStart;
+  jurinPrefetchGoogleOAuthOrigin();
+}
+
 /**
  * 모의투자 페이지 전체 URL (file://·다른 포트에서도 API 호스트 :5000 기준으로 통일)
  */

@@ -4,7 +4,8 @@
  */
 (function () {
   var GUEST_STORAGE_KEY = 'jurin:lumi-chat:v1';
-  var ASSET_VER = '20260520a';
+  var MASCOT2_VER = '20260607';
+  var DOCK_ASSET_VER = '20260520a';
   var LUMI_ICON_VER = '20260608';
   var LUMI_ICONS = {
     lumi: 'assets/lumi-icons/lumi-chat.png?v=' + LUMI_ICON_VER,
@@ -13,14 +14,47 @@
     news: 'assets/lumi-icons/news.png?v=' + LUMI_ICON_VER,
     stock: 'assets/lumi-icons/stocks.png?v=' + LUMI_ICON_VER,
   };
-  var DOCK_IMAGE = 'assets/mascot/mascot-dock.png?v=' + ASSET_VER;
-  var MOOD_IMAGES = {
-    welcome: 'assets/mascot/mascot-welcome.png?v=' + ASSET_VER,
-    info: 'assets/mascot/mascot-info.png?v=' + ASSET_VER,
-    success: 'assets/mascot/mascot-success.png?v=' + ASSET_VER,
-    caution: 'assets/mascot/mascot-caution.png?v=' + ASSET_VER,
-    wink: 'assets/mascot/mascot-dock.png?v=' + ASSET_VER,
+
+  var LUMICON_FILES = {
+    'happy.png': true,
+    'excited.png': true,
+    'curious.png': true,
+    'success.png': true,
+    'surprised.png': true,
+    'sparkle.png': true,
+    'hello.png': true,
+    'struggling.png': true,
+    'sleepy.png': true,
+    'thinking.png': true,
   };
+
+  function mascot2Asset(name) {
+    if (typeof jurinMascot2Asset === 'function') return jurinMascot2Asset(name);
+    var folder = LUMICON_FILES[name] ? 'assets/mascot2/' : 'assets/mascot2/misc/';
+    return folder + name + '?v=' + MASCOT2_VER;
+  }
+
+  var DOCK_IMAGE = 'assets/mascot/mascot-dock.png?v=' + DOCK_ASSET_VER;
+  var MOOD_IMAGES = {
+    welcome: mascot2Asset('hello.png'),
+    info: mascot2Asset('thinking.png'),
+    success: mascot2Asset('success.png'),
+    happy: mascot2Asset('happy.png'),
+    excited: mascot2Asset('excited.png'),
+    caution: mascot2Asset('surprised.png'),
+    wink: mascot2Asset('sparkle.png'),
+    curious: mascot2Asset('curious.png'),
+    idea: mascot2Asset('idea.png'),
+    studying: mascot2Asset('studying.png'),
+    struggling: mascot2Asset('struggling.png'),
+    sleepy: mascot2Asset('sleepy.png'),
+    chart: mascot2Asset('chart-analysis.png'),
+  };
+
+  function moodImage(mood) {
+    var key = String(mood || 'info').toLowerCase();
+    return MOOD_IMAGES[key] || MOOD_IMAGES.info;
+  }
 
   function lumiCatIconHtml(cat) {
     var src = LUMI_ICONS[cat] || LUMI_ICONS.lumi;
@@ -153,10 +187,16 @@
 
   function guessMoodFromText(text) {
     var t = String(text || '').toLowerCase();
-    if (/손절|손실|하락|위험|세금|무서|걱정|조심/.test(t)) return 'caution';
-    if (/축하|잘했|화이팅|응원|좋아|괜찮|추천/.test(t)) return 'success';
-    if (/안녕|반가|루미|소개|처음/.test(t)) return 'welcome';
-    if (/ㅎ|헤|고마|친구|재미/.test(t)) return 'wink';
+    if (/못 찾|실패|오류|미안|모르|곤란|확실히 말|다시 시도|없어요|불러오지/.test(t)) return 'struggling';
+    if (/손절|손실|하락|위험|세금|무서|걱정|조심|주의|망|조심해/.test(t)) return 'caution';
+    if (/축하|잘했|화이팅|응원|성공|쉬워|멋져|대단/.test(t)) return 'excited';
+    if (/좋아|괜찮|도움|행복|기쁘|편해/.test(t)) return 'happy';
+    if (/팁|아이디어|기억해|한 가지|포인트/.test(t)) return 'idea';
+    if (/안녕|반가|루미|소개|처음|만나/.test(t)) return 'welcome';
+    if (/ㅎ|헤|고마|친구|재미|농담|편하게/.test(t)) return 'wink';
+    if (/궁금|어떻게|뭐예요|뭐야|알려|질문/.test(t)) return 'curious';
+    if (/설명|개념|per|pbr|roe|차트|분석|배우|익혀|공부/.test(t)) return 'studying';
+    if (/종목|주가|시세|현재가|코스피|코스닥/.test(t)) return 'chart';
     return 'info';
   }
 
@@ -299,7 +339,7 @@
       var avatar = isUser
         ? ''
         : '<img class="lumi-chat-avatar lumi-chat-avatar-bot" src="' +
-          escapeHtml(MOOD_IMAGES[mood] || MOOD_IMAGES.info) +
+          escapeHtml(moodImage(mood)) +
           '" alt="루미">';
       var bubbleContent = m.contentHtml
         ? m.contentHtml
@@ -318,7 +358,7 @@
       html +=
         '<div class="lumi-chat-msg is-bot is-thinking">' +
         '<img class="lumi-chat-avatar lumi-chat-avatar-bot lumi-mood-pop" src="' +
-        escapeHtml(MOOD_IMAGES[thinkMood] || MOOD_IMAGES.info) +
+        escapeHtml(moodImage(thinkMood)) +
         '" alt="루미">' +
         '<div class="lumi-chat-bubble lumi-chat-bubble-thinking">생각중…</div></div>';
     }
@@ -373,6 +413,8 @@
       inputEl.placeholder = placeholders[cat] || '입력해주세요';
       inputEl.focus();
     }
+    if (cat === 'stock') bindLumiStockAutocomplete();
+    if (cat === 'term') bindLumiTermAutocomplete();
     var modeLabelMap = {
       term:  '용어검색 — 궁금한 용어를 입력 후 전송하세요',
       news:  '뉴스검색 — 검색할 주제를 입력 후 전송하세요',
@@ -396,11 +438,163 @@
     state.activeCategory = null;
     var inputEl = document.getElementById('lumiChatInput');
     if (inputEl) inputEl.placeholder = '루미한테 편하게 물어봐…';
+    hideLumiAutocompleteDropdown();
     var quick = document.getElementById('lumiChatQuick');
     if (quick) {
       var badge = quick.querySelector('.lumi-chat-cat-mode');
       if (badge) badge.remove();
     }
+  }
+
+  var lumiStockAcBound = false;
+  var lumiTermAcBound = false;
+  var lumiStockAcLoading = false;
+  var lumiStockTermsLoading = false;
+
+  function lumiScriptBase() {
+    var scripts = document.getElementsByTagName('script');
+    for (var i = scripts.length - 1; i >= 0; i--) {
+      var src = scripts[i].src || '';
+      if (src.indexOf('lumi-chat.js') >= 0) {
+        return src.replace(/lumi-chat\.js.*$/, '');
+      }
+    }
+    return 'js/';
+  }
+
+  function hideLumiAutocompleteDropdown() {
+    var wrap = document.querySelector('.lumi-chat-compose .jurin-ac-wrap');
+    if (!wrap) return;
+    wrap.querySelectorAll('.jurin-ac-dd').forEach(function (dd) {
+      dd.style.display = 'none';
+      dd.innerHTML = '';
+    });
+  }
+
+  function ensureStockAutocompleteLib(done) {
+    if (typeof JurinStockAutocomplete !== 'undefined') {
+      done();
+      return;
+    }
+    if (lumiStockAcLoading) {
+      document.addEventListener(
+        'jurin:stock-ac-ready',
+        function onReady() {
+          document.removeEventListener('jurin:stock-ac-ready', onReady);
+          done();
+        },
+        { once: true }
+      );
+      return;
+    }
+    lumiStockAcLoading = true;
+    var s = document.createElement('script');
+    s.src = lumiScriptBase() + 'stock-autocomplete.js';
+    s.onload = function () {
+      lumiStockAcLoading = false;
+      document.dispatchEvent(new Event('jurin:stock-ac-ready'));
+      done();
+    };
+    s.onerror = function () {
+      lumiStockAcLoading = false;
+    };
+    document.head.appendChild(s);
+  }
+
+  function ensureStockTermsLib(done) {
+    if (typeof JurinStockTerms !== 'undefined') {
+      done();
+      return;
+    }
+    if (lumiStockTermsLoading) {
+      document.addEventListener(
+        'jurin:stock-terms-ready',
+        function onReady() {
+          document.removeEventListener('jurin:stock-terms-ready', onReady);
+          done();
+        },
+        { once: true }
+      );
+      return;
+    }
+    lumiStockTermsLoading = true;
+    var s = document.createElement('script');
+    s.src = lumiScriptBase() + 'stock-terms.js';
+    s.onload = function () {
+      lumiStockTermsLoading = false;
+      document.dispatchEvent(new Event('jurin:stock-terms-ready'));
+      done();
+    };
+    s.onerror = function () {
+      lumiStockTermsLoading = false;
+    };
+    document.head.appendChild(s);
+  }
+
+  function collectLumiTermAutocompleteList() {
+    if (
+      window.JurinStockTerms &&
+      typeof JurinStockTerms.collectGlossaryAutocompleteTerms === 'function'
+    ) {
+      return JurinStockTerms.collectGlossaryAutocompleteTerms();
+    }
+    if (window.JurinStockTerms && Array.isArray(JurinStockTerms.GLOSSARY_CATEGORIES)) {
+      var names = [];
+      JurinStockTerms.GLOSSARY_CATEGORIES.forEach(function (cat) {
+        (cat.items || []).forEach(function (it) {
+          if (it && it.name) names.push(String(it.name));
+        });
+      });
+      return names;
+    }
+    return [];
+  }
+
+  function bindLumiStockAutocomplete() {
+    if (lumiStockAcBound) return;
+    var inputEl = document.getElementById('lumiChatInput');
+    if (!inputEl) return;
+    ensureStockAutocompleteLib(function () {
+      if (lumiStockAcBound || typeof JurinStockAutocomplete === 'undefined') return;
+      JurinStockAutocomplete.attachStock(inputEl, {
+        compact: true,
+        minChars: 1,
+        limit: 12,
+        dropUp: true,
+        apiBase: apiBase(),
+        isActive: function () {
+          return state.activeCategory === 'stock';
+        },
+        onSelect: function () {
+          inputEl.focus();
+        },
+      });
+      lumiStockAcBound = true;
+    });
+  }
+
+  function bindLumiTermAutocomplete() {
+    if (lumiTermAcBound) return;
+    var inputEl = document.getElementById('lumiChatInput');
+    if (!inputEl) return;
+    ensureStockTermsLib(function () {
+      ensureStockAutocompleteLib(function () {
+        if (lumiTermAcBound || typeof JurinStockAutocomplete === 'undefined') return;
+        var terms = collectLumiTermAutocompleteList();
+        if (!terms.length) return;
+        JurinStockAutocomplete.attachLocal(inputEl, terms, {
+          maxItems: 14,
+          dropUp: true,
+          isActive: function () {
+            return state.activeCategory === 'term';
+          },
+          onSelect: function () {
+            inputEl.focus();
+          },
+        });
+        lumiTermAcBound = true;
+      });
+    });
   }
 
   async function searchAndShowNews(query, thread) {
@@ -451,7 +645,7 @@
         id: 'news-' + Date.now(),
         role: 'assistant',
         content: reply,
-        mood: matched.length ? 'info' : 'caution',
+        mood: matched.length ? 'curious' : 'struggling',
         created_at: new Date().toISOString(),
       });
       thread.updatedAt = new Date().toISOString();
@@ -625,7 +819,78 @@
     }
   }
 
-  async function loadThreadDetail(threadId) {
+  function messageForServer(m) {
+    if (!m || m.id === 'intro') return null;
+    if (m.role !== 'user' && m.role !== 'assistant') return null;
+    var content = String(m.content || '').trim();
+    if (!content && m.contentHtml) {
+      content = String(m.contentHtml)
+        .replace(/<br\s*\/?>/gi, '\n')
+        .replace(/<[^>]+>/g, '')
+        .replace(/&nbsp;/g, ' ')
+        .replace(/\s+\n/g, '\n')
+        .trim();
+    }
+    if (!content) return null;
+    return {
+      role: m.role,
+      content: content.slice(0, 8000),
+      mood: m.role === 'assistant' ? m.mood || 'info' : undefined,
+    };
+  }
+
+  function mergeMessagesFromServer(serverMsgs, localMsgs) {
+    var server = serverMsgs || [];
+    var local = localMsgs || [];
+    if (!server.length) return local.length ? local.slice() : [];
+
+    var localNonIntro = local.filter(function (m) {
+      return m.id !== 'intro';
+    });
+    var htmlByIdx = {};
+    localNonIntro.forEach(function (m, idx) {
+      if (m.contentHtml) htmlByIdx[idx] = m.contentHtml;
+    });
+
+    var merged = [];
+    var intro = local.find(function (m) {
+      return m.id === 'intro';
+    });
+    if (intro) merged.push(intro);
+
+    server.forEach(function (sm, idx) {
+      var copy = {
+        id: sm.id,
+        role: sm.role,
+        content: sm.content || '',
+        mood: sm.mood,
+        created_at: sm.created_at,
+        _synced: true,
+      };
+      if (htmlByIdx[idx]) copy.contentHtml = htmlByIdx[idx];
+      merged.push(copy);
+    });
+
+    if (localNonIntro.length > server.length) {
+      localNonIntro.slice(server.length).forEach(function (m) {
+        merged.push(m);
+      });
+    }
+    return merged;
+  }
+
+  async function loadThreadDetail(threadId, opts) {
+    opts = opts || {};
+    var preserveLocal = opts.preserveLocal !== false;
+    var prevLocal = null;
+    if (preserveLocal) {
+      for (var j = 0; j < state.threads.length; j++) {
+        if (String(state.threads[j].id) === String(threadId)) {
+          prevLocal = (state.threads[j].messages || []).slice();
+          break;
+        }
+      }
+    }
     if (state.loggedIn && String(threadId).match(/^\d+$/)) {
       try {
         var res = await fetch(apiBase() + '/api/lumi-chat/threads/' + encodeURIComponent(threadId), {
@@ -636,10 +901,19 @@
         });
         if (data.success && data.thread) {
           var th = data.thread;
+          var mergedMessages =
+            preserveLocal && prevLocal
+              ? mergeMessagesFromServer(th.messages || [], prevLocal)
+              : th.messages || [];
+          if (!mergedMessages.length) {
+            var shell = { messages: mergedMessages };
+            ensureWelcomeMessage(shell);
+            mergedMessages = shell.messages;
+          }
           for (var i = 0; i < state.threads.length; i++) {
             if (String(state.threads[i].id) === String(th.id)) {
               state.threads[i].title = th.title;
-              state.threads[i].messages = th.messages || [];
+              state.threads[i].messages = mergedMessages;
               state.threads[i].updatedAt = th.updated_at;
               return state.threads[i];
             }
@@ -647,7 +921,7 @@
           state.threads.unshift({
             id: th.id,
             title: th.title,
-            messages: th.messages || [],
+            messages: mergedMessages,
             updatedAt: th.updated_at,
           });
           return state.threads[0];
@@ -655,6 +929,79 @@
       } catch (e) { /* ignore */ }
     }
     return getActiveThread();
+  }
+
+  async function apiImportMessages(threadId, messages, title) {
+    var res = await fetch(
+      apiBase() + '/api/lumi-chat/threads/' + encodeURIComponent(threadId) + '/import-messages',
+      {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: messages,
+          title: title && title !== '새 대화' ? title : undefined,
+        }),
+      }
+    );
+    var data = await res.json().catch(function () {
+      return {};
+    });
+    if (!data.success) throw new Error(data.message || '대화 저장 실패');
+    return data.thread;
+  }
+
+  async function syncThreadToServer(thread) {
+    if (!thread || !state.loggedIn || !isServerThreadId(thread.id)) return thread;
+    var pending = (thread.messages || []).filter(function (m) {
+      return !m._synced && m.id !== 'intro';
+    });
+    var payload = pending.map(messageForServer).filter(Boolean);
+    if (!payload.length) return thread;
+    try {
+      await apiImportMessages(thread.id, payload, thread.title);
+      pending.forEach(function (m) {
+        m._synced = true;
+      });
+    } catch (e) { /* ignore */ }
+    return thread;
+  }
+
+  async function migrateLocalThreadToServer(localThread) {
+    var msgs = (localThread && localThread.messages) || [];
+    var hasContent = msgs.some(function (m) {
+      return m.id !== 'intro';
+    });
+    if (!hasContent) return startNewChat();
+
+    var th = await apiCreateThread(localThread.title || '새 대화');
+    var entry = {
+      id: th.id,
+      title: th.title || localThread.title || '새 대화',
+      messages: msgs.slice(),
+      updatedAt: th.updated_at || new Date().toISOString(),
+    };
+    ensureWelcomeMessage(entry);
+    state.threads = state.threads.filter(function (t) {
+      return String(t.id) !== String(localThread.id);
+    });
+    state.threads.unshift(entry);
+    state.activeThreadId = entry.id;
+    await syncThreadToServer(entry);
+    await loadThreadDetail(entry.id, { preserveLocal: true });
+    return getActiveThread() || entry;
+  }
+
+  async function ensureServerThread(thread) {
+    if (!thread) return startNewChat();
+    if (state.loggedIn && isLocalThreadId(thread.id)) {
+      var nonIntro = (thread.messages || []).filter(function (m) {
+        return m.id !== 'intro';
+      });
+      if (nonIntro.length > 0) return migrateLocalThreadToServer(thread);
+      return startNewChat();
+    }
+    return thread;
   }
 
   async function apiCreateThread(title) {
@@ -720,6 +1067,7 @@
     // 카테고리 모드 초기화
     var category = state.activeCategory;
     state.activeCategory = null;
+    hideLumiAutocompleteDropdown();
     var inputElReset = document.getElementById('lumiChatInput');
     if (inputElReset) inputElReset.placeholder = '루미한테 편하게 물어봐…';
     var quickEl = document.getElementById('lumiChatQuick');
@@ -737,7 +1085,7 @@
       if (sendBtnN) sendBtnN.disabled = true;
       var threadN = getActiveThread();
       if (!threadN) threadN = await startNewChat();
-      if (state.loggedIn && isLocalThreadId(threadN.id)) threadN = await startNewChat();
+      threadN = await ensureServerThread(threadN);
       if (state.loggedIn && isServerThreadId(threadN.id) && !threadN.messages) {
         await loadThreadDetail(threadN.id);
         threadN = getActiveThread();
@@ -748,12 +1096,16 @@
       if (!state.loggedIn) persistGuest();
       setTyping(true, message);
       var found = await searchAndShowNews(message, threadN);
+      if (found && state.loggedIn && isServerThreadId(threadN.id)) {
+        threadN = getActiveThread() || threadN;
+        await syncThreadToServer(threadN);
+      }
       if (!found) {
         // 뉴스를 못 찾으면 GPT에게 fallback
         try {
           if (state.loggedIn && isServerThreadId(threadN.id)) {
             await apiSendMessage(threadN.id, '뉴스 검색: ' + message);
-            await loadThreadDetail(threadN.id);
+            await loadThreadDetail(threadN.id, { preserveLocal: true });
           } else {
             var histN = (threadN.messages || []).filter(function (m) { return m.id !== 'intro' && m.role; }).slice(-8).map(function (m) { return { role: m.role, content: m.content }; });
             var assistantN = await apiGuestReply('뉴스 검색: ' + message, histN);
@@ -777,7 +1129,7 @@
       if (sendBtnStk) sendBtnStk.disabled = true;
       var threadStk = getActiveThread();
       if (!threadStk) threadStk = await startNewChat();
-      if (state.loggedIn && isLocalThreadId(threadStk.id)) threadStk = await startNewChat();
+      threadStk = await ensureServerThread(threadStk);
       if (state.loggedIn && isServerThreadId(threadStk.id) && !threadStk.messages) {
         await loadThreadDetail(threadStk.id);
         threadStk = getActiveThread();
@@ -790,6 +1142,7 @@
 
       // ① 한 줄 회사 소개 — 항상 guest reply 로 짧은 프롬프트 전송
       var descHtml = '';
+      var descText = '';
       try {
         var descPrompt =
           message +
@@ -797,7 +1150,8 @@
           ' 투자 의견·리스크·주가 언급 없이 회사 소개 한 줄만. 다른 내용은 쓰지 마.';
         var descReply = await apiGuestReply(descPrompt, []);
         if (descReply && descReply.content) {
-          descHtml = escapeHtml(descReply.content.trim()).replace(/\n/g, '<br>');
+          descText = descReply.content.trim();
+          descHtml = escapeHtml(descText).replace(/\n/g, '<br>');
         }
       } catch (e) { /* ignore */ }
 
@@ -819,11 +1173,12 @@
           id: 'stock-' + Date.now(),
           role: 'assistant',
           contentHtml: combinedHtml,
-          content: '',
-          mood: 'info',
+          content: descText || message + ' 종목 조회',
+          mood: 'chart',
           created_at: new Date().toISOString(),
         });
         if (!state.loggedIn) persistGuest();
+        else if (isServerThreadId(threadStk.id)) await syncThreadToServer(threadStk);
       }
 
       state.sending = false;
@@ -840,11 +1195,23 @@
     }
 
     if (!state.loggedIn && !isLocalThreadId(thread.id)) {
-      thread = createLocalThread();
+      var guestThread = null;
+      for (var gi = 0; gi < state.threads.length; gi++) {
+        if (isLocalThreadId(state.threads[gi].id)) {
+          guestThread = state.threads[gi];
+          break;
+        }
+      }
+      if (guestThread) {
+        state.activeThreadId = guestThread.id;
+        thread = guestThread;
+      } else {
+        thread = createLocalThread();
+      }
     }
 
     if (state.loggedIn && isLocalThreadId(thread.id)) {
-      thread = await startNewChat();
+      thread = await ensureServerThread(thread);
     }
 
     if (state.loggedIn && isServerThreadId(thread.id) && !thread.messages) {
@@ -856,6 +1223,11 @@
     var sendBtn = document.getElementById('lumiChatSend');
     if (sendBtn) sendBtn.disabled = true;
 
+    if (state.loggedIn && isServerThreadId(thread.id)) {
+      await syncThreadToServer(thread);
+      thread = getActiveThread() || thread;
+    }
+
     appendUserMessage(thread, message);
     renderMessages();
     renderThreadList();
@@ -866,7 +1238,7 @@
     try {
       if (state.loggedIn && isServerThreadId(thread.id)) {
         await apiSendMessage(thread.id, message);
-        await loadThreadDetail(thread.id);
+        await loadThreadDetail(thread.id, { preserveLocal: true });
         thread = getActiveThread();
         if (thread) thread.updatedAt = new Date().toISOString();
       } else {
@@ -901,7 +1273,7 @@
           id: 'err-' + Date.now(),
           role: 'assistant',
           content: (err && err.message) || '답변을 가져오지 못했어요. 잠시 후 다시 시도해 주세요.',
-          mood: 'caution',
+          mood: 'struggling',
           created_at: new Date().toISOString(),
         });
         if (!state.loggedIn) persistGuest();
@@ -1004,7 +1376,7 @@
       '<img id="lumiChatHeaderImg" class="lumi-chat-header-img" src="' +
       DOCK_IMAGE +
       '" alt="루미">' +
-      '<span class="lumi-chat-header-title">루미챗봇</span>' +
+      '<span class="lumi-chat-header-title">루미와 대화</span>' +
       '</div>' +
       '<div class="lumi-chat-header-actions">' +
       '<button type="button" id="lumiChatCloseBtn">닫기</button>' +
@@ -1097,6 +1469,8 @@
       if (!b) return;
       handleCategoryClick(b.getAttribute('data-cat') || '');
     });
+    bindLumiStockAutocomplete();
+    bindLumiTermAutocomplete();
   }
 
   function toggle(open) {

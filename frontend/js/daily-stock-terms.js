@@ -133,7 +133,6 @@
           '<div class="term-def">' +
           escapeHtml(t.def) +
           '</div>' +
-          '<div class="term-glossary-hint">용어 사전에서 보기 →</div>' +
           '</a>'
         );
       })

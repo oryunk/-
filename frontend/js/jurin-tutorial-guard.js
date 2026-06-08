@@ -41,7 +41,7 @@
       }
       return '앗, 그건 아니야! 지금은 안내한 곳만 눌러줘.';
     }
-    if (target.closest('.nav-logo') || target.closest('.btn-back')) {
+    if (target.closest('.nav-logo') || target.closest('.btn-back') || target.closest('.jurin-back-btn')) {
       return '앗, 그건 아니야! 지금 가이드를 진행 중이야. 안내한 곳만 눌러줘.';
     }
     return null;
