@@ -54,6 +54,33 @@ def clean_gpt_prose(text: str) -> str:
     return s.strip()
 
 
+def parse_term_gpt_response(text: str) -> tuple[str, str]:
+    """GPT 용어 설명 응답을 [정의]·[설명] 블록으로 분리한다."""
+    cleaned = clean_gpt_prose(text)
+    if not cleaned:
+        return '', ''
+
+    def_match = re.search(r'\[정의\]\s*\n?(.*?)(?=\[설명\]|$)', cleaned, re.DOTALL | re.IGNORECASE)
+    expl_match = re.search(r'\[설명\]\s*\n?(.*?)$', cleaned, re.DOTALL | re.IGNORECASE)
+    definition = (def_match.group(1) if def_match else '').strip()
+    explanation = (expl_match.group(1) if expl_match else '').strip()
+
+    if definition and explanation:
+        return definition, explanation
+
+    sentence_parts = re.findall(r'[^.!?\n]+(?:[.!?…]+|$)', cleaned)
+    sentences = [p.strip() for p in sentence_parts if p and p.strip()]
+    if not sentences:
+        return '', cleaned
+
+    if len(sentences) == 1:
+        return sentences[0], ''
+
+    definition = ' '.join(sentences[:2]).strip()
+    explanation = ' '.join(sentences[2:]).strip()
+    return definition, explanation or cleaned
+
+
 def call_gpt(prompt_text, model=DEFAULT_GPT_MODEL):
     """OpenAI GPT API 호출 (용어 설명용)."""
     if not GPT_AVAILABLE:

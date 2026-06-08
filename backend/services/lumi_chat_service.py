@@ -53,7 +53,7 @@ FAQ_DATA: list[dict[str, Any]] = [
             "한 종목에 올인하지 않고 여러 곳에 나눠 담는 거예요, 그게 분산투자! "
             "보통 10~20개 정도로 나눠 본다고 생각하면 이해하기 쉬워요."
         ),
-        "mood": "info",
+        "mood": "studying",
     },
     {
         "keywords": ["매수", "매도", "타이밍", "언제"],
@@ -61,7 +61,7 @@ FAQ_DATA: list[dict[str, Any]] = [
             "언제 사고팔지 맞추려다 지칠 수 있어요. 장기로 보면서 "
             "매달 조금씩 넣는 것도 괜찮고, 좋은 회사면 단기 흔들림에 덜 놀라게 돼요."
         ),
-        "mood": "info",
+        "mood": "idea",
     },
     {
         "keywords": ["손절", "손실", "하락"],
@@ -85,7 +85,7 @@ FAQ_DATA: list[dict[str, Any]] = [
             "기술적 분석은 과거 가격 패턴을 보는 방법이에요. 이동평균·RSI 등을 쓰지만 "
             "재무·뉴스 같은 기본 분석과 함께 보는 게 좋아요."
         ),
-        "mood": "info",
+        "mood": "studying",
     },
     {
         "keywords": ["재무제표", "기본적분석", "펀더멘털", "per", "pbr"],
@@ -101,7 +101,7 @@ FAQ_DATA: list[dict[str, Any]] = [
             "ETF는 여러 종목을 한 번에 담은 상품이라 초보자에게도 편해요. "
             "KOSPI200·S&P500 같은 지수 추종 상품부터 알아보고, 수수료도 비교해 보세요."
         ),
-        "mood": "success",
+        "mood": "excited",
     },
     {
         "keywords": ["세금", "양도소득", "배당소득"],
@@ -131,7 +131,21 @@ FALLBACK_ANSWER = (
     "주식 시작·분산투자·손절·배당·ETF·세금·사이트 쓰는 법처럼 다시 물어봐 줄래요?"
 )
 
-VALID_MOODS = frozenset({"welcome", "info", "success", "caution", "wink"})
+VALID_MOODS = frozenset({
+    "welcome",
+    "info",
+    "success",
+    "happy",
+    "excited",
+    "caution",
+    "wink",
+    "curious",
+    "idea",
+    "studying",
+    "struggling",
+    "sleepy",
+    "chart",
+})
 
 
 def _normalize_mood(raw: str | None, default: str = "info") -> str:
@@ -159,6 +173,22 @@ def _guess_mood_from_text(text: str) -> str:
     if any(
         w in t
         for w in (
+            "못 찾",
+            "실패",
+            "오류",
+            "미안",
+            "모르",
+            "곤란",
+            "확실히 말",
+            "다시 시도",
+            "없어요",
+            "불러오지",
+        )
+    ):
+        return "struggling"
+    if any(
+        w in t
+        for w in (
             "주의",
             "위험",
             "손실",
@@ -178,22 +208,43 @@ def _guess_mood_from_text(text: str) -> str:
         for w in (
             "축하",
             "잘했",
-            "좋아",
-            "좋은",
-            "도움",
-            "성공",
-            "응원",
             "화이팅",
-            "괜찮",
+            "응원",
+            "성공",
             "쉬워",
-            "추천",
+            "멋져",
+            "대단",
         )
     ):
-        return "success"
+        return "excited"
+    if any(w in t for w in ("좋아", "괜찮", "도움", "행복", "기쁘", "편해")):
+        return "happy"
+    if any(w in t for w in ("팁", "아이디어", "기억해", "한 가지", "포인트")):
+        return "idea"
     if any(w in t for w in ("안녕", "반가", "소개", "루미", "처음", "만나")):
         return "welcome"
-    if any(w in t for w in ("ㅎ", "헤", "재미", "농담", "친구", "고마", "같이")):
+    if any(w in t for w in ("ㅎ", "헤", "재미", "농담", "친구", "고마", "편하게")):
         return "wink"
+    if any(w in t for w in ("궁금", "어떻게", "뭐예요", "뭐야", "알려", "질문")):
+        return "curious"
+    if any(
+        w in t
+        for w in (
+            "설명",
+            "개념",
+            "per",
+            "pbr",
+            "roe",
+            "차트",
+            "분석",
+            "배우",
+            "익혀",
+            "공부",
+        )
+    ):
+        return "studying"
+    if any(w in t for w in ("종목", "주가", "시세", "현재가", "코스피", "코스닥")):
+        return "chart"
     return "info"
 
 
@@ -302,12 +353,20 @@ def _build_system_prompt(page_hint: str | None) -> str:
         "- 수치·날짜·법률·세금 정보는 '참고용'임을 명시하고 단정 짓지 마.\n"
         "[표정 mood — reply 내용과 맞게 하나만]\n"
         "- welcome: 인사·첫만남·사이트 소개\n"
-        "- info: 일반 설명·개념·차분한 답변\n"
-        "- success: 응원·긍정·잘하고 있어요·추천 팁\n"
-        "- caution: 손실·리스크·세금·조심·주의 (진지한 투자 주의)\n"
-        "- wink: 가벼운 농담·친근한 마무리·응원 눈웃음·짧은 일상 대화\n"
+        "- info: 일반 설명·차분한 답변\n"
+        "- studying: 개념·용어·차트·분석 등 공부 설명\n"
+        "- curious: 질문 유도·궁금증·탐색\n"
+        "- idea: 팁·한 가지 기억할 포인트\n"
+        "- success: 목표 달성·잘 이해했을 때\n"
+        "- happy: 긍정·편안한 격려\n"
+        "- excited: 응원·화이팅·신나는 마무리\n"
+        "- caution: 손실·리스크·세금·조심 (진지한 투자 주의)\n"
+        "- struggling: 모르겠음·찾지 못함·답하기 곤란\n"
+        "- wink: 가벼운 농담·친근한 마무리·짧은 일상 대화\n"
+        "- chart: 종목·시세·지수·현재가 관련\n"
+        "- sleepy: 확실하지 않거나 짧게 넘길 때\n"
         "[출력 형식]\n"
-        "- JSON 한 개만: {\"reply\":\"본문\", \"mood\":\"welcome|info|success|caution|wink\"}\n"
+        "- JSON 한 개만: {\"reply\":\"본문\", \"mood\":\"welcome|info|studying|curious|idea|success|happy|excited|caution|struggling|wink|chart|sleepy\"}\n"
         "- reply 안에서 단락을 나눌 때는 \\n\\n을 사용해. (예: '첫 설명이야.\\n\\n두 번째 포인트야.')\n"
     )
 
@@ -345,7 +404,7 @@ def build_reply(
         faq = _faq_match(msg)
         if faq:
             return faq
-        return {"text": FALLBACK_ANSWER, "mood": "info", "source": "local"}
+        return {"text": FALLBACK_ANSWER, "mood": "struggling", "source": "local"}
 
     if use_gpt and GPT_AVAILABLE:
         messages: list[dict[str, str]] = [{"role": "system", "content": _build_system_prompt(page_hint)}]
@@ -368,7 +427,7 @@ def build_reply(
     faq = _faq_match(msg)
     if faq:
         return faq
-    return {"text": FALLBACK_ANSWER, "mood": "info", "source": "faq-fallback"}
+    return {"text": FALLBACK_ANSWER, "mood": "struggling", "source": "faq-fallback"}
 
 
 def _thread_title_from_message(message: str, max_len: int = 48) -> str:
