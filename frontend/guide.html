@@ -9,302 +9,10 @@
 <link rel="apple-touch-icon" sizes="180x180" href="assets/brand/apple-touch-icon.png?v=20260607">
 <title>주식 학습 가이드 - 주린닷컴</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=20260438">
+<link rel="stylesheet" href="css/style.css?v=20260613">
+<link rel="stylesheet" href="css/guide.css?v=20260613">
+<link rel="stylesheet" href="css/lumi-con.css?v=20260623">
 <script src="js/auth-nav-boot.js"></script>
-<style>
-  /* 홈·시장과 동일: body 전역 min-width 1280 + overflow-x, 세로는 문서 스크롤 */
-  body.guide-page {
-    margin: 0;
-    background: radial-gradient(circle at 10% 0%, rgba(47, 143, 95, 0.08), transparent 40%), #fff;
-  }
-
-  main.guide-page {
-    padding-top: 16px;
-    box-sizing: border-box;
-  }
-
-  .guide-layout-shell {
-    min-width: 1280px;
-    width: 100%;
-    box-sizing: border-box;
-  }
-
-  /* 가이드: 튜토리얼 설명·가이드 연습은 MascotCoach 말풍선만, 좌하단 도크·챗봇 없음 */
-  body.guide-page #mascotCoachDock {
-    display: none !important;
-  }
-  .guide-wrap {
-    max-width: 1100px;
-    margin: 0 auto;
-    padding: 24px 24px 32px;
-    box-sizing: border-box;
-  }
-  .guide-head h1 {
-    font-size: 32px;
-    color: var(--text-primary);
-    margin-bottom: 8px;
-  }
-  .guide-head p {
-    color: #4b6658;
-    font-weight: 600;
-    margin-bottom: 24px;
-    line-height: 1.5;
-  }
-  .guide-head-subtitle.is-hidden {
-    display: none;
-    margin-bottom: 0;
-  }
-  .guide-head-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    margin-bottom: 18px;
-  }
-  .guide-mission-status {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    border: 1px solid rgba(47, 143, 95, 0.24);
-    border-radius: 999px;
-    background: #f6fcf8;
-    color: #2e5643;
-    font-size: 13px;
-    font-weight: 700;
-    padding: 7px 12px;
-  }
-  .guide-mission-progress {
-    color: var(--accent);
-    font-family: 'DM Mono', monospace;
-    font-size: 12px;
-    font-weight: 800;
-  }
-  .guide-progress-inline {
-    display: inline-flex;
-    align-items: center;
-    gap: 10px;
-    border: 1px solid rgba(47, 143, 95, 0.24);
-    border-radius: 999px;
-    background: #f6fcf8;
-    padding: 7px 12px;
-    min-width: min(100%, 340px);
-  }
-  .guide-progress-label {
-    font-size: 12px;
-    font-weight: 800;
-    color: #2e5643;
-    white-space: nowrap;
-  }
-  .guide-progress-bar {
-    flex: 1;
-    min-width: 110px;
-    height: 10px;
-    border-radius: 999px;
-    background: #e5f1e9;
-    overflow: hidden;
-  }
-  .guide-progress-bar > span {
-    display: block;
-    width: 0%;
-    height: 100%;
-    background: linear-gradient(90deg, #2f8f5f, #63be8b);
-    transition: width 0.28s ease;
-  }
-  .guide-progress-value {
-    font-size: 12px;
-    font-weight: 900;
-    color: #1f6b45;
-    min-width: 40px;
-    text-align: right;
-  }
-  .guide-steps {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-    gap: 14px;
-  }
-  .guide-card {
-    border: 1px solid rgba(47, 143, 95, 0.18);
-    border-radius: 14px;
-    background: #fff;
-    padding: 16px;
-  }
-  .guide-card h3 {
-    font-size: 18px;
-    color: var(--text-primary);
-    margin-bottom: 8px;
-  }
-  .guide-card p {
-    font-size: 14px;
-    color: #4b6658;
-    line-height: 1.55;
-    min-height: 68px;
-  }
-  .guide-card button {
-    margin-top: 12px;
-  }
-  .guide-checklist {
-    margin-top: 10px;
-    border: 1px solid rgba(47, 143, 95, 0.18);
-    border-radius: 10px;
-    background: #f8fcf9;
-    padding: 10px;
-    display: grid;
-    gap: 8px;
-  }
-  .guide-check-item {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 13px;
-    color: #355645;
-  }
-  .guide-check-item input {
-    accent-color: #2f8f5f;
-    width: 14px;
-    height: 14px;
-  }
-  .guide-term-list {
-    list-style: none;
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 8px;
-  }
-  .guide-term-list li {
-    border: 1px solid rgba(47, 143, 95, 0.16);
-    border-radius: 10px;
-    padding: 9px 10px;
-    background: #ffffff;
-    font-size: 13px;
-    color: #355645;
-    line-height: 1.5;
-  }
-  .guide-term-list strong {
-    color: #1f2f26;
-  }
-  .guide-card.is-locked {
-    opacity: 0.66;
-    position: relative;
-  }
-  .guide-card.is-locked::after {
-    content: '잠금';
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    font-size: 11px;
-    font-weight: 800;
-    color: #7b5f17;
-    background: #fff5d8;
-    border: 1px solid rgba(123, 95, 23, 0.3);
-    border-radius: 999px;
-    padding: 2px 8px;
-  }
-  .guide-card.is-current {
-    border-color: rgba(47, 143, 95, 0.5);
-    box-shadow: 0 10px 26px rgba(47, 143, 95, 0.14);
-  }
-  .guide-mode-landing {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    min-height: calc(100vh - 64px - 48px);
-    padding: 16px;
-    box-sizing: border-box;
-  }
-  .guide-mode-landing.is-hidden {
-    display: none !important;
-  }
-  .guide-mode-title {
-    font-size: clamp(26px, 4.5vw, 38px);
-    font-weight: 900;
-    color: var(--text-primary);
-    margin: 0 0 36px;
-    letter-spacing: -0.02em;
-  }
-  .guide-mode-choices {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 20px;
-    justify-content: center;
-    width: 100%;
-    max-width: 720px;
-  }
-  .guide-mode-pick {
-    flex: 1 1 260px;
-    max-width: 340px;
-    min-height: 200px;
-    padding: 28px 24px 32px;
-    border-radius: 20px;
-    border: 2px solid rgba(47, 143, 95, 0.28);
-    background: #fff;
-    box-shadow: 0 14px 40px rgba(31, 107, 69, 0.08);
-    font-family: inherit;
-    cursor: pointer;
-    text-align: center;
-    transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
-  }
-  .guide-mode-pick:hover {
-    border-color: rgba(47, 143, 95, 0.5);
-    background: #f8fdf9;
-    box-shadow: 0 18px 48px rgba(31, 107, 69, 0.12);
-    transform: translateY(-2px);
-  }
-  .guide-mode-pick:focus {
-    outline: none;
-    box-shadow: 0 0 0 3px rgba(47, 143, 95, 0.35), 0 14px 40px rgba(31, 107, 69, 0.08);
-  }
-  .guide-mode-pick-title {
-    display: block;
-    font-size: clamp(28px, 5vw, 40px);
-    font-weight: 900;
-    color: #1f2f26;
-    margin-bottom: 10px;
-    letter-spacing: -0.02em;
-  }
-  .guide-mode-pick-desc {
-    display: block;
-    font-size: 14px;
-    font-weight: 600;
-    color: #4b6658;
-    line-height: 1.55;
-  }
-  .guide-main-content.is-hidden {
-    display: none !important;
-  }
-  .guide-back-row {
-    margin-bottom: 20px;
-  }
-  .guide-back-btn {
-    border: none;
-    background: transparent;
-    color: #2d5a45;
-    font-size: 14px;
-    font-weight: 700;
-    font-family: inherit;
-    cursor: pointer;
-    padding: 6px 0;
-    text-decoration: underline;
-    text-underline-offset: 3px;
-  }
-  .guide-back-btn:hover {
-    color: var(--accent);
-  }
-  .guide-track-panel.is-hidden {
-    display: none !important;
-  }
-  .guide-beta-tag {
-    display: inline-block;
-    margin-left: 6px;
-    font-size: 11px;
-    font-weight: 800;
-    color: #7b5f17;
-    background: #fff5d8;
-    border: 1px solid rgba(123, 95, 23, 0.28);
-    border-radius: 999px;
-    padding: 3px 10px;
-    vertical-align: middle;
-  }
-</style>
 </head>
 <body class="guide-page guide-lumi-session">
 <nav>
@@ -320,7 +28,9 @@
     <li><a href="market-products.html?topic=bonds">채권</a></li>
     <li><a href="glossary.html">용어 검색</a></li>
     <li><a class="jurin-simulation-link" href="http://127.0.0.1:5000/simulation.html">모의 투자</a></li>
-    <li><a href="market.html">시장</a></li>
+    <li><a href="market.html">시장 <span class="nav-badge">LIVE</span></a></li>
+    <li><a href="community.html">커뮤니티</a></li>
+    <li><a href="inquiry.html">문의</a></li>
   </ul>
   <div class="nav-right" data-auth-nav>
     <button type="button" class="btn-ghost" id="navLoginBtn">로그인</button>
@@ -332,320 +42,161 @@
 
 <main class="guide-page">
   <div class="guide-layout-shell">
-  <div class="guide-wrap">
-    <div id="guideModeLanding" class="guide-mode-landing" aria-label="가이드 난이도 선택">
-      <h1 class="guide-mode-title">어디부터 시작할까요?</h1>
-      <div class="guide-mode-choices">
-        <button type="button" class="guide-mode-pick" id="guidePickBeginner" aria-describedby="guidePickBeginnerDesc">
-          <span class="guide-mode-pick-title">초보</span>
-          <span class="guide-mode-pick-desc" id="guidePickBeginnerDesc">주식 입문·기초 전용 코스</span>
-        </button>
-        <button type="button" class="guide-mode-pick" id="guidePickExpert" aria-describedby="guidePickExpertDesc">
-          <span class="guide-mode-pick-title">고수</span>
-          <span class="guide-mode-pick-desc" id="guidePickExpertDesc">차트·그래프 심화 학습 코스</span>
-        </button>
-      </div>
-    </div>
+    <div class="guide-wrap">
 
-    <div id="guideMainContent" class="guide-main-content is-hidden" hidden aria-hidden="true">
-    <div class="guide-back-row">
-      <button type="button" class="guide-back-btn" id="guideBackToMode">← 돌아가기</button>
-    </div>
-    <div class="guide-head">
-      <h1 id="guidePageTitle">초급 학습 가이드</h1>
-      <p id="guidePageSubtitle" class="guide-head-subtitle is-hidden" hidden aria-hidden="true"></p>
-    </div>
-
-    <div id="guideBeginnerPanel" class="guide-track-panel" aria-hidden="false">
-      <div class="guide-head-actions" style="margin-bottom: 18px;">
-        <button type="button" class="btn-primary" id="guideTutorialExplainBtn">튜토리얼 설명</button>
-        <div class="guide-progress-inline" id="guideStepProgressWrap" aria-live="polite">
-          <span class="guide-progress-label">진행도</span>
-          <span class="guide-progress-bar"><span id="guideStepProgressBar"></span></span>
-          <span class="guide-progress-value" id="guideStepProgressValue">0%</span>
+      <div id="guideModeLanding" class="guide-landing" aria-label="가이드 난이도 선택">
+        <div class="guide-landing-grid">
+          <div class="guide-card guide-landing-intro">
+            <div class="guide-hero-left guide-hero-left--landing">
+              <div class="guide-lumi-slot guide-lumi-slot--hero">
+                <img class="guide-lumi-main" data-lumi="intro-landing" alt="" width="210" height="240" decoding="async">
+              </div>
+              <div class="guide-speech">
+                <span class="guide-speech-badge">루미가 알려주는</span>
+                <h2 class="guide-speech-title">주식 투자, 차근차근<br><span>함께 배워봐요!</span></h2>
+                <p class="guide-speech-sub">모든 단계를 완료하면<br>투자의 기초 체력이 탄탄해져요!</p>
+              </div>
+            </div>
+          </div>
+          <div class="guide-card guide-landing-choices">
+            <h1 class="guide-landing-choices-title">어디부터 시작할까요?</h1>
+            <div class="guide-mode-choices">
+              <button type="button" class="guide-mode-pick" id="guidePickBeginner" aria-describedby="guidePickBeginnerDesc">
+                <span class="guide-mode-pick-title">초보</span>
+                <span class="guide-mode-pick-desc" id="guidePickBeginnerDesc">주식 입문·기초 전용 코스</span>
+              </button>
+              <button type="button" class="guide-mode-pick" id="guidePickExpert" aria-describedby="guidePickExpertDesc">
+                <span class="guide-mode-pick-title">고수</span>
+                <span class="guide-mode-pick-desc" id="guidePickExpertDesc">차트 심화·전략 전용 코스</span>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
-      <div class="guide-steps">
-        <section class="guide-card" data-step="1">
-          <h3>1단계: 시세 읽기</h3>
-          <p>지수·필터로 오늘 시장을 보고, 상세 카드에서 <strong>거래량·거래대금</strong>까지 익힌 뒤 뉴스·수급으로 이어집니다.</p>
-          <button class="btn-primary" type="button" onclick="try{sessionStorage.setItem('jurin:guide-lumi-session','1')}catch(e){}location.href='주린닷컴홈피.html?tutorial=step1'">1단계 시작</button>
-        </section>
-        <section class="guide-card" data-step="2">
-          <h3>2단계: 차트 기초</h3>
-          <p>삼성전자 차트로 <strong>일·주·월·년</strong> 봉과 <strong>봉·거래량</strong> 읽기.</p>
-          <button class="btn-primary" type="button" onclick="try{sessionStorage.setItem('jurin:guide-lumi-session','1')}catch(e){}location.href='market.html?tutorial=step2'">2단계 시작</button>
-        </section>
-        <section class="guide-card" data-step="3">
-          <h3>3단계: 종목 가치</h3>
-          <p>가치 비교·재무 성과·재무상태표 <strong>칩을 왼쪽부터</strong> 차트로 읽으며, PER·매출·부채 등으로 <strong>숫자 근거</strong>로 종목 가치를 보는 단계입니다.</p>
-          <button class="btn-primary" type="button" onclick="try{sessionStorage.setItem('jurin:guide-lumi-session','1')}catch(e){}location.href='market.html?tutorial=step3'">3단계 시작</button>
-        </section>
-        <section class="guide-card" data-step="4">
-          <h3>4단계: 시장 종류</h3>
-          <p>ETF·섹터·테마의 차이와 ELW·채권 기초 개념을 익혀, 상품 성격에 맞는 선택 기준을 만듭니다.</p>
-          <button class="btn-ghost" type="button" onclick="try{sessionStorage.setItem('jurin:guide-lumi-session','1')}catch(e){}location.href='market-products.html?topic=elw'">ELW 알아보기</button>
-        </section>
-        <section class="guide-card" data-step="5">
-          <h3>5단계: 나의 첫 투자</h3>
-          <p>모의투자로 <strong>차트·시세·호가</strong>를 보며 <strong>지정가 매수</strong> 흐름을 익힙니다. 로그인 후 시작.</p>
-          <button class="btn-primary" type="button" onclick="try{sessionStorage.setItem('jurin:guide-lumi-session','1')}catch(e){}location.href='simulation.html?tutorial=step5'">5단계 시작</button>
-        </section>
-      </div>
-    </div>
 
-    <div id="guideExpertPanel" class="guide-track-panel is-hidden" hidden aria-hidden="true">
-      <div class="guide-steps" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));">
-        <section class="guide-card guide-card--expert-beta">
-          <h3>1단계 <span class="guide-beta-tag">베타버전</span></h3>
-          <p>고급 학습·심화 전략 코스를 준비 중입니다. 베타 기간에는 1단계만 열려 있으며, 이후 단계가 순차 공개됩니다.</p>
-          <button type="button" class="btn-ghost" onclick="try{sessionStorage.setItem('jurin:guide-lumi-session','1')}catch(e){}location.href='market.html'">시장 화면에서 심화 보기</button>
-        </section>
+      <div id="guideMainContent" class="guide-main-content is-hidden" hidden aria-hidden="true">
+        <div class="guide-toolbar">
+          <div class="guide-toolbar-left">
+            <button type="button" class="guide-back-btn" id="guideBackToMode" aria-label="돌아가기"><span aria-hidden="true">←</span></button>
+            <div>
+              <h1 class="guide-track-title" id="guideTrackTitle">초급 학습 가이드</h1>
+              <p class="guide-track-subtitle is-hidden" id="guideTrackSubtitle" hidden></p>
+            </div>
+          </div>
+          <button type="button" class="btn-primary" id="guideTutorialExplainBtn">튜토리얼 설명</button>
+        </div>
+
+        <div id="guideBeginnerPanel" class="guide-track-panel guide-dashboard" aria-hidden="false">
+          <section class="guide-hero">
+            <div class="guide-card guide-hero-left guide-hero-left--decorated">
+              <div class="guide-hero-grass" aria-hidden="true">
+                <img class="guide-hero-grass__item guide-hero-grass__item--1" src="assets/mascot2/misc/effect-1.png?v=20260607z" alt="" width="200" height="58" decoding="sync" loading="eager">
+                <img class="guide-hero-grass__item guide-hero-grass__item--2" src="assets/mascot2/misc/effect-2.png?v=20260607z" alt="" width="248" height="66" decoding="sync" loading="eager">
+              </div>
+              <div class="guide-hero-inner">
+                <div class="guide-hero-character">
+                  <div class="guide-lumi-slot guide-lumi-slot--hero guide-lumi-slot--decorated">
+                    <div class="guide-lumi-fx" aria-hidden="true">
+                      <img class="guide-lumi-fx-spark guide-lumi-fx-spark--1" src="assets/mascot2/misc/sparkling.png?v=20260607m" alt="" width="56" height="56" decoding="async">
+                    </div>
+                    <img class="guide-lumi-main" data-lumi="intro-hero" alt="" width="216" height="240" decoding="sync" loading="eager">
+                  </div>
+                  <div class="guide-speech">
+                    <span class="guide-speech-badge">5단계 학습 코스</span>
+                    <h2 class="guide-speech-title">오늘은 <span>어디까지 할까요?</span></h2>
+                    <p class="guide-speech-sub">왼쪽 단계를 골라 바로 시작해요.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="guide-card guide-progress-card">
+              <div class="guide-progress-inner">
+                <div class="guide-progress-stats">
+                  <p class="guide-progress-label">전체 진행도</p>
+                  <div class="guide-progress-percent" id="guideBeginnerProgressPercent">0%</div>
+                  <p class="guide-progress-count" id="guideBeginnerProgressCount">0 / 5 단계 완료</p>
+                </div>
+                <div class="guide-timeline" id="guideBeginnerTimeline" aria-label="학습 단계 타임라인"></div>
+              </div>
+              <div class="guide-reward-bar">
+                <span class="guide-reward-text"><span class="guide-info-icon guide-info-icon--svg guide-reward-icon" aria-hidden="true"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg></span> 모든 단계를 완료하면 루미가 특별한 선물을 준비했어요!</span>
+                <button type="button" class="guide-reward-btn" id="guideRewardPreviewBtn" title="루미콘 보상 미리보기">보상 미리보기 →</button>
+              </div>
+            </div>
+          </section>
+          <section class="guide-content">
+            <aside class="guide-card guide-step-sidebar">
+              <h2 class="guide-step-sidebar-title">학습 단계</h2>
+              <ul class="guide-step-nav" id="guideBeginnerStepNav" role="list"></ul>
+              <div class="guide-growth-tip">
+                <div class="guide-lumi-slot guide-lumi-slot--small">
+                  <img class="guide-lumi-small" data-lumi="growth" alt="" width="54" height="54" decoding="async">
+                </div>
+                <span>단계를 하나씩 완료할 때마다<br>루미가 성장해요!</span>
+              </div>
+            </aside>
+            <section class="guide-card guide-step-detail" id="guideBeginnerStepDetail" aria-live="polite"></section>
+          </section>
+        </div>
+
+        <div id="guideExpertPanel" class="guide-track-panel guide-dashboard is-hidden" hidden aria-hidden="true">
+          <section class="guide-hero">
+            <div class="guide-card guide-hero-left guide-hero-left--decorated">
+              <div class="guide-hero-grass" aria-hidden="true">
+                <img class="guide-hero-grass__item guide-hero-grass__item--1" src="assets/mascot2/misc/effect-1.png?v=20260607z" alt="" width="200" height="58" decoding="sync" loading="eager">
+                <img class="guide-hero-grass__item guide-hero-grass__item--2" src="assets/mascot2/misc/effect-2.png?v=20260607z" alt="" width="248" height="66" decoding="sync" loading="eager">
+              </div>
+              <div class="guide-hero-inner">
+                <div class="guide-hero-character">
+                  <div class="guide-lumi-slot guide-lumi-slot--hero guide-lumi-slot--decorated">
+                    <div class="guide-lumi-fx" aria-hidden="true">
+                      <img class="guide-lumi-fx-spark guide-lumi-fx-spark--1" src="assets/mascot2/misc/sparkling.png?v=20260607m" alt="" width="56" height="56" decoding="async">
+                    </div>
+                    <img class="guide-lumi-main" data-lumi="intro-hero" alt="" width="216" height="240" decoding="sync" loading="eager">
+                  </div>
+                  <div class="guide-speech">
+                    <span class="guide-speech-badge">2단계 학습 코스</span>
+                    <h2 class="guide-speech-title">오늘은 <span>어디까지 할까요?</span></h2>
+                    <p class="guide-speech-sub">왼쪽 단계를 골라 바로 시작해요.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="guide-card guide-progress-card">
+              <div class="guide-progress-inner">
+                <div class="guide-progress-stats">
+                  <p class="guide-progress-label">전체 진행도</p>
+                  <div class="guide-progress-percent" id="guideExpertProgressPercent">0%</div>
+                  <p class="guide-progress-count" id="guideExpertProgressCount">0 / 2 단계 완료</p>
+                </div>
+                <div class="guide-timeline" id="guideExpertTimeline" aria-label="고수 코스 타임라인"></div>
+              </div>
+            </div>
+          </section>
+          <section class="guide-content">
+            <aside class="guide-card guide-step-sidebar">
+              <h2 class="guide-step-sidebar-title">학습 단계</h2>
+              <ul class="guide-step-nav" id="guideExpertStepNav" role="list"></ul>
+              <div class="guide-growth-tip">
+                <div class="guide-lumi-slot guide-lumi-slot--small">
+                  <img class="guide-lumi-small" data-lumi="growth" alt="" width="54" height="54" decoding="async">
+                </div>
+                <span>단계를 하나씩 완료할 때마다<br>루미가 성장해요!</span>
+              </div>
+            </aside>
+            <section class="guide-card guide-step-detail" id="guideExpertStepDetail" aria-live="polite"></section>
+          </section>
+        </div>
       </div>
     </div>
-    </div>
-  </div>
   </div>
 </main>
 <script src="js/api-base.js"></script>
-<script src="js/mascot-coach.js?v=20260450"></script>
+<script src="js/mascot-coach.js?v=20260613"></script>
+<script src="js/user-avatar.js"></script>
 <script src="js/common-auth.js"></script>
-<script>
-  (function () {
-    var explainBtn = document.getElementById('guideTutorialExplainBtn');
-    var progressBar = document.getElementById('guideStepProgressBar');
-    var progressValue = document.getElementById('guideStepProgressValue');
-    var landingEl = document.getElementById('guideModeLanding');
-    var mainContentEl = document.getElementById('guideMainContent');
-    var backToModeBtn = document.getElementById('guideBackToMode');
-    var pickBeginnerBtn = document.getElementById('guidePickBeginner');
-    var pickExpertBtn = document.getElementById('guidePickExpert');
-    var beginnerPanel = document.getElementById('guideBeginnerPanel');
-    var expertPanel = document.getElementById('guideExpertPanel');
-    var subtitleEl = document.getElementById('guidePageSubtitle');
-    var titleEl = document.getElementById('guidePageTitle');
-    /** 레거시 키·이전 마스크와 섞이지 않도록 별도 저장 (실제 클리어만 반영) */
-    var TUTORIAL_MASK_KEY = 'jurinGuideTutorialBits';
-    var TOTAL_GUIDE_TUTORIAL_STEPS = 5;
-    var introIdx = 0;
-    var introActive = false;
-
-    var SUB_EXPERT = '고급 코스는 베타로 단계적으로 열립니다. 지금은 1단계(베타)만 이용할 수 있어요.';
-
-    /** 5단계 각각 클리어 시에만 % 반영. 예전 localStorage 플래그는 읽지 않음(잘못된 20% 방지). */
-    function readTutorialBitsMask() {
-      try {
-        var raw = localStorage.getItem(TUTORIAL_MASK_KEY);
-        if (raw !== null && raw !== '') {
-          var m = parseInt(raw, 10);
-          return isNaN(m) ? 0 : Math.min(31, Math.max(0, m));
-        }
-        localStorage.setItem(TUTORIAL_MASK_KEY, '0');
-        return 0;
-      } catch (e) {
-        return 0;
-      }
-    }
-
-    function markGuideTutorialStep(step1based) {
-      if (step1based < 1 || step1based > TOTAL_GUIDE_TUTORIAL_STEPS) return;
-      try {
-        var mask = readTutorialBitsMask();
-        mask |= 1 << (step1based - 1);
-        localStorage.setItem(TUTORIAL_MASK_KEY, String(mask));
-      } catch (e) { /* ignore */ }
-      renderGuideProgress();
-    }
-
-    function renderGuideProgress() {
-      var mask = readTutorialBitsMask();
-      var cleared = 0;
-      for (var i = 0; i < TOTAL_GUIDE_TUTORIAL_STEPS; i++) {
-        if (mask & (1 << i)) cleared += 1;
-      }
-      var percent = Math.round((cleared / TOTAL_GUIDE_TUTORIAL_STEPS) * 100);
-      if (progressBar) progressBar.style.width = percent + '%';
-      if (progressValue) progressValue.textContent = percent + '%';
-    }
-
-    function syncGuidePageScroll() {
-      var onLanding = landingEl && !landingEl.classList.contains('is-hidden');
-      document.body.classList.toggle('guide-showing-landing', !!onLanding);
-    }
-
-    function showModeLanding() {
-      if (landingEl) {
-        landingEl.classList.remove('is-hidden');
-        landingEl.removeAttribute('hidden');
-        landingEl.setAttribute('aria-hidden', 'false');
-      }
-      if (mainContentEl) {
-        mainContentEl.classList.add('is-hidden');
-        mainContentEl.setAttribute('hidden', '');
-        mainContentEl.setAttribute('aria-hidden', 'true');
-      }
-      syncGuidePageScroll();
-    }
-
-    /**
-     * 메인 영역 안에서 초보/고수 패널 전환 (랜딩은 이미 숨긴 뒤 호출)
-     */
-    function setGuideTrack(track) {
-      var isBeginner = track === 'beginner';
-      if (beginnerPanel) {
-        beginnerPanel.classList.toggle('is-hidden', !isBeginner);
-        if (isBeginner) {
-          beginnerPanel.removeAttribute('hidden');
-          beginnerPanel.setAttribute('aria-hidden', 'false');
-        } else {
-          beginnerPanel.setAttribute('hidden', '');
-          beginnerPanel.setAttribute('aria-hidden', 'true');
-        }
-      }
-      if (expertPanel) {
-        expertPanel.classList.toggle('is-hidden', isBeginner);
-        if (isBeginner) {
-          expertPanel.setAttribute('hidden', '');
-          expertPanel.setAttribute('aria-hidden', 'true');
-        } else {
-          expertPanel.removeAttribute('hidden');
-          expertPanel.setAttribute('aria-hidden', 'false');
-        }
-      }
-      if (subtitleEl) {
-        if (isBeginner) {
-          subtitleEl.textContent = '';
-          subtitleEl.classList.add('is-hidden');
-          subtitleEl.setAttribute('hidden', '');
-          subtitleEl.setAttribute('aria-hidden', 'true');
-        } else {
-          subtitleEl.textContent = SUB_EXPERT;
-          subtitleEl.classList.remove('is-hidden');
-          subtitleEl.removeAttribute('hidden');
-          subtitleEl.setAttribute('aria-hidden', 'false');
-        }
-      }
-      if (titleEl) titleEl.textContent = isBeginner ? '초급 학습 가이드' : '고급 학습 가이드';
-      if (isBeginner) {
-        renderGuideProgress();
-      }
-    }
-
-    function openGuideTrack(track) {
-      if (landingEl) {
-        landingEl.classList.add('is-hidden');
-        landingEl.setAttribute('hidden', '');
-        landingEl.setAttribute('aria-hidden', 'true');
-      }
-      if (mainContentEl) {
-        mainContentEl.classList.remove('is-hidden');
-        mainContentEl.removeAttribute('hidden');
-        mainContentEl.setAttribute('aria-hidden', 'false');
-      }
-      setGuideTrack(track);
-      syncGuidePageScroll();
-    }
-
-    if (pickBeginnerBtn) pickBeginnerBtn.addEventListener('click', function () { openGuideTrack('beginner'); });
-    if (pickExpertBtn) pickExpertBtn.addEventListener('click', function () { openGuideTrack('expert'); });
-    if (backToModeBtn) backToModeBtn.addEventListener('click', showModeLanding);
-
-    showModeLanding();
-    syncGuidePageScroll();
-
-    var tutorialIntroSteps = [
-      {
-        mood: 'welcome',
-        title: '주린이 웹이 뭐예요?',
-        text:
-          '「주린이」는 주식 초보를 뜻하는 말이에요. 주린닷컴은 주린이도 부담 없이 시세·용어·분석을 익히도록 만든 웹 서비스예요. 지금 설명하는 건 이 사이트에서 튜토리얼이 어떻게 돌아가는지만 짧게 알려 주는 거예요.',
-      },
-      {
-        mood: 'success',
-        title: '가이드 탭은 뭐 하는 곳이에요?',
-        text:
-          '지금 보고 있는 이 가이드 메뉴는 단계별로 무엇을 배우면 좋은지 정리해 둔 공간이에요. 각 단계 카드에서 바로 연습으로 이어지거나, 글만 읽어도 흐름을 잡을 수 있어요.',
-      },
-      {
-        mood: 'info',
-        title: '튜토리얼은 어떻게 진행되나요?',
-        text:
-          '1단계는 시황판·거래량·거래대금, 2단계는 삼성전자 차트, 3단계는 종목 가치, 4단계는 시장 종류(ETF·ELW·채권), 5단계는 모의투자로 차트·시세·호가와 지정가 매수를 연습해요. 추세·지지·저항은 고수 코스예요.',
-      },
-      {
-        mood: 'success',
-        title: '설명은 여기까지!',
-        text:
-          '이제 가이드 페이지에서 원하는 단계를 골라 학습하면 돼요. 막히면 다시 이 버튼으로 설명을 들어도 되고, 시장·용어 메뉴와도 자연스럽게 이어져요. 화이팅!',
-      },
-    ];
-
-    function resetTutorialIntro() {
-      introIdx = 0;
-      introActive = false;
-    }
-
-    function showTutorialIntroStep() {
-      if (!introActive || !window.MascotCoach || typeof window.MascotCoach.show !== 'function') return;
-      if (introIdx >= tutorialIntroSteps.length) {
-        resetTutorialIntro();
-        window.MascotCoach.close();
-        if (window.MascotCoach.hideDock) window.MascotCoach.hideDock();
-        return;
-      }
-      var step = tutorialIntroSteps[introIdx];
-      var last = introIdx === tutorialIntroSteps.length - 1;
-      window.MascotCoach.show({
-        layout: 'spotlight',
-        mood: step.mood,
-        title: step.title,
-        text: step.text,
-        confirmLabel: last ? '알겠어요' : '확인',
-        onConfirm: function () {
-          introIdx += 1;
-          if (last) {
-            resetTutorialIntro();
-            window.MascotCoach.close();
-            if (window.MascotCoach.hideDock) window.MascotCoach.hideDock();
-            return;
-          }
-          showTutorialIntroStep();
-        },
-        onDismiss: function () {
-          resetTutorialIntro();
-          if (window.MascotCoach.hideDock) window.MascotCoach.hideDock();
-        },
-      });
-    }
-
-    function openTutorialExplain() {
-      introIdx = 0;
-      introActive = true;
-      showTutorialIntroStep();
-    }
-
-    if (explainBtn) {
-      explainBtn.addEventListener('click', openTutorialExplain);
-    }
-
-    renderGuideProgress();
-
-    window.addEventListener('storage', function (e) {
-      if (e.key === TUTORIAL_MASK_KEY) renderGuideProgress();
-    });
-    window.addEventListener('pageshow', function () {
-      renderGuideProgress();
-    });
-
-    document.addEventListener('keydown', function (e) {
-      if (e.key !== 'Escape') return;
-      var root = document.getElementById('mascotCoach');
-      if (!root || !root.classList.contains('mascot-coach--spotlight')) return;
-      if (window.MascotCoach && typeof window.MascotCoach.close === 'function') {
-        window.MascotCoach.close();
-      }
-    });
-  })();
-</script>
+<script src="js/mascot2-assets.js?v=20260608r"></script>
+<script src="js/lumi-con.js?v=20260622"></script>
+<script src="js/guide-page.js?v=20260622"></script>
 </body>
 </html>

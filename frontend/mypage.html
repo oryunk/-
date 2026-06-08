@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
@@ -131,10 +131,6 @@
     font-family: inherit;
   }
   .auth-submit:disabled { opacity: 0.7; cursor: wait; }
-  .auth-form .mypage-google-hint {
-    margin: 4px 0 12px;
-    padding: 0;
-  }
   .mypage-panel[hidden] { display: none !important; }
   .mypage-login-prompt {
     text-align: center;
@@ -152,6 +148,125 @@
     font-weight: 700;
     cursor: pointer;
     font-family: inherit;
+  }
+  .mypage-avatar-section {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 18px;
+    padding-bottom: 18px;
+    border-bottom: 1px solid rgba(47, 143, 95, 0.12);
+  }
+  .mypage-avatar-preview {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    object-fit: cover;
+    object-position: center center;
+    background: #e8ece9;
+    flex-shrink: 0;
+  }
+  .mypage-avatar-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+    flex: 1;
+  }
+  .mypage-avatar-actions button {
+    border: none;
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 13px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+  }
+  .mypage-avatar-upload-btn {
+    background: rgba(47, 143, 95, 0.12);
+    color: var(--accent);
+  }
+  .mypage-avatar-reset-btn {
+    background: #f3f4f3;
+    color: var(--gray-400);
+  }
+  .mypage-avatar-file {
+    display: none;
+  }
+  .mypage-edit-panel.is-google #mypageLoginIdSection,
+  .mypage-edit-panel.is-google #mypagePasswordSection {
+    display: none !important;
+  }
+  .mypage-withdraw-btn {
+    flex-shrink: 0;
+    align-self: center;
+    margin-left: auto;
+    border: none;
+    border-radius: 10px;
+    padding: 10px 14px;
+    background: #e57373;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    line-height: 1.2;
+    white-space: nowrap;
+  }
+  .mypage-withdraw-btn:hover {
+    background: #ef5350;
+  }
+  .mypage-withdraw-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 1200;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(20, 24, 22, 0.45);
+  }
+  .mypage-withdraw-modal.is-open { display: flex; }
+  .mypage-withdraw-panel {
+    width: min(100%, 400px);
+    padding: 24px 22px;
+    border-radius: 18px;
+    background: #fff;
+    box-shadow: 0 20px 50px rgba(31, 47, 38, 0.18);
+  }
+  .mypage-withdraw-panel h2 {
+    font-size: 20px;
+    margin-bottom: 10px;
+    color: #c62828;
+  }
+  .mypage-withdraw-panel p {
+    font-size: 13px;
+    color: var(--gray-400);
+    line-height: 1.5;
+    margin-bottom: 14px;
+  }
+  .mypage-withdraw-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 16px;
+  }
+  .mypage-withdraw-actions button {
+    flex: 1;
+    border: none;
+    border-radius: 12px;
+    padding: 12px 14px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .mypage-withdraw-cancel {
+    background: #f3f4f3;
+    color: var(--gray-400);
+  }
+  .mypage-withdraw-confirm {
+    background: #c62828;
+    color: #fff;
   }
 </style>
 </head>
@@ -197,16 +312,26 @@
       </form>
     </div>
 
-    <div id="mypageEditPanel" class="mypage-panel" hidden>
+    <div id="mypageEditPanel" class="mypage-panel mypage-edit-panel" hidden>
       <div class="auth-kicker">JURIN.COM MY PAGE</div>
       <h1>프로필 수정</h1>
-      <p class="auth-lead">아이디·닉네임·비밀번호를 변경할 수 있습니다.</p>
+      <p class="auth-lead" id="mypageEditLead">아이디·닉네임·비밀번호를 변경할 수 있습니다.</p>
       <form class="auth-form" onsubmit="submitProfileSave(event)" novalidate>
-        <div class="auth-field-group" data-field="loginId">
+        <div class="mypage-avatar-section">
+          <img class="mypage-avatar-preview jurin-user-avatar" id="mypageAvatarPreview" src="assets/profile/default-avatar.svg" alt="프로필 사진" width="72" height="72">
+          <div class="mypage-avatar-actions">
+            <input type="file" class="mypage-avatar-file" id="mypageAvatarFile" accept="image/jpeg,image/png,image/gif,image/webp">
+            <button type="button" class="mypage-avatar-upload-btn" id="mypageAvatarUploadBtn">사진 선택</button>
+            <button type="button" class="mypage-avatar-reset-btn" id="mypageAvatarResetBtn">기본으로 변경</button>
+          </div>
+          <button type="button" class="mypage-withdraw-btn" id="mypageWithdrawOpenBtn">탈퇴</button>
+        </div>
+        <div class="auth-field-error" id="mypageErrorAvatar" role="alert"></div>
+        <div class="auth-field-group" data-field="loginId" id="mypageLoginIdSection">
           <div class="auth-field-line">
             <label class="auth-field-label" for="mypageLoginId">아이디</label>
             <div class="auth-field-control">
-              <input type="text" class="auth-input" id="mypageLoginId" maxlength="12" autocomplete="username" required>
+              <input type="text" class="auth-input" id="mypageLoginId" maxlength="12" autocomplete="username">
             </div>
           </div>
           <div class="auth-field-error" id="mypageErrorLoginId" role="alert"></div>
@@ -231,7 +356,6 @@
             <div class="auth-field-error" id="mypageErrorPasswordConfirm" role="alert"></div>
           </div>
         </div>
-        <p class="auth-lead mypage-google-hint" id="mypageGoogleHint" hidden>Google 로그인 계정은 비밀번호를 변경할 수 없습니다.</p>
         <div class="auth-field-group" data-field="nickname">
           <div class="auth-field-line">
             <label class="auth-field-label" for="mypageNickname">닉네임</label>
@@ -250,7 +374,29 @@
   </div>
 </div>
 
+<div class="mypage-withdraw-modal" id="mypageWithdrawModal" aria-hidden="true">
+  <div class="mypage-withdraw-panel" role="dialog" aria-modal="true" aria-labelledby="mypageWithdrawTitle">
+    <h2 id="mypageWithdrawTitle">정말 탈퇴하시겠습니까?</h2>
+    <p>탈퇴하면 계정 정보와 활동 데이터가 모두 삭제됩니다. 이 작업은 되돌릴 수 없습니다.</p>
+    <div class="auth-field-group" data-field="withdrawPassword" id="mypageWithdrawPasswordSection" hidden>
+      <div class="auth-field-line">
+        <label class="auth-field-label" for="mypageWithdrawPassword">비밀번호</label>
+        <div class="auth-field-control">
+          <input type="password" class="auth-input" id="mypageWithdrawPassword" placeholder="본인 확인용 비밀번호" autocomplete="current-password">
+        </div>
+      </div>
+      <div class="auth-field-error" id="mypageErrorWithdrawPassword" role="alert"></div>
+    </div>
+    <div class="auth-field-error" id="mypageErrorWithdrawForm" role="alert"></div>
+    <div class="mypage-withdraw-actions">
+      <button type="button" class="mypage-withdraw-cancel" id="mypageWithdrawCancelBtn">취소</button>
+      <button type="button" class="mypage-withdraw-confirm" id="mypageWithdrawConfirmBtn">탈퇴하기</button>
+    </div>
+  </div>
+</div>
+
 <script src="js/api-base.js"></script>
+<script src="js/user-avatar.js"></script>
 <script src="js/password-rules.js"></script>
 <script src="js/login-id-rules.js"></script>
 <script src="js/nickname-rules.js"></script>
@@ -259,6 +405,12 @@
   const API_BASE = window.JURIN_API_BASE || 'http://localhost:5000';
   let currentUserId = null;
   let canChangePassword = true;
+  let canChangeLoginId = true;
+  let currentAvatarUrl = null;
+  let savedUserSnapshot = null;
+  let pendingAvatarFile = null;
+  let pendingAvatarReset = false;
+  let pendingAvatarBlobUrl = null;
   let loginIdCheckSeq = 0;
   let nicknameCheckSeq = 0;
   let loginIdDebounceTimer = null;
@@ -278,6 +430,21 @@
     nickname: 'mypageErrorNickname',
     form: 'mypageErrorEditForm',
   };
+
+  function validatePasswordRules(password) {
+    if (typeof jurinValidatePassword !== 'function') return { ok: true, message: '' };
+    return jurinValidatePassword(password);
+  }
+
+  function validateLoginIdFormat(loginId) {
+    if (typeof jurinValidateLoginId !== 'function') return { ok: true, message: '' };
+    return jurinValidateLoginId(loginId);
+  }
+
+  function validateNicknameFormat(nickname) {
+    if (typeof jurinValidateNickname !== 'function') return { ok: true, message: '' };
+    return jurinValidateNickname(nickname);
+  }
 
   function setPanelError(map, key, message, type) {
     const id = map[key];
@@ -319,17 +486,93 @@
     if (user) fillEditForm(user);
   }
 
+  function clearPendingAvatarBlob() {
+    if (pendingAvatarBlobUrl) {
+      URL.revokeObjectURL(pendingAvatarBlobUrl);
+      pendingAvatarBlobUrl = null;
+    }
+  }
+
+  function clearPendingAvatarState() {
+    clearPendingAvatarBlob();
+    pendingAvatarFile = null;
+    pendingAvatarReset = false;
+  }
+
+  function getDefaultAvatarPreviewUrl(user) {
+    const url = (user && user.defaultAvatarUrl) || (typeof JURIN_DEFAULT_AVATAR !== 'undefined' ? JURIN_DEFAULT_AVATAR : 'assets/profile/default-avatar.svg');
+    return typeof jurinAvatarSrc === 'function' ? jurinAvatarSrc(url) : url;
+  }
+
+  function hasPendingAvatarChange() {
+    return !!pendingAvatarFile || pendingAvatarReset;
+  }
+
+  function updateAvatarPreviewFromState() {
+    const preview = document.getElementById('mypageAvatarPreview');
+    if (!preview) return;
+    const user = savedUserSnapshot || {};
+    const displayName = user.nickname || user.loginId || '사용자';
+    preview.alt = displayName + ' 프로필';
+    preview.onerror = function () {
+      this.onerror = null;
+      this.src = typeof JURIN_DEFAULT_AVATAR !== 'undefined' ? JURIN_DEFAULT_AVATAR : 'assets/profile/default-avatar.svg';
+    };
+
+    if (pendingAvatarBlobUrl) {
+      preview.src = pendingAvatarBlobUrl;
+      preview.style.objectFit = 'cover';
+      preview.style.objectPosition = 'center center';
+      return;
+    }
+    if (pendingAvatarReset) {
+      preview.src = getDefaultAvatarPreviewUrl(user);
+      return;
+    }
+
+    if (user.hasCustomAvatar === false && user.defaultAvatarUrl) {
+      preview.src = getDefaultAvatarPreviewUrl(user);
+      return;
+    }
+    currentAvatarUrl = user.avatarUrl || null;
+    if (typeof jurinApplyAvatarToElement === 'function') {
+      jurinApplyAvatarToElement(preview, currentAvatarUrl, displayName);
+    } else {
+      preview.src = currentAvatarUrl || 'assets/profile/default-avatar.svg';
+    }
+  }
+
+  function isGoogleAccount(user) {
+    if (!user) return false;
+    if (String(user.authProvider || '').trim().toLowerCase() === 'google') return true;
+    return user.canChangeLoginId === false && user.canChangePassword === false;
+  }
+
   function fillEditForm(user) {
     document.getElementById('mypageLoginId').value = user.loginId || '';
     document.getElementById('mypageNickname').value = user.nickname || '';
     document.getElementById('mypagePassword').value = '';
     document.getElementById('mypagePasswordConfirm').value = '';
-    const canPw = user.canChangePassword !== false;
+    const googleAccount = isGoogleAccount(user);
+    const canPw = !googleAccount && user.canChangePassword !== false;
+    const canId = !googleAccount && user.canChangeLoginId !== false;
     canChangePassword = canPw;
-    const pwSection = document.getElementById('mypagePasswordSection');
-    const googleHint = document.getElementById('mypageGoogleHint');
-    if (pwSection) pwSection.hidden = !canPw;
-    if (googleHint) googleHint.hidden = canPw;
+    canChangeLoginId = canId;
+    const editPanel = document.getElementById('mypageEditPanel');
+    const editLead = document.getElementById('mypageEditLead');
+    const withdrawPwSection = document.getElementById('mypageWithdrawPasswordSection');
+    const loginIdInput = document.getElementById('mypageLoginId');
+    if (editPanel) editPanel.classList.toggle('is-google', googleAccount);
+    if (loginIdInput) loginIdInput.required = canId;
+    if (editLead) {
+      editLead.textContent = googleAccount
+        ? '닉네임과 프로필 사진을 변경할 수 있습니다.'
+        : '아이디·닉네임·비밀번호를 변경할 수 있습니다.';
+    }
+    if (withdrawPwSection) withdrawPwSection.hidden = !canPw;
+    savedUserSnapshot = user;
+    clearPendingAvatarState();
+    updateAvatarPreviewFromState();
   }
 
   function applyUserToVerify(user) {
@@ -575,20 +818,187 @@
     return ok;
   }
 
+  async function previewProfileAvatarFile(file) {
+    const avatarError = document.getElementById('mypageErrorAvatar');
+    if (avatarError) {
+      avatarError.textContent = '';
+      avatarError.classList.remove('is-visible', 'is-success');
+    }
+    clearPendingAvatarBlob();
+    pendingAvatarFile = null;
+    pendingAvatarReset = false;
+
+    let preparedFile = file;
+    try {
+      if (typeof jurinCropAvatarFileToSquare === 'function') {
+        preparedFile = await jurinCropAvatarFileToSquare(file, 1024);
+      }
+    } catch (_) {
+      if (avatarError) {
+        avatarError.textContent = '이미지를 불러오지 못했습니다. 다른 사진으로 다시 시도해 주세요.';
+        avatarError.classList.add('is-visible');
+      }
+      return;
+    }
+
+    pendingAvatarFile = preparedFile;
+    pendingAvatarBlobUrl = URL.createObjectURL(preparedFile);
+    updateAvatarPreviewFromState();
+  }
+
+  function previewProfileAvatarReset() {
+    const avatarError = document.getElementById('mypageErrorAvatar');
+    if (avatarError) {
+      avatarError.textContent = '';
+      avatarError.classList.remove('is-visible', 'is-success');
+    }
+    clearPendingAvatarBlob();
+    pendingAvatarFile = null;
+    pendingAvatarReset = true;
+    updateAvatarPreviewFromState();
+  }
+
+  async function savePendingAvatarChanges() {
+    if (!hasPendingAvatarChange()) return { ok: true, user: null };
+
+    const avatarError = document.getElementById('mypageErrorAvatar');
+    try {
+      if (pendingAvatarFile) {
+        const formData = new FormData();
+        formData.append('image', pendingAvatarFile);
+        const res = await fetch(`${API_BASE}/api/auth/profile/avatar`, {
+          method: 'POST',
+          credentials: 'include',
+          body: formData,
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.success) {
+          const msg = data.message || '프로필 사진 저장에 실패했습니다.';
+          if (avatarError) {
+            avatarError.textContent = msg;
+            avatarError.classList.add('is-visible');
+          }
+          return { ok: false, message: msg };
+        }
+        return { ok: true, user: data.user || null };
+      }
+
+      if (pendingAvatarReset) {
+        const hadCustom = !!(savedUserSnapshot && savedUserSnapshot.hasCustomAvatar);
+        if (!hadCustom) {
+          return { ok: true, user: null };
+        }
+        const res = await fetch(`${API_BASE}/api/auth/profile/avatar`, {
+          method: 'DELETE',
+          credentials: 'include',
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.success) {
+          const msg = data.message || '프로필 사진 변경에 실패했습니다.';
+          if (avatarError) {
+            avatarError.textContent = msg;
+            avatarError.classList.add('is-visible');
+          }
+          return { ok: false, message: msg };
+        }
+        return { ok: true, user: data.user || null };
+      }
+    } catch (_) {
+      if (avatarError) {
+        avatarError.textContent = '서버에 연결할 수 없습니다.';
+        avatarError.classList.add('is-visible');
+      }
+      return { ok: false, message: '서버에 연결할 수 없습니다.' };
+    }
+    return { ok: true, user: null };
+  }
+
+  function openWithdrawModal() {
+    const modal = document.getElementById('mypageWithdrawModal');
+    const pwInput = document.getElementById('mypageWithdrawPassword');
+    if (pwInput) pwInput.value = '';
+    setPanelError({ form: 'mypageErrorWithdrawForm', password: 'mypageErrorWithdrawPassword' }, 'form', '', '');
+    setPanelError({ form: 'mypageErrorWithdrawForm', password: 'mypageErrorWithdrawPassword' }, 'password', '', '');
+    if (modal) {
+      modal.classList.add('is-open');
+      modal.setAttribute('aria-hidden', 'false');
+    }
+  }
+
+  function closeWithdrawModal() {
+    const modal = document.getElementById('mypageWithdrawModal');
+    if (modal) {
+      modal.classList.remove('is-open');
+      modal.setAttribute('aria-hidden', 'true');
+    }
+  }
+
+  async function submitAccountWithdraw() {
+    const WITHDRAW_ERRORS = { form: 'mypageErrorWithdrawForm', password: 'mypageErrorWithdrawPassword' };
+    setPanelError(WITHDRAW_ERRORS, 'form', '', '');
+    setPanelError(WITHDRAW_ERRORS, 'password', '', '');
+    const body = { confirm: true };
+    if (canChangePassword) {
+      const password = document.getElementById('mypageWithdrawPassword').value;
+      if (!password) {
+        setPanelError(WITHDRAW_ERRORS, 'password', '비밀번호를 입력해주세요.', 'error');
+        return;
+      }
+      body.password = typeof jurinNormalizePassword === 'function'
+        ? jurinNormalizePassword(password)
+        : String(password || '').trim();
+    }
+    const btn = document.getElementById('mypageWithdrawConfirmBtn');
+    if (btn) btn.disabled = true;
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/account`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(body),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.success) {
+        closeWithdrawModal();
+        sessionStorage.removeItem('jurinUserEmail');
+        sessionStorage.removeItem('jurinUserNickname');
+        sessionStorage.removeItem('jurinUserLoginId');
+        sessionStorage.removeItem('jurinUserAvatarUrl');
+        if (window.parent && typeof window.parent.closeMypageModal === 'function') {
+          window.parent.closeMypageModal();
+        }
+        if (window.parent && typeof window.parent.refreshAuthNav === 'function') {
+          await window.parent.refreshAuthNav();
+        } else if (window.parent) {
+          window.parent.location.reload();
+        }
+        return;
+      }
+      const field = data.field === 'password' ? 'password' : 'form';
+      setPanelError(WITHDRAW_ERRORS, field, data.message || '회원 탈퇴에 실패했습니다.', 'error');
+    } catch (_) {
+      setPanelError(WITHDRAW_ERRORS, 'form', '서버에 연결할 수 없습니다.', 'error');
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  }
+
   async function validateEditForm() {
     setPanelError(EDIT_ERRORS, 'form', '', '');
     let ok = true;
     const loginIdRaw = document.getElementById('mypageLoginId').value;
     const nickname = document.getElementById('mypageNickname').value;
 
-    if (!loginIdRaw.trim()) {
-      setPanelError(EDIT_ERRORS, 'loginId', '아이디를 입력해주세요.', 'error');
-      ok = false;
-    } else {
-      const idRules = validateLoginIdFormat(loginIdRaw);
-      if (!idRules.ok) {
-        setPanelError(EDIT_ERRORS, 'loginId', idRules.message, 'error');
+    if (canChangeLoginId) {
+      if (!loginIdRaw.trim()) {
+        setPanelError(EDIT_ERRORS, 'loginId', '아이디를 입력해주세요.', 'error');
         ok = false;
+      } else {
+        const idRules = validateLoginIdFormat(loginIdRaw);
+        if (!idRules.ok) {
+          setPanelError(EDIT_ERRORS, 'loginId', idRules.message, 'error');
+          ok = false;
+        }
       }
     }
 
@@ -602,25 +1012,144 @@
     if (!ok) return false;
 
     if (!(await checkNicknameDuplicate())) return false;
-    if (!(await checkLoginIdDuplicate())) return false;
+    if (canChangeLoginId && !(await checkLoginIdDuplicate())) return false;
     return true;
+  }
+
+  function profileFieldsChanged() {
+    const snapshot = savedUserSnapshot || {};
+    const nickname = normalizedNickname();
+    if (nickname !== String(snapshot.nickname || '').trim()) return true;
+    if (canChangeLoginId) {
+      const loginId = normalizedLoginId();
+      if (loginId !== String(snapshot.loginId || '').trim()) return true;
+    }
+    if (canChangePassword) {
+      const password = document.getElementById('mypagePassword').value;
+      const passwordConfirm = document.getElementById('mypagePasswordConfirm').value;
+      if (String(password || '').trim() || String(passwordConfirm || '').trim()) return true;
+    }
+    return false;
+  }
+
+  function scrollToEditFormMessage() {
+    const el = document.getElementById('mypageErrorEditForm');
+    if (el && typeof el.scrollIntoView === 'function') {
+      el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }
+
+  function broadcastMypageSaved(updatedUser) {
+    const payload = { type: 'jurin:mypage-saved', user: updatedUser };
+    const targets = [];
+    if (window.parent && window.parent !== window) targets.push(window.parent);
+    if (window.top && window.top !== window && targets.indexOf(window.top) < 0) {
+      targets.push(window.top);
+    }
+    targets.forEach(function (target) {
+      try {
+        target.postMessage(payload, '*');
+      } catch (_) { /* ignore */ }
+    });
+  }
+
+  function tryCloseParentMypageUi() {
+    try {
+      if (!window.parent || window.parent === window) return false;
+      const owner = window.parent;
+      const modal = owner.document.getElementById('mypageModal');
+      if (!modal) return false;
+      modal.classList.remove('is-open');
+      modal.setAttribute('aria-hidden', 'true');
+      const frame = owner.document.getElementById('mypageModalFrame');
+      if (frame) frame.src = 'about:blank';
+      if (typeof owner.updateBodyScrollLock === 'function') owner.updateBodyScrollLock();
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  function notifyParentProfileRefresh(updatedUser) {
+    try {
+      if (window.parent && window.parent !== window && typeof window.parent.finishMypageSuccess === 'function') {
+        window.parent.finishMypageSuccess(updatedUser);
+        return;
+      }
+    } catch (_) { /* ignore */ }
+    try {
+      if (window.top && window.top !== window && typeof window.top.finishMypageSuccess === 'function') {
+        window.top.finishMypageSuccess(updatedUser);
+        return;
+      }
+    } catch (_) { /* ignore */ }
+    try {
+      const owner = window.parent && window.parent !== window ? window.parent : null;
+      if (owner && typeof owner.refreshAuthNav === 'function') {
+        owner.refreshAuthNav().catch(function () {});
+      }
+    } catch (_) { /* ignore */ }
+  }
+
+  function persistSavedUserToSession(user) {
+    if (!user) return;
+    const email = (user.email || '').trim();
+    const nickname = (user.nickname || '').trim();
+    const loginId = (user.loginId || '').trim();
+    if (email) sessionStorage.setItem('jurinUserEmail', email);
+    if (nickname) sessionStorage.setItem('jurinUserNickname', nickname);
+    if (loginId) sessionStorage.setItem('jurinUserLoginId', loginId);
+    let avatarUrl = '';
+    if (user.hasCustomAvatar === false && user.defaultAvatarUrl) {
+      avatarUrl = String(user.defaultAvatarUrl || '').trim();
+    } else {
+      avatarUrl = String(user.avatarUrl || '').trim();
+    }
+    if (avatarUrl) sessionStorage.setItem('jurinUserAvatarUrl', avatarUrl);
+    else sessionStorage.removeItem('jurinUserAvatarUrl');
+  }
+
+  function exitMypageAfterSave(updatedUser) {
+    persistSavedUserToSession(updatedUser);
+
+    const inIframe = window.parent && window.parent !== window;
+    if (inIframe) {
+      broadcastMypageSaved(updatedUser);
+      tryCloseParentMypageUi();
+      notifyParentProfileRefresh(updatedUser);
+
+      try {
+        if (typeof window.parent.closeMypageModal === 'function') {
+          window.parent.closeMypageModal();
+        }
+      } catch (_) { /* ignore */ }
+
+      if (tryCloseParentMypageUi()) return;
+
+      try {
+        const owner = window.parent;
+        owner.location.href = new URL('주린닷컴홈피.html', owner.location.href).href;
+        return;
+      } catch (_) { /* fall through */ }
+    }
+
+    window.location.replace(new URL('주린닷컴홈피.html', window.location.href).href);
   }
 
   async function submitProfileSave(event) {
     event.preventDefault();
-    if (!(await validateEditForm())) return;
+    try {
+      if (!(await validateEditForm())) return;
+    } catch (err) {
+      setPanelError(EDIT_ERRORS, 'form', '입력값을 확인할 수 없습니다. 페이지를 새로고침 후 다시 시도해주세요.', 'error');
+      scrollToEditFormMessage();
+      return;
+    }
 
-    const body = {
-      loginId: normalizedLoginId(),
-      nickname: normalizedNickname(),
-    };
-    if (canChangePassword) {
-      const password = document.getElementById('mypagePassword').value;
-      const passwordConfirm = document.getElementById('mypagePasswordConfirm').value;
-      if (password || passwordConfirm) {
-        body.password = normalizedPassword(password);
-        body.passwordConfirm = normalizedPassword(passwordConfirm);
-      }
+    if (!profileFieldsChanged() && !hasPendingAvatarChange()) {
+      setPanelError(EDIT_ERRORS, 'form', '변경된 내용이 없습니다.', 'error');
+      scrollToEditFormMessage();
+      return;
     }
 
     const btn = document.getElementById('mypageSaveBtn');
@@ -628,31 +1157,80 @@
     setPanelError(EDIT_ERRORS, 'form', '저장하는 중입니다…', 'success');
 
     try {
-      const res = await fetch(`${API_BASE}/api/auth/profile`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(body),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (res.ok && data.success && data.user) {
-        setPanelError(EDIT_ERRORS, 'form', '프로필이 저장되었습니다.', 'success');
-        if (window.parent && typeof window.parent.finishMypageSuccess === 'function') {
-          window.parent.finishMypageSuccess(data.user);
-        } else {
-          applyUserToVerify(data.user);
+      let updatedUser = savedUserSnapshot;
+
+      if (profileFieldsChanged()) {
+        const body = {
+          nickname: normalizedNickname(),
+        };
+        if (canChangeLoginId) {
+          body.loginId = normalizedLoginId();
         }
-        return;
+        if (canChangePassword) {
+          const password = document.getElementById('mypagePassword').value;
+          const passwordConfirm = document.getElementById('mypagePasswordConfirm').value;
+          if (password || passwordConfirm) {
+            body.password = normalizedPassword(password);
+            body.passwordConfirm = normalizedPassword(passwordConfirm);
+          }
+        }
+
+        const res = await fetch(`${API_BASE}/api/auth/profile`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify(body),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!(res.ok && data.success && data.user)) {
+          const field = data.field && EDIT_ERRORS[data.field] ? data.field : 'form';
+          const msg = data.message || '저장에 실패했습니다.';
+          setPanelError(EDIT_ERRORS, field, msg, 'error');
+          scrollToEditFormMessage();
+          return;
+        }
+        updatedUser = data.user;
+        savedUserSnapshot = updatedUser;
       }
-      const field = data.field && EDIT_ERRORS[data.field] ? data.field : 'form';
-      setPanelError(EDIT_ERRORS, field, data.message || '저장에 실패했습니다.', 'error');
+
+      if (hasPendingAvatarChange()) {
+        const avatarResult = await savePendingAvatarChanges();
+        if (!avatarResult.ok) {
+          setPanelError(EDIT_ERRORS, 'form', avatarResult.message || '프로필 사진 저장에 실패했습니다.', 'error');
+          scrollToEditFormMessage();
+          return;
+        }
+        if (avatarResult.user) {
+          updatedUser = avatarResult.user;
+        }
+      }
+
+      clearPendingAvatarState();
+      savedUserSnapshot = updatedUser;
+      exitMypageAfterSave(updatedUser);
     } catch (_) {
       setPanelError(EDIT_ERRORS, 'form', '서버에 연결할 수 없습니다.', 'error');
+      scrollToEditFormMessage();
     } finally {
       if (btn) btn.disabled = false;
     }
   }
 
+  document.getElementById('mypageAvatarUploadBtn').addEventListener('click', function () {
+    document.getElementById('mypageAvatarFile').click();
+  });
+  document.getElementById('mypageAvatarFile').addEventListener('change', function (event) {
+    const file = event.target.files && event.target.files[0];
+    event.target.value = '';
+    if (file) previewProfileAvatarFile(file);
+  });
+  document.getElementById('mypageAvatarResetBtn').addEventListener('click', previewProfileAvatarReset);
+  document.getElementById('mypageWithdrawOpenBtn').addEventListener('click', openWithdrawModal);
+  document.getElementById('mypageWithdrawCancelBtn').addEventListener('click', closeWithdrawModal);
+  document.getElementById('mypageWithdrawConfirmBtn').addEventListener('click', submitAccountWithdraw);
+  document.getElementById('mypageWithdrawModal').addEventListener('click', function (event) {
+    if (event.target === event.currentTarget) closeWithdrawModal();
+  });
   document.getElementById('mypageSendEmailCode').addEventListener('click', sendProfileEmailCode);
   document.getElementById('mypageLoginId').addEventListener('input', function () {
     clearTimeout(loginIdDebounceTimer);
@@ -669,6 +1247,8 @@
       window.parent.openLoginModal();
     }
   });
+
+  window.submitProfileSave = submitProfileSave;
 
   loadProfileStatus();
 </script>

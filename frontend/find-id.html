@@ -128,7 +128,7 @@
     margin-bottom: 20px;
   }
 </style>
-<link rel="stylesheet" href="css/lumi-chat.css?v=20260609">
+<link rel="stylesheet" href="css/lumi-chat.css?v=20260609m">
 </head>
 <body>
 <div class="helper-page">
@@ -148,9 +148,10 @@
   </div>
 </div>
 
+<script src="js/api-base.js"></script>
 <script src="js/email-rules.js"></script>
 <script>
-  const API_BASE = window.JURIN_API_BASE || 'http://localhost:5000';
+  const API_BASE = typeof jurinApiBase === 'function' ? jurinApiBase() : 'http://localhost:5000';
 
   async function findId() {
     const emailInput = document.getElementById('email-input');
@@ -222,6 +223,6 @@
     });
   });
 </script>
-<script src="js/lumi-chat.js?v=20260609"></script>
+<script src="js/lumi-chat.js?v=20260614"></script>
 </body>
 </html>

@@ -1,0 +1,335 @@
+﻿<!DOCTYPE html>
+<!-- 문의하기: 문의게시판·문의내역·문의하기 (inquiry-page.js). -->
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="assets/brand/favicon.ico?v=20260607" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/brand/favicon-32x32.png?v=20260607">
+<link rel="apple-touch-icon" sizes="180x180" href="assets/brand/apple-touch-icon.png?v=20260607">
+<title>문의하기 - 주린닷컴</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css?v=20260702">
+<link rel="stylesheet" href="css/inquiry.css?v=20260609">
+<link rel="stylesheet" href="css/lumi-chat.css?v=20260609m">
+<script src="js/auth-nav-boot.js"></script>
+</head>
+<body class="inquiry-page is-board-view">
+
+<nav>
+  <a href="주린닷컴홈피.html" class="nav-logo">
+    <img class="logo-icon" src="assets/brand/jurin-logo-icon.png?v=20260607" alt="" width="36" height="36" decoding="async">
+    <div class="logo-text">주린<span>닷컴</span></div>
+  </a>
+  <ul class="nav-menu">
+    <li><a href="guide.html">가이드</a></li>
+    <li><a href="analysis.html">AI 분석 <span class="nav-badge">AI</span></a></li>
+    <li><a href="ai-chart-prediction.html">AI 차트 예측 <span class="nav-badge">AI</span></a></li>
+    <li><a href="market-products.html?topic=elw">ELW</a></li>
+    <li><a href="market-products.html?topic=bonds">채권</a></li>
+    <li><a href="glossary.html">용어 검색</a></li>
+    <li><a class="jurin-simulation-link" href="http://127.0.0.1:5000/simulation.html">모의 투자</a></li>
+    <li><a href="market.html">시장 <span class="nav-badge">LIVE</span></a></li>
+    <li><a href="community.html">커뮤니티</a></li>
+    <li><a href="inquiry.html" class="active">문의</a></li>
+  </ul>
+  <div class="nav-right" data-auth-nav>
+    <button type="button" class="btn-ghost" id="navLoginBtn">로그인</button>
+    <span class="nav-user-email" id="navUserEmail" aria-live="polite" hidden></span>
+    <button type="button" class="btn-ghost" id="navLogoutBtn" hidden>로그아웃</button>
+    <button type="button" class="btn-primary" id="navSignupBtn">회원가입</button>
+  </div>
+</nav>
+
+<main class="inquiry-shell page-below-nav">
+  <div class="inquiry-layout">
+    <aside class="inquiry-sidebar" aria-label="문의 메뉴">
+      <div class="inquiry-menu-card">
+        <div class="inquiry-side-nav" role="navigation" aria-label="문의 메뉴">
+          <button type="button" class="inquiry-side-link is-active" data-view="board">
+            <span class="inquiry-side-icon" aria-hidden="true">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg>
+            </span>
+            <span>문의하기</span>
+          </button>
+          <button type="button" class="inquiry-side-link" data-view="mine">
+            <span class="inquiry-side-icon" aria-hidden="true">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            </span>
+            <span>내 문의 내역</span>
+          </button>
+          <button type="button" class="inquiry-side-link" data-view="write">
+            <span class="inquiry-side-icon" aria-hidden="true">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+            </span>
+            <span>글쓰기</span>
+          </button>
+        </div>
+      </div>
+      <div class="inquiry-side-tip">
+        <strong>문의 전 확인해보세요!</strong>
+        <p>자주 묻는 질문에 원하시는 답변이 있을 수 있습니다.</p>
+        <button type="button" class="inquiry-side-tip-btn" data-view-jump="faq">FAQ 바로가기</button>
+      </div>
+      <div class="inquiry-side-mascot">
+        <img src="assets/mascot/mascot-dock.png?v=20260607" alt="" width="64" height="64" decoding="async">
+        <p>언제든 문의해 주세요.<br>루미가 빠르게 답변드릴게요!</p>
+      </div>
+    </aside>
+
+    <div class="inquiry-main-col">
+      <header class="inquiry-hero" aria-label="문의하기 안내">
+        <div class="inquiry-hero-inner">
+          <div class="inquiry-hero-top">
+            <div class="inquiry-hero-copy">
+              <h1 class="inquiry-hero-title">문의하기</h1>
+              <p class="inquiry-hero-sub">궁금한 점을 남겨주시면 친절하게 답변드릴게요!</p>
+            </div>
+            <div class="inquiry-hero-mascot" aria-hidden="true">
+              <img src="assets/mascot/mascot-info.png?v=20260607" alt="" width="100" height="110" decoding="async">
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <section class="inquiry-main" aria-live="polite">
+
+        <!-- 문의 게시판 -->
+        <div class="inquiry-view" id="inquiryViewBoard" data-view-panel="board">
+          <header class="inquiry-board-head">
+            <div class="inquiry-board-head-copy">
+              <h1 class="inquiry-board-title">문의하기</h1>
+              <p class="inquiry-board-sub">궁금한 점을 남겨주시면 친절하게 답변드릴게요!</p>
+            </div>
+            <div class="inquiry-board-head-deco" aria-hidden="true">
+              <svg width="72" height="72" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M8 32L56 8L40 56L32 36L8 32Z" stroke="#86b89a" stroke-width="2" stroke-linejoin="round" fill="#edf7f0"/>
+                <path d="M32 36L40 56L32 36Z" fill="#c8e6d4"/>
+              </svg>
+            </div>
+          </header>
+          <div class="inquiry-toolbar">
+            <div class="inquiry-filters">
+              <select id="boardFilterCategory" aria-label="카테고리 필터">
+                <option value="">전체 카테고리</option>
+              </select>
+              <select id="boardFilterStatus" aria-label="상태 필터">
+                <option value="">전체 상태</option>
+              </select>
+            </div>
+            <div class="inquiry-search">
+              <span class="inquiry-search-icon" aria-hidden="true">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              </span>
+              <input type="search" id="boardSearchInput" placeholder="제목 또는 내용을 검색해보세요" aria-label="문의 검색">
+              <button type="button" class="inquiry-search-btn" id="boardSearchBtn">검색</button>
+            </div>
+          </div>
+          <div class="inquiry-table-wrap">
+            <table class="inquiry-table">
+              <thead>
+                <tr>
+                  <th scope="col" class="inquiry-col-no">번호</th>
+                  <th scope="col" class="inquiry-col-cat">카테고리</th>
+                  <th scope="col" class="inquiry-col-title">제목</th>
+                  <th scope="col" class="inquiry-col-author">작성자</th>
+                  <th scope="col" class="inquiry-col-date">작성일</th>
+                  <th scope="col" class="inquiry-col-status">상태</th>
+                  <th scope="col" class="inquiry-col-reply">공개</th>
+                </tr>
+              </thead>
+              <tbody id="boardTableBody"></tbody>
+            </table>
+          </div>
+          <p class="inquiry-empty" id="boardEmpty" hidden>등록된 문의가 없습니다.</p>
+          <div class="inquiry-pagination" id="boardPagination" hidden></div>
+        </div>
+
+        <!-- 상세 -->
+        <div class="inquiry-view is-hidden" id="inquiryViewDetail" data-view-panel="detail" hidden>
+          <div class="inquiry-detail-hero" id="detailHero"></div>
+          <section class="inquiry-detail-section">
+            <h3 class="inquiry-detail-section-title">문의</h3>
+            <div class="inquiry-detail-qbox">
+              <div class="inquiry-detail-qbody" id="detailBody"></div>
+              <div class="inquiry-detail-attachments" id="detailAttachments" hidden></div>
+              <time class="inquiry-detail-qtime" id="detailQuestionTime"></time>
+            </div>
+          </section>
+          <section class="inquiry-detail-section" id="detailAnswerSection" hidden>
+            <h3 class="inquiry-detail-section-title">답변</h3>
+            <div class="inquiry-replies" id="detailReplies"></div>
+            <div class="inquiry-admin-reply-compose" id="detailAdminReplyCompose" hidden>
+              <article class="inquiry-answer-card inquiry-answer-card--compose">
+                <div class="inquiry-answer-head">
+                  <div class="inquiry-answer-brand">
+                    <img src="assets/brand/jurin-logo-icon.png?v=20260607" alt="" width="36" height="36" decoding="async">
+                    <div>
+                      <strong>주린닷컴 고객센터</strong>
+                      <span class="inquiry-answer-sub">JURIN.COM SUPPORT</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="inquiry-answer-compose-body">
+                  <textarea id="detailAdminReplyInput" rows="5" placeholder="답변 내용을 입력하세요 (5자 이상)"></textarea>
+                  <div class="inquiry-answer-compose-actions">
+                    <button type="button" class="inquiry-answer-edit-save" id="detailAdminReplySubmit">답변 등록</button>
+                  </div>
+                  <p class="inquiry-admin-reply-msg" id="detailAdminReplyMsg" hidden></p>
+                </div>
+              </article>
+            </div>
+            <div class="inquiry-feedback inquiry-feedback--mockup" id="detailFeedback" hidden>
+              <p class="inquiry-feedback-label">답변이 도움이 되었나요?</p>
+              <div class="inquiry-feedback-actions">
+                <button type="button" class="inquiry-feedback-btn inquiry-feedback-btn--up" id="feedbackHelpfulBtn">👍 도움이 되었어요</button>
+                <button type="button" class="inquiry-feedback-btn inquiry-feedback-btn--down" id="feedbackNotHelpfulBtn">👎 도움이 안 되었어요</button>
+              </div>
+            </div>
+          </section>
+          <div class="inquiry-detail-foot">
+            <div class="inquiry-detail-owner-actions" id="detailOwnerActions" hidden>
+              <button type="button" class="inquiry-edit-btn" id="detailEditBtn" aria-label="수정">
+                <span class="inquiry-edit-icon" aria-hidden="true">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                </span>
+              </button>
+              <button type="button" class="inquiry-delete-btn" id="detailDeleteBtn" aria-label="삭제">
+                <span class="inquiry-delete-icon" aria-hidden="true">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 문의하기 (작성) -->
+        <div class="inquiry-view is-hidden" id="inquiryViewWrite" data-view-panel="write" hidden>
+          <div class="inquiry-card-head inquiry-card-head--write">
+            <div>
+              <h2 class="inquiry-card-title">문의 작성하기</h2>
+              <p class="inquiry-card-sub">궁금한 내용을 자세히 입력해주시면 더 빠르고 정확한 답변을 드릴 수 있어요.</p>
+            </div>
+          </div>
+          <form class="inquiry-form" id="inquiryWriteForm" novalidate>
+            <label class="inquiry-field">
+              <span>카테고리 <em class="inquiry-required">*</em></span>
+              <select id="writeCategory"></select>
+            </label>
+            <label class="inquiry-field">
+              <span>제목 <em class="inquiry-required">*</em></span>
+              <input type="text" id="writeTitle" maxlength="100" placeholder="제목을 입력해주세요 (최대 100자)">
+            </label>
+            <label class="inquiry-field">
+              <span>내용 <em class="inquiry-required">*</em></span>
+              <textarea id="writeBody" rows="8" placeholder="문의 내용을 자세히 입력해주세요."></textarea>
+            </label>
+            <label class="inquiry-check">
+              <input type="checkbox" id="writePrivate">
+              <span>비공개 문의 (작성자만 열람)</span>
+            </label>
+            <div class="inquiry-write-edit-extras" id="inquiryWriteEditExtras" hidden>
+              <div class="inquiry-edit-existing-attach" id="inquiryEditExistingAttach" hidden>
+                <p class="inquiry-edit-existing-label">등록된 첨부 이미지</p>
+                <div class="inquiry-edit-existing-preview" id="inquiryEditAttachPreview"></div>
+                <label class="inquiry-edit-remove-check">
+                  <input type="checkbox" id="writeAttachRemove">
+                  <span>첨부 이미지 제거</span>
+                </label>
+              </div>
+            </div>
+            <div class="inquiry-attach">
+              <span>첨부 이미지 (선택)</span>
+              <div class="inquiry-attach-row">
+                <input type="file" id="writeAttachment" accept="image/jpeg,image/png,image/gif,image/webp" hidden>
+                <button type="button" class="inquiry-attach-btn" id="writeAttachBtn">파일 선택</button>
+                <span class="inquiry-attach-name" id="writeAttachName">선택된 파일 없음</span>
+                <button type="button" class="inquiry-attach-clear" id="writeAttachClear" hidden>삭제</button>
+              </div>
+              <div class="inquiry-attach-preview" id="writeAttachPreview" hidden></div>
+              <p class="inquiry-attach-hint">JPEG, PNG, GIF, WEBP · 최대 10MB · 1개</p>
+            </div>
+            <button type="submit" class="inquiry-submit-btn">등록하기</button>
+            <p class="inquiry-form-msg" id="writeFormMsg" role="status" aria-live="polite"></p>
+          </form>
+        </div>
+
+        <!-- 문의내역 -->
+        <div class="inquiry-view is-hidden" id="inquiryViewMine" data-view-panel="mine" hidden>
+          <div class="inquiry-card-head">
+            <div>
+              <h2 class="inquiry-card-title">내 문의 내역</h2>
+              <p class="inquiry-card-sub">내가 작성한 문의와 답변 내역을 확인할 수 있어요.</p>
+            </div>
+          </div>
+          <div class="inquiry-toolbar">
+            <div class="inquiry-filters">
+              <select id="mineFilterCategory" aria-label="카테고리 필터">
+                <option value="">전체 카테고리</option>
+              </select>
+              <select id="mineFilterStatus" aria-label="상태 필터">
+                <option value="">전체 상태</option>
+              </select>
+            </div>
+            <div class="inquiry-search">
+              <input type="search" id="mineSearchInput" placeholder="제목 또는 내용을 검색해보세요" aria-label="내 문의 검색">
+              <button type="button" class="inquiry-search-btn" id="mineSearchBtn">검색</button>
+            </div>
+          </div>
+          <div class="inquiry-table-wrap">
+            <table class="inquiry-table">
+              <thead>
+                <tr>
+                  <th scope="col" class="inquiry-col-no">번호</th>
+                  <th scope="col" class="inquiry-col-cat">카테고리</th>
+                  <th scope="col" class="inquiry-col-title">제목</th>
+                  <th scope="col" class="inquiry-col-author">작성자</th>
+                  <th scope="col" class="inquiry-col-date">작성일</th>
+                  <th scope="col" class="inquiry-col-status">상태</th>
+                  <th scope="col" class="inquiry-col-reply">공개</th>
+                </tr>
+              </thead>
+              <tbody id="mineTableBody"></tbody>
+            </table>
+          </div>
+          <p class="inquiry-empty" id="mineEmpty" hidden>작성한 문의가 없습니다.</p>
+          <div class="inquiry-pagination" id="minePagination" hidden></div>
+        </div>
+
+        <!-- FAQ (사이드 FAQ 바로가기용) -->
+        <div class="inquiry-view is-hidden" id="inquiryViewFaq" data-view-panel="faq" hidden>
+          <div class="inquiry-card-head">
+            <div>
+              <h2 class="inquiry-card-title">자주 묻는 질문</h2>
+              <p class="inquiry-card-sub">문의 전 아래 내용을 먼저 확인해 주세요.</p>
+            </div>
+          </div>
+          <div class="inquiry-faq-list" id="faqList"></div>
+          <div class="inquiry-faq-cta">
+            <p>원하는 답변을 찾지 못하셨나요?</p>
+            <button type="button" class="inquiry-side-tip-btn inquiry-faq-write-btn" data-view-jump="write">글쓰기</button>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+</main>
+
+<div class="inquiry-modal" id="inquiryModal" hidden aria-hidden="true">
+  <div class="inquiry-modal-backdrop" id="inquiryModalBackdrop"></div>
+  <div class="inquiry-modal-panel" role="dialog" aria-modal="true" aria-labelledby="inquiryModalTitle">
+    <div class="inquiry-modal-head">
+      <h3 class="inquiry-modal-title" id="inquiryModalTitle"></h3>
+    </div>
+    <p class="inquiry-modal-message" id="inquiryModalMessage"></p>
+    <div class="inquiry-modal-actions" id="inquiryModalActions"></div>
+  </div>
+</div>
+
+<script src="js/api-base.js"></script>
+<script src="js/user-avatar.js"></script>
+<script src="js/common-auth.js"></script>
+<script src="js/lumi-chat.js?v=20260614"></script>
+<script src="js/inquiry-page.js?v=20260609"></script>
+</body>
+</html>

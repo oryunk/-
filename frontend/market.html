@@ -9,7 +9,7 @@
 <link rel="apple-touch-icon" sizes="180x180" href="assets/brand/apple-touch-icon.png?v=20260607">
 <title>시장 정보 - 주린닷컴</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=20260438">
+<link rel="stylesheet" href="css/style.css?v=20260613">
 <script src="js/auth-nav-boot.js"></script>
 <link rel="stylesheet" href="css/index-detail-overlay.css?v=20260702">
 <script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
@@ -290,6 +290,23 @@
     border-radius: 16px;
     padding: 32px;
     margin-bottom: 40px;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .indices-section-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px 14px;
+    margin-bottom: 24px;
+  }
+
+  .indices-grid-scroll {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
   .indices-title {
@@ -321,43 +338,48 @@
   }
 
   .index-card {
-    background: var(--gray-100);
-    border: 1px solid var(--card-border, rgba(47, 143, 95, 0.12));
-    border-radius: 12px;
-    padding: 24px;
-    text-align: center;
+    background: #ffffff;
+    border: 1px solid rgba(47, 143, 95, 0.12);
+    border-radius: 14px;
+    padding: 16px 16px 12px;
+    text-align: left;
     cursor: pointer;
-    transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    min-height: 132px;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
   }
-  .index-card.up   { border-color: rgba(255, 71, 71, 0.35); }
-  .index-card.down { border-color: rgba(79, 158, 255, 0.35); }
-  .index-card.up .index-value,
-  .index-card.up .index-change {
+
+  .index-card.index-card--toss.up .index-value,
+  .index-card.index-card--toss.up .index-change {
     color: var(--market-up);
   }
-  .index-card.down .index-value,
-  .index-card.down .index-change {
+
+  .index-card.index-card--toss.down .index-value,
+  .index-card.index-card--toss.down .index-change {
     color: var(--market-down);
   }
-  .index-card.flat .index-value {
+
+  .index-card.index-card--toss.flat .index-value {
     color: var(--quote-flat);
   }
+
   .index-card.index-card--static {
     cursor: default;
   }
+
   .index-card:hover,
   .index-card:focus-visible,
   .index-card.index-card--active {
-    border-color: rgba(47, 143, 95, 0.4);
-    box-shadow: 0 12px 28px rgba(28, 74, 52, 0.12);
-    transform: translateY(-2px);
+    border-color: rgba(47, 143, 95, 0.28);
+    box-shadow: 0 4px 14px rgba(28, 74, 52, 0.08);
     outline: none;
   }
+
   .index-card.index-card--static:hover,
   .index-card.index-card--static:focus-visible {
-    transform: none;
     box-shadow: none;
-    border-color: rgba(47, 143, 95, 0.18);
+    border-color: rgba(47, 143, 95, 0.12);
   }
 
   .index-card.index-card--detail {
@@ -365,31 +387,44 @@
   }
 
   .index-name {
-    font-size: 16px;
+    font-size: 13px;
     font-weight: 600;
-    color: var(--text-primary);
-    margin-bottom: 12px;
-    min-height: 44px;
+    color: var(--gray-500);
+    margin-bottom: 8px;
+    min-height: 0;
     display: flex;
-    align-items: center;
-    justify-content: center;
+    align-items: flex-start;
+    justify-content: flex-start;
     line-height: 1.35;
   }
 
-  .index-value {
-    font-size: 28px;
-    font-weight: 700;
-    color: var(--card-accent, var(--accent));
-    margin-bottom: 8px;
+  .index-card-main {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1 1 auto;
+    min-width: 0;
   }
+
+  .index-value {
+    font-size: 30px;
+    font-weight: 800;
+    color: var(--text-primary);
+    margin-bottom: 0;
+    letter-spacing: -0.03em;
+    line-height: 1.15;
+    font-variant-numeric: tabular-nums;
+  }
+
   .index-value.index-value--compact {
     font-size: 24px;
   }
 
   .index-change {
-    font-size: 16px;
-    font-weight: 600;
+    font-size: 14px;
+    font-weight: 700;
   }
+
   .index-change.up   { color: var(--market-up); }
   .index-change.down { color: var(--market-down); }
   .index-change.flat {
@@ -405,11 +440,11 @@
   }
 
   .index-inline-chart {
-    width: 100%;
-    height: 56px;
-    margin-top: 12px;
-    border-radius: 8px;
-    background: linear-gradient(180deg, var(--inline-chart-bg-top, rgba(255, 255, 255, 0)), var(--inline-chart-bg-bottom, #ffffff));
+    width: calc(100% + 8px);
+    height: 44px;
+    margin: 10px -4px -4px;
+    border-radius: 0;
+    background: transparent;
     border: none;
     overflow: hidden;
   }
@@ -570,23 +605,26 @@
     50%       { opacity: 1;   }
   }
 
-  .indices-live-badge {
-    display: flex;
+  .market-live-badge {
+    display: inline-flex;
     align-items: center;
     gap: 8px;
     font-size: 13px;
+    font-weight: 600;
     color: var(--gray-400);
+    white-space: nowrap;
   }
-  .indices-live-dot {
+  .market-live-dot {
     width: 8px;
     height: 8px;
     border-radius: 50%;
     background: #5df2a0;
-    box-shadow: 0 0 8px rgba(93,242,160,0.7);
+    box-shadow: 0 0 8px rgba(93, 242, 160, 0.7);
+    flex-shrink: 0;
   }
-  .indices-live-dot.error {
+  .market-live-dot.error {
     background: #ff6e6e;
-    box-shadow: 0 0 8px rgba(255,110,110,0.7);
+    box-shadow: 0 0 8px rgba(255, 110, 110, 0.7);
   }
 
   .stocks-section {
@@ -595,6 +633,8 @@
     border-radius: 16px;
     padding: 32px;
     margin-bottom: 40px;
+    min-width: 0;
+    overflow: hidden;
   }
 
   .stocks-header {
@@ -761,10 +801,64 @@
     border-color: rgba(47, 143, 95, 0.35);
   }
 
+  .stocks-table-wrap {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
   .stocks-table {
     width: 100%;
     border-collapse: collapse;
     min-width: 760px;
+  }
+
+  .stocks-table:has(.stocks-table-state-row),
+  .stocks-table.is-state-only {
+    min-width: 0;
+    table-layout: fixed;
+  }
+
+  .stocks-table-state-row .stocks-table-state-cell {
+    color: var(--gray-400);
+    padding: 32px 12px;
+    white-space: normal;
+    word-break: keep-all;
+  }
+
+  .stocks-table-state-row .stocks-table-state-cell--between {
+    text-align: center;
+  }
+
+  .stocks-row-state-between-cell {
+    color: var(--gray-400);
+    vertical-align: middle;
+  }
+
+  .stocks-row-state-between-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    min-width: 0;
+  }
+
+  .stocks-row-state-msg {
+    flex: 0 0 auto;
+    font-size: 14px;
+    color: var(--gray-400);
+    white-space: nowrap;
+  }
+
+  .stocks-table-state-rest,
+  .stocks-row-state-rest {
+    border-bottom: 1px solid rgba(47, 143, 95, 0.1);
+  }
+
+  .stocks-table td.stocks-row-state-cell {
+    color: var(--gray-400);
+    font-size: 14px;
+    white-space: nowrap;
   }
 
   .stocks-table th,
@@ -1084,33 +1178,6 @@
     letter-spacing: -0.02em;
   }
 
-  .live-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 13px;
-    font-weight: 600;
-    color: #4fc97a;
-    margin-left: 12px;
-  }
-
-  .live-dot {
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: #4fc97a;
-    animation: live-pulse 1.4s infinite;
-  }
-
-  .live-dot.error {
-    background: #ff5c5c;
-    animation: none;
-  }
-
-  @keyframes live-pulse {
-    0%, 100% { opacity: 1; }
-    50%       { opacity: 0.25; }
-  }
 
   /* 상승=빨강·하락=파랑 (국내 시세 관례). 플래시도 동일하게 맞춤 */
   @keyframes flash-up {
@@ -1437,49 +1504,6 @@
   .jurin-chart-hover-wrap {
     position: relative;
     width: 100%;
-  }
-
-  .chart-ohlc-hover {
-    position: absolute;
-    z-index: 4;
-    top: 8px;
-    left: 8px;
-    max-width: calc(100% - 16px);
-    padding: 8px 10px;
-    border-radius: 10px;
-    background: rgba(15, 23, 20, 0.92);
-    border: 1px solid rgba(255, 255, 255, 0.14);
-    color: #f2faf6;
-    font-size: 12px;
-    font-weight: 600;
-    line-height: 1.45;
-    pointer-events: none;
-    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.2);
-    font-variant-numeric: tabular-nums;
-  }
-
-  .chart-ohlc-hover-time {
-    font-weight: 800;
-    margin-bottom: 6px;
-    color: #e8f5ee;
-    font-size: 12px;
-  }
-
-  .chart-ohlc-hover-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 4px 12px;
-  }
-
-  .chart-ohlc-hover-grid span {
-    font-weight: 600;
-    color: #f2faf6;
-  }
-
-  .chart-ohlc-hover-grid span b {
-    font-weight: 800;
-    color: #d4ebe2;
-    margin-right: 2px;
   }
 
   .chart-skeleton {
@@ -3190,9 +3214,9 @@
       font-size: 24px;
     }
 
-    .stocks-table {
+    .stocks-table:not(:has(.stocks-table-state-row)):not(.is-state-only) {
       font-size: 14px;
-      min-width: 700px;
+      min-width: 640px;
     }
 
     .stocks-table th,
@@ -3289,7 +3313,7 @@
     }
   }
 </style>
-<link rel="stylesheet" href="css/lumi-chat.css?v=20260609">
+<link rel="stylesheet" href="css/lumi-chat.css?v=20260609m">
 </head>
 <body>
 
@@ -3307,6 +3331,8 @@
     <li><a href="glossary.html">용어 검색</a></li>
     <li><a class="jurin-simulation-link" href="http://127.0.0.1:5000/simulation.html">모의 투자</a></li>
     <li><a href="market.html" class="active">시장 <span class="nav-badge">LIVE</span></a></li>
+    <li><a href="community.html">커뮤니티</a></li>
+    <li><a href="inquiry.html">문의</a></li>
   </ul>
   <div class="nav-right" data-auth-nav>
     <button type="button" class="btn-ghost" id="navLoginBtn">로그인</button>
@@ -3319,8 +3345,7 @@
 <div class="market-container page-below-nav">
   <div class="market-header">
     <div class="market-header-content">
-      <a href="주린닷컴홈피.html" class="btn-back">← 돌아가기</a>
-      <div class="market-title">시장 정보</div>
+<div class="market-title">시장 정보</div>
       <div class="market-sub">실시간 시장 지표와 주요 종목을 확인하세요</div>
     </div>
   </div>
@@ -3330,15 +3355,17 @@
     <div id="marketOverviewSplit" class="market-overview-split market-overview-split--no-watchlist">
     <div class="market-overview-main">
     <div class="indices-section">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;flex-wrap:wrap;gap:10px;">
+      <div class="indices-section-head">
         <div class="indices-title" style="margin-bottom:0">주요 지수</div>
-        <div class="indices-live-badge">
-          <span class="indices-live-dot" id="indicesLiveDot"></span>
+        <div class="market-live-badge">
+          <span class="market-live-dot" id="indicesLiveDot"></span>
           <span id="indicesLiveStatus">불러오는 중...</span>
         </div>
       </div>
+      <div class="indices-grid-scroll">
       <div class="indices-grid" id="indicesGrid">
         <!-- 동적으로 지수 카드 생성 -->
+      </div>
       </div>
       <div class="index-hover-popover" id="indexHoverPopover" hidden aria-live="polite"></div>
     </div>
@@ -3346,12 +3373,10 @@
     <div class="stocks-section">
       <div class="stocks-header">
         <div class="stocks-header-top">
-          <div class="stocks-title">
-            주요 종목
-            <span class="live-badge">
-              <span class="live-dot" id="liveDot"></span>
-              <span id="liveStatus">연결 중...</span>
-            </span>
+          <div class="stocks-title">주요 종목</div>
+          <div class="market-live-badge">
+            <span class="market-live-dot" id="liveDot"></span>
+            <span id="liveStatus">연결 중...</span>
           </div>
         </div>
         <div class="stocks-controls">
@@ -3372,7 +3397,8 @@
           </div>
         </div>
       </div>
-      <table class="stocks-table" id="stocksTable">
+      <div class="stocks-table-wrap">
+      <table class="stocks-table is-state-only" id="stocksTable">
         <thead>
           <tr>
             <th class="watch-col-th" aria-label="관심 종목">♥</th>
@@ -3384,9 +3410,14 @@
           </tr>
         </thead>
         <tbody id="stocksTableBody">
-          <tr><td colspan="6" style="text-align:center;color:var(--gray-400);padding:32px">시세 불러오는 중...</td></tr>
+          <tr class="stocks-table-state-row">
+            <td class="watch-cell" aria-hidden="true"></td>
+            <td colspan="2" class="stocks-table-state-cell stocks-table-state-cell--between">시세 불러오는 중...</td>
+            <td colspan="3" class="stocks-table-state-rest" aria-hidden="true"></td>
+          </tr>
         </tbody>
       </table>
+      </div>
       <div class="stocks-pagination" id="stocksPagination"></div>
     </div>
 
@@ -3422,8 +3453,7 @@
 
     <div id="stockDetailView" class="market-view stock-detail-view hidden" aria-hidden="true">
       <div class="stock-detail-header">
-        <button class="btn-back" type="button" onclick="closeStockDetail()">← 주요 종목으로 돌아가기</button>
-      </div>
+</div>
       <div class="stock-detail-head">
         <div class="stock-detail-top">
           <div class="stock-detail-identity">
@@ -3453,7 +3483,7 @@
         </div>
         <div class="chart-placeholder" id="chartWrapper">
           <div id="stockChartWrap" class="jurin-chart-hover-wrap" style="display:none;">
-            <div id="stockChartOhlcLegend" class="chart-ohlc-hover" hidden aria-live="polite"></div>
+            <div id="stockChartOhlcLegend" class="chart-ohlc-hover chart-ohlc-hover--sim" hidden aria-live="polite"></div>
             <div id="stockChart" style="width:100%;height:200px;"></div>
           </div>
           <div class="chart-skeleton" id="chartSkeleton"></div>
@@ -3764,7 +3794,9 @@
       <li><a href="glossary.html">용어 검색</a></li>
       <li><a class="jurin-simulation-link" href="http://127.0.0.1:5000/simulation.html">모의 투자</a></li>
       <li><a href="market.html" class="active">시장 <span class="nav-badge">LIVE</span></a></li>
-    </ul>
+      <li><a href="community.html">커뮤니티</a></li>
+    <li><a href="inquiry.html">문의</a></li>
+  </ul>
     <div class="nav-right">
       <button type="button" class="btn-ghost index-detail-overlay__close-nav" id="indexDetailClose">닫기</button>
     </div>
@@ -3793,7 +3825,7 @@
         <div class="detail-toolbar" id="indexDetailTabs" role="tablist" aria-label="차트 기간"></div>
         <div class="chart-placeholder index-detail-chart-placeholder">
           <div id="indexDetailChartWrap" class="jurin-chart-hover-wrap" style="display:none;">
-            <div id="indexDetailChartLegend" class="chart-ohlc-hover" hidden aria-live="polite"></div>
+            <div id="indexDetailChartLegend" class="chart-ohlc-hover chart-ohlc-hover--sim" hidden aria-live="polite"></div>
             <div id="indexDetailChart" style="width:100%;height:220px;"></div>
           </div>
           <div class="chart-skeleton" id="indexDetailChartSkeleton"></div>
@@ -3816,6 +3848,11 @@
 <script>
   const BACKEND = window.JURIN_API_BASE || 'http://localhost:5000';
   let jurinWatchlistItems = [];
+
+  function formatMarketLiveStatus(ts) {
+    const t = String(ts || '').trim();
+    return t ? `${t} 기준` : '연결 중...';
+  }
 
   function jurinWatchCodesHas(code) {
     const c = String(code || '').trim();
@@ -4607,7 +4644,7 @@
       searchUniverseList = buildLiveStocksFromOrder(order, incomingByCode);
       if (dot) dot.classList.remove('error');
       if (status && q) {
-        status.textContent = `${data.ts} 업데이트 (검색·${searchUniverseList.length}종목 기준)`;
+        status.textContent = formatMarketLiveStatus(data.ts);
       }
       return data;
     } catch (e) {
@@ -4667,7 +4704,7 @@
       liveStocks = buildLiveStocksFromOrder(stockOrder, incomingByCode);
 
       dot.classList.remove('error');
-      status.textContent = `${data.ts} 업데이트 (${data.total_count || data.count || liveStocks.length}종목)`;
+      status.textContent = formatMarketLiveStatus(data.ts);
       renderStocks();
       refreshStockDetailIfOpen();
     } catch (e) {
@@ -4851,6 +4888,20 @@
     }
   }
 
+  function stocksTableStateRowHtml(message) {
+    return `<tr class="stocks-table-state-row">
+      <td class="watch-cell" aria-hidden="true"></td>
+      <td colspan="2" class="stocks-table-state-cell stocks-table-state-cell--between">${message}</td>
+      <td colspan="3" class="stocks-table-state-rest" aria-hidden="true"></td>
+    </tr>`;
+  }
+
+  function syncStocksTableLayout() {
+    const table = document.getElementById('stocksTable');
+    if (!table) return;
+    table.classList.toggle('is-state-only', !!table.querySelector('.stocks-table-state-row'));
+  }
+
   // ── 종목 테이블 렌더링 ───────────────────────────────
   function renderStocks() {
     const tbody = document.getElementById('stocksTableBody');
@@ -4863,14 +4914,16 @@
     if (q) {
       totalPages = 1;
       if (!searchUniverseList.length) {
-        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--gray-400);padding:32px">목록 불러오는 중...</td></tr>`;
+        tbody.innerHTML = stocksTableStateRowHtml('목록 불러오는 중...');
         pagination.innerHTML = '';
+        syncStocksTableLayout();
         return;
       }
       pageStocks = searchUniverseList.filter(s => s && s.code);
       if (pageStocks.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--gray-400);padding:32px">해당종목이 없습니다.</td></tr>`;
+        tbody.innerHTML = stocksTableStateRowHtml('해당종목이 없습니다.');
         pagination.innerHTML = '';
+        syncStocksTableLayout();
         return;
       }
     } else {
@@ -4882,29 +4935,40 @@
     }
 
     if (!q && pageStocks.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--gray-400);padding:32px">
-        ${currentFilter !== 'all' ? '해당 조건의 종목이 없습니다.' : '시세 불러오는 중...'}
-      </td></tr>`;
+      tbody.innerHTML = stocksTableStateRowHtml(
+        currentFilter !== 'all' ? '해당 조건의 종목이 없습니다.' : '시세 불러오는 중...'
+      );
       pagination.innerHTML = '';
+      syncStocksTableLayout();
       return;
     }
 
     const rowsHtml = pageStocks.map(stock => {
       if (stock.loading) {
         return `
-          <tr id="row-${stock.code}">
+          <tr id="row-${stock.code}" class="stocks-table-loading-row">
             <td class="watch-cell">${watchHeartCellHtml(stock.code)}</td>
-            <td>${stockNameCellHtml(stock)}</td>
-            <td colspan="4" style="color:var(--gray-400)">시세 불러오는 중...</td>
+            <td colspan="2" class="stocks-row-state-between-cell">
+              <div class="stocks-row-state-between-inner">
+                ${stockNameCellHtml(stock)}
+                <span class="stocks-row-state-msg">시세 불러오는 중...</span>
+              </div>
+            </td>
+            <td colspan="3" class="stocks-row-state-rest"></td>
           </tr>`;
       }
 
       if (stock.error && (stock.price === undefined || stock.price === null)) {
         return `
-          <tr id="row-${stock.code}">
+          <tr id="row-${stock.code}" class="stocks-table-loading-row">
             <td class="watch-cell">${watchHeartCellHtml(stock.code)}</td>
-            <td>${stockNameCellHtml(stock)}</td>
-            <td colspan="4" style="color:var(--gray-400)">조회 지연 (${stock.error})</td>
+            <td colspan="2" class="stocks-row-state-between-cell">
+              <div class="stocks-row-state-between-inner">
+                ${stockNameCellHtml(stock)}
+                <span class="stocks-row-state-msg">조회 지연 (${stock.error})</span>
+              </div>
+            </td>
+            <td colspan="3" class="stocks-row-state-rest"></td>
           </tr>`;
       }
 
@@ -4930,6 +4994,7 @@
 
     tbody.innerHTML = rowsHtml;
     applyStockLogoIntrinsicFit(tbody);
+    syncStocksTableLayout();
     if (q) {
       pagination.innerHTML = '';
     } else {
@@ -4985,7 +5050,7 @@
     try {
       const namesParam = encodeURIComponent(`${selectedStockCode}:${name}`);
       const res = await fetch(
-        `${BACKEND}/api/live-prices?codes=${encodeURIComponent(selectedStockCode)}&names=${namesParam}&page=1&page_size=1&filter=all&sync_refresh=1`
+        `${BACKEND}/api/live-prices?codes=${encodeURIComponent(selectedStockCode)}&names=${namesParam}&page=1&page_size=1&filter=all`
       );
       const data = await res.json();
       if (!data.success || !Array.isArray(data.stocks)) return;
@@ -5430,6 +5495,15 @@
     ].join(';');
   }
 
+  function shouldShowIndexSparkline(idx) {
+    if (!idx || idx.kind === 'breadth') return false;
+    const points = Array.isArray(idx.points) ? idx.points : [];
+    const values = points.map(function (point) {
+      return Number(point.value);
+    }).filter(Number.isFinite);
+    return values.length >= 2;
+  }
+
   function indexCardHtml(idx, isSkeleton) {
     const name = escapeHtml(String(idx && idx.name ? idx.name : '지수'));
     const cardKey = String((idx && idx.key) || INDEX_KEY_BY_NAME[String((idx && idx.name) || '')] || '').trim();
@@ -5443,27 +5517,29 @@
     const styleAttr = ` style="${escapeHtml(buildMarketCardStyle(idx))}"`;
     if (isSkeleton) {
       return `
-        <div class="index-card${staticClass}${detailClass}"${popoverAttrs}${styleAttr}${keyAttr}${nameAttr}>
+        <div class="index-card index-card--toss${staticClass}${detailClass}"${popoverAttrs}${styleAttr}${keyAttr}${nameAttr}>
           <div class="index-name">${name}</div>
-          <div class="index-value index-skeleton" style="color:var(--gray-400)">---</div>
-          <div class="index-change flat index-skeleton">불러오는 중</div>
+          <div class="index-card-main">
+            <div class="index-value index-skeleton" style="color:var(--gray-400)">---</div>
+            <div class="index-change flat index-skeleton">불러오는 중</div>
+          </div>
         </div>`;
     }
     if (idx && idx.error) {
       return `
-        <div class="index-card${staticClass}${detailClass}"${popoverAttrs}${styleAttr}${keyAttr}${nameAttr}>
+        <div class="index-card index-card--toss${staticClass}${detailClass}"${popoverAttrs}${styleAttr}${keyAttr}${nameAttr}>
           <div class="index-name">${name}</div>
-          <div class="index-value" style="color:var(--gray-400)">-</div>
-          <div class="index-change flat">조회 실패</div>
+          <div class="index-card-main">
+            <div class="index-value" style="color:var(--gray-400)">-</div>
+            <div class="index-change flat">조회 실패</div>
+          </div>
         </div>`;
     }
     const dir = (idx && idx.direction) || 'flat';
     const hasHistory = hasPopover;
     const arrow = dir === 'up' ? '▲' : (dir === 'down' ? '▼' : '-');
-    const sign = dir === 'up' ? '+' : (dir === 'down' ? '-' : '');
     const value = Number(idx && idx.value);
     const changePct = Number(idx && idx.change_pct);
-    const changeAbs = Number(idx && idx.change_abs);
     const valueText = idx && idx.value_text != null
       ? String(idx.value_text)
       : (Number.isFinite(value) ? value.toLocaleString() : '-');
@@ -5471,14 +5547,16 @@
       ? String(idx.change_text)
       : `${arrow} ${Number.isFinite(changePct) ? Math.abs(changePct).toFixed(2) : '0.00'}%`;
     const compactClass = valueText.length >= 9 || (idx && idx.kind === 'breadth') ? ' index-value--compact' : '';
-    const inlineChartHtml = idx && idx.inline_chart === true
+    const inlineChartHtml = shouldShowIndexSparkline(idx)
       ? buildInlineCardSparklineSvg((idx && idx.points) || [], dir, idx && idx.reference_value, idx && idx.chart_mode)
       : '';
     return `
-      <div class="index-card ${dir}${staticClass}${detailClass}"${hasHistory ? popoverAttrs : ''}${styleAttr}${keyAttr}${nameAttr}>
+      <div class="index-card index-card--toss ${dir}${staticClass}${detailClass}"${hasHistory ? popoverAttrs : ''}${styleAttr}${keyAttr}${nameAttr}>
         <div class="index-name">${name}</div>
-        <div class="index-value${compactClass}">${escapeHtml(valueText)}</div>
-        <div class="index-change ${dir}">${escapeHtml(changeText)}</div>
+        <div class="index-card-main">
+          <div class="index-value${compactClass}">${escapeHtml(valueText)}</div>
+          <div class="index-change ${dir}">${escapeHtml(changeText)}</div>
+        </div>
         ${inlineChartHtml ? `<div class="index-inline-chart">${inlineChartHtml}</div>` : ''}
       </div>`;
   }
@@ -5680,13 +5758,15 @@
     const areaPath = `${path} L ${last.x.toFixed(2)} ${baseY.toFixed(2)} L ${first.x.toFixed(2)} ${baseY.toFixed(2)} Z`;
     const strokeWidth = options && options.strokeWidth != null ? options.strokeWidth : 2;
     const showDot = !(options && options.showDot === false);
+    const fillStart = options && options.fillStart != null ? options.fillStart : colors.fillStart;
+    const fillEnd = options && options.fillEnd != null ? options.fillEnd : colors.fillEnd;
     const extra = (options && options.extraMarkup) || '';
     return `
       <svg viewBox="0 0 ${width} ${height}" aria-hidden="true" preserveAspectRatio="none">
         <defs>
           <linearGradient id="${gradId}" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="${colors.line}" stop-opacity="${colors.fillStart}"></stop>
-            <stop offset="100%" stop-color="${colors.line}" stop-opacity="${colors.fillEnd}"></stop>
+            <stop offset="0%" stop-color="${colors.line}" stop-opacity="${fillStart}"></stop>
+            <stop offset="100%" stop-color="${colors.line}" stop-opacity="${fillEnd}"></stop>
           </linearGradient>
         </defs>
         <path d="${areaPath}" fill="url(#${gradId})"></path>
@@ -5700,14 +5780,16 @@
     const values = Array.isArray(points) ? points.map(point => Number(point.value)).filter(Number.isFinite) : [];
     if (values.length < 2) return '';
     const width = 240;
-    const height = 56;
-    const padX = 4;
-    const padY = 4;
+    const height = 44;
+    const padX = 2;
+    const padY = 3;
     const mode = chartMode === 'score' || chartMode === 'relative' ? chartMode : 'minmax';
     const coords = buildIndexSparklineCoords(values, width, height, padX, padY, mode, referenceValue);
     return buildIndexSparklineSvgMarkup(coords, direction, width, height, padY, {
-      strokeWidth: 2,
+      strokeWidth: 1.5,
       showDot: false,
+      fillStart: 0.14,
+      fillEnd: 0,
     });
   }
 
@@ -6026,7 +6108,7 @@
       if (!data.success) throw new Error(data.message || '조회 실패');
 
       dot.classList.remove('error');
-      status.textContent = `${data.ts} 기준${data.cached ? ' (캐시)' : ''}`;
+      status.textContent = formatMarketLiveStatus(data.ts);
 
       const reopenKey = activeIndexPopoverKey;
       const cards = buildMarketIndexCards(data);
@@ -6702,11 +6784,12 @@ document.getElementById('investorFlowList').innerHTML = '<div class="empty-state
     }).observe(container);
   }
 </script>
-<script src="js/mascot-coach.js?v=20260502"></script>
+<script src="js/mascot-coach.js?v=20260613"></script>
 <script src="js/jurin-tutorial-guard.js"></script>
 <script src="js/market-step1-tutorial.js"></script>
 <script src="js/market-step2-tutorial.js"></script>
 <script src="js/market-step3-tutorial.js"></script>
+<script src="js/user-avatar.js"></script>
 <script src="js/common-auth.js"></script>
 <script>
   (function () {
@@ -6738,6 +6821,6 @@ document.getElementById('investorFlowList').innerHTML = '<div class="empty-state
 </script>
 <div id="jurinWatchToast" class="jurin-watch-toast" role="status" aria-live="polite" hidden></div>
 
-<script src="js/lumi-chat.js?v=20260609"></script>
+<script src="js/lumi-chat.js?v=20260614"></script>
 </body>
 </html>

@@ -353,7 +353,7 @@
     background: rgba(47, 143, 95, 0.08);
   }
 </style>
-<link rel="stylesheet" href="css/lumi-chat.css?v=20260609">
+<link rel="stylesheet" href="css/lumi-chat.css?v=20260609m">
 </head>
 <body>
 <nav>
@@ -369,10 +369,12 @@
     <li><a href="market-products.html?topic=bonds">채권</a></li>
     <li><a href="glossary.html">용어 검색</a></li>
     <li><a class="jurin-simulation-link" href="http://127.0.0.1:5000/simulation.html">모의 투자</a></li>
-    <li><a href="market.html">시장</a></li>
+    <li><a href="market.html">시장 <span class="nav-badge">LIVE</span></a></li>
+    <li><a href="community.html">커뮤니티</a></li>
+    <li><a href="inquiry.html">문의</a></li>
   </ul>
   <div class="nav-right">
-    <button type="button" class="btn-ghost" onclick="window.location.href='market.html'">시장으로 돌아가기</button>
+    <button type="button" class="btn-primary" onclick="window.location.href='market.html'">시장으로 돌아가기</button>
   </div>
 </nav>
 
@@ -394,7 +396,7 @@
       <p class="sector-desc" id="sectorDesc">선택한 섹터의 핵심 포인트를 요약해 보여줍니다.</p>
       <div class="sector-keywords" id="sectorKeywords"></div>
       <div class="sector-actions">
-        <button type="button" class="btn-ghost" onclick="window.location.href='market.html'">시장 페이지로 돌아가기</button>
+        <button type="button" class="btn-primary" onclick="window.location.href='market.html'">시장 페이지로 돌아가기</button>
       </div>
     </section>
 
@@ -431,6 +433,7 @@
 
 <script src="js/api-base.js"></script>
 <script src="js/sector-icons.js"></script>
+<script src="js/user-avatar.js"></script>
 <script src="js/common-auth.js"></script>
 <script>
   const BACKEND = window.JURIN_API_BASE || 'http://localhost:5000';
@@ -983,6 +986,11 @@
     applyStockLogoIntrinsicFit(body);
   }
 
+  function formatMarketLiveStatus(ts) {
+    const t = String(ts || '').trim();
+    return t ? `${t} 기준` : '연결 중...';
+  }
+
   async function fetchSectorPrices() {
     if (!selectedSector || !selectedSector.stocks || selectedSector.stocks.length === 0) return;
 
@@ -1009,7 +1017,7 @@
       });
 
       dot.classList.remove('error');
-      status.textContent = `${data.ts} 업데이트 (${ordered.length}종목)`;
+      status.textContent = formatMarketLiveStatus(data.ts);
       renderStocksRows(ordered);
     } catch (err) {
       dot.classList.add('error');
@@ -1056,6 +1064,6 @@
     renderSectorPage();
   });
 </script>
-<script src="js/lumi-chat.js?v=20260609"></script>
+<script src="js/lumi-chat.js?v=20260614"></script>
 </body>
 </html>

@@ -414,7 +414,8 @@
   }
 
 </style>
-<link rel="stylesheet" href="css/lumi-chat.css?v=20260609">
+<link rel="stylesheet" href="css/jurin-alert-modal.css?v=20260609">
+<link rel="stylesheet" href="css/lumi-chat.css?v=20260609m">
 </head>
 <body>
 
@@ -431,7 +432,9 @@
     <li><a href="market-products.html?topic=bonds">채권</a></li>
     <li><a href="glossary.html" class="active">용어 검색</a></li>
     <li><a class="jurin-simulation-link" href="http://127.0.0.1:5000/simulation.html">모의 투자</a></li>
-    <li><a href="market.html">시장</a></li>
+    <li><a href="market.html">시장 <span class="nav-badge">LIVE</span></a></li>
+    <li><a href="community.html">커뮤니티</a></li>
+    <li><a href="inquiry.html">문의</a></li>
   </ul>
   <div class="nav-right" data-auth-nav>
     <button type="button" class="btn-ghost" id="navLoginBtn">로그인</button>
@@ -444,8 +447,7 @@
 <div class="glossary-container page-below-nav">
   <div class="glossary-header">
     <div class="glossary-header-content">
-      <a href="주린닷컴홈피.html" class="btn-back">← 돌아가기</a>
-      <div class="glossary-title">용어 사전</div>
+<div class="glossary-title">용어 사전</div>
       <div class="glossary-sub">주식 용어를 쉽게 찾아보세요.</div>
     </div>
   </div>
@@ -480,6 +482,7 @@
 </div>
 
 <script src="js/api-base.js"></script>
+<script src="js/jurin-alert-modal.js?v=20260609"></script>
 <script src="js/stock-terms.js"></script>
 <script src="js/stock-autocomplete.js"></script>
 <script>
@@ -548,10 +551,12 @@
     while (lines.length && onlyFence(lines[0])) lines.shift();
     while (lines.length && onlyFence(lines[lines.length - 1])) lines.pop();
     s = lines.join('\n');
-    for (const marker of ['\n[작성 규칙]', '\n[사용자 질문]', '\n[제목]', '\n[요약]']) {
+    for (const marker of ['\n[작성 규칙]', '\n[사용자 질문]', '\n[제목]', '\n[요약]', '\n[정의]', '\n[설명]']) {
       const idx = s.indexOf(marker);
       if (idx !== -1) s = s.slice(0, idx);
     }
+    s = s.replace(/^\[정의\]\s*/i, '');
+    s = s.replace(/^\[설명\]\s*/i, '');
     s = s.replace(/\*\*용어의 의미:\*\*\s*/gi, '');
     s = s.replace(/\*\*특징:\*\*\s*/gi, '');
     s = s.replace(/\*\*실제 투자 활용 예시:\*\*\s*/gi, '');
@@ -598,34 +603,69 @@
     return sentences.slice(0, Math.max(1, maxCount || 2)).join(' ');
   }
 
-  function renderAnswer(termName, answer) {
-    const resultContainer = document.getElementById('resultContainer');
-    resultContainer.classList.remove('loading');
-
-    const normalized = normalizeTermAnswerText(answer);
+  function resolveOfficialFromPayload(termName, data) {
+    const official = data && data.official ? data.official : null;
+    if (official && official.summary) {
+      return {
+        summary: String(official.summary).trim(),
+        sourceLabel: official.source_label || official.sourceLabel || '',
+        sourceUrl: official.source_url || official.sourceUrl || '',
+      };
+    }
     const preset =
       window.JurinStockTerms &&
       typeof window.JurinStockTerms.getOfficialSummaryPreset === 'function'
         ? window.JurinStockTerms.getOfficialSummaryPreset(termName)
         : null;
-    const officialRaw = preset && preset.summary ? preset.summary : normalized;
-    const officialSummary = firstSentences(officialRaw, 3);
+    if (preset && preset.summary) {
+      return {
+        summary: firstSentences(preset.summary, 4),
+        sourceLabel: preset.sourceLabel || '',
+        sourceUrl: preset.sourceUrl || '',
+      };
+    }
+    return null;
+  }
+
+  function renderAnswer(termName, data) {
+    const resultContainer = document.getElementById('resultContainer');
+    resultContainer.classList.remove('loading');
+
+    const answerText =
+      typeof data === 'string'
+        ? data
+        : (data && data.answer) || '설명 결과가 비어 있습니다.';
+    const normalized = normalizeTermAnswerText(answerText);
+    const officialInfo = typeof data === 'object' && data
+      ? resolveOfficialFromPayload(termName, data)
+      : null;
+    const usedAiDefinitionFallback = !officialInfo;
+    const aiDefinition = data && (data.ai_definition || data.aiDefinition)
+      ? String(data.ai_definition || data.aiDefinition).trim()
+      : '';
+    const definitionSummary = officialInfo && officialInfo.summary
+      ? officialInfo.summary
+      : aiDefinition || firstSentences(normalized, 2) || normalized || '설명 결과가 비어 있습니다.';
     const bodyHtml = renderImportantSummaryHtml(normalized);
+    const sourceLabel = officialInfo && officialInfo.sourceLabel ? officialInfo.sourceLabel : '';
+    const sourceUrl = officialInfo && officialInfo.sourceUrl ? officialInfo.sourceUrl : '';
     resultContainer.innerHTML = `
       <div class="term-definition">
         <div class="term-title">${escapeHtml(termName)}</div>
         <div class="term-content">
           <div class="term-section">
-            <div class="term-section-title">공식 설명</div>
-            <div class="term-section-body term-summary-box term-official-box">${escapeHtml(officialSummary || normalized || '')}</div>
+            <div class="term-section-title">정의</div>
+            <div class="term-section-body term-summary-box term-official-box">${escapeHtml(definitionSummary)}</div>
             ${
-              preset && preset.sourceLabel
-                ? `<div class="term-source">${
-                    preset.sourceUrl
-                      ? `출처: <a href="${escapeHtml(preset.sourceUrl)}" target="_blank" rel="noopener">${escapeHtml(preset.sourceLabel)}</a>`
-                      : `출처: ${escapeHtml(preset.sourceLabel)}`
-                  }</div>`
-                : ''
+              usedAiDefinitionFallback
+                ? '<div class="term-source term-source-fallback">공식 출처(위키백과)에서 가져오지 못해 AI 정의로 요약을 표시합니다.</div>'
+                : sourceLabel
+                  ? `<div class="term-source">${
+                      sourceUrl
+                        ? `출처: <a href="${escapeHtml(sourceUrl)}" target="_blank" rel="noopener">${escapeHtml(sourceLabel)}</a>`
+                        : `출처: ${escapeHtml(sourceLabel)}`
+                    }</div>`
+                  : ''
             }
           </div>
           <div class="term-section">
@@ -644,7 +684,7 @@
     const termName = inputEl.value.trim();
 
     if (!termName) {
-      alert('용어를 입력해주세요.');
+      openJurinAlert('용어를 입력해주세요.');
       return;
     }
 
@@ -667,7 +707,7 @@
         return;
       }
 
-      renderAnswer(termName, data.answer || '설명 결과가 비어 있습니다.');
+      renderAnswer(termName, data);
     } catch (error) {
       renderError('서버(localhost:5000)에 연결할 수 없습니다. 백엔드를 실행했는지 확인하세요.');
     }
@@ -713,8 +753,10 @@
     } catch (e) { /* ignore */ }
   });
 </script>
+<script src="js/api-base.js"></script>
+<script src="js/user-avatar.js"></script>
 <script src="js/common-auth.js"></script>
 
-<script src="js/lumi-chat.js?v=20260609"></script>
+<script src="js/lumi-chat.js?v=20260614"></script>
 </body>
 </html>

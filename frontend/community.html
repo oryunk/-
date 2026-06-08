@@ -1,0 +1,259 @@
+﻿<!DOCTYPE html>
+<!-- 커뮤니티: 게시글 피드·글쓰기·상세 (community-page.js). -->
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="assets/brand/favicon.ico?v=20260607" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/brand/favicon-32x32.png?v=20260607">
+<link rel="apple-touch-icon" sizes="180x180" href="assets/brand/apple-touch-icon.png?v=20260607">
+<title>커뮤니티 - 주린닷컴</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css?v=20260702">
+<link rel="stylesheet" href="css/inquiry.css?v=20260830">
+<link rel="stylesheet" href="css/community.css?v=20260608">
+<link rel="stylesheet" href="css/lumi-con.css?v=20260623">
+<link rel="stylesheet" href="css/lumi-chat.css?v=20260609m">
+<script src="js/auth-nav-boot.js"></script>
+</head>
+<body class="community-page">
+
+<nav>
+  <a href="주린닷컴홈피.html" class="nav-logo">
+    <img class="logo-icon" src="assets/brand/jurin-logo-icon.png?v=20260607" alt="" width="36" height="36" decoding="async">
+    <div class="logo-text">주린<span>닷컴</span></div>
+  </a>
+  <ul class="nav-menu">
+    <li><a href="guide.html">가이드</a></li>
+    <li><a href="analysis.html">AI 분석 <span class="nav-badge">AI</span></a></li>
+    <li><a href="ai-chart-prediction.html">AI 차트 예측 <span class="nav-badge">AI</span></a></li>
+    <li><a href="market-products.html?topic=elw">ELW</a></li>
+    <li><a href="market-products.html?topic=bonds">채권</a></li>
+    <li><a href="glossary.html">용어 검색</a></li>
+    <li><a class="jurin-simulation-link" href="http://127.0.0.1:5000/simulation.html">모의 투자</a></li>
+    <li><a href="market.html">시장 <span class="nav-badge">LIVE</span></a></li>
+    <li><a href="community.html" class="active">커뮤니티</a></li>
+    <li><a href="inquiry.html">문의</a></li>
+  </ul>
+  <div class="nav-right" data-auth-nav>
+    <button type="button" class="btn-ghost" id="navLoginBtn">로그인</button>
+    <span class="nav-user-email" id="navUserEmail" aria-live="polite" hidden></span>
+    <button type="button" class="btn-ghost" id="navLogoutBtn" hidden>로그아웃</button>
+    <button type="button" class="btn-primary" id="navSignupBtn">회원가입</button>
+  </div>
+</nav>
+
+<main class="community-shell page-below-nav">
+  <div class="community-layout">
+    <aside class="community-sidebar" aria-label="커뮤니티 메뉴">
+      <div class="community-sidebar-head">
+        <h1 class="community-sidebar-title">커뮤니티</h1>
+        <p class="community-sidebar-sub">투자 이야기를 나누고, 함께 성장해요</p>
+        <button type="button" class="btn-primary community-write-btn" id="communityWriteBtn">
+          <span class="community-write-icon" aria-hidden="true">✎</span> 글쓰기
+        </button>
+      </div>
+      <div class="inquiry-menu-card" aria-label="게시판 목록">
+        <div class="inquiry-side-nav" id="communitySideNav" role="navigation" aria-label="게시판 메뉴"></div>
+      </div>
+      <div class="community-lumi-card" aria-label="커뮤니티 가이드">
+        <img class="community-lumi-img" src="assets/mascot2/excited.png?v=20260607" alt="" width="72" height="80" decoding="async">
+        <div class="community-lumi-body">
+          <strong>커뮤니티 가이드</strong>
+          <p>함께 만드는 건강한 투자 문화를 만들어가요!</p>
+          <button type="button" class="community-guide-btn" id="communityGuideBtn">자세히 보기</button>
+        </div>
+      </div>
+    </aside>
+
+    <div class="community-center">
+      <section class="community-view" id="communityViewFeed" data-view-panel="feed">
+        <header class="community-feed-head">
+          <div>
+            <h2 class="community-feed-title" id="communityFeedTitle">전체 게시글</h2>
+            <p class="community-feed-sub" id="communityFeedSub">주린이들의 투자 이야기를 모았어요</p>
+          </div>
+        </header>
+        <div class="community-toolbar">
+          <div class="community-sort-wrap">
+            <label class="community-sort-label" for="communitySortSelect">정렬</label>
+            <select id="communitySortSelect" class="community-sort-select" aria-label="정렬">
+              <option value="latest">최신순</option>
+              <option value="likes">추천순</option>
+              <option value="comments">댓글순</option>
+            </select>
+          </div>
+          <div class="inquiry-search community-feed-search">
+            <span class="inquiry-search-icon" aria-hidden="true">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            </span>
+            <input type="search" id="communitySearchInput" placeholder="제목·내용 검색" aria-label="게시글 검색">
+            <button type="button" class="inquiry-search-btn" id="communitySearchBtn">검색</button>
+          </div>
+        </div>
+        <div class="community-stock-filter" id="communityStockFilter" hidden>
+          <span class="community-stock-filter-label" id="communityStockFilterLabel"></span>
+          <button type="button" class="community-stock-filter-clear" id="communityStockFilterClear">필터 해제</button>
+        </div>
+        <div class="community-feed-list" id="communityFeedList" aria-live="polite"></div>
+        <div class="community-pagination" id="communityPagination" aria-label="페이지" hidden></div>
+      </section>
+
+      <section class="community-view is-hidden" id="communityViewWrite" data-view-panel="write" hidden>
+        <header class="community-panel-head">
+          <h2 class="community-panel-title">글쓰기</h2>
+        </header>
+        <form class="community-write-form" id="communityWriteForm" novalidate>
+          <label class="community-field">
+            <span>글 유형</span>
+            <div class="community-write-type" role="radiogroup" aria-label="글 유형">
+              <button type="button" class="community-write-type-btn is-active" data-write-board="free" aria-pressed="true">일반</button>
+              <button type="button" class="community-write-type-btn" data-write-board="qna" aria-pressed="false">질문/답변</button>
+            </div>
+          </label>
+          <div class="community-field community-field--stock" id="communityWriteStockField">
+            <span class="community-field-label">종목 (선택)</span>
+            <input type="text" id="writeStockName" class="community-stock-input" placeholder="종목명 검색 (예: 삼성전자)" maxlength="100" autocomplete="off" aria-label="종목 검색">
+            <input type="hidden" id="writeStockCode" value="">
+          </div>
+          <label class="community-field">
+            <span>제목</span>
+            <input type="text" id="writeTitle" maxlength="200" placeholder="제목을 입력하세요">
+          </label>
+          <label class="community-field">
+            <span>내용</span>
+            <textarea id="writeBody" rows="10" placeholder="내용을 입력하세요 (2자 이상)"></textarea>
+          </label>
+          <div class="community-write-poll" id="communityWritePoll">
+            <label class="community-poll-toggle">
+              <input type="checkbox" id="writePollEnabled">
+              <span>투표 추가하기</span>
+            </label>
+            <p class="community-poll-hint">이 게시글에 투표가 생성됩니다.</p>
+            <div class="community-poll-settings" id="writePollSettings" hidden>
+              <label class="community-poll-title-field">
+                <span class="community-poll-settings-label">투표 제목</span>
+                <input type="text" id="writePollTitle" maxlength="100" placeholder="여러분의 생각은?">
+              </label>
+              <ul class="community-write-poll-options" id="writePollOptionsList" aria-label="투표 선택지"></ul>
+              <button type="button" class="community-poll-add-option-btn" id="writePollAddOption">+ 옵션 추가 (선택)</button>
+              <p class="community-poll-options-error" id="writePollOptionsError" hidden role="alert"></p>
+              <span class="community-poll-settings-label">마감 시간</span>
+              <div class="community-poll-presets" role="group" aria-label="마감 시간 빠른 설정">
+                <button type="button" class="community-poll-preset-btn" data-poll-hours="6">6시간</button>
+                <button type="button" class="community-poll-preset-btn" data-poll-hours="24">1일</button>
+                <button type="button" class="community-poll-preset-btn" data-poll-hours="72">3일</button>
+                <button type="button" class="community-poll-preset-btn" data-poll-hours="168">7일</button>
+              </div>
+              <input type="datetime-local" id="writePollEndsAt" aria-label="투표 마감 시간">
+            </div>
+          </div>
+          <div class="community-write-edit-extras" id="communityWriteEditExtras" hidden>
+            <div class="community-edit-existing-poll" id="communityEditExistingPoll" hidden>
+              <p class="community-edit-existing-label">등록된 투표</p>
+              <p class="community-edit-existing-summary" id="communityEditPollSummary"></p>
+              <label class="community-edit-remove-check">
+                <input type="checkbox" id="writePollRemove">
+                <span>투표 제거</span>
+              </label>
+              <p class="community-edit-remove-hint">투표와 참여 기록이 함께 삭제됩니다.</p>
+            </div>
+            <div class="community-edit-existing-attach" id="communityEditExistingAttach" hidden>
+              <p class="community-edit-existing-label">등록된 첨부 이미지</p>
+              <div class="community-edit-existing-preview" id="communityEditAttachPreview"></div>
+              <label class="community-edit-remove-check">
+                <input type="checkbox" id="writeAttachRemove">
+                <span>첨부 이미지 제거</span>
+              </label>
+            </div>
+          </div>
+          <div class="inquiry-attach community-write-attach">
+            <span>첨부 이미지 (선택)</span>
+            <div class="inquiry-attach-row">
+              <input type="file" id="writeAttachment" accept="image/jpeg,image/png,image/gif,image/webp" hidden>
+              <button type="button" class="inquiry-attach-btn" id="writeAttachBtn">파일 선택</button>
+              <span class="inquiry-attach-name" id="writeAttachName">선택된 파일 없음</span>
+              <button type="button" class="inquiry-attach-clear" id="writeAttachClear" hidden>삭제</button>
+            </div>
+            <div class="inquiry-attach-preview" id="writeAttachPreview" hidden></div>
+            <p class="inquiry-attach-hint">JPEG, PNG, GIF, WEBP · 최대 10MB · 1개</p>
+          </div>
+          <div class="community-form-actions">
+            <button type="button" class="btn-ghost" id="communityWriteCancel">취소</button>
+            <button type="submit" class="inquiry-submit-btn community-submit-btn">등록하기</button>
+          </div>
+          <p class="community-form-msg" id="writeFormMsg" role="status" aria-live="polite"></p>
+        </form>
+      </section>
+
+      <section class="community-view is-hidden" id="communityViewDetail" data-view-panel="detail" hidden>
+        <article class="community-detail" id="communityDetail"></article>
+      </section>
+    </div>
+
+    <aside class="community-rail" aria-label="커뮤니티 위젯">
+      <section class="community-widget">
+        <div class="community-widget-head">
+          <h3>오늘의 인기글</h3>
+        </div>
+        <ol class="community-popular-list" id="communityPopularList"></ol>
+      </section>
+
+      <section class="community-widget community-quick-write">
+        <h3>빠른 글쓰기</h3>
+        <form id="communityQuickWriteForm">
+          <div class="community-write-type" role="radiogroup" aria-label="글 유형">
+            <button type="button" class="community-write-type-btn is-active" data-write-board="free" aria-pressed="true">일반</button>
+            <button type="button" class="community-write-type-btn" data-write-board="qna" aria-pressed="false">질문/답변</button>
+          </div>
+          <input type="text" id="quickTitle" maxlength="200" placeholder="제목" aria-label="제목">
+          <textarea id="quickBody" rows="4" placeholder="내용을 입력하세요" aria-label="내용"></textarea>
+          <p class="community-quick-count"><span id="quickBodyCount">0</span> / 2000</p>
+          <button type="submit" class="inquiry-submit-btn community-quick-submit">등록하기</button>
+        </form>
+        <p class="community-form-msg" id="quickFormMsg"></p>
+      </section>
+
+      <div class="community-rail-banner" aria-label="커뮤니티 안내">
+        <img class="community-rail-banner-img" src="assets/mascot/mascot-welcome.png?v=20260607" alt="" width="56" height="64" decoding="async">
+        <p class="community-rail-banner-text">서로 존중하는 토론 문화를<br>함께 만들어 가요!</p>
+      </div>
+    </aside>
+  </div>
+</main>
+
+<div class="community-modal" id="communityGuideModal" hidden aria-hidden="true">
+  <div class="community-modal-backdrop" data-community-modal-close></div>
+  <div class="community-modal-card" role="dialog" aria-labelledby="communityGuideModalTitle">
+    <h3 id="communityGuideModalTitle">커뮤니티 가이드</h3>
+    <ul class="community-guide-list">
+      <li>투자 정보는 참고용이며, 최종 판단과 책임은 본인에게 있습니다.</li>
+      <li>비방·욕설·허위 정보 게시는 제재될 수 있습니다.</li>
+      <li>질문은 질문/답변에, 경험 나눔은 일반에 올려 주세요.</li>
+      <li>모의투자·AI 분석 결과도 그대로 따라하기보다 스스로 검토해 보세요.</li>
+    </ul>
+    <button type="button" class="btn-primary" data-community-modal-close>확인</button>
+  </div>
+</div>
+
+<div class="community-confirm-modal" id="communityConfirmModal" hidden aria-hidden="true">
+  <div class="community-confirm-modal-backdrop" id="communityConfirmModalBackdrop"></div>
+  <div class="community-confirm-modal-panel" role="dialog" aria-modal="true" aria-labelledby="communityConfirmModalTitle">
+    <div class="community-confirm-modal-head">
+      <h3 class="community-confirm-modal-title" id="communityConfirmModalTitle"></h3>
+    </div>
+    <p class="community-confirm-modal-message" id="communityConfirmModalMessage"></p>
+    <div class="community-confirm-modal-actions" id="communityConfirmModalActions"></div>
+  </div>
+</div>
+
+<script src="js/api-base.js"></script>
+<script src="js/user-avatar.js"></script>
+<script src="js/common-auth.js"></script>
+<script src="js/mascot2-assets.js?v=20260608r"></script>
+<script src="js/lumi-chat.js?v=20260614"></script>
+<script src="js/stock-autocomplete.js"></script>
+<script src="js/lumi-con.js?v=20260623"></script>
+<script src="js/community-page.js?v=20260624"></script>
+</body>
+</html>
