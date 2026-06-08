@@ -35,8 +35,9 @@
   width: 40px;
   height: 40px;
   border-radius: 999px;
-  object-fit: cover;
+  object-fit: contain;
   border: 1px solid rgba(47, 143, 95, 0.22);
+  background: rgba(236, 248, 241, 0.45);
 }
 
 .lumi-chat-fab-label {
@@ -111,9 +112,10 @@
   width: 36px;
   height: 36px;
   border-radius: 999px;
-  object-fit: cover;
+  object-fit: contain;
   border: 2px solid rgba(255, 255, 255, 0.45);
   flex-shrink: 0;
+  background: rgba(236, 248, 241, 0.45);
 }
 
 .lumi-chat-header-title {
@@ -246,6 +248,7 @@
   line-height: 1.3;
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -280,11 +283,11 @@
 }
 
 .lumi-chat-avatar {
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   border-radius: 999px;
   flex-shrink: 0;
-  object-fit: cover;
+  object-fit: contain;
   border: 1px solid rgba(47, 143, 95, 0.2);
   background: #eef5f1;
 }
@@ -447,6 +450,22 @@
   display: flex;
   gap: 8px;
   align-items: flex-end;
+  position: relative;
+  z-index: 2;
+}
+
+.lumi-chat-compose .jurin-ac-wrap {
+  flex: 1;
+  min-width: 0;
+}
+
+.lumi-chat-compose .jurin-ac-wrap > textarea {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.lumi-chat-compose .jurin-ac-dd {
+  z-index: 30;
 }
 
 .lumi-chat-compose textarea {

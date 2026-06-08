@@ -1,0 +1,319 @@
+/* ── 댓글 입력창 (contenteditable) ── */
+.lumi-con-editor.community-comment-editor {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #dce8e1;
+  border-radius: 12px;
+  padding: 12px 14px;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.6;
+  min-height: 88px;
+  max-height: 220px;
+  overflow-y: auto;
+  background: #fff;
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
+.lumi-con-editor.community-comment-editor:focus {
+  outline: none;
+  border-color: rgba(47, 143, 95, 0.45);
+  box-shadow: 0 0 0 3px rgba(47, 143, 95, 0.12);
+}
+
+.lumi-con-editor.community-comment-editor:empty::before {
+  content: attr(data-placeholder);
+  color: #9ab0a5;
+  pointer-events: none;
+}
+
+/* ── 루미콘 인라인 (댓글 본문·입력창) ── */
+.lumi-con-inline {
+  display: inline-block;
+  width: 50px;
+  height: 50px;
+  margin: 0 4px;
+  vertical-align: text-bottom;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+}
+
+.community-comment-body {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* ── 댓글 폼 피커 ── */
+.community-comment-form-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.lumi-con-picker-wrap {
+  position: relative;
+}
+
+.lumi-con-picker-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid #d5e8de;
+  border-radius: 12px;
+  background: #fff;
+  color: #1e693b;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.lumi-con-picker-btn:hover:not(:disabled) {
+  background: #f3fbf7;
+  border-color: #b8dcc8;
+}
+
+.lumi-con-picker-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.lumi-con-picker-popover {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 8px);
+  z-index: 30;
+  width: min(280px, calc(100vw - 32px));
+  padding: 10px;
+  border-radius: 14px;
+  border: 1px solid #d9eee4;
+  background: #fff;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.1);
+}
+
+.lumi-con-picker-popover:not(.is-open) {
+  display: none;
+}
+
+.lumi-con-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+}
+
+.lumi-con-picker-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 2px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.lumi-con-picker-item:hover:not(:disabled) {
+  background: #f0faf5;
+}
+
+.lumi-con-picker-item img {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+}
+
+.lumi-con-picker-item-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: #4d6b5d;
+  line-height: 1.2;
+}
+
+.lumi-con-picker-item.is-locked {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* ── 가이드 보상 미리보기 모달 ── */
+.lumi-con-reward-modal[hidden] {
+  display: none !important;
+}
+
+.lumi-con-reward-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.lumi-con-reward-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(10, 30, 22, 0.45);
+}
+
+.lumi-con-reward-modal-panel {
+  position: relative;
+  z-index: 1;
+  width: min(480px, 100%);
+  max-height: calc(100vh - 40px);
+  overflow: auto;
+  padding: 28px 24px 24px;
+  border-radius: 22px;
+  background: #fff;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.14);
+}
+
+.lumi-con-reward-modal-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 999px;
+  background: #f2f7f4;
+  color: #4d6b5d;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.lumi-con-reward-modal-title {
+  margin: 0 0 8px;
+  font-size: 22px;
+  font-weight: 900;
+  color: #10231b;
+}
+
+.lumi-con-reward-modal-desc {
+  margin: 0 0 18px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #4d6b5d;
+}
+
+.lumi-con-reward-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.lumi-con-reward-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+}
+
+.lumi-con-reward-cell-img {
+  position: relative;
+  width: 64px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 16px;
+  background: #f4fbf7;
+  border: 1px solid #e2eee8;
+}
+
+.lumi-con-reward-cell-img img {
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
+}
+
+.lumi-con-reward-cell.is-preview .lumi-con-reward-cell-img {
+  overflow: hidden;
+}
+
+.lumi-con-reward-cell.is-preview .lumi-con-reward-cell-img img {
+  filter: blur(2px) saturate(0.7);
+  opacity: 0.75;
+}
+
+.lumi-con-reward-cell.is-locked .lumi-con-reward-cell-img {
+  background: #eef3f0;
+}
+
+.lumi-con-reward-cell.is-locked .lumi-con-reward-cell-img img {
+  filter: grayscale(1) blur(3px);
+  opacity: 0.35;
+}
+
+.lumi-con-reward-cell.is-unlocked .lumi-con-reward-cell-img {
+  border-color: #b8e6cc;
+  background: #edf9f2;
+}
+
+.lumi-con-reward-check {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: #1e9a5a;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lumi-con-reward-lock {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+}
+
+.lumi-con-reward-cell-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #4d6b5d;
+}
+
+.lumi-con-reward-modal-actions {
+  display: flex;
+  justify-content: center;
+}
+
+.lumi-con-reward-claim-btn,
+.lumi-con-reward-close-btn {
+  min-width: 180px;
+}
+
+body.lumi-con-modal-open {
+  overflow: hidden;
+}
+
+.guide-reward-btn:not(:disabled) {
+  cursor: pointer;
+}
+
+.guide-reward-btn:not(:disabled):hover {
+  background: #f3fbf7;
+}
+
+@media (max-width: 520px) {
+  .lumi-con-reward-grid,
+  .lumi-con-picker-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}

@@ -1,0 +1,77 @@
+/* 공통 확인 알림 모달 (문의·커뮤니티와 동일 형식) */
+
+.jurin-alert-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 400;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.jurin-alert-modal.is-open {
+  display: flex;
+}
+
+.jurin-alert-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(31, 47, 38, 0.35);
+  backdrop-filter: blur(4px);
+}
+
+.jurin-alert-modal-panel {
+  position: relative;
+  z-index: 1;
+  width: min(92vw, 400px);
+  padding: 24px 24px 20px;
+  border-radius: 16px;
+  border: 1px solid rgba(30, 105, 59, 0.18);
+  background: #fff;
+  box-shadow: 0 20px 48px rgba(31, 47, 38, 0.14);
+  text-align: center;
+}
+
+.jurin-alert-modal-title {
+  margin: 0 0 12px;
+  font-size: 18px;
+  font-weight: 800;
+  color: #1e693b;
+  letter-spacing: -0.02em;
+}
+
+.jurin-alert-modal-message {
+  margin: 0 0 20px;
+  font-size: 14px;
+  line-height: 1.65;
+  color: #33443b;
+  white-space: pre-wrap;
+}
+
+.jurin-alert-modal-actions {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.jurin-alert-modal-btn {
+  min-width: 96px;
+  border-radius: 10px;
+  padding: 10px 18px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.jurin-alert-modal-btn--primary {
+  border: none;
+  background: #1e693b;
+  color: #fff;
+}
+
+.jurin-alert-modal-btn--primary:hover {
+  background: #185a32;
+}

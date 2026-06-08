@@ -180,49 +180,6 @@
   width: 100%;
 }
 
-.index-detail-overlay .chart-ohlc-hover {
-  position: absolute;
-  z-index: 4;
-  top: 8px;
-  left: 8px;
-  max-width: calc(100% - 16px);
-  padding: 8px 10px;
-  border-radius: 10px;
-  background: rgba(15, 23, 20, 0.92);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  color: #f2faf6;
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 1.45;
-  pointer-events: none;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.2);
-  font-variant-numeric: tabular-nums;
-}
-
-.index-detail-overlay .chart-ohlc-hover-time {
-  font-weight: 800;
-  margin-bottom: 6px;
-  color: #e8f5ee;
-  font-size: 12px;
-}
-
-.index-detail-overlay .chart-ohlc-hover-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 4px 12px;
-}
-
-.index-detail-overlay .chart-ohlc-hover-grid span {
-  font-weight: 600;
-  color: #f2faf6;
-}
-
-.index-detail-overlay .chart-ohlc-hover-grid span b {
-  font-weight: 800;
-  color: #d4ebe2;
-  margin-right: 2px;
-}
-
 .index-detail-overlay .chart-skeleton {
   width: 100%;
   height: 200px;
