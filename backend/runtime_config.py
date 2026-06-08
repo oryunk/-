@@ -47,6 +47,7 @@ def flask_run_options() -> dict:
         "host": (os.getenv("FLASK_HOST") or "127.0.0.1").strip(),
         "port": _get_int("AUTH_PORT", 5000),
         "debug": _get_bool("FLASK_DEBUG", True),
+        "threaded": _get_bool("FLASK_THREADED", True),
     }
 
 

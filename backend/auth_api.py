@@ -5,7 +5,8 @@
 - KIS /oauth2/tokenP 는 app.py 서버 API 토큰 — 사용자 로그인과 무관
 """
 
-from flask import Blueprint, request, jsonify, session
+from flask import Blueprint, request, jsonify, session, send_file, redirect
+import os
 import re
 import time
 import pymysql
@@ -24,6 +25,19 @@ from email_verification import (
     is_missing_table_error,
     verify_email_code,
 )
+from services.profile_image_service import (
+    avatar_url_for_user,
+    clear_profile_image,
+    default_avatar_display_url,
+    display_avatar_url_for_user,
+    get_profile_image_file,
+    get_profile_thumbnail_file,
+    has_custom_profile_image,
+    resolve_avatar_redirect_target,
+    save_profile_image,
+)
+from services.account_deletion_service import delete_user_account
+from services.lumicon_service import grant_all_lumicons, list_user_lumicon_ids
 
 load_env_files()
 
@@ -52,6 +66,14 @@ PROFILE_EDIT_TTL_SECONDS = 900
 
 def get_connection():
     base = mysql_config()
+    try:
+        connect_timeout = max(1, int(os.getenv("MYSQL_CONNECT_TIMEOUT", "8")))
+    except (TypeError, ValueError):
+        connect_timeout = 8
+    try:
+        read_timeout = max(1, int(os.getenv("MYSQL_READ_TIMEOUT", "20")))
+    except (TypeError, ValueError):
+        read_timeout = 20
     db_config = {
         "host": base["host"],
         "port": base["port"],
@@ -61,6 +83,8 @@ def get_connection():
         "charset":  "utf8mb4",
         "cursorclass": pymysql.cursors.DictCursor,
         "init_command": "SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci",
+        "connect_timeout": connect_timeout,
+        "read_timeout": read_timeout,
     }
     return pymysql.connect(**db_config)
 
@@ -259,28 +283,60 @@ def _set_profile_edit_verified() -> None:
     session["profile_edit_verified_until"] = time.time() + PROFILE_EDIT_TTL_SECONDS
 
 
+def _default_avatar_preview_url(user: dict) -> str:
+    return default_avatar_display_url(user.get("google_picture_url"))
+
+
+def _avatar_url_for_response(user: dict) -> str:
+    return display_avatar_url_for_user(
+        int(user["user_id"]),
+        user.get("profile_image_path"),
+        user.get("google_picture_url"),
+    )
+
+
 def _user_response_dict(user: dict) -> dict:
     provider = (user.get("auth_provider") or "local").strip().lower()
     has_password = bool(user.get("password_hash"))
+    google_only = is_google_only_account(user)
+    user_id = int(user["user_id"])
+    profile_image_path = user.get("profile_image_path")
+    google_picture_url = user.get("google_picture_url")
     return {
-        "userId": user["user_id"],
+        "userId": user_id,
         "email": user["email"],
         "loginId": user["login_id"],
         "nickname": user.get("nickname") or "",
         "authProvider": provider,
         "canChangePassword": has_password and provider != "google",
+        "canChangeLoginId": not google_only,
+        "hasCustomAvatar": has_custom_profile_image(profile_image_path),
+        "avatarUrl": _avatar_url_for_response(user),
+        "defaultAvatarUrl": _default_avatar_preview_url(user),
     }
 
 
 def _fetch_user_by_id(cursor, user_id: int):
     cursor.execute(
         """
-        SELECT user_id, email, login_id, nickname, auth_provider, password_hash
+        SELECT user_id, email, login_id, nickname, auth_provider, password_hash,
+               profile_image_path, google_picture_url
         FROM users WHERE user_id = %s
         """,
         (user_id,),
     )
     return cursor.fetchone()
+
+
+def _default_avatar_redirect():
+    return redirect("/assets/profile/default-avatar.svg", code=302)
+
+
+_PROFILE_IMAGE_ERRORS = {
+    "invalid_image": "프로필 이미지를 확인해 주세요.",
+    "invalid_image_type": "JPEG, PNG, GIF, WEBP 이미지만 등록할 수 있습니다.",
+    "image_too_large": "프로필 이미지는 2MB 이하여야 합니다.",
+}
 
 
 @auth_bp.route("/api/auth/check-login-id", methods=["POST"])
@@ -504,12 +560,20 @@ def register():
                 VALUES (%s, %s, %s, %s, 'local', NOW(), NOW())
             """
             cursor.execute(sql_insert, (login_id, email, password_hash, nickname))
+            new_user_id = int(cursor.lastrowid)
             conn.commit()
+            with conn.cursor() as cursor:
+                created_user = _fetch_user_by_id(cursor, new_user_id)
 
         return jsonify({
             "success": True,
             "message": "회원가입이 완료되었습니다.",
-            "user": {"email": email, "loginId": login_id, "nickname": nickname},
+            "user": _user_response_dict(created_user) if created_user else {
+                "email": email,
+                "loginId": login_id,
+                "nickname": nickname,
+                "avatarUrl": avatar_url_for_user(new_user_id, None),
+            },
         })
 
     except pymysql.err.IntegrityError:
@@ -568,15 +632,12 @@ def login():
 
             session.clear()
             session["user_id"] = int(user["user_id"])
+            full_user = _fetch_user_by_id(cursor, int(user["user_id"]))
 
             return jsonify({
                 "success": True,
                 "message": "로그인 성공",
-                "user": {
-                    "email": user["email"],
-                    "loginId": user["login_id"],
-                    "nickname": user.get("nickname") or "",
-                },
+                "user": _user_response_dict(full_user or user),
             })
 
     except Exception as e:
@@ -751,20 +812,14 @@ def profile_update():
     password = data.get("password", "")
     password_confirm = data.get("passwordConfirm", "")
 
-    if not login_id_raw.strip() or not nickname:
-        return jsonify({"success": False, "message": "아이디와 닉네임을 입력해주세요."}), 400
+    if not nickname:
+        return jsonify({"success": False, "message": "닉네임을 입력해주세요.", "field": "nickname"}), 400
 
     nick_err = _validate_nickname(nickname)
     if nick_err:
         return jsonify({"success": False, "message": nick_err, "field": "nickname"}), 400
 
     nickname = _normalize_nickname(nickname)
-
-    id_err = _validate_login_id(login_id_raw)
-    if id_err:
-        return jsonify({"success": False, "message": id_err, "field": "loginId"}), 400
-
-    login_id = _normalize_login_id(login_id_raw)
 
     password_raw = password or ""
     password_confirm_raw = password_confirm or ""
@@ -799,6 +854,27 @@ def profile_update():
                 return jsonify({"success": False, "message": "로그인되지 않았습니다."}), 401
 
             is_google_only = is_google_only_account(user)
+            login_id = (user.get("login_id") or "").strip()
+
+            if not is_google_only:
+                if not login_id_raw.strip():
+                    return jsonify({
+                        "success": False,
+                        "message": "아이디를 입력해주세요.",
+                        "field": "loginId",
+                    }), 400
+                id_err = _validate_login_id(login_id_raw)
+                if id_err:
+                    return jsonify({"success": False, "message": id_err, "field": "loginId"}), 400
+                login_id = _normalize_login_id(login_id_raw)
+            elif login_id_raw.strip():
+                requested_login_id = _normalize_login_id(login_id_raw)
+                if requested_login_id != login_id:
+                    return jsonify({
+                        "success": False,
+                        "message": "Google 로그인 계정은 아이디를 변경할 수 없습니다.",
+                        "field": "loginId",
+                    }), 400
 
             if password_provided and is_google_only:
                 return jsonify({
@@ -807,7 +883,7 @@ def profile_update():
                     "field": "password",
                 }), 400
 
-            if _login_id_exists(cursor, login_id, uid):
+            if not is_google_only and _login_id_exists(cursor, login_id, uid):
                 return jsonify({
                     "success": False,
                     "message": LOGIN_ID_DUPLICATE_MSG,
@@ -850,6 +926,212 @@ def profile_update():
         })
     except pymysql.err.IntegrityError:
         return jsonify({"success": False, "message": "이미 사용 중인 아이디 또는 닉네임입니다."}), 409
+    except Exception as e:
+        return jsonify({"success": False, "message": _db_error_message(e)}), 500
+    finally:
+        if conn:
+            conn.close()
+
+
+@auth_bp.route("/api/auth/profile/avatar", methods=["POST"])
+def profile_avatar_upload():
+    uid = _require_session_user_id()
+    if uid is None:
+        return jsonify({"success": False, "message": "로그인되지 않았습니다."}), 401
+
+    if not _is_profile_edit_verified():
+        return jsonify({
+            "success": False,
+            "message": "프로필 수정 전에 이메일 인증을 완료해 주세요.",
+        }), 403
+
+    image_file = request.files.get("image") or request.files.get("avatar")
+    if image_file is None or not image_file.filename:
+        return jsonify({
+            "success": False,
+            "message": _PROFILE_IMAGE_ERRORS["invalid_image"],
+            "field": "avatar",
+        }), 400
+
+    conn = None
+    try:
+        conn = get_connection()
+        with conn.cursor() as cursor:
+            user = _fetch_user_by_id(cursor, uid)
+            if not user:
+                session.clear()
+                return jsonify({"success": False, "message": "로그인되지 않았습니다."}), 401
+            save_profile_image(cursor, uid, image_file)
+            conn.commit()
+            updated = _fetch_user_by_id(cursor, uid)
+
+        return jsonify({
+            "success": True,
+            "message": "프로필 사진이 저장되었습니다.",
+            "user": _user_response_dict(updated),
+        })
+    except ValueError as exc:
+        key = str(exc)
+        return jsonify({
+            "success": False,
+            "message": _PROFILE_IMAGE_ERRORS.get(key, _PROFILE_IMAGE_ERRORS["invalid_image"]),
+            "field": "avatar",
+        }), 400
+    except Exception as e:
+        return jsonify({"success": False, "message": _db_error_message(e)}), 500
+    finally:
+        if conn:
+            conn.close()
+
+
+@auth_bp.route("/api/auth/profile/avatar", methods=["DELETE"])
+def profile_avatar_delete():
+    uid = _require_session_user_id()
+    if uid is None:
+        return jsonify({"success": False, "message": "로그인되지 않았습니다."}), 401
+
+    if not _is_profile_edit_verified():
+        return jsonify({
+            "success": False,
+            "message": "프로필 수정 전에 이메일 인증을 완료해 주세요.",
+        }), 403
+
+    conn = None
+    try:
+        conn = get_connection()
+        with conn.cursor() as cursor:
+            user = _fetch_user_by_id(cursor, uid)
+            if not user:
+                session.clear()
+                return jsonify({"success": False, "message": "로그인되지 않았습니다."}), 401
+            clear_profile_image(cursor, uid)
+            conn.commit()
+            updated = _fetch_user_by_id(cursor, uid)
+
+        return jsonify({
+            "success": True,
+            "message": "기본 프로필 사진으로 변경되었습니다.",
+            "user": _user_response_dict(updated),
+        })
+    except Exception as e:
+        return jsonify({"success": False, "message": _db_error_message(e)}), 500
+    finally:
+        if conn:
+            conn.close()
+
+
+@auth_bp.route("/api/users/<int:user_id>/avatar", methods=["GET"])
+def public_user_avatar(user_id: int):
+    use_thumb = (request.args.get("size") or "").strip().lower() == "thumb"
+    conn = None
+    try:
+        conn = get_connection()
+        with conn.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT profile_image_path, google_picture_url
+                FROM users
+                WHERE user_id = %s
+                """,
+                (user_id,),
+            )
+            row = cursor.fetchone()
+        if not row:
+            return _default_avatar_redirect()
+
+        file_info = None
+        if use_thumb:
+            file_info = get_profile_thumbnail_file(user_id, row.get("profile_image_path"))
+        if not file_info:
+            file_info = get_profile_image_file(row.get("profile_image_path"))
+        if not file_info:
+            google_avatar = resolve_avatar_redirect_target(
+                row.get("profile_image_path"),
+                row.get("google_picture_url"),
+            )
+            if google_avatar:
+                return redirect(google_avatar, code=302)
+            return _default_avatar_redirect()
+
+        max_age = 86400 if use_thumb else 0
+        response = send_file(
+            file_info["path"],
+            mimetype=file_info["mime_type"],
+            conditional=True,
+            max_age=max_age,
+        )
+        if use_thumb:
+            response.headers["Cache-Control"] = "public, max-age=86400"
+        else:
+            response.headers["Cache-Control"] = "no-store, max-age=0"
+        return response
+    except Exception:
+        return _default_avatar_redirect()
+    finally:
+        if conn:
+            conn.close()
+
+
+@auth_bp.route("/api/auth/account", methods=["DELETE"])
+def account_delete():
+    uid = _require_session_user_id()
+    if uid is None:
+        return jsonify({"success": False, "message": "로그인되지 않았습니다."}), 401
+
+    if not _is_profile_edit_verified():
+        return jsonify({
+            "success": False,
+            "message": "회원 탈퇴 전에 이메일 인증을 완료해 주세요.",
+        }), 403
+
+    data = request.get_json(silent=True) or {}
+    if not data.get("confirm"):
+        return jsonify({
+            "success": False,
+            "message": "회원 탈퇴에 동의해 주세요.",
+            "field": "confirm",
+        }), 400
+
+    conn = None
+    try:
+        conn = get_connection()
+        with conn.cursor() as cursor:
+            user = _fetch_user_by_id(cursor, uid)
+            if not user:
+                session.clear()
+                return jsonify({"success": False, "message": "로그인되지 않았습니다."}), 401
+
+            is_google_only = is_google_only_account(user)
+            if not is_google_only:
+                password = _normalize_password(data.get("password") or "")
+                if not password:
+                    return jsonify({
+                        "success": False,
+                        "message": "비밀번호를 입력해주세요.",
+                        "field": "password",
+                    }), 400
+                stored_hash = user.get("password_hash")
+                if not stored_hash or not bcrypt.checkpw(
+                    password.encode("utf-8"),
+                    stored_hash.encode("utf-8"),
+                ):
+                    return jsonify({
+                        "success": False,
+                        "message": "비밀번호가 일치하지 않습니다.",
+                        "field": "password",
+                    }), 400
+
+        delete_user_account(conn, uid)
+        session.clear()
+        return jsonify({
+            "success": True,
+            "message": "회원 탈퇴가 완료되었습니다.",
+        })
+    except ValueError as exc:
+        if str(exc) == "user_not_found":
+            session.clear()
+            return jsonify({"success": False, "message": "로그인되지 않았습니다."}), 401
+        return jsonify({"success": False, "message": "회원 탈퇴에 실패했습니다."}), 500
     except Exception as e:
         return jsonify({"success": False, "message": _db_error_message(e)}), 500
     finally:
@@ -1009,6 +1291,42 @@ def reset_password():
 
         return jsonify({"success": True, "message": "비밀번호가 변경되었습니다."})
 
+    except Exception as e:
+        return jsonify({"success": False, "message": _db_error_message(e)}), 500
+    finally:
+        if conn:
+            conn.close()
+
+
+@auth_bp.route("/api/auth/lumicons", methods=["GET"])
+def auth_lumicons_list():
+    user_id = _require_session_user_id()
+    if user_id is None:
+        return jsonify({"success": False, "message": "로그인이 필요합니다."}), 401
+
+    conn = None
+    try:
+        conn = get_connection()
+        unlocked_ids = list_user_lumicon_ids(conn, user_id)
+        return jsonify({"success": True, "unlockedIds": unlocked_ids})
+    except Exception as e:
+        return jsonify({"success": False, "message": _db_error_message(e)}), 500
+    finally:
+        if conn:
+            conn.close()
+
+
+@auth_bp.route("/api/auth/lumicons/claim-guide-reward", methods=["POST"])
+def auth_lumicons_claim_guide_reward():
+    user_id = _require_session_user_id()
+    if user_id is None:
+        return jsonify({"success": False, "message": "로그인이 필요합니다."}), 401
+
+    conn = None
+    try:
+        conn = get_connection()
+        unlocked_ids = grant_all_lumicons(conn, user_id)
+        return jsonify({"success": True, "unlockedIds": unlocked_ids})
     except Exception as e:
         return jsonify({"success": False, "message": _db_error_message(e)}), 500
     finally:

@@ -60,7 +60,7 @@ def sync_live_price_batch(items):
                     if low_p is None:
                         low_p = price
                     # 등락률 계산용 전일 종가 (KIS: stck_sdpr / stck_prdy_clpr,
-                    # yfinance/pykrx fallback 도 _build_yfinance_payload 에서 같이 채움)
+                    # yfinance fallback 도 _build_yfinance_payload 에서 같이 채움)
                     prev_close = _optional_ohlc(item.get("previous_close"))
                     if not code or price <= 0:
                         continue
@@ -139,6 +139,76 @@ def sync_live_price_batch(items):
     return updated_count
 
 
+def maps_from_snapshot_for_rank(snap, codes):
+    """스냅샷에서 거래량·시가·전일종가 맵 추출 (별도 DB 조회 생략용)."""
+    vol_map = {}
+    open_map = {}
+    prev_close_map = {}
+    for code in codes or []:
+        row = (snap or {}).get(code) or {}
+        vol = _to_int(row.get("volume"), default=0)
+        if vol > 0:
+            vol_map[code] = vol
+        open_px = _to_int(row.get("open"), default=0)
+        if open_px > 0:
+            open_map[code] = open_px
+        prev_c = _to_int(row.get("previous_close"), default=0)
+        if prev_c > 0:
+            prev_close_map[code] = prev_c
+    return vol_map, open_map, prev_close_map
+
+
+def _snapshot_batch_sql(placeholders, has_current_price, has_prev_close_col):
+    """종목별 MAX(date) 상관 서브쿼리 대신 집계 JOIN (요청 종목만 스캔)."""
+    price_expr = "s.current_price AS price" if has_current_price else "sp_latest.close_price AS price"
+    if has_prev_close_col:
+        prev_expr = "COALESCE(NULLIF(sp_latest.prev_close, 0), sp_prev.prev_close_price) AS prev_close"
+    else:
+        prev_expr = "sp_prev.prev_close_price AS prev_close"
+    return f"""
+        SELECT
+            s.symbol,
+            s.name_ko,
+            {price_expr},
+            sp_latest.close_price AS latest_close,
+            sp_latest.open_price AS latest_open,
+            sp_latest.high_price AS latest_high,
+            sp_latest.low_price AS latest_low,
+            sp_latest.volume AS latest_volume,
+            sp_latest.date AS latest_date,
+            {prev_expr}
+        FROM stocks s
+        INNER JOIN (
+            SELECT sp.*
+            FROM stock_price_daily sp
+            INNER JOIN (
+                SELECT spd.stock_id, MAX(spd.date) AS max_date
+                FROM stock_price_daily spd
+                INNER JOIN stocks st ON st.stock_id = spd.stock_id
+                WHERE st.symbol IN ({placeholders})
+                GROUP BY spd.stock_id
+            ) mx ON sp.stock_id = mx.stock_id AND sp.date = mx.max_date
+        ) sp_latest ON sp_latest.stock_id = s.stock_id
+        LEFT JOIN (
+            SELECT sp.stock_id, sp.close_price AS prev_close_price
+            FROM stock_price_daily sp
+            INNER JOIN (
+                SELECT spx.stock_id, MAX(spx.date) AS prev_date
+                FROM stock_price_daily spx
+                INNER JOIN (
+                    SELECT spd.stock_id, MAX(spd.date) AS max_date
+                    FROM stock_price_daily spd
+                    INNER JOIN stocks st ON st.stock_id = spd.stock_id
+                    WHERE st.symbol IN ({placeholders})
+                    GROUP BY spd.stock_id
+                ) lm ON spx.stock_id = lm.stock_id AND spx.date < lm.max_date
+                GROUP BY spx.stock_id
+            ) pd ON sp.stock_id = pd.stock_id AND sp.date = pd.prev_date
+        ) sp_prev ON sp_prev.stock_id = s.stock_id
+        WHERE s.symbol IN ({placeholders})
+    """
+
+
 def fetch_live_snapshot_batch(codes):
     """DB 시세 스냅샷 (표시용)."""
     cleaned = [str(code).strip() for code in (codes or []) if str(code).strip()]
@@ -146,71 +216,7 @@ def fetch_live_snapshot_batch(codes):
         return {}
 
     placeholders = ",".join(["%s"] * len(cleaned))
-    # prev_close 우선순위:
-    #   1) sp_latest.prev_close 컬럼 (시세 동기화 시 같이 박은 KIS 전일 종가)
-    #   2) 그 종목의 sp_latest.date 보다 이전 일자 행의 close_price (백필 후 폴백)
-    sql_with_cp = f"""
-        SELECT
-            s.symbol,
-            s.name_ko,
-            s.current_price AS price,
-            sp_latest.close_price AS latest_close,
-            sp_latest.open_price AS latest_open,
-            sp_latest.high_price AS latest_high,
-            sp_latest.low_price AS latest_low,
-            sp_latest.volume AS latest_volume,
-            sp_latest.date AS latest_date,
-            COALESCE(
-                NULLIF(sp_latest.prev_close, 0),
-                (
-                    SELECT sp2.close_price
-                    FROM stock_price_daily sp2
-                    WHERE sp2.stock_id = s.stock_id
-                      AND sp_latest.date IS NOT NULL
-                      AND sp2.date < sp_latest.date
-                    ORDER BY sp2.date DESC
-                    LIMIT 1
-                )
-            ) AS prev_close
-        FROM stocks s
-        LEFT JOIN stock_price_daily sp_latest
-            ON sp_latest.stock_id = s.stock_id
-           AND sp_latest.date = (
-                SELECT MAX(spx.date) FROM stock_price_daily spx WHERE spx.stock_id = s.stock_id
-           )
-        WHERE s.symbol IN ({placeholders})
-    """
-    sql_without_cp = f"""
-        SELECT
-            s.symbol,
-            s.name_ko,
-            sp_latest.close_price AS price,
-            sp_latest.close_price AS latest_close,
-            sp_latest.open_price AS latest_open,
-            sp_latest.high_price AS latest_high,
-            sp_latest.low_price AS latest_low,
-            sp_latest.volume AS latest_volume,
-            sp_latest.date AS latest_date,
-            COALESCE(
-                NULLIF(sp_latest.prev_close, 0),
-                (
-                    SELECT sp2.close_price
-                    FROM stock_price_daily sp2
-                    WHERE sp2.stock_id = s.stock_id
-                      AND sp_latest.date IS NOT NULL
-                      AND sp2.date < sp_latest.date
-                    ORDER BY sp2.date DESC
-                    LIMIT 1
-                )
-            ) AS prev_close
-        FROM stocks s
-        LEFT JOIN stock_price_daily sp_latest
-            ON sp_latest.stock_id = s.stock_id
-           AND sp_latest.date = (
-                SELECT MAX(spx.date) FROM stock_price_daily spx WHERE spx.stock_id = s.stock_id
-           )
-        WHERE s.symbol IN ({placeholders})
-    """
+    params = tuple(cleaned) * 3
 
     conn = None
     rows_by_code = {}
@@ -219,8 +225,10 @@ def fetch_live_snapshot_batch(codes):
         with conn.cursor() as cursor:
             cursor.execute("SHOW COLUMNS FROM stocks LIKE 'current_price'")
             has_current_price = cursor.fetchone() is not None
-            sql = sql_with_cp if has_current_price else sql_without_cp
-            cursor.execute(sql, tuple(cleaned))
+            cursor.execute("SHOW COLUMNS FROM stock_price_daily LIKE 'prev_close'")
+            has_prev_close_col = cursor.fetchone() is not None
+            sql = _snapshot_batch_sql(placeholders, has_current_price, has_prev_close_col)
+            cursor.execute(sql, params)
             rows = cursor.fetchall() or []
             for row in rows:
                 code = str(row.get("symbol") or "").strip()

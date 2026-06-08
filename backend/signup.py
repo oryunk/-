@@ -6,7 +6,7 @@
 「회원가입만」이 아닙니다.
 
 - 일반 실행: `python app.py` (정적 프론트 + 모든 API)
-- 인증만: `python signup.py` 또는 `python run_auth_server.py` (포트 `AUTH_PORT`)
+- 인증만: `python signup.py` (포트 `AUTH_PORT`)
 """
 
 import os

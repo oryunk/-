@@ -2,20 +2,63 @@
 
 from __future__ import annotations
 
+import hashlib
+import hmac
 import secrets
+import time
 from urllib.parse import urlencode
 
 import pymysql.err
 import requests
-from flask import Blueprint, redirect, request, session
+from flask import Blueprint, jsonify, redirect, request, session
 
 from auth_login_id import migrate_google_login_id_if_needed, unique_login_id_from_email
-from runtime_config import google_login_success_url, google_oauth_config
+from runtime_config import flask_secret_key, google_login_success_url, google_oauth_config
+from services.profile_image_service import normalize_google_picture_url
 
 GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
 GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v3/userinfo"
 GOOGLE_SCOPES = "openid email profile"
+_OAUTH_STATE_TTL_SEC = 600
+
+
+def _oauth_state_secret() -> str:
+    return flask_secret_key()
+
+
+def _generate_oauth_state() -> str:
+    """세션 쿠키 없이도 검증 가능한 CSRF state (localhost/127.0.0.1 불일치 대응)."""
+    nonce = secrets.token_urlsafe(16)
+    ts = int(time.time())
+    payload = f"{nonce}:{ts}"
+    sig = hmac.new(
+        _oauth_state_secret().encode("utf-8"),
+        payload.encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+    return f"{payload}:{sig}"
+
+
+def _verify_oauth_state(state: str, max_age_sec: int = _OAUTH_STATE_TTL_SEC) -> bool:
+    if not state or state.count(":") < 2:
+        return False
+    try:
+        payload, sig = state.rsplit(":", 1)
+        _nonce, ts_str = payload.split(":", 1)
+        ts = int(ts_str)
+    except (TypeError, ValueError):
+        return False
+    if time.time() - ts > max_age_sec:
+        return False
+    expected = hmac.new(
+        _oauth_state_secret().encode("utf-8"),
+        payload.encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+    if not hmac.compare_digest(sig, expected):
+        return False
+    return True
 
 
 def register_google_auth_routes(bp: Blueprint, *, get_connection, db_error_message) -> None:
@@ -61,7 +104,27 @@ def register_google_auth_routes(bp: Blueprint, *, get_connection, db_error_messa
 
         return "주린이12"
 
-    def _resolve_google_user(cursor, google_sub: str, email: str, name: str, verified: bool) -> int | None:
+    def _store_google_picture_url(cursor, user_id: int, picture_url: str | None) -> None:
+        normalized = normalize_google_picture_url(picture_url)
+        if not normalized:
+            return
+        cursor.execute(
+            """
+            UPDATE users
+            SET google_picture_url = %s, updated_at = NOW()
+            WHERE user_id = %s
+            """,
+            (normalized, user_id),
+        )
+
+    def _resolve_google_user(
+        cursor,
+        google_sub: str,
+        email: str,
+        name: str,
+        verified: bool,
+        picture_url: str | None = None,
+    ) -> int | None:
         cursor.execute(
             """
             SELECT user_id, email, password_hash, google_sub, login_id, auth_provider
@@ -79,6 +142,7 @@ def register_google_auth_routes(bp: Blueprint, *, get_connection, db_error_messa
                 row.get("login_id"),
                 auth_provider=row.get("auth_provider") or "google",
             )
+            _store_google_picture_url(cursor, uid, picture_url)
             return uid
 
         if not email:
@@ -112,21 +176,56 @@ def register_google_auth_routes(bp: Blueprint, *, get_connection, db_error_messa
                     by_email.get("login_id"),
                     auth_provider="google",
                 )
+                _store_google_picture_url(cursor, uid, picture_url)
                 return uid
             return None
 
         login_id = unique_login_id_from_email(cursor, email)
         nickname = _nickname_from_profile(name, email, login_id, cursor)
+        normalized_picture = normalize_google_picture_url(picture_url)
         cursor.execute(
             """
             INSERT INTO users (
                 login_id, email, password_hash, nickname,
-                google_sub, auth_provider, created_at, updated_at
-            ) VALUES (%s, %s, NULL, %s, %s, 'google', NOW(), NOW())
+                google_sub, auth_provider, google_picture_url,
+                created_at, updated_at
+            ) VALUES (%s, %s, NULL, %s, %s, 'google', %s, NOW(), NOW())
             """,
-            (login_id, email, nickname, google_sub),
+            (login_id, email, nickname, google_sub, normalized_picture),
         )
         return int(cursor.lastrowid)
+
+    @bp.route("/api/auth/google/status", methods=["GET"])
+    def google_oauth_status():
+        """OAuth 설정 진단(비밀 미노출). redirect_uri 를 Console URI 와 대조할 때 사용."""
+        cfg = _oauth_ready()
+        base = {
+            "configured": bool(cfg),
+            "login_success_url": google_login_success_url(),
+            "flow": "same_tab_redirect",
+            "start_path": "/api/auth/google/start",
+            "callback_path": "/api/auth/google/callback",
+            "link_ui": "none",
+            "link_behavior": (
+                "auto_link_if_same_email_and_email_verified; "
+                "else_new_user_if_db_empty"
+            ),
+        }
+        if not cfg:
+            base["redirect_uri"] = None
+            base["hint"] = (
+                "Set GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI in backend/.env. "
+                "See backend/docs/GOOGLE_OAUTH_SETUP.md"
+            )
+            return jsonify(base), 200
+
+        base["redirect_uri"] = cfg["redirect_uri"]
+        base["client_id"] = cfg["client_id"]
+        base["hint"] = (
+            "Register redirect_uri exactly in Google Cloud Console → OAuth client → "
+            "Authorized redirect URIs. In Testing mode, add your Gmail as a test user."
+        )
+        return jsonify(base), 200
 
     @bp.route("/api/auth/google/start", methods=["GET"])
     def google_start():
@@ -134,7 +233,7 @@ def register_google_auth_routes(bp: Blueprint, *, get_connection, db_error_messa
         if not cfg:
             return _fail_redirect("google_not_configured")
 
-        state = secrets.token_urlsafe(32)
+        state = _generate_oauth_state()
         session["google_oauth_state"] = state
 
         params = {
@@ -160,8 +259,8 @@ def register_google_auth_routes(bp: Blueprint, *, get_connection, db_error_messa
 
         code = request.args.get("code", "")
         state = request.args.get("state", "")
-        expected = session.pop("google_oauth_state", None)
-        if not code or not state or not expected or state != expected:
+        session.pop("google_oauth_state", None)
+        if not code or not state or not _verify_oauth_state(state):
             return _fail_redirect("google_state")
 
         try:
@@ -196,6 +295,7 @@ def register_google_auth_routes(bp: Blueprint, *, get_connection, db_error_messa
         google_sub = (profile.get("sub") or "").strip()
         email = (profile.get("email") or "").strip()
         name = (profile.get("name") or "").strip()
+        picture = (profile.get("picture") or "").strip()
         verified = bool(profile.get("email_verified"))
 
         if not google_sub:
@@ -205,7 +305,14 @@ def register_google_auth_routes(bp: Blueprint, *, get_connection, db_error_messa
         try:
             conn = get_connection()
             with conn.cursor() as cursor:
-                user_id = _resolve_google_user(cursor, google_sub, email, name, verified)
+                user_id = _resolve_google_user(
+                    cursor,
+                    google_sub,
+                    email,
+                    name,
+                    verified,
+                    picture,
+                )
                 if user_id is None:
                     conn.rollback()
                     return _fail_redirect("google_account")

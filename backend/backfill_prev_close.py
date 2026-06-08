@@ -11,7 +11,7 @@
     python backend/backfill_prev_close.py --only-db      # DB stocks 테이블의 종목만
 
 동작:
-    1) yfinance 일봉(.KS/.KQ) 우선 시도. 실패 시 pykrx (표준출력 억제 — KRX JSON 오류 스팸 방지).
+    1) yfinance 일봉(.KS/.KQ)으로 OHLCV 조회.
     2) 가장 오래된 행은 prev_close 가 비어 있으므로 None 으로 둔다.
     3) 그 다음 행부터는 직전 거래일 close 를 prev_close 로 채운다.
     4) stock_price_daily 에 UPSERT (날짜·종목 단위로 기존 행 갱신).
@@ -20,23 +20,15 @@
 from __future__ import annotations
 
 import argparse
-import contextlib
-import io
 import sys
 import time
 from datetime import datetime, timedelta
 
 try:
-    from pykrx import stock as pykrx_stock
-except Exception as exc:
-    print(f"[FATAL] pykrx 를 import 할 수 없습니다: {exc}")
-    sys.exit(1)
-
-try:
     import yfinance as yf
 except Exception as exc:
-    yf = None  # type: ignore
-    print(f"[WARN] yfinance 를 import 할 수 없습니다. pykrx 만 사용합니다: {exc}")
+    print(f"[FATAL] yfinance 를 import 할 수 없습니다: {exc}")
+    sys.exit(1)
 
 from auth_api import get_connection
 
@@ -59,7 +51,7 @@ def _parse_args() -> argparse.Namespace:
         "--gap",
         type=float,
         default=0.15,
-        help="종목 사이 호출 간격 (초). pykrx/yfinance 부하 완화용. 기본 0.15",
+        help="종목 사이 호출 간격 (초). yfinance 부하 완화용. 기본 0.15",
     )
     return parser.parse_args()
 
@@ -159,29 +151,9 @@ def _fetch_ohlcv_yfinance(code: str, start: str, end: str):
     return None
 
 
-def _fetch_ohlcv_pykrx_quiet(code: str, start: str, end: str):
-    """pykrx 일봉. 라이브러리가 stderr/stdout 에 찍는 JSON 오류 메시지를 숨김."""
-    try:
-        _buf_out = io.StringIO()
-        _buf_err = io.StringIO()
-        with contextlib.redirect_stdout(_buf_out), contextlib.redirect_stderr(_buf_err):
-            df = pykrx_stock.get_market_ohlcv(start, end, code, adjusted=False)
-        if df is not None and not getattr(df, "empty", True):
-            return df
-    except Exception:
-        pass
-    return None
-
-
 def _fetch_ohlcv(code: str, start: str, end: str):
-    """yfinance 우선 (대부분 환경에서 KRX/pykrx 가 빈 응답). 실패 시 pykrx 폴백."""
-    df = _fetch_ohlcv_yfinance(code, start, end)
-    if df is not None:
-        return df
-    df = _fetch_ohlcv_pykrx_quiet(code, start, end)
-    if df is not None:
-        print(f"[INFO] pykrx 사용 (yfinance 없음): {code} ({len(df)}행)")
-    return df
+    """yfinance 일봉(.KS/.KQ)."""
+    return _fetch_ohlcv_yfinance(code, start, end)
 
 
 def _to_int_or_none(v):

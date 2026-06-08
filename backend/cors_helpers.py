@@ -11,7 +11,7 @@ def apply_cors_headers(request, response):
     )
     response.headers.setdefault(
         "Access-Control-Allow-Methods",
-        "GET, POST, OPTIONS",
+        "GET, POST, PUT, DELETE, OPTIONS",
     )
     if origin:
         try:

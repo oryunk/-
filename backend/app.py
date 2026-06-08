@@ -2,10 +2,10 @@
 주식/뉴스 웹앱 메인 Flask 앱.
 
 - 공유 상태: `app_state` (명시 import — Pylance/정적 분석용)
-- HTTP 라우트: `blueprints/*` + 아래 레거시 `serve_*` 등록
+- HTTP 라우트: `api/*` + 아래 레거시 `serve_*` 등록
 - 구현 본문: 분석·모의투자·지수·FX·차트·종목상세·실시간 시세·KIS 연동 헬퍼
 
-설명( 점진적으로 라우트는 blueprints 로 옮기고, 무거운 로직은 services 로 이전 중이다. )
+설명( 점진적으로 라우트는 api 로 옮기고, 무거운 로직은 services 로 이전 중이다. )
 """
 from flask import Flask, request, jsonify, session, current_app
 import yfinance as yf
@@ -28,17 +28,12 @@ from runtime_config import load_env_files, flask_secret_key, flask_run_options
 logging.getLogger('yfinance').setLevel(logging.CRITICAL)
 
 try:
-    from pykrx import stock as pykrx_stock
-except Exception as pykrx_err:
-    print(f'[WARN] pykrx 로드 실패: {pykrx_err}')
-    pykrx_stock = None
-
-try:
-    from Live_price import sync_live_price_batch, fetch_live_snapshot_batch
+    from Live_price import sync_live_price_batch, fetch_live_snapshot_batch, maps_from_snapshot_for_rank
 except Exception as live_price_err:
     print(f'[WARN] Live_price DB sync 로드 실패: {live_price_err}')
     sync_live_price_batch = None
     fetch_live_snapshot_batch = None
+    maps_from_snapshot_for_rank = None
 
 load_env_files()
 
@@ -52,10 +47,6 @@ from app_state import (
     TERM_INTERPRETATION_PROMPT,
     _AI_ANALYSIS_PERSIST_DB,
     _ASKING_FETCH_SERIAL_LOCK,
-    _ASKING_PRICE_CACHE,
-    _ASKING_PRICE_CACHE_LOCK,
-    _ASKING_PRICE_CACHE_TTL,
-    _ASKING_STALE_FALLBACK_SEC,
     _BASIC_PEER_CACHE,
     _BASIC_PEER_CACHE_TTL,
     _CHART_MIN_BARS,
@@ -104,16 +95,11 @@ from app_state import (
     _LIVE_BG_INTERVAL_SEC,
     _LIVE_BG_WORKER_STARTED,
     _LIVE_BLOCK_OFFHOURS_FETCH,
-    _LIVE_EOD_FIX_ENABLED,
-    _LIVE_EOD_FIX_HHMM,
-    _LIVE_EOD_PYKRX_SKIP_DATE,
-    _LIVE_EOD_WORKER_STARTED,
     _LIVE_LAST_UPDATE_AT,
     _LIVE_OFFHOURS_STALE_DAYS,
     _LIVE_OFFHOURS_USE_CACHE,
     _LIVE_OFFHOURS_YFINANCE,
     _LIVE_OFFHOURS_YF_BUDGET,
-    _LIVE_PRICE_CACHE,
     _LIVE_PRICE_CURSOR,
     _LIVE_PRICE_DB_SYNC_ENABLED,
     _LIVE_PRICE_LOCK,
@@ -145,16 +131,21 @@ import kis_token_db
 app.register_blueprint(auth_bp)
 register_flask_cors(app)
 
-from services.gpt_client import call_gpt, clean_gpt_prose as _clean_gpt_prose
-from blueprints.news import news_bp
-from blueprints.market_data import market_data_bp
-from blueprints.mock_trading import mock_trading_bp
-from blueprints.analysis import analysis_bp
-from blueprints.charts import charts_bp
-from blueprints.quotes import quotes_bp
-from blueprints.static_site import static_site_bp
-from blueprints.watchlist import watchlist_bp
-from blueprints.lumi_chat import lumi_chat_bp
+from services import redis_cache
+from services.gpt_client import call_gpt, clean_gpt_prose as _clean_gpt_prose, parse_term_gpt_response
+from services.profile_image_service import display_avatar_url_for_user
+from services.term_official_source import resolve_official_term_explanation
+from api.news import news_bp
+from api.market_data import market_data_bp
+from api.mock_trading import mock_trading_bp
+from api.analysis import analysis_bp
+from api.charts import charts_bp
+from api.quotes import quotes_bp
+from api.static_site import static_site_bp
+from api.watchlist import watchlist_bp
+from api.lumi_chat import lumi_chat_bp
+from api.support_inquiry import support_inquiry_bp
+from api.community import community_bp
 
 app.register_blueprint(news_bp)
 app.register_blueprint(market_data_bp)
@@ -165,6 +156,10 @@ app.register_blueprint(quotes_bp)
 app.register_blueprint(static_site_bp)
 app.register_blueprint(watchlist_bp)
 app.register_blueprint(lumi_chat_bp)
+app.register_blueprint(support_inquiry_bp)
+app.register_blueprint(community_bp)
+
+redis_cache.init()
 
 # 라이브 시세 유니버스: stock_popularity 기반 일별 순서 (짧은 TTL 캐시).
 _LIVE_UNIVERSE_CACHE_ITEMS = None
@@ -1132,28 +1127,43 @@ def serve_explain_term():
     if not term:
         return jsonify({'success': False, 'message': '설명할 용어를 입력해주세요.'}), 400
 
-    gpt_result = explain_term_with_gpt(term)
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        gpt_future = pool.submit(explain_term_with_gpt, term)
+        official_future = pool.submit(resolve_official_term_explanation, term)
+        gpt_result = gpt_future.result()
+        official = official_future.result()
+
     if not gpt_result.get('success'):
         status_code = gpt_result.get('status_code', 500)
         if status_code == 429:
             fallback_answer = explain_term_with_local_fallback(term)
-            return jsonify({
+            payload = {
                 'success': True,
                 'term': term,
                 'answer': fallback_answer,
                 'source': 'local-fallback',
-                'notice': 'GPT 쿼터 초과로 로컬 요약 답변을 제공했습니다.'
-            })
+                'notice': 'GPT 쿼터 초과로 로컬 요약 답변을 제공했습니다.',
+            }
+            if official:
+                payload['official'] = official
+            return jsonify(payload)
         return jsonify({
             'success': False,
             'message': gpt_result.get('message', '용어 설명에 실패했습니다. 일시 후 다시 시도해주세요.')
         }), status_code
 
-    return jsonify({
+    raw_text = _clean_gpt_prose(gpt_result.get('text', ''))
+    ai_definition, explanation = parse_term_gpt_response(raw_text)
+    payload = {
         'success': True,
         'term': term,
-        'answer': _clean_gpt_prose(gpt_result.get('text', ''))
-    })
+        'answer': explanation or raw_text,
+    }
+    if official:
+        payload['official'] = official
+    elif ai_definition:
+        payload['ai_definition'] = ai_definition
+    return jsonify(payload)
 
 
 def _score_price_stock_match(code, name, q_raw):
@@ -1240,6 +1250,12 @@ def serve_mock_traded_value_rank():
     limit = max(1, min(100, limit))
 
     search_q = (request.args.get('q') or '').strip()
+    rank_cached = redis_cache.get_traded_value_rank(limit, search_q)
+    if rank_cached:
+        body = dict(rank_cached)
+        body['cached'] = True
+        return jsonify(body)
+
     match_order = {}
     code_name_items = []
     if search_q:
@@ -1274,72 +1290,10 @@ def serve_mock_traded_value_rank():
         except Exception:
             snap = {}
 
-    vol_map = {}
-    open_map = {}
-    prev_close_map = {}
-    conn = None
-    try:
-        conn = get_db_connection()
-        with conn.cursor() as cur:
-            if len(codes) == 0:
-                pass
-            else:
-                ph = ','.join(['%s'] * len(codes))
-                cur.execute(
-                    f"""
-                    SELECT s.symbol, COALESCE(sp.volume, 0) AS v,
-                           COALESCE(sp.open_price, 0) AS o
-                    FROM stocks s
-                    JOIN stock_price_daily sp ON sp.stock_id = s.stock_id
-                    WHERE s.symbol IN ({ph})
-                      AND sp.date = (
-                        SELECT MAX(sp2.date) FROM stock_price_daily sp2 WHERE sp2.stock_id = s.stock_id
-                      )
-                    """,
-                    tuple(codes),
-                )
-                for row in cur.fetchall() or []:
-                    sym = str(row.get('symbol') or '').strip()
-                    if sym:
-                        vol_map[sym] = int(float(row.get('v') or 0))
-                        try:
-                            opx = int(float(row.get('o') or 0))
-                        except (TypeError, ValueError):
-                            opx = 0
-                        if opx > 0:
-                            open_map[sym] = opx
-                cur.execute(
-                    f"""
-                    SELECT s.symbol, sp.close_price
-                    FROM stocks s
-                    JOIN stock_price_daily sp ON sp.stock_id = s.stock_id
-                    WHERE s.symbol IN ({ph})
-                      AND sp.date = (
-                        SELECT MAX(sp2.date)
-                        FROM stock_price_daily sp2
-                        WHERE sp2.stock_id = s.stock_id
-                          AND sp2.date < (
-                            SELECT MAX(sp3.date)
-                            FROM stock_price_daily sp3
-                            WHERE sp3.stock_id = s.stock_id
-                          )
-                      )
-                    """,
-                    tuple(codes),
-                )
-                for row in cur.fetchall() or []:
-                    sym = str(row.get('symbol') or '').strip()
-                    if not sym:
-                        continue
-                    try:
-                        prev_close_map[sym] = int(float(row.get('close_price') or 0))
-                    except (TypeError, ValueError):
-                        pass
-    except Exception as e:
-        print(f'[mock/traded-value-rank] volume 조회: {e}')
-    finally:
-        if conn:
-            conn.close()
+    if maps_from_snapshot_for_rank:
+        vol_map, open_map, prev_close_map = maps_from_snapshot_for_rank(snap, codes)
+    else:
+        vol_map, open_map, prev_close_map = {}, {}, {}
 
     items = []
     for code, name in normalized_items:
@@ -1388,7 +1342,9 @@ def serve_mock_traded_value_rank():
     except Exception:
         pass
 
-    return jsonify({'success': True, 'items': items[:limit]})
+    rank_body = {'success': True, 'items': items[:limit]}
+    redis_cache.set_traded_value_rank(limit, search_q, rank_body)
+    return jsonify(rank_body)
 
 
 # 모의투자 종목 상세 시세 탭용(고저·체결강도·52주·전일 거래량 비·거래대금 순위 등, 표시용 모의값 포함).
@@ -1780,31 +1736,24 @@ def serve_mock_asking_price(code):
             'success': False,
             'message': 'KIS_APP_KEY / KIS_APP_SECRET 이 없어 호가를 조회할 수 없습니다.',
         }), 503
-    now = time.time()
-    with _ASKING_PRICE_CACHE_LOCK:
-        hit = _ASKING_PRICE_CACHE.get(code)
-        if hit and (now - hit[0]) < _ASKING_PRICE_CACHE_TTL:
-            return jsonify({'success': True, 'code': code, **hit[1]})
+    hit = redis_cache.get_asking(code)
+    if hit:
+        return jsonify({'success': True, 'code': code, **hit[1]})
     token = _kis_get_token()
     if not token:
         return jsonify({'success': False, 'message': '한국투자 인증 토큰을 받지 못했습니다.'}), 503
     # 동시에 여러 호가 요청이 몰리면 KIS TPS 초과 → 실제 KIS 호출은 전역 1개씩만
     with _ASKING_FETCH_SERIAL_LOCK:
-        now2 = time.time()
-        with _ASKING_PRICE_CACHE_LOCK:
-            hit = _ASKING_PRICE_CACHE.get(code)
-            if hit and (now2 - hit[0]) < _ASKING_PRICE_CACHE_TTL:
-                return jsonify({'success': True, 'code': code, **hit[1]})
+        hit = redis_cache.get_asking(code)
+        if hit:
+            return jsonify({'success': True, 'code': code, **hit[1]})
         ob, err = _kis_fetch_asking_price_exp_ccn(token, code)
         if ob:
-            with _ASKING_PRICE_CACHE_LOCK:
-                _ASKING_PRICE_CACHE[code] = (time.time(), {**ob})
+            redis_cache.set_asking(code, {**ob})
             return jsonify({'success': True, 'code': code, **ob})
-        after = time.time()
-        with _ASKING_PRICE_CACHE_LOCK:
-            hit = _ASKING_PRICE_CACHE.get(code)
-            if hit and (after - hit[0]) <= _ASKING_STALE_FALLBACK_SEC:
-                return jsonify({'success': True, 'code': code, **hit[1], 'quote_stale': True})
+        stale = redis_cache.get_asking_stale(code)
+        if stale:
+            return jsonify({'success': True, 'code': code, **stale[1], 'quote_stale': True})
     return jsonify({'success': False, 'message': err or '호가 조회에 실패했습니다.'}), 502
 
 
@@ -2077,7 +2026,9 @@ def serve_mock_monthly_ranking():
                     va.initial_cash,
                     va.cash_balance,
                     u.nickname,
-                    u.email
+                    u.email,
+                    u.profile_image_path,
+                    u.google_picture_url
                 FROM virtual_accounts va
                 INNER JOIN users u ON u.user_id = va.user_id
                 WHERE EXISTS (
@@ -2104,9 +2055,15 @@ def serve_mock_monthly_ranking():
                 return_rate = (
                     (total_profit / initial_cash * 100) if initial_cash > 0 else 0.0
                 )
+                user_id = acc.get('user_id')
                 ranked.append({
-                    'user_id': acc.get('user_id'),
+                    'user_id': user_id,
                     'nickname': _mock_ranking_display_name(acc),
+                    'avatar_url': display_avatar_url_for_user(
+                        int(user_id),
+                        acc.get('profile_image_path'),
+                        acc.get('google_picture_url'),
+                    ) if user_id else display_avatar_url_for_user(0, None, None),
                     'return_rate': round(return_rate, 2),
                     'total_asset': total_asset,
                 })
@@ -2124,6 +2081,7 @@ def serve_mock_monthly_ranking():
             items.append({
                 'rank': idx,
                 'nickname': row['nickname'],
+                'avatarUrl': row.get('avatar_url'),
                 'return_rate': row['return_rate'],
                 'is_me': bool(viewer_user_id and row.get('user_id') == viewer_user_id),
             })
@@ -2138,6 +2096,69 @@ def serve_mock_monthly_ranking():
         })
     except Exception as e:
         return jsonify({'success': False, 'message': f'랭킹 조회 실패: {e}'}), 500
+    finally:
+        if conn:
+            conn.close()
+
+
+def serve_mock_reset():
+    """모의투자 계좌 초기화 — 거래·보유 삭제 후 초기 자금으로 복원."""
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'success': False, 'message': '로그인이 필요합니다.'}), 401
+
+    conn = None
+    try:
+        conn = get_db_connection()
+        with conn.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT account_id
+                FROM virtual_accounts
+                WHERE user_id = %s
+                LIMIT 1
+                """,
+                (user_id,),
+            )
+            row = cursor.fetchone()
+            if not row:
+                _ensure_mock_account(cursor, user_id)
+                conn.commit()
+                return jsonify({
+                    'success': True,
+                    'message': '모의투자 계좌가 준비되었습니다.',
+                    'initial_cash': _MOCK_INITIAL_CASH,
+                    'cash_balance': _MOCK_INITIAL_CASH,
+                })
+
+            account_id = int(row['account_id'])
+            cursor.execute(
+                'DELETE FROM virtual_orders WHERE account_id = %s',
+                (account_id,),
+            )
+            cursor.execute(
+                'DELETE FROM virtual_positions WHERE account_id = %s',
+                (account_id,),
+            )
+            cursor.execute(
+                """
+                UPDATE virtual_accounts
+                SET initial_cash = %s, cash_balance = %s, updated_at = NOW()
+                WHERE account_id = %s
+                """,
+                (_MOCK_INITIAL_CASH, _MOCK_INITIAL_CASH, account_id),
+            )
+        conn.commit()
+        return jsonify({
+            'success': True,
+            'message': '모의투자 계좌가 초기화되었습니다.',
+            'initial_cash': _MOCK_INITIAL_CASH,
+            'cash_balance': _MOCK_INITIAL_CASH,
+        })
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        return jsonify({'success': False, 'message': f'초기화 실패: {e}'}), 500
     finally:
         if conn:
             conn.close()
@@ -2435,7 +2456,7 @@ def serve_mock_realized_pnl():
             'total_realized': sales_total,
             'breakdown': breakdown,
             'sales_trades': sales_trades,
-            'note': '모의투자에서는 매도 체결 기준 판매수익만 집계합니다. 배당·이자 등은 0원으로 표시됩니다.',
+            'note': '매도 체결 기준 실현손익만 집계합니다.',
         })
     except Exception as e:
         return jsonify({'success': False, 'message': f'실현수익 조회 실패: {e}'}), 500
@@ -3431,8 +3452,9 @@ def _market_breadth_history_points(all_items, max_points=5):
         with conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT DISTINCT date
+                SELECT date
                 FROM stock_price_daily
+                GROUP BY date
                 ORDER BY date DESC
                 LIMIT %s
                 """,
@@ -3543,8 +3565,7 @@ def _market_breadth_payload(token=None):
                 continue
             cached_row = None
             if _LIVE_OFFHOURS_USE_CACHE:
-                with _LIVE_PRICE_LOCK:
-                    cached = _LIVE_PRICE_CACHE.get(code)
+                cached = redis_cache.get_live(code)
                 if cached and not cached.get('loading') and cached.get('price') is not None:
                     cached_row = {**cached, 'name': name, 'stale': True}
             if cached_row:
@@ -3655,56 +3676,97 @@ def _kis_index_output_to_row(name, out):
     }
 
 
-# 주요 시장 지수 (캐시).
-def serve_market_indices():
-    """주요 시장 지수 (캐시). 한국 indices + global 매크로 + extras(시장폭)."""
-    now = time.time()
-    if now - _INDEX_CACHE['ts'] < _INDEX_CACHE_TTL and _INDEX_CACHE['data']:
-        cached_indices = _INDEX_CACHE['data']
-        cached_global = _INDEX_CACHE.get('global') or []
-        cached_extras = _INDEX_CACHE.get('extras') or []
-        return jsonify({
-            'success': True,
-            'indices': cached_indices,
-            'global': cached_global,
-            'extras': cached_extras,
-            'cards': list(cached_indices) + list(cached_global) + list(cached_extras),
-            'ticker_order': _TICKER_DISPLAY_ORDER,
-            'cached': True,
-            'ts': datetime.fromtimestamp(_INDEX_CACHE['ts']).strftime('%H:%M:%S'),
-        })
+def _market_indices_payload_dict(indices, global_rows, extras, ts_str, cached=False):
+    return {
+        'success': True,
+        'indices': indices,
+        'global': global_rows,
+        'extras': extras,
+        'cards': list(indices) + list(global_rows) + list(extras),
+        'ticker_order': _TICKER_DISPLAY_ORDER,
+        'cached': cached,
+        'ts': ts_str,
+    }
 
+
+def _market_indices_lite_from_full(payload):
+    """홈 티커용: 시장폭·스파크라인 제외한 경량 응답."""
+    if not payload or not payload.get('success'):
+        return None
+
+    def _strip_points(rows):
+        out = []
+        for row in rows or []:
+            if not isinstance(row, dict):
+                continue
+            slim = dict(row)
+            slim.pop('points', None)
+            out.append(slim)
+        return out
+
+    indices = _strip_points(payload.get('indices'))
+    global_rows = _strip_points(payload.get('global'))
+    return _market_indices_payload_dict(
+        indices,
+        global_rows,
+        [],
+        payload.get('ts') or datetime.now().strftime('%H:%M:%S'),
+        cached=True,
+    )
+
+
+def _fetch_one_kis_index_row(name, fid, token, lite=False):
+    out, err = _kis_fetch_index_price(token, fid)
+    if out:
+        try:
+            row = _index_row_with_key(name, _kis_index_output_to_row(name, out))
+            if _kis_index_row_seems_valid(name, row.get('value')):
+                if not lite:
+                    yft_kis = _INDEX_YF_TICKERS.get(name)
+                    if yft_kis:
+                        row = _attach_sparkline_points(row, yft_kis)
+                return row
+        except Exception:
+            pass
+    yft = _INDEX_YF_TICKERS.get(name)
+    if yft:
+        try:
+            row = _index_row_with_key(name, _yf_index_from_ticker(name, yft, kind='index'))
+            if lite:
+                row.pop('points', None)
+            return row
+        except Exception as e:
+            return _index_row_with_key(name, {'name': name, 'error': str(e)})
+    return _index_row_with_key(name, {'name': name, 'error': err or '조회 실패'})
+
+
+def _build_market_indices_payload(lite=False):
+    """주요 지수 응답 본문 생성. lite=True 면 시장폭·미니차트 생략."""
     result = []
     token = _kis_get_token() if (_KIS_KEY and _KIS_SECRET) else None
 
     if token:
-        for i, (name, fid) in enumerate(_KIS_INDEX_ROWS_FIXED):
-            if i > 0 and _WEB_REQUEST_GAP_SEC > 0:
-                time.sleep(min(_WEB_REQUEST_GAP_SEC, 0.25))
-            out, _err = _kis_fetch_index_price(token, fid)
-            if out:
-                try:
-                    row = _index_row_with_key(name, _kis_index_output_to_row(name, out))
-                    if _kis_index_row_seems_valid(name, row.get('value')):
-                        yft_kis = _INDEX_YF_TICKERS.get(name)
-                        if yft_kis:
-                            row = _attach_sparkline_points(row, yft_kis)
-                        result.append(row)
-                        continue
-                except Exception:
-                    pass
-            yft = _INDEX_YF_TICKERS.get(name)
-            if yft:
-                try:
-                    result.append(_index_row_with_key(name, _yf_index_from_ticker(name, yft, kind='index')))
-                except Exception as e:
-                    result.append(_index_row_with_key(name, {'name': name, 'error': str(e)}))
-            else:
-                result.append(_index_row_with_key(name, {'name': name, 'error': _err or '조회 실패'}))
+        try:
+            with ThreadPoolExecutor(max_workers=min(3, len(_KIS_INDEX_ROWS_FIXED) or 1)) as pool:
+                futures = [
+                    pool.submit(_fetch_one_kis_index_row, name, fid, token, lite)
+                    for name, fid in _KIS_INDEX_ROWS_FIXED
+                ]
+                for fut in futures:
+                    try:
+                        result.append(fut.result())
+                    except Exception as exc:
+                        result.append(_index_row_with_key('지수', {'name': '지수', 'error': str(exc)}))
+        except Exception:
+            for name, fid in _KIS_INDEX_ROWS_FIXED:
+                result.append(_fetch_one_kis_index_row(name, fid, token, lite))
     else:
         for name, yft in _INDEX_YF_TICKERS.items():
             try:
-                result.append(_index_row_with_key(name, _yf_index_from_ticker(name, yft, kind='index')))
+                row = _index_row_with_key(name, _yf_index_from_ticker(name, yft, kind='index'))
+                if lite:
+                    row.pop('points', None)
+                result.append(row)
             except Exception as e:
                 result.append(_index_row_with_key(name, {'name': name, 'error': str(e)}))
 
@@ -3714,46 +3776,90 @@ def serve_market_indices():
             futures = [pool.submit(_fetch_global_macro_row, spec) for spec in _GLOBAL_MACRO_ROWS]
             for fut in futures:
                 try:
-                    global_rows.append(fut.result())
+                    row = fut.result()
+                    if lite and isinstance(row, dict):
+                        row = dict(row)
+                        row.pop('points', None)
+                    global_rows.append(row)
                 except Exception as exc:
                     global_rows.append({'name': '지표', 'error': str(exc), 'interactive': False})
     except Exception:
         for spec in _GLOBAL_MACRO_ROWS:
-            global_rows.append(_fetch_global_macro_row(spec))
+            row = _fetch_global_macro_row(spec)
+            if lite and isinstance(row, dict):
+                row = dict(row)
+                row.pop('points', None)
+            global_rows.append(row)
 
     extras = []
-    try:
-        extras.append(_market_breadth_payload(token=token))
-    except Exception as breadth_exc:
-        extras.append({
-            'key': 'marketbreadth',
-            'kind': 'breadth',
-            'interactive': False,
-            'inline_chart': True,
-            'name': '시장폭',
-            'direction': 'flat',
-            'error': str(breadth_exc),
-            'value_text': '-',
-            'change_text': '조회 실패',
-            'points': [],
-            'reference_value': 0,
-            'chart_mode': 'score',
-        })
+    if not lite:
+        try:
+            extras.append(_market_breadth_payload(token=token))
+        except Exception as breadth_exc:
+            extras.append({
+                'key': 'marketbreadth',
+                'kind': 'breadth',
+                'interactive': False,
+                'inline_chart': True,
+                'name': '시장폭',
+                'direction': 'flat',
+                'error': str(breadth_exc),
+                'value_text': '-',
+                'change_text': '조회 실패',
+                'points': [],
+                'reference_value': 0,
+                'chart_mode': 'score',
+            })
 
-    _INDEX_CACHE['data'] = result
-    _INDEX_CACHE['global'] = global_rows
-    _INDEX_CACHE['extras'] = extras
-    _INDEX_CACHE['ts'] = now
-    return jsonify({
-        'success': True,
-        'indices': result,
-        'global': global_rows,
-        'extras': extras,
-        'cards': list(result) + list(global_rows) + list(extras),
-        'ticker_order': _TICKER_DISPLAY_ORDER,
-        'cached': False,
-        'ts': datetime.now().strftime('%H:%M:%S'),
-    })
+    ts_str = datetime.now().strftime('%H:%M:%S')
+    return _market_indices_payload_dict(result, global_rows, extras, ts_str, cached=False)
+
+
+# 주요 시장 지수 (캐시).
+def serve_market_indices():
+    """주요 시장 지수 (캐시). 한국 indices + global 매크로 + extras(시장폭). ?lite=1 이면 홈 티커용 경량."""
+    lite = (request.args.get('lite') or '').strip().lower() in ('1', 'true', 'yes', 'on')
+
+    redis_hit = redis_cache.get_market_indices(lite=lite)
+    if redis_hit:
+        body = dict(redis_hit)
+        body['cached'] = True
+        body['redis_cached'] = True
+        return jsonify(body)
+
+    now = time.time()
+    if now - _INDEX_CACHE['ts'] < _INDEX_CACHE_TTL and _INDEX_CACHE['data']:
+        full_body = _market_indices_payload_dict(
+            _INDEX_CACHE['data'],
+            _INDEX_CACHE.get('global') or [],
+            _INDEX_CACHE.get('extras') or [],
+            datetime.fromtimestamp(_INDEX_CACHE['ts']).strftime('%H:%M:%S'),
+            cached=True,
+        )
+        if lite:
+            lite_body = _market_indices_lite_from_full(full_body)
+            if lite_body:
+                redis_cache.set_market_indices(lite_body, lite=True)
+                return jsonify(lite_body)
+        redis_cache.set_market_indices(full_body, lite=False)
+        return jsonify(full_body)
+
+    if lite:
+        full_redis = redis_cache.get_market_indices(lite=False)
+        if full_redis:
+            lite_body = _market_indices_lite_from_full(full_redis)
+            if lite_body:
+                redis_cache.set_market_indices(lite_body, lite=True)
+                return jsonify(lite_body)
+
+    body = _build_market_indices_payload(lite=lite)
+    redis_cache.set_market_indices(body, lite=lite)
+    if not lite:
+        _INDEX_CACHE['data'] = body['indices']
+        _INDEX_CACHE['global'] = body['global']
+        _INDEX_CACHE['extras'] = body['extras']
+        _INDEX_CACHE['ts'] = now
+    return jsonify(body)
 
 
 def serve_market_index_history(index_key):
@@ -4127,24 +4233,18 @@ def _build_chart_payload_from_candles(candles, intraday):
     }
 
 
-# 종목 차트: 토스 스타일(일/주/월/년봉). KIS+DB 우선, 실패 시 yfinance.
-def serve_chart_data(code):
-    """종목 차트: 토스 스타일(일/주/월/년봉). KIS+DB 우선, 실패 시 yfinance."""
-    range_param = str(request.args.get('range', '1d') or '1d').strip().lower()
-    if range_param not in ('1d', '1w', '1m', '1y'):
-        range_param = '1d'
-
+# `_build_chart_data_payload` — KIS/DB·yfinance 로 차트 본문 생성.
+def _build_chart_data_payload(code, range_param):
     if _CHART_USE_KIS and _KIS_KEY and _KIS_SECRET:
         try:
             payload = _try_period_chart(code, range_param)
             if payload:
                 payload['code'] = code
                 payload['requested_range'] = range_param
-                return jsonify(payload)
+                return payload
         except Exception:
             pass
 
-    # (period, interval, 연도집계여부)
     range_attempts = {
         '1d': [('2y', '1d', False), ('5y', '1d', False)],
         '1w': [('5y', '1wk', False), ('10y', '1wk', False), ('max', '1wk', False)],
@@ -4173,11 +4273,31 @@ def serve_chart_data(code):
                     _merge_daily_ma_into_chart_payload_yf(payload, ticker_code)
                 payload['code'] = code
                 payload['requested_range'] = range_param
-                return jsonify(payload)
+                return payload
             except Exception:
                 continue
+    return None
 
-    return jsonify({'success': False, 'message': '차트 데이터를 불러올 수 없습니다.'}), 404
+
+# 종목 차트: 토스 스타일(일/주/월/년봉). KIS+DB 우선, 실패 시 yfinance.
+def serve_chart_data(code):
+    """종목 차트: 토스 스타일(일/주/월/년봉). KIS+DB 우선, 실패 시 yfinance."""
+    range_param = str(request.args.get('range', '1d') or '1d').strip().lower()
+    if range_param not in ('1d', '1w', '1m', '1y'):
+        range_param = '1d'
+
+    cached = redis_cache.get_chart_data(code, range_param)
+    if cached:
+        body = dict(cached)
+        body['cached'] = True
+        return jsonify(body)
+
+    payload = _build_chart_data_payload(code, range_param)
+    if not payload:
+        return jsonify({'success': False, 'message': '차트 데이터를 불러올 수 없습니다.'}), 404
+
+    redis_cache.set_chart_data(code, range_param, payload)
+    return jsonify(payload)
 
 
 # 2단계 튜토리얼: 차트 봉 요약 기반 짧은 교육 멘트(GPT). 투자 조언 금지.
@@ -4242,8 +4362,7 @@ def _opening_price_for_mock(code, db_open=0):
         odb = int(db_open or 0)
     except (TypeError, ValueError):
         odb = 0
-    with _LIVE_PRICE_LOCK:
-        live = _LIVE_PRICE_CACHE.get(code)
+    live = redis_cache.get_live(code)
     if live and not live.get('loading'):
         lo = live.get('open')
         if lo is not None and str(lo) != '':
@@ -4271,8 +4390,7 @@ def _effective_quote_for_mock(code, snap_fallback=None):
     direction = str(fb.get('direction') or 'flat').lower()
     if direction not in ('up', 'down', 'flat'):
         direction = 'flat'
-    with _LIVE_PRICE_LOCK:
-        live = _LIVE_PRICE_CACHE.get(code)
+    live = redis_cache.get_live(code)
     if live and not live.get('loading'):
         lp = live.get('price')
         if lp is not None and str(lp) != '':
@@ -4499,84 +4617,41 @@ def _chart_resolve_stock_id(code: str) -> int | None:
             conn.close()
 
 
-def _enrich_quote_ohlc_from_daily_db(code: str, quote: dict) -> None:
-    """open/high/low가 비었거나 0이면 stock_price_daily 최신 일봉으로 채운다."""
-    if not quote or not isinstance(quote, dict):
-        return
-
-    def _int_or_zero(key):
-        v = quote.get(key)
-        try:
-            return int(v) if v is not None else 0
-        except (TypeError, ValueError):
-            return 0
-
-    if _int_or_zero('open') > 0 and _int_or_zero('high') > 0 and _int_or_zero('low') > 0:
-        return
-
-    stock_id = _chart_resolve_stock_id(code)
-    if not stock_id:
-        return
-    conn = None
-    row = None
+def _quote_int_or_zero(quote: dict, key: str) -> int:
+    v = quote.get(key)
     try:
-        conn = get_db_connection()
-        with conn.cursor() as cur:
-            cur.execute(
-                """
-                SELECT open_price, high_price, low_price, close_price
-                FROM stock_price_daily
-                WHERE stock_id = %s
-                ORDER BY date DESC
-                LIMIT 1
-                """,
-                (stock_id,),
-            )
-            row = cur.fetchone()
-    except Exception:
-        return
-    finally:
-        if conn:
-            conn.close()
-    if not row:
-        return
-
-    for key, col in (('open', 'open_price'), ('high', 'high_price'), ('low', 'low_price')):
-        if _int_or_zero(key) > 0:
-            continue
-        raw = row.get(col)
-        if raw is None:
-            continue
-        try:
-            iv = int(round(float(raw)))
-            if iv > 0:
-                quote[key] = iv
-        except (TypeError, ValueError):
-            pass
-
-
-def _enrich_quote_previous_close_from_daily_db(code: str, quote: dict) -> None:
-    """previous_close가 비었거나 0이면 stock_price_daily의 prev_close 또는 직전 일 종가로 채운다."""
-    if not quote or not isinstance(quote, dict):
-        return
-    try:
-        cur_pc = quote.get('previous_close')
-        if cur_pc is not None and int(cur_pc) > 0:
-            return
+        return int(v) if v is not None else 0
     except (TypeError, ValueError):
-        pass
+        return 0
+
+
+def _enrich_quote_from_daily_db(code: str, quote: dict) -> None:
+    """OHLC·전일 종가 보강을 stock_price_daily 1~2회 조회로 처리."""
+    if not quote or not isinstance(quote, dict):
+        return
+
+    need_ohlc = (
+        _quote_int_or_zero(quote, 'open') <= 0
+        or _quote_int_or_zero(quote, 'high') <= 0
+        or _quote_int_or_zero(quote, 'low') <= 0
+    )
+    need_pc = _quote_int_or_zero(quote, 'previous_close') <= 0
+    if not need_ohlc and not need_pc:
+        return
 
     stock_id = _chart_resolve_stock_id(code)
     if not stock_id:
         return
+
     conn = None
+    latest = None
     prev_day = None
     try:
         conn = get_db_connection()
         with conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT prev_close
+                SELECT open_price, high_price, low_price, close_price, prev_close
                 FROM stock_price_daily
                 WHERE stock_id = %s
                 ORDER BY date DESC
@@ -4585,48 +4660,70 @@ def _enrich_quote_previous_close_from_daily_db(code: str, quote: dict) -> None:
                 (stock_id,),
             )
             latest = cur.fetchone()
-            if latest:
+            if need_pc and latest:
                 pc = latest.get('prev_close')
                 try:
                     pi = int(round(float(pc))) if pc is not None else 0
                 except (TypeError, ValueError):
                     pi = 0
-                if pi > 0:
-                    quote['previous_close'] = pi
-                    return
-            cur.execute(
-                """
-                SELECT close_price
-                FROM stock_price_daily
-                WHERE stock_id = %s
-                ORDER BY date DESC
-                LIMIT 1 OFFSET 1
-                """,
-                (stock_id,),
-            )
-            prev_day = cur.fetchone()
+                if pi <= 0:
+                    cur.execute(
+                        """
+                        SELECT close_price
+                        FROM stock_price_daily
+                        WHERE stock_id = %s
+                        ORDER BY date DESC
+                        LIMIT 1 OFFSET 1
+                        """,
+                        (stock_id,),
+                    )
+                    prev_day = cur.fetchone()
     except Exception:
         return
     finally:
         if conn:
             conn.close()
-    if not prev_day:
+
+    if not latest:
         return
-    cp = prev_day.get('close_price')
-    try:
-        cpi = int(round(float(cp))) if cp is not None else 0
-    except (TypeError, ValueError):
-        cpi = 0
-    if cpi > 0:
-        quote['previous_close'] = cpi
+
+    if need_ohlc:
+        for key, col in (('open', 'open_price'), ('high', 'high_price'), ('low', 'low_price')):
+            if _quote_int_or_zero(quote, key) > 0:
+                continue
+            raw = latest.get(col)
+            if raw is None:
+                continue
+            try:
+                iv = int(round(float(raw)))
+                if iv > 0:
+                    quote[key] = iv
+            except (TypeError, ValueError):
+                pass
+
+    if need_pc and _quote_int_or_zero(quote, 'previous_close') <= 0:
+        pc = latest.get('prev_close')
+        try:
+            pi = int(round(float(pc))) if pc is not None else 0
+        except (TypeError, ValueError):
+            pi = 0
+        if pi > 0:
+            quote['previous_close'] = pi
+        elif prev_day:
+            cp = prev_day.get('close_price')
+            try:
+                cpi = int(round(float(cp))) if cp is not None else 0
+            except (TypeError, ValueError):
+                cpi = 0
+            if cpi > 0:
+                quote['previous_close'] = cpi
 
 
 def _rehydrate_quote_for_krx_display(code: str, quote: dict | None) -> None:
     """시세 카드용: OHLC·전일 종가·상하한가를 DB/KRX 규칙으로 idempotent 보강."""
     if not quote or not isinstance(quote, dict):
         return
-    _enrich_quote_ohlc_from_daily_db(code, quote)
-    _enrich_quote_previous_close_from_daily_db(code, quote)
+    _enrich_quote_from_daily_db(code, quote)
     _enrich_quote_price_limits_krx(quote)
 
 
@@ -5129,7 +5226,7 @@ def _build_domestic_news_items(code, name, limit=5):
 
 # KIS 주식현재가 투자자 (개인·외국인·기관 순매수 거래대금).
 def _kis_fetch_investor_flow(token, code):
-    """inquire-investor (FHKST01010900) — pykrx/KRX 미설정 시 폴백."""
+    """inquire-investor (FHKST01010900)."""
     try:
         res = requests.get(
             f'{_KIS_BASE}/uapi/domestic-stock/v1/quotations/inquire-investor',
@@ -5202,51 +5299,6 @@ def _kis_fetch_investor_flow(token, code):
     }, None
 
 
-def _build_investor_flow_from_pykrx(code):
-    """pykrx 거래대금 기준 투자자 동향 (KRX_ID/KRX_PW 필요할 수 있음)."""
-    if pykrx_stock is None:
-        return None, 'pykrx 미설치'
-
-    end = datetime.now().strftime('%Y%m%d')
-    start = (datetime.now() - timedelta(days=10)).strftime('%Y%m%d')
-    try:
-        df = pykrx_stock.get_market_trading_value_by_date(start, end, code)
-    except Exception as exc:
-        return None, str(exc)[:120]
-
-    if df is None or getattr(df, 'empty', True):
-        krx_hint = ''
-        if not (os.getenv('KRX_ID') or '').strip():
-            krx_hint = ' (KRX_ID·KRX_PW 미설정)'
-        return None, f'pykrx 데이터 없음{krx_hint}'
-
-    latest = df.iloc[-1]
-    index_map = {
-        '개인': ['개인', '개인투자자'],
-        '외국인': ['외국인합계', '외국인'],
-        '기관': ['기관합계', '기관'],
-    }
-    items = []
-    for label, candidates in index_map.items():
-        value = None
-        for candidate in candidates:
-            if candidate in latest.index:
-                raw = latest.get(candidate)
-                value = None if pd.isna(raw) else int(raw)
-                break
-        items.append({'label': label, 'value': value})
-
-    if not any(item['value'] is not None for item in items):
-        return None, 'pykrx 컬럼 없음'
-
-    return {
-        'available': True,
-        'source': 'pykrx',
-        'updated_at': _format_period_label(df.index[-1]),
-        'items': items,
-    }, None
-
-
 _INVESTOR_FLOW_FAIL_CACHE_TTL = 20.0
 
 
@@ -5275,28 +5327,38 @@ def _build_investor_flow_payload(code, kis_token=None):
             return cached['data']
 
     data = None
-    py_err = ''
-    kis_err = ''
 
     if _KIS_KEY and _KIS_SECRET:
         token = kis_token or _kis_get_token()
         if token:
-            kis_data, kis_err = _kis_fetch_investor_flow_with_retry(token, code)
+            kis_data, _kis_err = _kis_fetch_investor_flow_with_retry(token, code)
             if kis_data:
                 data = kis_data
-        else:
-            kis_err = 'KIS 인증 실패'
-
-    if not data:
-        built, py_err = _build_investor_flow_from_pykrx(code)
-        if built:
-            data = built
 
     if not data:
         data = {'available': False, 'source': '', 'updated_at': '', 'items': []}
 
     _INVESTOR_FLOW_CACHE[code] = {'ts': time.time(), 'data': data}
     return data
+
+
+# `_seed_basic_peer_cache` — 상세 조회로 얻은 업종·배수를 피어 캐시에 반영.
+def _seed_basic_peer_cache(code, info, indicator_metrics):
+    if not code:
+        return
+    sector = ''
+    industry = ''
+    if isinstance(info, dict):
+        sector = str(info.get('sector') or '').strip()
+        industry = str(info.get('industry') or '').strip()
+    data = {
+        'sector': sector,
+        'industry': industry,
+        'per': indicator_metrics.get('per') if isinstance(indicator_metrics, dict) else None,
+        'pbr': indicator_metrics.get('pbr') if isinstance(indicator_metrics, dict) else None,
+        'psr': indicator_metrics.get('psr') if isinstance(indicator_metrics, dict) else None,
+    }
+    _BASIC_PEER_CACHE[code] = {'ts': time.time(), 'data': data}
 
 
 # `_get_cached_peer_info` — 모듈 내부 헬퍼.
@@ -5330,16 +5392,25 @@ def _get_cached_peer_info(code):
 
 # `_build_valuation_comparison` — 모듈 내부 헬퍼.
 # 동종 업종 평균(industry_avg)은 yfinance 피어 표본. KIS 업종·시장 배수 TR은 미연동(추후 스펙 확정 시).
-def _build_valuation_comparison(code, target_metrics):
-    target_info = _get_cached_peer_info(code)
+def _build_valuation_comparison(code, target_metrics, target_info=None):
+    if not isinstance(target_info, dict):
+        cached = _BASIC_PEER_CACHE.get(code)
+        if cached and (time.time() - cached['ts'] < _BASIC_PEER_CACHE_TTL):
+            target_info = cached['data']
+        else:
+            target_info = _get_cached_peer_info(code)
     target_sector = target_info.get('sector')
     target_industry = target_info.get('industry')
     peer_pool = []
+    now = time.time()
 
-    for peer_code in list(PRICE_STOCKS.keys())[:40]:
+    for peer_code in list(PRICE_STOCKS.keys())[:80]:
         if peer_code == code:
             continue
-        peer_info = _get_cached_peer_info(peer_code)
+        cached_peer = _BASIC_PEER_CACHE.get(peer_code)
+        if not cached_peer or (now - cached_peer['ts'] >= _BASIC_PEER_CACHE_TTL):
+            continue
+        peer_info = cached_peer['data']
         same_group = False
         if target_industry and peer_info.get('industry') == target_industry:
             same_group = True
@@ -5502,33 +5573,6 @@ def _build_yfinance_payload(code, name, history):
     return pl
 
 
-# pykrx 일봉 폴백 시세.
-def _fetch_pykrx_quote(code, name):
-    """pykrx 일봉 폴백 시세."""
-    if not pykrx_stock:
-        return None, 'pykrx 미사용'
-    try:
-        from datetime import datetime, timedelta
-
-        end = datetime.now().date()
-        start = end - timedelta(days=14)
-        df = pykrx_stock.get_market_ohlcv(
-            start.strftime('%Y%m%d'),
-            end.strftime('%Y%m%d'),
-            code,
-            adjusted=False,
-        )
-        if df is None or getattr(df, 'empty', True):
-            return None, 'pykrx 빈 데이터'
-        rename_map = {'시가': 'Open', '고가': 'High', '저가': 'Low', '종가': 'Close', '거래량': 'Volume'}
-        df = df.rename(columns={k: v for k, v in rename_map.items() if k in df.columns})
-        if 'Close' not in df.columns:
-            return None, 'pykrx 종가 없음'
-        return _build_yfinance_payload(code, name, df), None
-    except Exception as e:
-        return None, str(e)
-
-
 # `_fetch_yfinance_quote` — 모듈 내부 헬퍼.
 def _fetch_yfinance_quote(code, name):
     last_error = 'yfinance 조회 실패'
@@ -5548,12 +5592,32 @@ def _fetch_yfinance_quote(code, name):
         except Exception as e:
             last_error = str(e)
 
-    py_payload, py_err = _fetch_pykrx_quote(code, name)
-    if py_payload is not None:
-        return py_payload, None
-    if py_err:
-        last_error = f'{last_error}; pykrx: {py_err}'
     return None, last_error
+
+
+# `_quote_from_live_cache` — Redis live:{code} 시세를 상세 quote 로 재사용.
+def _quote_from_live_cache(code, name):
+    live = redis_cache.get_live(code)
+    if not live or not isinstance(live, dict) or live.get('loading'):
+        return None
+    try:
+        price = int(live.get('price') or 0)
+    except (TypeError, ValueError):
+        return None
+    if price <= 0:
+        return None
+    quote = dict(live)
+    quote['code'] = code
+    quote['name'] = name or quote.get('name') or code
+    return quote
+
+
+# `_fetch_quote_for_detail` — live 캐시 우선, 없으면 KIS/yfinance.
+def _fetch_quote_for_detail(code, name, token):
+    cached_quote = _quote_from_live_cache(code, name)
+    if cached_quote is not None:
+        return cached_quote, None, None
+    return _fetch_quote_snapshot(code, name, token)
 
 
 # `_fetch_quote_snapshot` — 모듈 내부 헬퍼.
@@ -5675,28 +5739,42 @@ def _yf_info_quality_score(info):
     return score
 
 
+# `_yf_load_one_ticker_fundamentals` — 단일 티커 yfinance 재무 로드.
+def _yf_load_one_ticker_fundamentals(ticker_code, timeout_sec):
+    try:
+        t = yf.Ticker(ticker_code)
+        inf, qf, qbs, abs_df = _yf_parallel_stock_fundamentals(t, timeout_sec=timeout_sec)
+        return t, inf, qf, qbs, abs_df, _yf_info_quality_score(inf)
+    except Exception:
+        return None, {}, pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), -1
+
+
 # `_yf_stock_detail_pick_best` — 6자리 종목은 .KS·.KQ 중 info가 나은 쪽을 고른다.
-def _yf_stock_detail_pick_best(code, timeout_sec=18.0):
+def _yf_stock_detail_pick_best(code, timeout_sec=10.0):
     best_ticker = None
     best_inf = {}
     best_qf = pd.DataFrame()
     best_qbs = pd.DataFrame()
     best_abs = pd.DataFrame()
     best_score = -1
-    code_str = str(code or '')
-    for ticker_code in _candidate_yahoo_tickers(code):
-        try:
-            t = yf.Ticker(ticker_code)
-            inf, qf, qbs, abs_df = _yf_parallel_stock_fundamentals(t, timeout_sec=timeout_sec)
-        except Exception:
-            continue
-        sc = _yf_info_quality_score(inf)
-        if sc > best_score:
-            best_score = sc
-            best_ticker = t
-            best_inf, best_qf, best_qbs, best_abs = inf, qf, qbs, abs_df
-        if '.' in code_str or sc >= 100:
-            break
+    tickers = _candidate_yahoo_tickers(code)
+    if len(tickers) <= 1:
+        t, inf, qf, qbs, abs_df, sc = _yf_load_one_ticker_fundamentals(tickers[0], timeout_sec)
+        if t is not None:
+            return t, inf, qf, qbs, abs_df
+        return None, {}, pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
+
+    with ThreadPoolExecutor(max_workers=len(tickers)) as ex:
+        futures = [ex.submit(_yf_load_one_ticker_fundamentals, tc, timeout_sec) for tc in tickers]
+        for fut in futures:
+            try:
+                t, inf, qf, qbs, abs_df, sc = fut.result()
+            except Exception:
+                continue
+            if sc > best_score:
+                best_score = sc
+                best_ticker = t
+                best_inf, best_qf, best_qbs, best_abs = inf, qf, qbs, abs_df
     return best_ticker, best_inf, best_qf, best_qbs, best_abs
 
 
@@ -5859,25 +5937,28 @@ def _try_pbr_from_balance_sheets(info, quote, annual_bs, quarterly_bs, pbr):
 
 # `_build_stock_detail_payload` — 모듈 내부 헬퍼.
 def _build_stock_detail_payload(code, name, token):
-    # 다른 KIS 시세 호출 전에 투자자 동향을 먼저 조회 (호출 한도·순서 이슈 방지)
-    investor_flows = _build_investor_flow_payload(code, kis_token=token)
-    quote, kis_output, err = _fetch_quote_snapshot(code, name, token)
-    if quote is None:
-        raise ValueError(err or '상세 시세 조회 실패')
-    _rehydrate_quote_for_krx_display(code, quote)
+    yf_timeout = float(os.getenv('STOCK_DETAIL_YF_TIMEOUT_SEC', '10'))
 
-    ticker = None
-    info = {}
-    quarterly_financials = pd.DataFrame()
-    quarterly_balance_sheet = pd.DataFrame()
-    annual_balance_sheet = pd.DataFrame()
-    try:
-        ticker, info, quarterly_financials, quarterly_balance_sheet, annual_balance_sheet = (
-            _yf_stock_detail_pick_best(code, timeout_sec=18.0)
-        )
-    except Exception:
-        ticker = None
-        info = {}
+    with ThreadPoolExecutor(max_workers=3) as ex:
+        f_yf = ex.submit(_yf_stock_detail_pick_best, code, yf_timeout)
+        f_news = ex.submit(_build_domestic_news_items, code, name, 5)
+        f_inv = ex.submit(_build_investor_flow_payload, code, kis_token=token)
+
+        quote, kis_output, err = _fetch_quote_for_detail(code, name, token)
+        if quote is None:
+            raise ValueError(err or '상세 시세 조회 실패')
+        _rehydrate_quote_for_krx_display(code, quote)
+
+        investor_flows = f_inv.result()
+        news_items = f_news.result()
+        try:
+            ticker, info, quarterly_financials, quarterly_balance_sheet, annual_balance_sheet = f_yf.result()
+        except Exception:
+            ticker = None
+            info = {}
+            quarterly_financials = pd.DataFrame()
+            quarterly_balance_sheet = pd.DataFrame()
+            annual_balance_sheet = pd.DataFrame()
 
     market_cap = _safe_round(info.get('marketCap'), 0)
     if market_cap is None and kis_output:
@@ -5947,14 +6028,25 @@ def _build_stock_detail_payload(code, name, token):
         'foreign_ownership_rate': foreign_rate,
     }
 
+    target_peer_info = {
+        'sector': (info.get('sector') or '') if isinstance(info, dict) else '',
+        'industry': (info.get('industry') or '') if isinstance(info, dict) else '',
+        'per': indicator_metrics.get('per'),
+        'pbr': indicator_metrics.get('pbr'),
+        'psr': indicator_metrics.get('psr'),
+    }
+    _seed_basic_peer_cache(code, info, indicator_metrics)
+
     return {
         'code': code,
         'name': name,
         'quote': quote,
         'indicators': indicator_metrics,
-        'valuation_comparison': _build_valuation_comparison(code, indicator_metrics),
+        'valuation_comparison': _build_valuation_comparison(
+            code, indicator_metrics, target_info=target_peer_info,
+        ),
         'investor_flows': investor_flows,
-        'news': _build_domestic_news_items(code, name, limit=5),
+        'news': news_items,
         'financials': {
             'performance': performance,
             'statements': statements,
@@ -6053,41 +6145,62 @@ def _save_stock_detail_snapshot(cache_key: str, code: str, detail: dict) -> None
         logging.getLogger(__name__).warning('[stock-detail] snapshot write skipped: %s', exc)
 
 
-# `serve_stock_detail` — 모듈 내부 헬퍼.
-def serve_stock_detail(code):
-    _bump_stock_popularity_view(code)
-    name = request.args.get('name') or LIVE_PRICE_STOCKS.get(code) or PRICE_STOCKS.get(code) or code
-    cache_key = f'{code}:{name}'[:384]
-    cached = _STOCK_DETAIL_CACHE.get(cache_key)
-    if cached and (time.time() - cached['ts'] < _STOCK_DETAIL_CACHE_TTL):
-        detail = cached['data']
-        flows = detail.get('investor_flows') if isinstance(detail, dict) else None
+def _finalize_stock_detail_response(detail, code, cache_key, *, cache_source, clock, cached_flag):
+    """캐시 히트 시 투자자 동향·시세 보강 후 JSON 응답."""
+    if isinstance(detail, dict):
+        flows = detail.get('investor_flows')
         if not (isinstance(flows, dict) and flows.get('available')):
             detail['investor_flows'] = _build_investor_flow_payload(code)
-        _rehydrate_quote_for_krx_display(code, detail.get('quote') if isinstance(detail, dict) else None)
-        return jsonify({
-            'success': True,
-            'cached': True,
-            'cache_source': 'memory',
-            'ts': cached['clock'],
-            'detail': detail,
-        })
+        live_quote = _quote_from_live_cache(code, detail.get('name'))
+        if live_quote and isinstance(detail.get('quote'), dict):
+            for key in (
+                'price', 'change', 'rate', 'volume', 'traded_value', 'direction',
+                'open', 'high', 'low', 'previous_close', 'upper_limit', 'lower_limit',
+                'per', 'pbr', 'foreign_ownership_rate', 'stale', 'error',
+            ):
+                if live_quote.get(key) is not None:
+                    detail['quote'][key] = live_quote[key]
+        _rehydrate_quote_for_krx_display(code, detail.get('quote'))
+    return jsonify({
+        'success': True,
+        'cached': cached_flag,
+        'cache_source': cache_source,
+        'ts': clock,
+        'detail': detail,
+    })
+
+
+# `serve_stock_detail` — 모듈 내부 헬퍼.
+def serve_stock_detail(code):
+    threading.Thread(target=_bump_stock_popularity_view, args=(code,), daemon=True).start()
+    name = request.args.get('name') or LIVE_PRICE_STOCKS.get(code) or PRICE_STOCKS.get(code) or code
+    cache_key = f'{code}:{name}'[:384]
+
+    cached = _STOCK_DETAIL_CACHE.get(cache_key)
+    if cached and (time.time() - cached['ts'] < _STOCK_DETAIL_CACHE_TTL):
+        return _finalize_stock_detail_response(
+            cached['data'], code, cache_key,
+            cache_source='memory', clock=cached['clock'], cached_flag=True,
+        )
+
+    redis_detail, redis_clock = redis_cache.get_stock_detail(cache_key)
+    if redis_detail:
+        clock = redis_clock or time.strftime('%H:%M:%S')
+        _STOCK_DETAIL_CACHE[cache_key] = {'ts': time.time(), 'clock': clock, 'data': redis_detail}
+        return _finalize_stock_detail_response(
+            redis_detail, code, cache_key,
+            cache_source='redis', clock=clock, cached_flag=True,
+        )
 
     snap = _load_stock_detail_snapshot(cache_key)
     if snap:
-        flows = snap.get('investor_flows') if isinstance(snap, dict) else None
-        if not (isinstance(flows, dict) and flows.get('available')):
-            snap['investor_flows'] = _build_investor_flow_payload(code)
-        _rehydrate_quote_for_krx_display(code, snap.get('quote') if isinstance(snap, dict) else None)
         clock = time.strftime('%H:%M:%S')
         _STOCK_DETAIL_CACHE[cache_key] = {'ts': time.time(), 'clock': clock, 'data': snap}
-        return jsonify({
-            'success': True,
-            'cached': True,
-            'cache_source': 'db',
-            'ts': clock,
-            'detail': snap,
-        })
+        redis_cache.set_stock_detail(cache_key, snap, clock=clock)
+        return _finalize_stock_detail_response(
+            snap, code, cache_key,
+            cache_source='db', clock=clock, cached_flag=True,
+        )
 
     token = _kis_get_token() if (_KIS_KEY and _KIS_SECRET) else None
     try:
@@ -6098,7 +6211,12 @@ def serve_stock_detail(code):
     _rehydrate_quote_for_krx_display(code, detail.get('quote') if isinstance(detail, dict) else None)
     clock = time.strftime('%H:%M:%S')
     _STOCK_DETAIL_CACHE[cache_key] = {'ts': time.time(), 'clock': clock, 'data': detail}
-    _save_stock_detail_snapshot(cache_key, code, detail)
+    redis_cache.set_stock_detail(cache_key, detail, clock=clock)
+    threading.Thread(
+        target=_save_stock_detail_snapshot,
+        args=(cache_key, code, detail),
+        daemon=True,
+    ).start()
     return jsonify({
         'success': True,
         'cached': False,
@@ -6367,7 +6485,7 @@ def _refresh_live_cache(selected_items, token):
     eff_token = token if kis_ok else None
 
     with _LIVE_PRICE_LOCK:
-        cached_count = sum(1 for code, _ in selected_items if code in _LIVE_PRICE_CACHE)
+        cached_count = sum(1 for code, _ in selected_items if redis_cache.has_live(code))
         refresh_count = _WEB_REFRESH_BATCH_SIZE
         if cached_count == 0:
             refresh_count = max(_WEB_WARMUP_BATCH_SIZE, _WEB_REFRESH_BATCH_SIZE)
@@ -6398,26 +6516,25 @@ def _refresh_live_cache(selected_items, token):
             if payload is None:
                 err = yf_err or err
 
-        with _LIVE_PRICE_LOCK:
-            if payload is not None:
-                _LIVE_PRICE_CACHE[code] = payload
-                synced_items.append(payload)
+        if payload is not None:
+            redis_cache.set_live(code, payload)
+            synced_items.append(payload)
+        else:
+            previous = redis_cache.get_live(code)
+            if previous:
+                redis_cache.set_live(code, {
+                    **previous,
+                    'name': name,
+                    'stale': True,
+                    'error': None,
+                })
             else:
-                previous = _LIVE_PRICE_CACHE.get(code)
-                if previous:
-                    _LIVE_PRICE_CACHE[code] = {
-                        **previous,
-                        'name': name,
-                        'stale': True,
-                        'error': None,
-                    }
-                else:
-                    _LIVE_PRICE_CACHE[code] = {
-                        'code': code,
-                        'name': name,
-                        'loading': True,
-                        'error': err,
-                    }
+                redis_cache.set_live(code, {
+                    'code': code,
+                    'name': name,
+                    'loading': True,
+                    'error': err,
+                })
 
     if _LIVE_PRICE_DB_SYNC_ENABLED and sync_live_price_batch and synced_items:
         sync_live_price_batch(synced_items)
@@ -6457,26 +6574,25 @@ def _refresh_live_cache_full(selected_items, token):
                 payload, yf_err = _fetch_yfinance_quote(code, name)
                 if payload is None:
                     err = yf_err or err
-            with _LIVE_PRICE_LOCK:
-                if payload is not None:
-                    _LIVE_PRICE_CACHE[code] = payload
-                    synced_items.append(payload)
+            if payload is not None:
+                redis_cache.set_live(code, payload)
+                synced_items.append(payload)
+            else:
+                previous = redis_cache.get_live(code)
+                if previous and not previous.get('loading'):
+                    redis_cache.set_live(code, {
+                        **previous,
+                        'name': name,
+                        'stale': True,
+                        'error': None,
+                    })
                 else:
-                    previous = _LIVE_PRICE_CACHE.get(code)
-                    if previous and not previous.get('loading'):
-                        _LIVE_PRICE_CACHE[code] = {
-                            **previous,
-                            'name': name,
-                            'stale': True,
-                            'error': None,
-                        }
-                    else:
-                        _LIVE_PRICE_CACHE[code] = {
-                            'code': code,
-                            'name': name,
-                            'loading': True,
-                            'error': err,
-                        }
+                    redis_cache.set_live(code, {
+                        'code': code,
+                        'name': name,
+                        'loading': True,
+                        'error': err,
+                    })
         if _LIVE_PRICE_DB_SYNC_ENABLED and sync_live_price_batch and synced_items:
             sync_live_price_batch(synced_items)
     finally:
@@ -6515,110 +6631,10 @@ def _live_price_background_loop():
         time.sleep(max(1.0, _LIVE_BG_INTERVAL_SEC))
 
 
-# 장 마감 직후 1회: pykrx 일봉으로 그날 OHLC + 종가를 stock_price_daily 에 확정 반영.
-# 설명( sync_live_price_batch 는 장중 마지막 동기화 시점의 '현재가' 를 close_price 로 덮어쓰기 때문에 토스의 거래소 공식 종가와 작게는 몇 호가, 크게는 시간외 단일가 차이가 날 수 있다. EOD 작업은 그 격차를 없애기 위함. )
-def _run_eod_close_fix():
-    """장 마감 직후 1회: pykrx 일봉으로 그날 OHLC + 종가를 stock_price_daily 에 확정 반영.
-
-    sync_live_price_batch 는 장중 마지막 동기화 시점의 '현재가' 를 close_price 로 덮어쓰기 때문에
-    토스의 거래소 공식 종가와 작게는 몇 호가, 크게는 시간외 단일가 차이가 날 수 있다.
-    EOD 작업은 그 격차를 없애기 위함.
-    """
-    global _LIVE_EOD_PYKRX_SKIP_DATE
-    if pykrx_stock is None or not sync_live_price_batch:
-        print('[EOD_FIX] pykrx 또는 sync_live_price_batch 미가용. 스킵.')
-        return
-
-    today = datetime.now().strftime('%Y%m%d')
-    if _LIVE_EOD_PYKRX_SKIP_DATE == today:
-        print('[EOD_FIX] pykrx 실패 이력으로 오늘 EOD 동기화 스킵.')
-        return
-    items = _get_live_price_universe_items()
-    if not items:
-        return
-
-    probe_code = str(items[0][0])
-    try:
-        probe_df = pykrx_stock.get_market_ohlcv(today, today, probe_code, adjusted=False)
-        if probe_df is None or getattr(probe_df, 'empty', True):
-            _LIVE_EOD_PYKRX_SKIP_DATE = today
-            print('[EOD_FIX] pykrx 일봉 응답 없음(비거래일/장마감 미확정 가능). 오늘 EOD 동기화 스킵.')
-            return
-    except Exception as e:
-        _LIVE_EOD_PYKRX_SKIP_DATE = today
-        print(f'[EOD_FIX] pykrx 프리체크 실패: {e}')
-        return
-
-    payloads = []
-    for code, name in items:
-        try:
-            df = pykrx_stock.get_market_ohlcv(today, today, code, adjusted=False)
-        except Exception as e:
-            print(f'[EOD_FIX] pykrx 조회 실패 ({code}): {e}')
-            continue
-        if df is None or getattr(df, 'empty', True):
-            continue
-        try:
-            row = df.iloc[-1]
-            close_p = int(round(float(row.get('종가') or row.get('Close') or 0)))
-            if close_p <= 0:
-                continue
-            open_p = int(round(float(row.get('시가') or row.get('Open') or close_p)))
-            high_p = int(round(float(row.get('고가') or row.get('High') or close_p)))
-            low_p = int(round(float(row.get('저가') or row.get('Low') or close_p)))
-            volume = int(round(float(row.get('거래량') or row.get('Volume') or 0)))
-        except Exception as e:
-            print(f'[EOD_FIX] 행 파싱 실패 ({code}): {e}')
-            continue
-
-        # prev_close 는 pykrx 로 직전 거래일 종가를 한 번 더 받아야 하지만, 비용이 크므로
-        # 동기화 로직의 ON DUPLICATE KEY UPDATE COALESCE 규칙에 맡겨 기존 값을 유지한다.
-        payloads.append({
-            'code': code,
-            'name': name,
-            'price': close_p,
-            'open': open_p,
-            'high': high_p,
-            'low': low_p,
-            'volume': volume,
-        })
-
-    if not payloads:
-        print('[EOD_FIX] 반영 대상 없음.')
-        return
-
-    try:
-        n = sync_live_price_batch(payloads)
-        print(f'[EOD_FIX] 종가 확정 반영: {n} 종목')
-    except Exception as e:
-        print(f'[EOD_FIX] DB 동기화 실패: {e}')
-
-
-# 평일 _LIVE_EOD_FIX_HHMM(기본 15:35) 에 한 번 EOD 종가 확정 동기화 실행.
-def _eod_close_fix_loop():
-    """평일 _LIVE_EOD_FIX_HHMM(기본 15:35) 에 한 번 EOD 종가 확정 동기화 실행."""
-    last_run_date = None
-    while True:
-        try:
-            now = datetime.now()
-            today_key = now.strftime('%Y-%m-%d')
-            hhmm = now.hour * 100 + now.minute
-            if (
-                now.weekday() < 5
-                and hhmm >= _LIVE_EOD_FIX_HHMM
-                and last_run_date != today_key
-            ):
-                _run_eod_close_fix()
-                last_run_date = today_key
-        except Exception as e:
-            print(f'[EOD_FIX] 루프 오류: {e}')
-        time.sleep(60)
-
-
 # 시세 백그라운드 워커 1회 시작.
 def _ensure_live_price_background_worker():
     """시세 백그라운드 워커 1회 시작."""
-    global _LIVE_BG_WORKER_STARTED, _LIVE_EOD_WORKER_STARTED
+    global _LIVE_BG_WORKER_STARTED
 
     if app.debug and os.environ.get('WERKZEUG_RUN_MAIN') != 'true':
         return
@@ -6628,29 +6644,23 @@ def _ensure_live_price_background_worker():
         t = threading.Thread(target=_live_price_background_loop, daemon=True)
         t.start()
 
-    if _LIVE_EOD_FIX_ENABLED and not _LIVE_EOD_WORKER_STARTED:
-        _LIVE_EOD_WORKER_STARTED = True
-        t_eod = threading.Thread(target=_eod_close_fix_loop, daemon=True)
-        t_eod.start()
-
 
 # 시세 행 목록 (캐시·DB·loading 순).
 def _ordered_stock_rows(selected_items, snapshot):
     """시세 행 목록 (캐시·DB·loading 순)."""
     rows = []
-    with _LIVE_PRICE_LOCK:
-        for code, name in selected_items:
-            cached = _LIVE_PRICE_CACHE.get(code)
-            if cached and not cached.get('loading'):
-                rows.append({**cached, 'name': name})
-                continue
-            db_row = (snapshot or {}).get(code)
-            if db_row:
-                rows.append({**db_row, 'name': name})
-            elif cached:
-                rows.append({**cached, 'name': name})
-            else:
-                rows.append({'code': code, 'name': name, 'loading': True})
+    for code, name in selected_items:
+        cached = redis_cache.get_live(code)
+        if cached and not cached.get('loading'):
+            rows.append({**cached, 'name': name})
+            continue
+        db_row = (snapshot or {}).get(code)
+        if db_row:
+            rows.append({**db_row, 'name': name})
+        elif cached:
+            rows.append({**cached, 'name': name})
+        else:
+            rows.append({'code': code, 'name': name, 'loading': True})
     return rows
 
 
@@ -6716,8 +6726,19 @@ def _offhours_fill_yfinance_rows(full_rows, all_items, budget):
         if payload:
             merged = {**payload, 'name': name, 'stale': True}
             full_rows[i] = merged
-            with _LIVE_PRICE_LOCK:
-                _LIVE_PRICE_CACHE[code] = merged
+            redis_cache.set_live(code, merged)
+
+
+def _live_prices_list_cache_key(page, page_size, price_filter, custom_codes_raw, sync_refresh):
+    if custom_codes_raw or sync_refresh:
+        return None
+    return f'p{page}:s{page_size}:f{price_filter}'
+
+
+def _return_live_prices_list(payload, cache_key=None):
+    if cache_key and isinstance(payload, dict):
+        redis_cache.set_live_prices_list(cache_key, payload)
+    return jsonify(payload)
 
 
 # 실시간 시세 API.
@@ -6741,7 +6762,17 @@ def serve_live_prices():
     if price_filter not in ('all', 'up', 'down', 'volume'):
         price_filter = 'all'
 
+    sync_refresh_req = (request.args.get('sync_refresh') or '').strip().lower() in ('1', 'true', 'yes', 'on')
     custom_codes_raw = (request.args.get('codes') or '').strip()
+    _live_prices_cache_key = _live_prices_list_cache_key(
+        page, page_size, price_filter, custom_codes_raw, sync_refresh_req,
+    )
+    if _live_prices_cache_key:
+        cached_live_list = redis_cache.get_live_prices_list(_live_prices_cache_key)
+        if cached_live_list:
+            body = dict(cached_live_list)
+            body['cached'] = True
+            return jsonify(body)
     custom_names_raw = (request.args.get('names') or '').strip()
 
     custom_name_map = {}
@@ -6796,8 +6827,7 @@ def serve_live_prices():
                 continue
             cached_row = None
             if _LIVE_OFFHOURS_USE_CACHE:
-                with _LIVE_PRICE_LOCK:
-                    c = _LIVE_PRICE_CACHE.get(code)
+                c = redis_cache.get_live(code)
                 if c and not c.get('loading') and c.get('price') is not None:
                     cached_row = {**c, 'name': name, 'stale': True}
             if cached_row:
@@ -6834,7 +6864,7 @@ def serve_live_prices():
         start_index = (page - 1) * page_size
         end_index = min(start_index + page_size, total_filtered)
         stocks = filtered_rows[start_index:end_index]
-        return jsonify({
+        return _return_live_prices_list({
             'success': True,
             'count': len(stocks),
             'total_count': total_filtered,
@@ -6847,13 +6877,13 @@ def serve_live_prices():
             'market_open': False,
             'stocks': stocks,
             'ts': time.strftime('%H:%M:%S')
-        })
+        }, _live_prices_cache_key)
 
     if price_filter in ('up', 'down'):
         prime_items = []
         with _LIVE_PRICE_LOCK:
             if not _LIVE_UPDATER_RUNNING:
-                miss = [c for c, _ in all_items if c not in _LIVE_PRICE_CACHE]
+                miss = [c for c, _ in all_items if not redis_cache.has_live(c)]
                 if miss and len(miss) == universe_count:
                     prime_len = min(8, len(all_items))
                     prime_items = all_items[:prime_len]
@@ -6863,11 +6893,10 @@ def serve_live_prices():
         _start_live_refresh(all_items, token, force=False)
 
         missing_for_snapshot = []
-        with _LIVE_PRICE_LOCK:
-            for code, name in all_items:
-                cached = _LIVE_PRICE_CACHE.get(code)
-                if not cached or cached.get('loading'):
-                    missing_for_snapshot.append((code, name))
+        for code, name in all_items:
+            cached = redis_cache.get_live(code)
+            if not cached or cached.get('loading'):
+                missing_for_snapshot.append((code, name))
 
         snapshot = {}
         if missing_for_snapshot and fetch_live_snapshot_batch:
@@ -6892,7 +6921,7 @@ def serve_live_prices():
         if total_filtered == 0 or all(s.get('loading') for s in stocks):
             refresh_count = max(_WEB_WARMUP_BATCH_SIZE, _WEB_REFRESH_BATCH_SIZE)
 
-        return jsonify({
+        return _return_live_prices_list({
             'success': True,
             'count': len(stocks),
             'total_count': total_filtered,
@@ -6905,13 +6934,13 @@ def serve_live_prices():
             'market_open': True,
             'stocks': stocks,
             'ts': time.strftime('%H:%M:%S')
-        })
+        }, _live_prices_cache_key)
 
     if price_filter == 'volume':
         prime_items = []
         with _LIVE_PRICE_LOCK:
             if not _LIVE_UPDATER_RUNNING:
-                miss = [c for c, _ in all_items if c not in _LIVE_PRICE_CACHE]
+                miss = [c for c, _ in all_items if not redis_cache.has_live(c)]
                 if miss and len(miss) == universe_count:
                     prime_len = min(8, len(all_items))
                     prime_items = all_items[:prime_len]
@@ -6921,11 +6950,10 @@ def serve_live_prices():
         _start_live_refresh(all_items, token, force=False)
 
         missing_for_snapshot = []
-        with _LIVE_PRICE_LOCK:
-            for code, name in all_items:
-                cached = _LIVE_PRICE_CACHE.get(code)
-                if not cached or cached.get('loading'):
-                    missing_for_snapshot.append((code, name))
+        for code, name in all_items:
+            cached = redis_cache.get_live(code)
+            if not cached or cached.get('loading'):
+                missing_for_snapshot.append((code, name))
 
         snapshot = {}
         if missing_for_snapshot and fetch_live_snapshot_batch:
@@ -6954,7 +6982,7 @@ def serve_live_prices():
         if total_filtered == 0 or all(s.get('loading') for s in stocks):
             refresh_count = max(_WEB_WARMUP_BATCH_SIZE, _WEB_REFRESH_BATCH_SIZE)
 
-        return jsonify({
+        return _return_live_prices_list({
             'success': True,
             'count': len(stocks),
             'total_count': total_filtered,
@@ -6967,7 +6995,7 @@ def serve_live_prices():
             'market_open': True,
             'stocks': stocks,
             'ts': time.strftime('%H:%M:%S')
-        })
+        }, _live_prices_cache_key)
 
     total_pages = max(1, (universe_count + page_size - 1) // page_size)
     if page > total_pages:
@@ -6987,11 +7015,22 @@ def serve_live_prices():
         if fetch_live_snapshot_batch:
             snapshot_first = fetch_live_snapshot_batch([c for c, _ in selected_items]) or {}
 
+        single_code = selected_items[0][0] if len(selected_items) == 1 else ''
+        cache_ready = bool(single_code and redis_cache.live_quote_usable(single_code))
+
         if sync_one:
-            try:
-                _refresh_live_cache(selected_items, token)
-            except Exception as e:
-                print(f'[live-prices sync_refresh] {e}')
+            if not cache_ready:
+                try:
+                    _refresh_live_cache(selected_items, token)
+                except Exception as e:
+                    print(f'[live-prices sync_refresh] {e}')
+        elif len(selected_items) == 1:
+            if not cache_ready:
+                threading.Thread(
+                    target=_refresh_live_cache,
+                    args=(selected_items, token),
+                    daemon=True,
+                ).start()
         else:
             def _sector_live_bg():
                 try:
@@ -7004,7 +7043,7 @@ def serve_live_prices():
         prime_items = []
         with _LIVE_PRICE_LOCK:
             if not _LIVE_UPDATER_RUNNING:
-                missing_codes = [code for code, _ in selected_items if code not in _LIVE_PRICE_CACHE]
+                missing_codes = [code for code, _ in selected_items if not redis_cache.has_live(code)]
                 if missing_codes and len(missing_codes) == len(selected_items):
                     prime_len = min(3, len(selected_items))
                     prime_items = selected_items[:prime_len]
@@ -7016,11 +7055,10 @@ def serve_live_prices():
         _start_live_refresh(selected_items, token, force=False)
 
     missing_for_snapshot = []
-    with _LIVE_PRICE_LOCK:
-        for code, name in selected_items:
-            cached = _LIVE_PRICE_CACHE.get(code)
-            if not cached or cached.get('loading'):
-                missing_for_snapshot.append((code, name))
+    for code, name in selected_items:
+        cached = redis_cache.get_live(code)
+        if not cached or cached.get('loading'):
+            missing_for_snapshot.append((code, name))
 
     snapshot_extra = {}
     if missing_for_snapshot and fetch_live_snapshot_batch:
@@ -7033,7 +7071,7 @@ def serve_live_prices():
     if all(s.get('loading') for s in stocks):
         refresh_count = max(_WEB_WARMUP_BATCH_SIZE, _WEB_REFRESH_BATCH_SIZE)
 
-    return jsonify({
+    return _return_live_prices_list({
         'success': True,
         'count': len(stocks),
         'total_count': universe_count,
@@ -7045,7 +7083,7 @@ def serve_live_prices():
         'market_open': True,
         'stocks': stocks,
         'ts': time.strftime('%H:%M:%S')
-    })
+    }, _live_prices_cache_key)
 
 
 if __name__ == '__main__':
