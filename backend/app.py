@@ -1726,6 +1726,67 @@ def serve_mock_sim_options_ai_brief():
 
 
 # 국내주식 호가·예상체결 (한국투자 domestic-stock v1 quotations inquire-asking-price-exp-ccn).
+def _asking_price_json_ok(code, data, *, quote_stale=False, cached_at=None):
+    body = {'success': True, 'code': code, **data}
+    if quote_stale:
+        body['quote_stale'] = True
+    if cached_at:
+        body['quote_cached_at'] = cached_at
+        body['quote_age_sec'] = max(0, int(time.time() - float(cached_at)))
+    return jsonify(body)
+
+
+def _orderbook_fallback_payload(code):
+    """KIS 호가 불가 시 live 캐시·DB current_price 로 synthetic 1호가 생성."""
+    code = str(code or '').strip()
+    price = 0
+    live = redis_cache.get_live(code)
+    if live and isinstance(live, dict) and not live.get('loading'):
+        price = _won_int(live.get('price'))
+    if price <= 0:
+        try:
+            conn = get_db_connection()
+            try:
+                with conn.cursor() as cursor:
+                    cursor.execute(
+                        """
+                        SELECT current_price FROM stocks
+                        WHERE symbol = %s
+                        LIMIT 1
+                        """,
+                        (code,),
+                    )
+                    row = cursor.fetchone()
+                    if row:
+                        price = _won_int(row.get('current_price'))
+            finally:
+                conn.close()
+        except Exception:
+            pass
+    if price <= 0:
+        return None
+    level = {'price': price, 'quantity': 0}
+    return {
+        'asks': [dict(level)],
+        'bids': [dict(level)],
+        'expected_exec_price': price,
+        'expected_change': 0,
+        'total_ask_qty': 0,
+        'total_bid_qty': 0,
+        'quote_source': 'live_fallback',
+    }
+
+
+def _asking_price_from_fallback(code, *, cache_result=True):
+    fb = _orderbook_fallback_payload(code)
+    if not fb:
+        return None
+    store = {k: v for k, v in fb.items() if k != 'quote_source'}
+    if cache_result:
+        redis_cache.set_asking(code, store)
+    return _asking_price_json_ok(code, fb, quote_stale=True)
+
+
 def serve_mock_asking_price(code):
     """국내주식 호가·예상체결 (한국투자 domestic-stock v1 quotations inquire-asking-price-exp-ccn)."""
     code = str(code or '').strip()
@@ -1736,25 +1797,72 @@ def serve_mock_asking_price(code):
             'success': False,
             'message': 'KIS_APP_KEY / KIS_APP_SECRET 이 없어 호가를 조회할 수 없습니다.',
         }), 503
-    hit = redis_cache.get_asking(code)
-    if hit:
-        return jsonify({'success': True, 'code': code, **hit[1]})
-    token = _kis_get_token()
-    if not token:
-        return jsonify({'success': False, 'message': '한국투자 인증 토큰을 받지 못했습니다.'}), 503
-    # 동시에 여러 호가 요청이 몰리면 KIS TPS 초과 → 실제 KIS 호출은 전역 1개씩만
-    with _ASKING_FETCH_SERIAL_LOCK:
+
+    force_refresh = request.args.get('refresh', '').strip().lower() in {'1', 'true', 'yes', 'y', 'on'}
+
+    if not force_refresh:
         hit = redis_cache.get_asking(code)
         if hit:
-            return jsonify({'success': True, 'code': code, **hit[1]})
-        ob, err = _kis_fetch_asking_price_exp_ccn(token, code)
-        if ob:
-            redis_cache.set_asking(code, {**ob})
-            return jsonify({'success': True, 'code': code, **ob})
+            ts, data = hit
+            return _asking_price_json_ok(code, data, cached_at=ts)
+
+    if not _kis_fetch_allowed_now():
         stale = redis_cache.get_asking_stale(code)
         if stale:
-            return jsonify({'success': True, 'code': code, **stale[1], 'quote_stale': True})
-    return jsonify({'success': False, 'message': err or '호가 조회에 실패했습니다.'}), 502
+            ts, data = stale
+            return _asking_price_json_ok(code, data, quote_stale=True, cached_at=ts)
+        return jsonify({
+            'success': False,
+            'message': '지금은 장시간이 아니어서 호가를 불러올 수 없습니다. 정규장(09:00~15:30)에 다시 확인해 주세요.',
+            'market_closed': True,
+        }), 503
+
+    token = _kis_get_token()
+    if not token:
+        stale = redis_cache.get_asking_stale(code)
+        if stale:
+            ts, data = stale
+            return _asking_price_json_ok(code, data, quote_stale=True, cached_at=ts)
+        return jsonify({'success': False, 'message': '한국투자 인증 토큰을 받지 못했습니다.'}), 503
+
+    lock_acquired = redis_cache.acquire_asking_fetch_lock(code)
+    if not lock_acquired:
+        kind, waited = redis_cache.wait_for_asking_cache(code)
+        if waited:
+            ts, data = waited
+            return _asking_price_json_ok(
+                code, data, quote_stale=(kind == 'stale'), cached_at=ts,
+            )
+
+    try:
+        with _ASKING_FETCH_SERIAL_LOCK:
+            if not force_refresh:
+                hit = redis_cache.get_asking(code)
+                if hit:
+                    ts, data = hit
+                    return _asking_price_json_ok(code, data, cached_at=ts)
+
+            ob, err, rate_hit = _kis_fetch_asking_price_exp_ccn(token, code)
+            if ob:
+                redis_cache.set_asking(code, {**ob})
+                return _asking_price_json_ok(code, ob)
+
+            stale = redis_cache.get_asking_stale(code)
+            if stale:
+                ts, data = stale
+                return _asking_price_json_ok(code, data, quote_stale=True, cached_at=ts)
+
+            if rate_hit or _kis_asking_rate_limited(err or ''):
+                return jsonify({
+                    'success': False,
+                    'message': err or '요청이 많아 잠시 후 다시 시도해 주세요. (초당 한도)',
+                    'retry_after_sec': 18,
+                }), 429
+
+            return jsonify({'success': False, 'message': err or '호가 조회에 실패했습니다.'}), 502
+    finally:
+        if lock_acquired:
+            redis_cache.release_asking_fetch_lock(code)
 
 
 # 로그인 사용자의 모의투자 자산/보유/주문 내역 조회
@@ -2724,6 +2832,24 @@ def _resolve_stock_for_trade(cursor, stock_input):
     return None
 
 
+def _resolve_mock_execution_price(side, ref_price, limit_price):
+    """
+    모의 체결가 산출 (토스형 단순 모델).
+    - 시장가(limit<=0): 현재가
+    - 매수 지정가 >= 현재가 / 매도 지정가 <= 현재가: 현재가
+    - 그 외: None (즉시 체결 불가)
+    """
+    ref = _won_int(ref_price)
+    lim = _won_int(limit_price)
+    if ref <= 0:
+        return lim if lim > 0 else 0
+    if lim <= 0:
+        return ref
+    if side == 'BUY':
+        return ref if lim >= ref else None
+    return ref if lim <= ref else None
+
+
 # `serve_mock_trade` — 모듈 내부 헬퍼.
 def serve_mock_trade():
     user_id = session.get('user_id')
@@ -2791,12 +2917,25 @@ def serve_mock_trade():
                 )
                 latest_price = cursor.fetchone()
                 ref_price = _won_int((latest_price or {}).get('close_price'))
-            if ref_price <= 0:
-                ref_price = manual_price
-            if manual_price > 0:
-                price = manual_price
+            live_ref, _, _ = _effective_quote_for_mock(code, {'price': ref_price})
+            if live_ref > 0:
+                ref_price = live_ref
+
+            limit_price = manual_price
+            if limit_price > 0 and ref_price > 0:
+                price = _resolve_mock_execution_price(side, ref_price, limit_price)
+                if price is None:
+                    if side == 'BUY':
+                        msg = '현재가가 지정가보다 높아 즉시 체결할 수 없습니다. 지정가를 높이거나 예약 주문을 이용해 주세요.'
+                    else:
+                        msg = '현재가가 지정가보다 낮아 즉시 체결할 수 없습니다. 지정가를 낮추거나 예약 주문을 이용해 주세요.'
+                    return jsonify({'success': False, 'message': msg}), 400
+            elif limit_price > 0:
+                price = limit_price
             else:
                 price = ref_price
+            if price <= 0 and limit_price > 0:
+                price = limit_price
             if price <= 0:
                 return jsonify({'success': False, 'message': '체결가를 확인할 수 없습니다. 가격을 입력해주세요.'}), 400
 
@@ -2916,6 +3055,8 @@ def serve_mock_trade():
                 'code': code,
                 'name': name,
                 'price': price,
+                'limit_price': limit_price if limit_price > 0 else None,
+                'ref_price': ref_price if ref_price > 0 else None,
                 'quantity': quantity,
                 'gross': total_amount,
                 'total': total_amount,
@@ -4439,9 +4580,23 @@ def _candidate_yahoo_tickers(code):
 
 # `_to_int` — 모듈 내부 헬퍼.
 def _to_int(value):
+    if value is None or value == '':
+        return 0
+    if isinstance(value, bool):
+        return int(value)
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float):
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return 0
     try:
-        return int((value or '').replace(',', '').strip())
-    except ValueError:
+        s = str(value).replace(',', '').strip()
+        if not s or s == '-':
+            return 0
+        return int(float(s))
+    except (TypeError, ValueError):
         return 0
 
 
@@ -6317,6 +6472,7 @@ def _kis_get_token():
 
 # `_kis_fetch_one` — 모듈 내부 헬퍼.
 def _kis_fetch_one(token, code, tr_id):
+    redis_cache.throttle_kis_api_call(_KIS_ASKING_MIN_GAP)
     try:
         res = requests.get(
             f'{_KIS_BASE}/uapi/domestic-stock/v1/quotations/inquire-price',
@@ -6348,6 +6504,25 @@ def _kis_fetch_one(token, code, tr_id):
         return None, msg_cd
 
     return body.get('output', {}), None
+
+
+# inquire-asking-price-exp-ccn 응답 body 에서 호가 dict 추출 (output·output1 순).
+def _kis_pick_orderbook_raw(body):
+    if not isinstance(body, dict):
+        return None
+    for key in ('output1', 'output'):
+        raw = body.get(key)
+        if raw is None:
+            continue
+        if isinstance(raw, list):
+            if not raw:
+                continue
+            raw = raw[0]
+        if isinstance(raw, dict):
+            parsed = _parse_kis_orderbook_output(raw)
+            if parsed and (parsed['asks'] or parsed['bids'] or parsed.get('expected_exec_price', 0) > 0):
+                return parsed
+    return None
 
 
 # inquire-asking-price-exp-ccn 의 output / output1 dict 파싱.
@@ -6395,17 +6570,10 @@ def _kis_asking_rate_limited(msg) -> bool:
     return False
 
 
-# 동일 앱에서 호가 API 연속 호출 간 최소 간격 (KIS 제한 완화).
+# 동일 앱에서 KIS quotation API 연속 호출 간 최소 간격 (시세·호가 공용).
 def _kis_throttle_asking_call():
-    """동일 앱에서 호가 API 연속 호출 간 최소 간격 (KIS 제한 완화)."""
-    global _KIS_ASKING_LAST_CALL
-    with _KIS_ASKING_GAP_LOCK:
-        gap = _KIS_ASKING_MIN_GAP
-        now = time.time()
-        elapsed = now - _KIS_ASKING_LAST_CALL
-        if elapsed < gap:
-            time.sleep(gap - elapsed)
-        _KIS_ASKING_LAST_CALL = time.time()
+    """동일 앱에서 KIS quotation API 연속 호출 간 최소 간격 (시세·호가 공용)."""
+    redis_cache.throttle_kis_api_call(_KIS_ASKING_MIN_GAP)
 
 
 # 호가·예상체결: 1차 TR 후, 초당한도가 아니면 보조 TR 1회(없는 서비스 코드 등 대응).
@@ -6443,11 +6611,8 @@ def _kis_fetch_asking_price_exp_ccn(token, code):
         if rt not in ('0', 0, None):
             msg = body.get('msg1') or body.get('message') or str(rt)
             return None, msg, _kis_asking_rate_limited(msg)
-        raw = body.get('output')
-        if raw is None:
-            raw = body.get('output1')
-        parsed = _parse_kis_orderbook_output(raw)
-        if parsed and (parsed['asks'] or parsed['bids'] or parsed.get('expected_exec_price', 0) > 0):
+        parsed = _kis_pick_orderbook_raw(body)
+        if parsed:
             return parsed, None, False
         msg = body.get('msg1') or '호가 데이터가 비어 있습니다.'
         return None, msg, False
@@ -6455,18 +6620,22 @@ def _kis_fetch_asking_price_exp_ccn(token, code):
     code = str(code or '').strip()
     parsed, err, rate_hit = _one(_KIS_TR_ASK)
     if parsed:
-        return parsed, None
+        return parsed, None, False
     if rate_hit:
-        return None, err
+        return None, err, True
     if _KIS_ASKING_SKIP_FB:
-        return None, err or '호가 조회 실패'
+        return None, err or '호가 조회 실패', False
+    if err and _kis_asking_rate_limited(err):
+        return None, err, True
+    if err and '비어' in str(err):
+        return None, err, False
     time.sleep(_KIS_ASKING_SECOND_TR_GAP)
     parsed2, err2, rate_hit2 = _one(_KIS_TR_ASK_FB)
     if parsed2:
-        return parsed2, None
+        return parsed2, None, False
     if rate_hit2:
-        return None, err2
-    return None, err2 or err or '호가 API 응답을 해석하지 못했습니다.'
+        return None, err2, True
+    return None, err2 or err or '호가 API 응답을 해석하지 못했습니다.', False
 
 
 # 시세 캐시 일부 갱신 (스레드에서 호출).

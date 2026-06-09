@@ -25,11 +25,24 @@ pip install -r requirements.txt
 ```
 
 ### 환경변수 설정 (.env)
-`backend/.env` 파일에 아래 값을 추가하세요.
+`backend/.env.example` 을 복사해 `backend/.env` 로 두고 값을 채우세요.
 
 ```env
-GEMINI_API_KEY=여기에_본인_제미나이_API_키
+MYSQL_HOST=localhost
+MYSQL_USER=root
+MYSQL_PASSWORD=비밀번호
+MYSQL_DATABASE=stock_db
+FLASK_SECRET_KEY=긴_임의_문자열
+OPENAI_API_KEY=여기에_OpenAI_API_키
 ```
+
+### DB 초기화 (최초 1회)
+
+```bash
+python scripts/migrate.py bootstrap --seeds
+```
+
+상세: [`../SQL/README.md`](../SQL/README.md)
 
 ---
 

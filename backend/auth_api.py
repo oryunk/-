@@ -95,7 +95,7 @@ def _db_error_message(exc: Exception) -> str:
         if code == 1054:
             return (
                 "DB에 필요한 컬럼이 없습니다(오류 1054). "
-                "SQL/update.sql, SQL/add_google_oauth.sql 적용 여부를 확인하세요."
+                "SQL/README.md → python backend/scripts/migrate.py migrate 를 실행하세요."
             )
     if isinstance(exc, pymysql.err.OperationalError) and exc.args:
         code = exc.args[0]

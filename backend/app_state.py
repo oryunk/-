@@ -29,7 +29,7 @@ def _build_price_name_to_code(price_stocks: dict) -> dict:
 
 # GPT(OpenAI) API 설정
 OPENAI_API_KEY = (os.getenv('OPENAI_API_KEY') or os.getenv('GPT_API_KEY') or '').strip()
-DEFAULT_GPT_MODEL = os.getenv('GPT_MODEL', 'gpt-5.4-mini').strip() or 'gpt-5.4-mini'
+DEFAULT_GPT_MODEL = os.getenv('GPT_MODEL', 'gpt-4o-mini').strip() or 'gpt-4o-mini'
 OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions'
 GPT_AVAILABLE = bool(OPENAI_API_KEY)
 if not GPT_AVAILABLE:
