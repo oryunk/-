@@ -27,26 +27,13 @@
   .sector-hero {
     border: 1px solid rgba(47, 143, 95, 0.18);
     border-radius: 18px;
-    padding: 28px;
+    padding: 20px 28px 24px;
     background: linear-gradient(180deg, #eef8f1 0%, #ffffff 100%);
     margin-bottom: 24px;
   }
 
-  .sector-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 6px 12px;
-    border-radius: 999px;
-    font-size: 12px;
-    font-weight: 700;
-    color: var(--accent);
-    border: 1px solid rgba(47, 143, 95, 0.32);
-    background: rgba(47, 143, 95, 0.1);
-  }
-
   .sector-name {
-    margin-top: 12px;
+    margin: 0;
     font-size: clamp(28px, 4vw, 42px);
     font-weight: 900;
     letter-spacing: -0.02em;
@@ -57,24 +44,19 @@
     gap: 12px;
   }
 
-  .sector-badge .stock-logo-wrap {
-    width: 40px;
-    height: 40px;
-  }
-
   .sector-name .stock-cell-toss {
     gap: 12px;
   }
 
   .sector-desc {
-    margin-top: 12px;
+    margin-top: 10px;
     color: var(--gray-400);
     line-height: 1.7;
     font-size: 15px;
   }
 
   .sector-keywords {
-    margin-top: 18px;
+    margin-top: 14px;
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
@@ -91,7 +73,7 @@
   }
 
   .sector-actions {
-    margin-top: 20px;
+    margin-top: 16px;
     display: flex;
     gap: 10px;
     flex-wrap: wrap;
@@ -370,6 +352,7 @@
     <li><a href="glossary.html">용어 검색</a></li>
     <li><a class="jurin-simulation-link" href="http://127.0.0.1:5000/simulation.html">모의 투자</a></li>
     <li><a href="market.html">시장 <span class="nav-badge">LIVE</span></a></li>
+    <li><a href="chart-lab.html">차트연구소</a></li>
     <li><a href="community.html">커뮤니티</a></li>
     <li><a href="inquiry.html">문의</a></li>
   </ul>
@@ -384,7 +367,6 @@
     <!-- ── 섹터 메인 뷰 ── -->
     <div id="sectorMainView">
     <section class="sector-hero">
-      <div class="sector-badge" id="sectorBadge">관심 섹터</div>
       <h1 class="sector-name" id="sectorName">
         <span class="stock-cell-toss" id="sectorHeroCell" hidden>
           <span id="sectorHeroIconWrap" class="stock-logo-wrap stock-logo-wrap--detail">
@@ -711,7 +693,6 @@
   function applySectorPageIcons(sectorName) {
     const heroCell = document.getElementById('sectorHeroCell');
     const heroIcon = document.getElementById('sectorHeroIcon');
-    const badge = document.getElementById('sectorBadge');
     const url = window.JurinSectorIcons && typeof JurinSectorIcons.urlFor === 'function'
       ? JurinSectorIcons.urlFor(sectorName)
       : '';
@@ -723,12 +704,6 @@
         heroCell.hidden = true;
         heroIcon.removeAttribute('src');
       }
-    }
-    if (badge && sectorName) {
-      const iconHtml = window.JurinSectorIcons && JurinSectorIcons.imgHtml
-        ? JurinSectorIcons.imgHtml(sectorName)
-        : '';
-      badge.innerHTML = `${iconHtml}<span>${sectorName} 섹터</span>`;
     }
   }
 
@@ -1035,7 +1010,6 @@
     if (!sectorName || !data) {
       document.getElementById('sectorNameText').textContent = '선택한 섹터를 찾을 수 없습니다.';
       document.getElementById('sectorDesc').textContent = '시장 페이지로 돌아가서 관심 섹터 버튼을 다시 눌러주세요.';
-      document.getElementById('sectorBadge').textContent = '잘못된 접근';
       const heroCell = document.getElementById('sectorHeroCell');
       if (heroCell) heroCell.hidden = true;
       document.getElementById('liveStatus').textContent = '대상 섹터 없음';
@@ -1064,6 +1038,6 @@
     renderSectorPage();
   });
 </script>
-<script src="js/lumi-chat.js?v=20260614"></script>
+<script src="js/lumi-chat.js?v=20260615"></script>
 </body>
 </html>

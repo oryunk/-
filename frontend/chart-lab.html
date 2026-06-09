@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<!-- 차트연구소: 고수 단계 차트 심화 학습 -->
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="assets/brand/favicon.ico?v=20260607" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/brand/favicon-32x32.png?v=20260607">
+<link rel="apple-touch-icon" sizes="180x180" href="assets/brand/apple-touch-icon.png?v=20260607">
+<title>차트연구소 - 주린닷컴</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css?v=20260702">
+<link rel="stylesheet" href="css/inquiry.css?v=20260701">
+<link rel="stylesheet" href="css/chart-lab.css?v=20260801">
+<link rel="stylesheet" href="css/chart-lab-step-tutorial.css?v=20260804">
+<link rel="stylesheet" href="css/lumi-chat.css?v=20260609m">
+<script src="js/auth-nav-boot.js"></script>
+</head>
+<body class="chart-lab-page">
+
+<nav>
+  <a href="주린닷컴홈피.html" class="nav-logo">
+    <img class="logo-icon" src="assets/brand/jurin-logo-icon.png?v=20260607" alt="" width="36" height="36" decoding="async">
+    <div class="logo-text">주린<span>닷컴</span></div>
+  </a>
+  <ul class="nav-menu">
+    <li><a href="guide.html">가이드</a></li>
+    <li><a href="analysis.html">AI 분석 <span class="nav-badge">AI</span></a></li>
+    <li><a href="ai-chart-prediction.html">AI 차트 예측 <span class="nav-badge">AI</span></a></li>
+    <li><a href="market-products.html?topic=elw">ELW</a></li>
+    <li><a href="market-products.html?topic=bonds">채권</a></li>
+    <li><a href="glossary.html">용어 검색</a></li>
+    <li><a class="jurin-simulation-link" href="http://127.0.0.1:5000/simulation.html">모의 투자</a></li>
+    <li><a href="market.html">시장 <span class="nav-badge">LIVE</span></a></li>
+    <li><a href="chart-lab.html" class="active">차트연구소</a></li>
+    <li><a href="community.html">커뮤니티</a></li>
+    <li><a href="inquiry.html">문의</a></li>
+  </ul>
+  <div class="nav-right" data-auth-nav>
+    <button type="button" class="btn-ghost" id="navLoginBtn">로그인</button>
+    <span class="nav-user-email" id="navUserEmail" aria-live="polite" hidden></span>
+    <button type="button" class="btn-ghost" id="navLogoutBtn" hidden>로그아웃</button>
+    <button type="button" class="btn-primary" id="navSignupBtn">회원가입</button>
+  </div>
+</nav>
+
+<main class="chart-lab-shell page-below-nav">
+  <div class="chart-lab-layout">
+    <aside class="chart-lab-sidebar" aria-label="차트연구소 메뉴">
+      <div class="chart-lab-sidebar-head">
+        <h1 class="chart-lab-sidebar-title">차트연구소</h1>
+        <p class="chart-lab-sidebar-sub">실전 차트 패턴·지지·저항·이동평균을 차근차근 익히는 공간</p>
+      </div>
+
+      <div class="chart-lab-lumi-card" aria-label="루미의 한마디">
+        <img class="chart-lab-lumi-img" src="assets/mascot2/sparkle.png?v=20260607" alt="" width="56" height="56" decoding="async">
+        <div class="chart-lab-lumi-body">
+          <strong>루미의 한마디</strong>
+          <p id="chartLabLumiTip">이제 실전 차트 패턴을 배워볼 시간이에요!</p>
+        </div>
+      </div>
+
+      <div class="inquiry-menu-card">
+        <div class="inquiry-side-nav" role="navigation" aria-label="학습 탭">
+          <button type="button" class="inquiry-side-link is-active" data-tab="patterns" aria-current="page">패턴 도감</button>
+          <button type="button" class="inquiry-side-link" data-tab="support">지지·저항</button>
+          <button type="button" class="inquiry-side-link" data-tab="ma">이동평균선</button>
+          <button type="button" class="inquiry-side-link" data-tab="quiz">실전 퀴즈</button>
+        </div>
+      </div>
+    </aside>
+
+    <div class="chart-lab-main">
+      <div class="chart-lab-intro-card">
+        <div class="chart-lab-intro-head">
+          <h2 class="chart-lab-main-title" id="chartLabMainTitle">패턴 도감</h2>
+          <p class="chart-lab-main-sub" id="chartLabMainSub">대표적인 차트 패턴을 익히고 실전 감각을 키워 보세요.</p>
+        </div>
+        <div class="chart-lab-lumi-bubble" aria-label="루미 보조 설명">
+          <img class="chart-lab-lumi-bubble-img" src="assets/mascot2/hello.png?v=20260607" alt="" width="44" height="44" decoding="async">
+          <div class="chart-lab-lumi-bubble-text">
+            <span class="chart-lab-lumi-bubble-label">루미</span>
+            <p id="chartLabLumiBubble">패턴 이름만 외우기보다, 어떤 추세에서 자주 나오는지 같이 보면 좋아요!</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="chart-lab-content-card">
+        <section class="chart-lab-panel" id="chartLabPanelPatterns" data-panel="patterns">
+          <div class="chart-lab-pattern-grid" id="chartLabPatternGrid"></div>
+        </section>
+
+        <section class="chart-lab-panel is-hidden" id="chartLabPanelSupport" data-panel="support" hidden>
+          <div class="chart-lab-pattern-grid" id="chartLabSupportGrid"></div>
+        </section>
+
+        <section class="chart-lab-panel is-hidden" id="chartLabPanelMa" data-panel="ma" hidden>
+          <div class="chart-lab-pattern-grid" id="chartLabMaGrid"></div>
+        </section>
+
+        <section class="chart-lab-panel is-hidden" id="chartLabPanelQuiz" data-panel="quiz" hidden>
+          <div id="chartLabQuizRoot">
+            <div id="chartLabQuizIntro" class="chart-lab-quiz-intro">
+              <img src="assets/mascot2/success.png?v=20260607" alt="" width="72" height="72" decoding="async">
+              <h3>실전 퀴즈</h3>
+              <p>패턴·지지·저항·이동평균 차트를 보고 4지선다로 맞춰 보세요.<br>30문항 중 랜덤 10문제가 출제돼요!</p>
+              <button type="button" class="chart-lab-quiz-start-btn" id="chartLabQuizStartBtn">퀴즈 시작하기</button>
+            </div>
+
+            <div id="chartLabQuizPlay" class="chart-lab-quiz-play" hidden>
+              <div class="chart-lab-quiz-question">
+                <div class="chart-lab-quiz-head">
+                  <p class="chart-lab-quiz-prompt" id="chartLabQuizPrompt"></p>
+                  <span class="chart-lab-quiz-progress" id="chartLabQuizProgress" aria-live="polite"></span>
+                </div>
+                <div class="chart-lab-quiz-chart" id="chartLabQuizChart"></div>
+                <div class="chart-lab-quiz-options" id="chartLabQuizOptions"></div>
+              </div>
+              <div id="chartLabQuizFeedback" class="chart-lab-quiz-feedback" hidden>
+                <p class="chart-lab-quiz-result-title" id="chartLabQuizResultTitle"></p>
+                <img class="chart-lab-quiz-lumi" id="chartLabQuizLumi" src="assets/mascot2/success.png?v=20260607" alt="" width="80" height="80" decoding="async">
+                <p class="chart-lab-quiz-result-text" id="chartLabQuizResultText"></p>
+                <button type="button" class="chart-lab-quiz-next-btn" id="chartLabQuizNextBtn">다음 문제</button>
+              </div>
+            </div>
+
+            <div id="chartLabQuizComplete" class="chart-lab-quiz-complete" hidden>
+              <img src="assets/mascot2/success.png?v=20260607" alt="" width="80" height="80" decoding="async">
+              <h3>퀴즈 완료!</h3>
+              <p id="chartLabQuizScoreText"></p>
+              <button type="button" class="chart-lab-quiz-start-btn" id="chartLabQuizRetryBtn">확인</button>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <aside class="chart-lab-rail" aria-label="차트연구소 위젯">
+      <section class="chart-lab-widget">
+        <h3>오늘의 명언</h3>
+        <div id="chartLabDailyQuote"></div>
+      </section>
+
+      <section class="chart-lab-widget chart-lab-history-widget">
+        <h3>최근 학습 기록</h3>
+        <ul class="chart-lab-history-list" id="chartLabRecentHistory" aria-live="polite"></ul>
+      </section>
+
+      <section class="chart-lab-widget chart-lab-quiz-cta">
+        <img src="assets/mascot2/studying.png?v=20260607" alt="" width="64" height="64" decoding="async">
+        <h3>퀴즈 바로가기</h3>
+        <p>차트를 보고 4지선다로 실력을 확인해 보세요!</p>
+        <button type="button" class="chart-lab-quiz-cta-btn" id="chartLabQuizCtaBtn">퀴즈 바로가기</button>
+      </section>
+    </aside>
+  </div>
+</main>
+
+<div class="chart-lab-modal" id="chartLabPatternModal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="chartLabModalTitle">
+  <div class="chart-lab-modal-panel">
+    <button type="button" class="chart-lab-modal-close" data-chart-lab-modal-close aria-label="닫기">×</button>
+    <span class="chart-lab-modal-badge" id="chartLabModalBadge"></span>
+    <h3 class="chart-lab-modal-title" id="chartLabModalTitle"></h3>
+    <div class="chart-lab-modal-chart" id="chartLabModalChart"></div>
+    <p class="chart-lab-modal-desc" id="chartLabModalDesc"></p>
+    <div class="chart-lab-modal-tip" id="chartLabModalTip" hidden>
+      <span class="chart-lab-modal-tip-icon" aria-hidden="true">i</span>
+      <p class="chart-lab-modal-tip-text" id="chartLabModalTipText"></p>
+    </div>
+    <button type="button" class="chart-lab-modal-confirm" data-chart-lab-modal-close>확인</button>
+  </div>
+</div>
+
+<script src="js/api-base.js"></script>
+<script src="js/common-auth.js"></script>
+<script src="js/mascot2-assets.js?v=20260608r"></script>
+<script>
+  (function () {
+    if (!window.JURIN_LUMI_MOODS || typeof window.jurinLumiconAsset !== 'function') return;
+    var imgs = {};
+    Object.keys(window.JURIN_LUMI_MOODS).forEach(function (k) {
+      imgs[k] = window.jurinLumiconAsset(window.JURIN_LUMI_MOODS[k]);
+    });
+    window.MASCOT_IMAGES = imgs;
+  })();
+</script>
+<script src="js/mascot-coach.js?v=20260613"></script>
+<script src="js/daily-stock-quotes.js?v=20260714"></script>
+<script src="js/jurin-tutorial-guard.js"></script>
+<script src="js/chart-lab-data.js?v=20260805"></script>
+<script src="js/chart-lab-page.js?v=20260801"></script>
+<script src="js/chart-lab-step-tutorial.js?v=20260804"></script>
+<script src="js/lumi-chat.js?v=20260615"></script>
+</body>
+</html>

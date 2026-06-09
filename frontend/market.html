@@ -10,6 +10,7 @@
 <title>시장 정보 - 주린닷컴</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css?v=20260613">
+<link rel="stylesheet" href="css/mock-trade-modals.css">
 <script src="js/auth-nav-boot.js"></script>
 <link rel="stylesheet" href="css/index-detail-overlay.css?v=20260702">
 <script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
@@ -557,22 +558,22 @@
   .index-hover-popover__stat {
     padding: 8px 8px 7px;
     border-radius: 10px;
-    background: var(--index-stat-bg, rgba(47, 143, 95, 0.05));
-    border: 1px solid var(--index-stat-border, rgba(47, 143, 95, 0.08));
+    background: #ffffff;
+    border: 1px solid rgba(0, 0, 0, 0.08);
     text-align: center;
   }
 
   .index-hover-popover__stat-label {
     font-size: 10px;
-    font-weight: 700;
-    color: var(--gray-400);
+    font-weight: 600;
+    color: #6b7280;
     margin-bottom: 3px;
   }
 
   .index-hover-popover__stat-value {
     font-size: 11px;
     font-weight: 700;
-    color: var(--text-primary);
+    color: #1a2e24;
     white-space: nowrap;
   }
 
@@ -1488,9 +1489,15 @@
     color: #ffffff;
   }
 
-  .detail-range-btn:hover {
+  .detail-range-btn:hover:not(.active) {
     border-color: rgba(47, 143, 95, 0.45);
     background: #edf8f1;
+  }
+
+  .detail-range-btn.active:hover {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #ffffff;
   }
 
   .chart-placeholder {
@@ -1528,28 +1535,115 @@
 
   .detail-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0;
     margin-bottom: 14px;
+    border-radius: 14px;
+    border: 1px solid rgba(47, 143, 95, 0.22);
+    background: linear-gradient(180deg, #edf8f1 0%, #e4f3ea 100%);
+    overflow: hidden;
   }
 
   .detail-card {
-    border-radius: 12px;
-    border: 1px solid rgba(47, 143, 95, 0.14);
-    padding: 12px;
-    background: var(--gray-100);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    border-radius: 0;
+    border: none;
+    background: #ffffff;
+    min-width: 0;
+  }
+
+  .detail-card:nth-child(odd) {
+    border-right: 1px solid rgba(47, 143, 95, 0.1);
+  }
+
+  .detail-card:nth-child(-n+8) {
+    border-bottom: 1px solid rgba(47, 143, 95, 0.1);
+  }
+
+  .detail-card-icon {
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .detail-card-icon svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .detail-card-icon--open {
+    background: rgba(47, 143, 95, 0.1);
+    color: #2f8f5f;
+  }
+
+  .detail-card-icon--high {
+    background: rgba(255, 90, 95, 0.12);
+    color: var(--market-up, #e54545);
+  }
+
+  .detail-card-icon--low {
+    background: rgba(49, 130, 246, 0.12);
+    color: var(--market-down, #3182f6);
+  }
+
+  .detail-card-icon--prev-close {
+    background: rgba(100, 116, 139, 0.12);
+    color: #64748b;
+  }
+
+  .detail-card-icon--upper-limit {
+    background: rgba(245, 158, 11, 0.14);
+    color: #d97706;
+  }
+
+  .detail-card-icon--lower-limit {
+    background: rgba(49, 130, 246, 0.12);
+    color: #2563eb;
+  }
+
+  .detail-card-icon--volume {
+    background: rgba(47, 143, 95, 0.1);
+    color: #2f8f5f;
+  }
+
+  .detail-card-icon--traded-value {
+    background: rgba(100, 116, 139, 0.12);
+    color: #64748b;
+  }
+
+  .detail-card-icon--delta {
+    background: rgba(100, 116, 139, 0.12);
+    color: #64748b;
+  }
+
+  .detail-card-icon--rate {
+    background: rgba(47, 143, 95, 0.1);
+    color: #2f8f5f;
+  }
+
+  .detail-card-body {
+    min-width: 0;
+    flex: 1;
   }
 
   .detail-label {
     font-size: 12px;
     color: var(--gray-400);
-    margin-bottom: 6px;
+    margin-bottom: 4px;
   }
 
   .detail-value {
-    font-size: 17px;
+    font-size: 16px;
     font-weight: 700;
     color: var(--text-primary);
+    line-height: 1.25;
   }
 
   .detail-value.quote-up {
@@ -1627,12 +1721,22 @@
   .mock-trade-panel {
     position: relative;
     z-index: 1;
-    width: min(520px, 96vw);
+    width: min(540px, 96vw);
     border-radius: 14px;
     border: 1px solid rgba(47, 143, 95, 0.22);
     background: #ffffff;
     box-shadow: 0 20px 50px rgba(31, 47, 38, 0.15);
     padding: 18px;
+  }
+
+  .mock-trade-panel--compact {
+    width: min(420px, 94vw);
+    border-radius: 20px;
+    padding: 24px 24px 22px;
+    border: none;
+    box-shadow:
+      0 20px 25px -5px rgba(0, 0, 0, 0.1),
+      0 10px 10px -5px rgba(0, 0, 0, 0.04);
   }
 
   .mock-trade-head {
@@ -1643,19 +1747,35 @@
     margin-bottom: 14px;
   }
 
+  .mock-trade-head--compact {
+    align-items: flex-start;
+    margin-bottom: 22px;
+  }
+
+  .mock-trade-head-text {
+    min-width: 0;
+    flex: 1;
+  }
+
   .mock-trade-title {
     font-size: 28px;
     font-weight: 800;
     letter-spacing: -0.02em;
     color: var(--text-primary);
+    line-height: 1.15;
+  }
+
+  .mock-trade-panel--compact .mock-trade-title {
+    font-size: 32px;
+    margin-bottom: 6px;
   }
 
   .mock-trade-panel--buy .mock-trade-title {
-    color: #d32f2f;
+    color: #ef4444;
   }
 
   .mock-trade-panel--sell .mock-trade-title {
-    color: #1565c0;
+    color: #3182f6;
   }
 
   .mock-trade-close {
@@ -1664,13 +1784,22 @@
     height: 34px;
     border-radius: 8px;
     cursor: pointer;
-    color: var(--text-primary);
-    font-size: 20px;
-    background: var(--gray-100);
+    color: #9ca3af;
+    font-size: 22px;
+    line-height: 1;
+    background: transparent;
+    flex-shrink: 0;
+  }
+
+  .mock-trade-panel--compact .mock-trade-close {
+    width: 32px;
+    height: 32px;
+    margin-top: 2px;
   }
 
   .mock-trade-close:hover {
-    background: rgba(47, 143, 95, 0.12);
+    background: rgba(47, 143, 95, 0.08);
+    color: #374151;
   }
 
   .mock-trade-meta {
@@ -1680,12 +1809,16 @@
     line-height: 1.25;
   }
 
-  .mock-trade-panel--buy .mock-trade-meta {
-    color: var(--gray-400);
+  .mock-trade-panel--compact .mock-trade-meta {
+    margin-bottom: 0;
+    font-size: 20px;
+    font-weight: 700;
+    color: #2f8f5f;
+    letter-spacing: -0.01em;
   }
 
-  .mock-trade-panel--sell .mock-trade-meta {
-    color: var(--gray-400);
+  .mock-trade-panel--sell.mock-trade-panel--compact .mock-trade-meta {
+    color: #3182f6;
   }
 
   .mock-trade-form {
@@ -1694,65 +1827,189 @@
     gap: 18px 20px;
   }
 
-  .mock-trade-field {
+  .mock-trade-form--compact {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 0;
   }
 
-  .mock-trade-field.full {
-    grid-column: 1 / -1;
-  }
-
-  .mock-trade-field span {
-    font-size: 12px;
-    color: var(--gray-400);
-  }
-
-  .mock-trade-price-head {
+  .mock-trade-row {
     display: flex;
-    flex-wrap: wrap;
     align-items: center;
-    gap: 8px 12px;
     justify-content: space-between;
+    gap: 16px;
+    padding: 14px 0;
+    border-bottom: 1px solid #f3f4f6;
+  }
+
+  .mock-trade-row-label {
+    flex-shrink: 0;
+    font-size: 15px;
+    font-weight: 600;
+    color: #374151;
+  }
+
+  .mock-trade-row-control {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    min-width: 0;
+    flex: 1;
+  }
+
+  .mock-trade-qty-control {
+    gap: 8px;
+  }
+
+  .mock-trade-qty-stepper {
+    display: grid;
+    grid-template-columns: 36px minmax(52px, 72px) 36px;
+    gap: 6px;
+    align-items: stretch;
+  }
+
+  .mock-trade-qty-step {
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    background: #fff;
+    color: #374151;
+    font-size: 18px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    line-height: 1;
+    padding: 0;
+    min-height: 40px;
+  }
+
+  .mock-trade-qty-step:hover {
+    border-color: rgba(47, 143, 95, 0.4);
+    background: rgba(47, 143, 95, 0.05);
+  }
+
+  .mock-trade-qty-input {
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    background: #fff;
+    color: #111827;
+    font-size: 16px;
+    font-weight: 700;
+    font-family: inherit;
+    text-align: center;
+    min-height: 40px;
+    padding: 0 6px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .mock-trade-qty-input:focus {
+    outline: none;
+    border-color: rgba(47, 143, 95, 0.55);
+    box-shadow: 0 0 0 3px rgba(47, 143, 95, 0.12);
+  }
+
+  .mock-trade-qty-unit {
+    font-size: 15px;
+    font-weight: 600;
+    color: #6b7280;
+    flex-shrink: 0;
   }
 
   .mock-trade-inline-price-type {
     display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
+    flex-wrap: nowrap;
+    gap: 8px;
     align-items: center;
   }
 
   .mock-trade-price-type-btn {
-    padding: 8px 12px;
-    border-radius: 8px;
-    border: 1px solid rgba(47, 143, 95, 0.28);
+    padding: 9px 16px;
+    border-radius: 10px;
+    border: 1px solid #e5e7eb;
     background: #fff;
-    color: var(--text-primary);
-    font-size: 12px;
+    color: #374151;
+    font-size: 14px;
     font-weight: 700;
     font-family: inherit;
     cursor: pointer;
     transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
     white-space: nowrap;
-    min-width: 64px;
+    min-width: 72px;
   }
 
   .mock-trade-price-type-btn:hover {
     border-color: rgba(47, 143, 95, 0.45);
-    background: rgba(47, 143, 95, 0.06);
+    background: rgba(47, 143, 95, 0.05);
   }
 
   .mock-trade-price-type-btn.active {
-    background: rgba(47, 143, 95, 0.16);
-    border-color: var(--accent);
-    color: #1d4d38;
+    background: #2f8f5f;
+    border-color: #2f8f5f;
+    color: #ffffff;
   }
 
-  #mockTradePriceField.is-market-mode #mockTradePrice:disabled {
-    opacity: 0.85;
-    cursor: not-allowed;
+  .mock-trade-limit-wrap {
+    padding: 0 0 14px;
+    border-bottom: 1px solid #f3f4f6;
+  }
+
+  .mock-trade-limit-wrap[hidden] {
+    display: none !important;
+  }
+
+  .mock-trade-limit-input {
+    width: 100%;
+    box-sizing: border-box;
+    text-align: right;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .mock-trade-est-block {
+    padding: 16px 0 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .mock-trade-est-box {
+    width: 100%;
+    box-sizing: border-box;
+    min-height: 52px;
+    padding: 14px 16px;
+    border-radius: 12px;
+    background: #f3f4f6;
+    border: 1px solid #e5e7eb;
+    font-size: 15px;
+    font-weight: 600;
+    color: #6b7280;
+    text-align: right;
+    line-height: 1.4;
+    word-break: keep-all;
+  }
+
+  .mock-trade-est-box.is-calculated {
+    color: #111827;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+
+  #mockTradePriceField.is-market-mode + .mock-trade-limit-wrap {
+    display: none !important;
+  }
+
+  #mockTradePrice.price-input--market-label {
+    text-align: center;
+    color: #6b7280;
+    font-weight: 600;
+    cursor: default;
+    min-height: 44px;
+    padding: 12px 14px;
+    font-size: 14px;
+    line-height: 1.35;
+    background: #f9fafb;
+    border-color: #e5e7eb;
   }
 
   .mock-trade-input {
@@ -1760,19 +2017,18 @@
     border: 1px solid rgba(47, 143, 95, 0.2);
     background: var(--gray-100);
     color: var(--text-primary);
-    padding: 10px 12px;
-    font-size: 14px;
+    padding: 12px 14px;
+    min-height: 48px;
+    font-size: 15px;
     font-family: inherit;
   }
 
   .mock-trade-cta {
-    grid-column: 1 / -1;
     display: flex;
     justify-content: stretch;
     align-items: center;
-    gap: 0;
-    margin-top: 22px;
     width: 100%;
+    margin-top: 4px;
   }
 
   .mock-trade-cta .mock-trade-btn.submit {
@@ -1782,16 +2038,16 @@
 
   .mock-trade-btn {
     border: none;
-    border-radius: 10px;
-    padding: 12px 18px;
-    font-size: 16px;
+    border-radius: 12px;
+    padding: 15px 18px;
+    font-size: 17px;
     font-weight: 700;
     cursor: pointer;
     font-family: inherit;
   }
 
   .mock-trade-btn.submit.buy {
-    background: #ff5a5f;
+    background: #ef4444;
     color: #fff;
   }
 
@@ -1830,7 +2086,10 @@
 
   .detail-fin-chart-toolbar {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
     gap: 10px;
     margin-bottom: 12px;
   }
@@ -1842,9 +2101,9 @@
   }
 
   .detail-fin-chart-seg {
-    border: 1px solid rgba(47, 143, 95, 0.35);
-    background: #ffffff;
-    color: var(--text-primary);
+    border: none;
+    background: transparent;
+    color: #64748b;
     padding: 8px 14px;
     border-radius: 999px;
     font-size: 13px;
@@ -1855,7 +2114,6 @@
   }
 
   .detail-fin-chart-seg:hover {
-    border-color: var(--accent);
     color: var(--accent);
   }
 
@@ -1870,18 +2128,20 @@
     flex-wrap: wrap;
     gap: 6px;
     align-items: center;
+    justify-content: flex-end;
   }
 
   .detail-fin-metric-chip {
-    border: 1px solid rgba(47, 143, 95, 0.28);
+    border: 1px solid rgba(100, 116, 139, 0.28);
     background: #ffffff;
-    color: var(--text-primary);
+    color: #64748b;
     padding: 6px 12px;
     border-radius: 8px;
     font-size: 12px;
     font-weight: 600;
     cursor: pointer;
     font-family: inherit;
+    transition: border-color 0.15s, color 0.15s, background 0.15s;
   }
 
   .detail-fin-metric-chip:hover {
@@ -1890,25 +2150,88 @@
   }
 
   .detail-fin-metric-chip.active {
-    background: rgba(47, 143, 95, 0.12);
+    background: #ffffff;
     border-color: var(--accent);
-    color: #1d4d38;
+    color: var(--accent);
   }
 
   .detail-fin-chart-plot {
     min-height: 260px;
     width: 100%;
     border-radius: 12px;
-    background: #f6faf7;
+    background: #ffffff;
     border: 1px solid rgba(47, 143, 95, 0.12);
   }
 
   .detail-fin-chart-plot.detail-fin-chart-plot--hbar {
-    min-height: 200px;
-    padding: 18px 20px;
+    min-height: 140px;
+    padding: 20px 22px;
     box-sizing: border-box;
     display: flex;
+    align-items: stretch;
+  }
+
+  .fin-val-compact {
+    display: grid;
+    grid-template-columns: minmax(120px, auto) 1fr;
+    gap: 20px;
     align-items: center;
+    width: 100%;
+  }
+
+  @media (max-width: 520px) {
+    .fin-val-compact {
+      grid-template-columns: 1fr;
+      gap: 14px;
+    }
+  }
+
+  .fin-val-compact-stat {
+    min-width: 0;
+  }
+
+  .fin-val-compact-label {
+    font-size: 13px;
+    color: var(--gray-400);
+    margin-bottom: 6px;
+  }
+
+  .fin-val-compact-value {
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--accent);
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+  }
+
+  .fin-val-compact-visual {
+    min-width: 0;
+  }
+
+  .fin-val-compact-marker {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 8px;
+    text-align: right;
+  }
+
+  .fin-val-compact-track {
+    position: relative;
+    height: 14px;
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.08);
+    overflow: hidden;
+  }
+
+  .fin-val-compact-fill {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    border-radius: 999px;
+    background: var(--accent);
+    min-width: 4px;
   }
 
   .valuation-hbar-chart {
@@ -1989,8 +2312,13 @@
   .detail-tables-details {
     border-radius: 14px;
     border: 1px solid rgba(47, 143, 95, 0.14);
-    background: var(--gray-100);
+    background: #ffffff;
     overflow: hidden;
+  }
+
+  #detailInvestorSection.detail-section {
+    background: #ffffff;
+    border: 1px solid rgba(47, 143, 95, 0.14);
   }
 
   .detail-tables-details > summary {
@@ -2001,6 +2329,35 @@
     cursor: pointer;
     list-style: none;
     user-select: none;
+    background: #ffffff;
+    border-bottom: 1px solid rgba(47, 143, 95, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .detail-tables-summary-label {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .detail-tables-chevron {
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    color: var(--accent, #2f8f5f);
+    transition: transform 0.2s ease;
+  }
+
+  .detail-tables-chevron svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  .detail-tables-details[open] > summary .detail-tables-chevron {
+    transform: rotate(180deg);
   }
 
   .detail-tables-details > summary::-webkit-details-marker {
@@ -2008,9 +2365,105 @@
   }
 
   .detail-tables-inner {
-    padding: 0 16px 16px;
+    padding: 16px;
     display: grid;
     gap: 14px;
+  }
+
+  @media (min-width: 900px) {
+    .detail-tables-inner {
+      grid-template-columns: 1fr 1fr;
+      grid-template-areas:
+        "valuation valuation"
+        "performance balance";
+    }
+
+    .detail-tables-inner section[data-jurin-section="valuation"] {
+      grid-area: valuation;
+    }
+
+    .detail-tables-inner section[data-jurin-section="performance"] {
+      grid-area: performance;
+    }
+
+    .detail-tables-inner section[data-jurin-section="balance"] {
+      grid-area: balance;
+    }
+  }
+
+  .detail-tables-inner .detail-section {
+    border-radius: 12px;
+    border: 1px solid rgba(47, 143, 95, 0.12);
+    background: #ffffff;
+    padding: 14px 16px 16px;
+  }
+
+  .detail-tables-inner .detail-table-wrap {
+    overflow-x: auto;
+    border-radius: 10px;
+    border: 1px solid rgba(47, 143, 95, 0.12);
+  }
+
+  .detail-tables-details .detail-table {
+    min-width: 100%;
+    border-collapse: collapse;
+  }
+
+  .detail-tables-details .detail-table thead tr {
+    background: var(--accent, #2f8f5f);
+  }
+
+  .detail-tables-details .detail-table th {
+    padding: 11px 12px;
+    text-align: right;
+    color: #ffffff;
+    font-size: 12px;
+    font-weight: 700;
+    border-bottom: none;
+    white-space: nowrap;
+  }
+
+  .detail-tables-details .detail-table th:first-child {
+    text-align: left;
+    color: #ffffff;
+  }
+
+  .detail-tables-details .detail-table tbody tr {
+    background: #ffffff;
+  }
+
+  .detail-tables-details .detail-table td {
+    padding: 11px 12px;
+    text-align: right;
+    color: var(--text-primary);
+    font-size: 13px;
+    font-weight: 600;
+    border-bottom: 1px solid rgba(47, 143, 95, 0.08);
+    background: #ffffff;
+  }
+
+  .detail-tables-details .detail-table tbody tr:last-child td {
+    border-bottom: none;
+  }
+
+  .detail-tables-details .detail-table td:first-child {
+    text-align: left;
+    font-weight: 700;
+  }
+
+  .detail-tables-details .detail-table .detail-table-gap.quote-up {
+    color: var(--market-up);
+    font-weight: 700;
+  }
+
+  .detail-tables-details .detail-table .detail-table-gap.quote-down {
+    color: var(--market-down);
+    font-weight: 700;
+  }
+
+  .detail-tables-details .detail-table .detail-table-gap.quote-flat {
+    color: var(--quote-flat, #64748b);
+    font-weight: 600;
   }
 
   .detail-section {
@@ -2057,20 +2510,6 @@
     margin-bottom: 8px;
   }
 
-  .metric-item-label-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-    margin-bottom: 4px;
-  }
-
-  .metric-item-label-row .metric-item-label {
-    margin-bottom: 0;
-    font-weight: 600;
-    color: var(--text-primary);
-  }
-
   .metric-term-link {
     flex-shrink: 0;
     font-size: 11px;
@@ -2080,40 +2519,137 @@
     border-bottom: 1px dashed rgba(47, 143, 95, 0.45);
   }
 
+  .metric-term-link--footer {
+    margin-top: auto;
+    align-self: flex-start;
+  }
+
   .metric-term-link:hover {
     opacity: 0.85;
   }
 
-  .metric-item-hint {
+  .metric-item-label-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  .metric-item-label-row .metric-item-label {
+    margin-bottom: 0;
+  }
+
+  .metric-help-wrap {
+    position: relative;
+    flex-shrink: 0;
+  }
+
+  .metric-help-btn {
+    width: 18px;
+    height: 18px;
+    padding: 0;
+    border: 1px solid rgba(100, 116, 139, 0.35);
+    border-radius: 999px;
+    background: #ffffff;
+    color: #64748b;
     font-size: 11px;
-    line-height: 1.45;
-    color: var(--gray-400);
-    margin-bottom: 8px;
+    font-weight: 800;
+    line-height: 1;
+    cursor: pointer;
+    font-family: inherit;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: border-color 0.15s, color 0.15s, background 0.15s;
+  }
+
+  .metric-help-btn:hover,
+  .metric-help-btn:focus-visible {
+    border-color: var(--accent);
+    color: var(--accent);
+    outline: none;
+  }
+
+  .metric-help-bubble {
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    min-width: 180px;
+    max-width: 240px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid rgba(100, 116, 139, 0.22);
+    background: #ffffff;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--text-primary);
+    white-space: normal;
+    z-index: 30;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.15s ease, visibility 0.15s ease;
+  }
+
+  .metric-help-bubble::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 6px solid transparent;
+    border-top-color: #ffffff;
+    filter: drop-shadow(0 1px 0 rgba(100, 116, 139, 0.18));
+  }
+
+  .metric-help-wrap:hover .metric-help-bubble,
+  .metric-help-btn:focus-visible + .metric-help-bubble,
+  .metric-help-wrap.is-open .metric-help-bubble {
+    opacity: 1;
+    visibility: visible;
   }
 
   .metric-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
+    gap: 10px;
+  }
+
+  #indicatorGrid.metric-grid,
+  #stabilityDividendGrid.metric-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
     gap: 10px;
   }
 
   .metric-item {
     border-radius: 12px;
-    padding: 12px;
+    padding: 14px 16px;
     background: #ffffff;
     border: 1px solid rgba(47, 143, 95, 0.12);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-height: 96px;
+    box-sizing: border-box;
+    overflow: visible;
+    position: relative;
   }
 
   .metric-item-label {
     font-size: 12px;
-    color: var(--gray-400);
-    margin-bottom: 6px;
+    color: var(--text-primary);
+    font-weight: 700;
+    margin-bottom: 0;
   }
 
   .metric-item-value {
-    font-size: 16px;
-    font-weight: 700;
+    font-size: 18px;
+    font-weight: 800;
     color: var(--text-primary);
+    line-height: 1.25;
   }
 
   .detail-table-wrap {
@@ -2191,14 +2727,66 @@
 
   .investor-flow-list {
     display: grid;
-    gap: 10px;
+    gap: 0;
   }
 
   .investor-flow-row {
     display: grid;
-    grid-template-columns: 54px 1fr 96px;
+    grid-template-columns: auto minmax(0, 1fr) auto;
     gap: 12px;
     align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid rgba(47, 143, 95, 0.1);
+  }
+
+  .investor-flow-row:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+
+  .investor-flow-row:first-child {
+    padding-top: 0;
+  }
+
+  .investor-flow-icon {
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .investor-flow-icon svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .investor-flow-icon--individual {
+    background: rgba(255, 90, 95, 0.12);
+    color: #e54545;
+  }
+
+  .investor-flow-icon--foreign {
+    background: rgba(49, 130, 246, 0.12);
+    color: #3182f6;
+  }
+
+  .investor-flow-icon--institution {
+    background: rgba(49, 130, 246, 0.12);
+    color: #2563eb;
+  }
+
+  .investor-flow-icon--default {
+    background: rgba(100, 116, 139, 0.12);
+    color: #64748b;
+  }
+
+  .investor-flow-main {
+    min-width: 0;
+    display: grid;
+    gap: 6px;
   }
 
   .investor-flow-label {
@@ -2211,7 +2799,7 @@
     position: relative;
     height: 10px;
     border-radius: 999px;
-    background: rgba(255, 255, 255, 0.08);
+    background: rgba(15, 23, 42, 0.08);
     overflow: hidden;
   }
 
@@ -2221,11 +2809,20 @@
     left: 0;
     height: 100%;
     border-radius: 999px;
+    min-width: 4px;
   }
 
-  .investor-flow-bar.positive { background: linear-gradient(90deg, #ff7b7b, #ff5454); }
-  .investor-flow-bar.negative { background: linear-gradient(90deg, #5ab6ff, #2f86ff); }
-  .investor-flow-bar.neutral { background: linear-gradient(90deg, #7b8ea8, #9aa7b8); }
+  .investor-flow-bar--individual {
+    background: linear-gradient(90deg, #ff7b7b, #ff5454);
+  }
+
+  .investor-flow-bar--institutional {
+    background: linear-gradient(90deg, #5ab6ff, #2f86ff);
+  }
+
+  .investor-flow-bar.neutral {
+    background: linear-gradient(90deg, #7b8ea8, #9aa7b8);
+  }
 
   #investorFlowMeta {
     color: #3f5a4b;
@@ -2233,10 +2830,23 @@
 
   .investor-flow-value {
     text-align: right;
-    font-size: 12px;
-    font-weight: 500;
+    font-size: 13px;
+    font-weight: 700;
     color: #3f5a4b;
-    font-family: 'DM Mono', monospace;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  .investor-flow-value.quote-up {
+    color: var(--market-up, #e54545);
+  }
+
+  .investor-flow-value.quote-down {
+    color: var(--market-down, #3182f6);
+  }
+
+  .investor-flow-value.quote-flat {
+    color: var(--quote-flat, #64748b);
   }
 
   .empty-state {
@@ -2248,7 +2858,7 @@
   /* ── 관심 섹터 버튼 ─────────────────────────────────── */
   .sector-section {
     background: #ffffff;
-    border: 1px solid rgba(47, 143, 95, 0.16);
+    border: 1px solid rgba(30, 105, 59, 0.16);
     border-radius: 16px;
     padding: 32px;
     margin-bottom: 40px;
@@ -2272,28 +2882,27 @@
     align-items: center;
     gap: 8px;
     padding: 12px 20px;
-    background: rgba(47, 143, 95, 0.08);
-    border: 1px solid rgba(47, 143, 95, 0.2);
+    background: #ffffff;
+    border: 1px solid rgba(0, 0, 0, 0.1);
     border-radius: 12px;
-    color: var(--text-primary);
+    color: #000000;
     font-size: 15px;
     font-weight: 600;
     cursor: pointer;
     font-family: inherit;
-    transition: all 0.2s;
+    transition: background 0.2s ease, transform 0.2s ease;
   }
 
   .sector-btn:hover {
-    background: rgba(47, 143, 95, 0.14);
-    border-color: rgba(47, 143, 95, 0.4);
-    color: var(--text-primary);
-    transform: translateY(-2px);
+    background: var(--gray-100);
+    border-color: rgba(0, 0, 0, 0.1);
+    color: #000000;
   }
 
   .sector-btn.active {
-    background: var(--accent);
-    border-color: var(--accent);
-    color: #fff;
+    background: rgba(47, 143, 95, 0.12);
+    border-color: rgba(47, 143, 95, 0.2);
+    color: #000000;
   }
 
   .sector-btn .stock-cell-toss {
@@ -2304,11 +2913,8 @@
   .sector-btn .stock-logo-wrap {
     width: 52px;
     height: 52px;
-  }
-
-  .sector-btn.active .stock-logo-wrap {
-    background: #ffffff;
-    border-color: rgba(255, 255, 255, 0.55);
+    background: transparent;
+    border: none;
   }
 
   .sector-btn-label {
@@ -2359,33 +2965,12 @@
     pointer-events: none;
     transition: background 0.2s ease;
   }
-  /* 루미 말풍선(600) 위에 퀘스트만 — wrapper는 display:contents로 전체 화면 덮지 않음(CLEAR·딤 스택 유지) */
-  .market-step1-quest-hud {
-    display: none;
-  }
-  .market-step1-quest-hud.is-open {
-    display: contents;
-  }
-  .market-step1-quest-hud .market-step1-banner,
-  .market-step1-quest-hud .market-step1-panel {
-    z-index: 650;
-    pointer-events: auto;
-  }
   .market-step1-overlay.is-open {
     display: block;
   }
   /* dim 톤은 style.css의 tutorial-fx 공용 레이어에서 통합 관리 */
   .market-step1-overlay.is-clear-dim {
     background: rgba(9, 18, 14, 0.62);
-  }
-
-  /* CLEAR 연출: 퀘스트 UI 숨기고 배경만 강하게 어둡게 — 루미 말풍선은 style.css에서 z-index 상승 */
-  body.market-step1-clear-phase .market-step1-panel,
-  body.market-step1-clear-phase .market-step1-banner {
-    opacity: 0;
-    visibility: hidden;
-    pointer-events: none;
-    transition: opacity 0.2s ease, visibility 0.2s ease;
   }
 
   body.market-step1-clear-phase .market-step1-overlay.is-clear-dim {
@@ -2643,47 +3228,20 @@
     pointer-events: none;
     transition: background 0.2s ease;
   }
-  .market-step2-quest-hud {
-    display: none;
-  }
-  .market-step2-quest-hud.is-open {
-    display: contents;
-  }
-  .market-step2-quest-hud .market-step2-banner,
-  .market-step2-quest-hud .market-step2-panel {
-    z-index: 650;
-    pointer-events: auto;
-  }
   .market-step2-overlay.is-open {
     display: block;
   }
-  /* 2단계는 이 규칙만으로도 딤이 보이게 백업 (공용 tutorial-fx 규칙 누락 대비) */
-  .market-step2-overlay.is-dim {
-    background: rgba(4, 8, 6, 0.68);
-    z-index: 400;
-    pointer-events: none;
-  }
+  /* 2단계 딤은 css/market-step2-tutorial.css body::before 로 처리 */
   .market-step2-overlay.is-clear-dim {
     background: rgba(9, 18, 14, 0.62);
   }
-  /* CLEAR 연출: 1단계와 동일 — 퀘스트 UI 숨기고 배경만 강하게 어둡게 */
-  body.market-step2-clear-phase .market-step2-panel,
-  body.market-step2-clear-phase .market-step2-banner {
-    opacity: 0;
-    visibility: hidden;
-    pointer-events: none;
-    transition: opacity 0.2s ease, visibility 0.2s ease;
-  }
-
   body.market-step2-clear-phase .market-step2-overlay.is-clear-dim {
-    /* 강조 카드(500)·토스트(999)·모의창(680) 위로 — 클리어 딤이 전체를 덮도록 */
-    z-index: 1200;
     background: rgba(2, 6, 4, 0.9);
   }
 
   body.market-step2-clear-phase .market-step2-clear {
     position: fixed;
-    z-index: 1;
+    z-index: 1210;
   }
   .market-step2-banner {
     position: fixed;
@@ -2929,17 +3487,6 @@
     pointer-events: none;
     transition: background 0.2s ease;
   }
-  .market-step3-quest-hud {
-    display: none;
-  }
-  .market-step3-quest-hud.is-open {
-    display: contents;
-  }
-  .market-step3-quest-hud .market-step3-banner,
-  .market-step3-quest-hud .market-step3-panel {
-    z-index: 650;
-    pointer-events: auto;
-  }
   .market-step3-overlay.is-open {
     display: block;
   }
@@ -2947,19 +3494,29 @@
   .market-step3-overlay.is-clear-dim {
     background: rgba(9, 18, 14, 0.62);
   }
-  body.market-step3-clear-phase .market-step3-panel,
-  body.market-step3-clear-phase .market-step3-banner {
-    opacity: 0;
-    visibility: hidden;
-    pointer-events: none;
-    transition: opacity 0.2s ease, visibility 0.2s ease;
-  }
   body.market-step3-clear-phase .market-step3-overlay.is-clear-dim {
     background: rgba(2, 6, 4, 0.9);
   }
-  body.market-step3-clear-phase .market-step3-clear {
+  body.market-step3-clear-phase #marketStep3Overlay,
+  body.market-step3-clear-phase .market-step3-overlay.is-clear-dim {
+    display: block !important;
     position: fixed;
-    z-index: 1;
+    inset: 0;
+    z-index: 470;
+    background: rgba(2, 6, 4, 0.9) !important;
+    pointer-events: none;
+  }
+  body.market-step3-clear-phase .market-step3-clear,
+  body.market-step3-clear-phase #marketStep3Clear {
+    position: fixed;
+    z-index: 1210 !important;
+    pointer-events: none;
+  }
+  body.market-step3-clear-phase .tutorial-callout-target {
+    animation: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    z-index: auto !important;
   }
   .market-step3-banner {
     position: fixed;
@@ -3314,6 +3871,10 @@
   }
 </style>
 <link rel="stylesheet" href="css/lumi-chat.css?v=20260609m">
+<link rel="stylesheet" href="css/market-step2-tutorial.css?v=20260608">
+<link rel="stylesheet" href="css/market-step2-clear.css?v=20260608">
+<link rel="stylesheet" href="css/market-step4-tutorial.css?v=20260609">
+<link rel="stylesheet" href="css/market-step4-clear.css?v=20260609">
 </head>
 <body>
 
@@ -3331,6 +3892,7 @@
     <li><a href="glossary.html">용어 검색</a></li>
     <li><a class="jurin-simulation-link" href="http://127.0.0.1:5000/simulation.html">모의 투자</a></li>
     <li><a href="market.html" class="active">시장 <span class="nav-badge">LIVE</span></a></li>
+    <li><a href="chart-lab.html">차트연구소</a></li>
     <li><a href="community.html">커뮤니티</a></li>
     <li><a href="inquiry.html">문의</a></li>
   </ul>
@@ -3492,44 +4054,74 @@
         </div>
         <div class="detail-grid" id="detailGrid">
           <div class="detail-card" id="detailCardOpen" data-detail-term="open">
-            <div class="detail-label">시가</div>
-            <div class="detail-value" id="detailOpen">-</div>
+            <span class="detail-card-icon detail-card-icon--open" aria-hidden="true"><svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="9" width="3" height="5" rx="0.5" fill="currentColor"/><rect x="6.5" y="6" width="3" height="8" rx="0.5" fill="currentColor"/><rect x="11" y="3" width="3" height="11" rx="0.5" fill="currentColor"/></svg></span>
+            <div class="detail-card-body">
+              <div class="detail-label">시가</div>
+              <div class="detail-value" id="detailOpen">-</div>
+            </div>
           </div>
           <div class="detail-card" id="detailCardHigh" data-detail-term="high">
-            <div class="detail-label">고가</div>
-            <div class="detail-value" id="detailHigh">-</div>
+            <span class="detail-card-icon detail-card-icon--high" aria-hidden="true"><svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.2"/><path d="M8 10V5.5M8 5.5L5.8 7.7M8 5.5L10.2 7.7" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+            <div class="detail-card-body">
+              <div class="detail-label">고가</div>
+              <div class="detail-value" id="detailHigh">-</div>
+            </div>
           </div>
           <div class="detail-card" id="detailCardLow" data-detail-term="low">
-            <div class="detail-label">저가</div>
-            <div class="detail-value" id="detailLow">-</div>
+            <span class="detail-card-icon detail-card-icon--low" aria-hidden="true"><svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.2"/><path d="M8 6v4.5M8 10.5l-2.2-2.2M8 10.5l2.2-2.2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+            <div class="detail-card-body">
+              <div class="detail-label">저가</div>
+              <div class="detail-value" id="detailLow">-</div>
+            </div>
           </div>
           <div class="detail-card" id="detailCardPrevClose" data-detail-term="prev_close">
-            <div class="detail-label">전일 종가</div>
-            <div class="detail-value" id="detailPrevClose">-</div>
+            <span class="detail-card-icon detail-card-icon--prev-close" aria-hidden="true"><svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.2"/><path d="M8 5v3.5l2.2 1.3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+            <div class="detail-card-body">
+              <div class="detail-label">전일 종가</div>
+              <div class="detail-value" id="detailPrevClose">-</div>
+            </div>
           </div>
           <div class="detail-card" id="detailCardUpperLimit" data-detail-term="upper_limit">
-            <div class="detail-label">상한가</div>
-            <div class="detail-value" id="detailUpperLimit">-</div>
+            <span class="detail-card-icon detail-card-icon--upper-limit" aria-hidden="true"><svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M8 2.5l1.4 2.8 3.1.5-2.2 2.2.5 3.1L8 9.4 5.2 11.1l.5-3.1L3.5 5.8l3.1-.5L8 2.5z" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/></svg></span>
+            <div class="detail-card-body">
+              <div class="detail-label">상한가</div>
+              <div class="detail-value" id="detailUpperLimit">-</div>
+            </div>
           </div>
           <div class="detail-card" id="detailCardLowerLimit" data-detail-term="lower_limit">
-            <div class="detail-label">하한가</div>
-            <div class="detail-value" id="detailLowerLimit">-</div>
+            <span class="detail-card-icon detail-card-icon--lower-limit" aria-hidden="true"><svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M8 13.5l-1.4-2.8-3.1-.5 2.2-2.2-.5-3.1L8 6.6l2.8-1.7-.5 3.1 2.2 2.2-3.1.5L8 13.5z" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/></svg></span>
+            <div class="detail-card-body">
+              <div class="detail-label">하한가</div>
+              <div class="detail-value" id="detailLowerLimit">-</div>
+            </div>
           </div>
           <div class="detail-card" id="detailCardVolume" data-detail-term="volume">
-            <div class="detail-label">거래량</div>
-            <div class="detail-value" id="detailVolume">-</div>
+            <span class="detail-card-icon detail-card-icon--volume" aria-hidden="true"><svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="8" width="2.5" height="6" rx="0.5" fill="currentColor"/><rect x="6.75" y="5" width="2.5" height="9" rx="0.5" fill="currentColor"/><rect x="11.5" y="2" width="2.5" height="12" rx="0.5" fill="currentColor"/></svg></span>
+            <div class="detail-card-body">
+              <div class="detail-label">거래량</div>
+              <div class="detail-value" id="detailVolume">-</div>
+            </div>
           </div>
           <div class="detail-card" id="detailCardTradedValue" data-detail-term="traded_value">
-            <div class="detail-label">거래대금</div>
-            <div class="detail-value" id="detailTradedValue">-</div>
+            <span class="detail-card-icon detail-card-icon--traded-value" aria-hidden="true"><svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><ellipse cx="8" cy="11" rx="5" ry="2" stroke="currentColor" stroke-width="1.1"/><path d="M5.5 9.5c0-2.5 1.1-4 2.5-4s2.5 1.5 2.5 4" stroke="currentColor" stroke-width="1.1"/><ellipse cx="8" cy="6.5" rx="5" ry="2" stroke="currentColor" stroke-width="1.1"/></svg></span>
+            <div class="detail-card-body">
+              <div class="detail-label">거래대금</div>
+              <div class="detail-value" id="detailTradedValue">-</div>
+            </div>
           </div>
           <div class="detail-card" id="detailCardDelta" data-detail-term="delta">
-            <div class="detail-label">전일대비</div>
-            <div class="detail-value" id="detailDelta">-</div>
+            <span class="detail-card-icon detail-card-icon--delta" aria-hidden="true"><svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 10.5h8M8 4.5v6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M5.5 7l2.5-2.5L10.5 7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+            <div class="detail-card-body">
+              <div class="detail-label">전일대비</div>
+              <div class="detail-value" id="detailDelta">-</div>
+            </div>
           </div>
           <div class="detail-card" id="detailCardRate" data-detail-term="rate">
-            <div class="detail-label">등락률</div>
-            <div class="detail-value" id="detailRate">-</div>
+            <span class="detail-card-icon detail-card-icon--rate" aria-hidden="true"><svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="6" cy="6" r="2.5" stroke="currentColor" stroke-width="1.2"/><path d="M4.5 11.5h7M11 8.5l1.5 3-1.5 3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+            <div class="detail-card-body">
+              <div class="detail-label">등락률</div>
+              <div class="detail-value" id="detailRate">-</div>
+            </div>
           </div>
         </div>
         <div class="detail-sections">
@@ -3562,7 +4154,7 @@
             <p class="detail-section-sub" id="detailFinChartCaption" style="margin-top:10px;margin-bottom:0"></p>
           </section>
           <details class="detail-tables-details">
-            <summary>표로 보기</summary>
+            <summary><span class="detail-tables-summary-label">표로 보기</span><span class="detail-tables-chevron" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5 8l5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span></summary>
             <div class="detail-tables-inner">
               <section class="detail-section" data-jurin-section="valuation">
                 <div class="detail-section-title">가치평가 비교</div>
@@ -3615,164 +4207,89 @@
 <div class="market-step1-overlay" id="marketStep1Overlay" aria-hidden="true">
   <div class="market-step1-clear" id="marketStep1Clear">CLEAR</div>
 </div>
-<div class="market-step1-quest-hud" id="marketStep1QuestHud" aria-hidden="true">
-  <div class="market-step1-banner">
-    <span>튜토리얼 1단계</span>
-    <strong>시세 읽기</strong>
-  </div>
-  <aside class="market-step1-panel">
-    <div class="market-step1-quest-head">
-      <span class="market-step1-quest-tag">QUEST</span>
-      <span class="market-step1-quest-progress" id="marketStep1Progress">완료 0/3</span>
-    </div>
-    <div class="market-step1-title" id="marketStep1Title">미션</div>
-    <div class="market-step1-quest-body">
-      <div class="market-step1-quest-section-label">할 일</div>
-      <ul class="market-step1-quest-list" role="list" aria-label="1단계 퀘스트">
-        <li class="market-step1-quest-item" data-quest-index="0" role="listitem">
-          <span class="market-step1-quest-check" aria-hidden="true"></span>
-          <span class="market-step1-quest-strike-wrap">
-            <span class="market-step1-quest-text">지수·상승·하락·거래량으로 시장 목록 익히기</span>
-          </span>
-        </li>
-        <li class="market-step1-quest-item" data-quest-index="1" role="listitem">
-          <span class="market-step1-quest-check" aria-hidden="true"></span>
-          <span class="market-step1-quest-strike-wrap">
-            <span class="market-step1-quest-text">종목을 눌러 상세 화면 열기</span>
-          </span>
-        </li>
-        <li class="market-step1-quest-item" data-quest-index="2" role="listitem">
-          <span class="market-step1-quest-check" aria-hidden="true"></span>
-          <span class="market-step1-quest-strike-wrap">
-            <span class="market-step1-quest-text">시세 카드 보고 퀴즈로 정리하기</span>
-          </span>
-        </li>
-      </ul>
-      <div class="market-step1-now">
-        <span class="market-step1-now-label">지금</span>
-        <p class="market-step1-now-text" id="marketStep1Now">—</p>
-      </div>
-    </div>
-  </aside>
-</div>
-
 <div class="market-step2-overlay" id="marketStep2Overlay" aria-hidden="true">
   <div class="market-step2-clear" id="marketStep2Clear">CLEAR</div>
 </div>
-<div class="market-step2-quest-hud" id="marketStep2QuestHud" aria-hidden="true">
-  <div class="market-step2-banner">
-    <span>튜토리얼 2단계</span>
-    <strong>차트 기초</strong>
-  </div>
-  <aside class="market-step2-panel">
-    <div class="market-step2-quest-head">
-      <span class="market-step2-quest-tag">QUEST</span>
-      <span class="market-step2-quest-progress" id="marketStep2Progress">완료 0/3</span>
-    </div>
-    <div class="market-step2-title" id="marketStep2Title">미션</div>
-    <div class="market-step2-quest-body">
-      <div class="market-step2-quest-section-label">할 일</div>
-      <ul class="market-step2-quest-list" role="list" aria-label="2단계 퀘스트">
-        <li class="market-step2-quest-item" data-quest-index="0" role="listitem">
-          <span class="market-step2-quest-check" aria-hidden="true"></span>
-          <span class="market-step2-quest-strike-wrap">
-            <span class="market-step2-quest-text">삼성전자 차트 열기</span>
-          </span>
-        </li>
-        <li class="market-step2-quest-item" data-quest-index="1" role="listitem">
-          <span class="market-step2-quest-check" aria-hidden="true"></span>
-          <span class="market-step2-quest-strike-wrap">
-            <span class="market-step2-quest-text">일·주·월·년 봉과 봉·거래량 보기</span>
-          </span>
-        </li>
-        <li class="market-step2-quest-item" data-quest-index="2" role="listitem">
-          <span class="market-step2-quest-check" aria-hidden="true"></span>
-          <span class="market-step2-quest-strike-wrap">
-            <span class="market-step2-quest-text">퀴즈로 정리하고 클리어하기</span>
-          </span>
-        </li>
-      </ul>
-      <div class="market-step2-now">
-        <span class="market-step2-now-label">지금</span>
-        <p class="market-step2-now-text" id="marketStep2Now">—</p>
-      </div>
-    </div>
-  </aside>
-</div>
-
 <div class="market-step3-overlay" id="marketStep3Overlay" aria-hidden="true">
   <div class="market-step3-clear" id="marketStep3Clear">CLEAR</div>
 </div>
-<div class="market-step3-quest-hud" id="marketStep3QuestHud" aria-hidden="true">
-  <div class="market-step3-banner">
-    <span>튜토리얼 3단계</span>
-    <strong>종목 가치</strong>
+<div class="market-step4-overlay" id="marketStep4Overlay" aria-hidden="true">
+  <div class="market-step4-clear" id="marketStep4Clear">CLEAR</div>
+</div>
+<div id="marketTradeNoticeModal" class="mock-trade-dialog-overlay" aria-hidden="true" role="presentation" onclick="if (event.target === this) closeMarketTradeNoticeModal()">
+  <div class="mock-trade-dialog-panel mock-trade-notice-panel" id="marketTradeNoticePanel" role="alertdialog" aria-modal="true" aria-labelledby="marketTradeNoticeTitle" onclick="event.stopPropagation()">
+    <button type="button" class="mock-trade-dialog-close" onclick="closeMarketTradeNoticeModal()" aria-label="닫기">×</button>
+    <h3 class="mock-trade-dialog-title" id="marketTradeNoticeTitle"></h3>
+    <p class="mock-trade-dialog-lead" id="marketTradeNoticeLead"></p>
+    <div class="mock-trade-dialog-summary" id="marketTradeNoticeSummary" hidden>
+      <p class="mock-trade-dialog-tip" id="marketTradeNoticeTip"></p>
+      <p class="mock-trade-dialog-extra" id="marketTradeNoticeExtra"></p>
+    </div>
+    <div class="mock-trade-dialog-actions" id="marketTradeNoticeActions">
+      <button type="button" class="mock-trade-dialog-primary" id="marketTradeNoticePrimary" hidden onclick="runMarketTradeNoticePrimary()">지정가로 전환</button>
+      <button type="button" class="mock-trade-dialog-ghost" id="marketTradeNoticeConfirm" onclick="closeMarketTradeNoticeModal()">확인</button>
+    </div>
   </div>
-  <aside class="market-step3-panel">
-    <div class="market-step3-quest-head">
-      <span class="market-step3-quest-tag">QUEST</span>
-      <span class="market-step3-quest-progress" id="marketStep3Progress">완료 0/3</span>
-    </div>
-    <div class="market-step3-title" id="marketStep3Title">미션</div>
-    <div class="market-step3-quest-body">
-      <div class="market-step3-quest-section-label">할 일</div>
-      <ul class="market-step3-quest-list" role="list" aria-label="3단계 퀘스트">
-        <li class="market-step3-quest-item" data-quest-index="0" role="listitem">
-          <span class="market-step3-quest-check" aria-hidden="true"></span>
-          <span class="market-step3-quest-strike-wrap">
-            <span class="market-step3-quest-text">삼성전자 상세 열기</span>
-          </span>
-        </li>
-        <li class="market-step3-quest-item" data-quest-index="1" role="listitem">
-          <span class="market-step3-quest-check" aria-hidden="true"></span>
-          <span class="market-step3-quest-strike-wrap">
-            <span class="market-step3-quest-text">가치·재무 성과·재무상태표 칩 순서로 읽기</span>
-          </span>
-        </li>
-        <li class="market-step3-quest-item" data-quest-index="2" role="listitem">
-          <span class="market-step3-quest-check" aria-hidden="true"></span>
-          <span class="market-step3-quest-strike-wrap">
-            <span class="market-step3-quest-text">퀴즈로 정리하고 클리어</span>
-          </span>
-        </li>
-      </ul>
-      <div class="market-step3-now">
-        <span class="market-step3-now-label">지금</span>
-        <p class="market-step3-now-text" id="marketStep3Now">—</p>
-      </div>
-    </div>
-  </aside>
 </div>
 
+<div id="marketInsufficientCashModal" class="mock-trade-dialog-overlay" aria-hidden="true" role="presentation" onclick="if (event.target === this) closeMarketInsufficientCashModal()">
+  <div class="mock-trade-dialog-panel insufficient-cash-panel" role="alertdialog" aria-modal="true" aria-labelledby="marketInsufficientCashHeading" onclick="event.stopPropagation()">
+    <button type="button" class="mock-trade-dialog-close" onclick="closeMarketInsufficientCashModal()" aria-label="닫기">×</button>
+    <h3 class="mock-trade-dialog-title" id="marketInsufficientCashHeading">예수금 부족</h3>
+    <p class="mock-trade-dialog-lead">예수금을 확인해 주세요.</p>
+    <div class="mock-trade-dialog-row"><span>종목</span><span id="marketInsufficientCashStockLine">—</span></div>
+    <div class="mock-trade-dialog-row"><span>수량</span><span id="marketInsufficientCashQtyLine">—</span></div>
+    <div class="mock-trade-dialog-row"><span>예상 단가</span><span id="marketInsufficientCashUnitLine">—</span></div>
+    <div class="insufficient-cash-summary">
+      <div class="mock-trade-dialog-row"><span>필요 결제액</span><span id="marketInsufficientCashRequired">—</span></div>
+      <div class="mock-trade-dialog-row"><span>예수금</span><span id="marketInsufficientCashAvailable">—</span></div>
+      <div class="mock-trade-dialog-row mock-trade-dialog-row--short"><span>부족 금액</span><span id="marketInsufficientCashShortfall">—</span></div>
+    </div>
+    <div class="mock-trade-dialog-actions">
+      <button type="button" class="mock-trade-dialog-primary" onclick="closeMarketInsufficientCashModal()">확인</button>
+    </div>
+  </div>
+</div>
 
 <div class="mock-trade-modal" id="mockTradeModal" aria-hidden="true">
   <div class="mock-trade-backdrop" id="mockTradeBackdrop"></div>
-  <div class="mock-trade-panel mock-trade-panel--buy" role="dialog" aria-modal="true" aria-labelledby="mockTradeTitle">
-    <div class="mock-trade-head">
-      <div class="mock-trade-title" id="mockTradeTitle">매수</div>
+  <div class="mock-trade-panel mock-trade-panel--compact mock-trade-panel--buy" role="dialog" aria-modal="true" aria-labelledby="mockTradeTitle">
+    <div class="mock-trade-head mock-trade-head--compact">
+      <div class="mock-trade-head-text">
+        <div class="mock-trade-title" id="mockTradeTitle">매수</div>
+        <div class="mock-trade-meta" id="mockTradeMeta">종목을 선택한 뒤 주문하세요.</div>
+      </div>
       <button type="button" class="mock-trade-close" onclick="closeMockTradeModal()" aria-label="닫기">×</button>
     </div>
-    <div class="mock-trade-meta" id="mockTradeMeta">종목을 선택한 뒤 주문하세요.</div>
-    <form class="mock-trade-form" onsubmit="submitMockTradeFromMarket(event)">
-      <label class="mock-trade-field">
-        <span>수량</span>
-        <input class="mock-trade-input" id="mockTradeQty" type="number" min="1" step="1" value="1" required>
-      </label>
-      <label class="mock-trade-field" id="mockTradePriceField">
-        <div class="mock-trade-price-head">
-          <span id="mockTradePriceLabel">가격</span>
+    <form class="mock-trade-form mock-trade-form--compact" onsubmit="submitMockTradeFromMarket(event)">
+      <div class="mock-trade-row">
+        <span class="mock-trade-row-label">수량</span>
+        <div class="mock-trade-row-control mock-trade-qty-control">
+          <div class="mock-trade-qty-stepper">
+            <button type="button" class="mock-trade-qty-step" id="mockTradeQtyMinus" aria-label="수량 1주 줄이기">&#8722;</button>
+            <input class="mock-trade-qty-input" id="mockTradeQty" type="number" min="1" step="1" value="1" required>
+            <button type="button" class="mock-trade-qty-step" id="mockTradeQtyPlus" aria-label="수량 1주 늘리기">+</button>
+          </div>
+          <span class="mock-trade-qty-unit">주</span>
+        </div>
+      </div>
+      <div class="mock-trade-row" id="mockTradePriceField">
+        <span class="mock-trade-row-label" id="mockTradePriceLabel">가격</span>
+        <div class="mock-trade-row-control">
           <div class="mock-trade-inline-price-type" role="radiogroup" aria-label="주문 가격 유형">
             <button type="button" class="mock-trade-price-type-btn active" id="mockTradePriceTypeMarket" aria-pressed="true">시장가</button>
             <button type="button" class="mock-trade-price-type-btn" id="mockTradePriceTypeLimit" aria-pressed="false">지정가</button>
           </div>
         </div>
-        <input class="mock-trade-input" id="mockTradePrice" type="number" min="0" step="1" placeholder="지정가">
-      </label>
-      <div class="mock-trade-field full">
-        <span>예상 주문 금액</span>
-        <input class="mock-trade-input" id="mockTradeEstimated" type="text" value="₩0" readonly>
       </div>
-      <div class="mock-trade-cta full">
+      <div class="mock-trade-limit-wrap" id="mockTradeLimitWrap" hidden>
+        <input class="mock-trade-input mock-trade-limit-input" id="mockTradePrice" type="text" placeholder="" inputmode="numeric" autocomplete="off">
+      </div>
+      <div class="mock-trade-est-block">
+        <span class="mock-trade-row-label">예상 주문 금액</span>
+        <div class="mock-trade-est-box" id="mockTradeEstimated" aria-live="polite">가장 빠른 금액</div>
+      </div>
+      <div class="mock-trade-cta">
         <button class="mock-trade-btn submit buy" id="mockTradeSubmitBtn" type="submit">매수</button>
       </div>
     </form>
@@ -3794,11 +4311,15 @@
       <li><a href="glossary.html">용어 검색</a></li>
       <li><a class="jurin-simulation-link" href="http://127.0.0.1:5000/simulation.html">모의 투자</a></li>
       <li><a href="market.html" class="active">시장 <span class="nav-badge">LIVE</span></a></li>
+      <li><a href="chart-lab.html">차트연구소</a></li>
       <li><a href="community.html">커뮤니티</a></li>
     <li><a href="inquiry.html">문의</a></li>
   </ul>
-    <div class="nav-right">
-      <button type="button" class="btn-ghost index-detail-overlay__close-nav" id="indexDetailClose">닫기</button>
+    <div class="nav-right" data-auth-nav data-auth-nav-scope="index-overlay">
+      <button type="button" class="btn-ghost" data-auth-login>로그인</button>
+      <span class="nav-user-email" data-auth-email aria-live="polite" hidden></span>
+      <button type="button" class="btn-ghost" data-auth-logout hidden>로그아웃</button>
+      <button type="button" class="btn-primary" data-auth-signup>회원가입</button>
     </div>
   </nav>
   <div class="index-detail-overlay__body">
@@ -3842,6 +4363,9 @@
 </div>
 
 <script src="js/api-base.js"></script>
+<script src="js/mock-order-board-store.js"></script>
+<script src="js/mock-trade-engine.js"></script>
+<script src="js/mock-trade-modals.js"></script>
 <script src="js/index-detail-overlay.js?v=20260702"></script>
 <script src="js/stock-autocomplete.js"></script>
 <script src="js/stock-terms.js"></script>
@@ -4028,6 +4552,7 @@
   let detailPollHandle = null;
   let detailLastRenderedPrice = null;
   let mockTradeState = { side: 'BUY', code: '', name: '', currentPrice: 0 };
+  let mockTradeSubmitLock = false;
   let finChartCategory = 'valuation';
   let finChartMetric = 'PER';
 
@@ -4174,7 +4699,7 @@
     const layoutBase = {
       margin: { l: 52, r: 20, t: 24, b: 52 },
       paper_bgcolor: 'transparent',
-      plot_bgcolor: '#f6faf7',
+      plot_bgcolor: '#ffffff',
       font: { family: 'Noto Sans KR, sans-serif', size: 12, color: '#355845' },
       showlegend: false,
     };
@@ -4207,49 +4732,29 @@
       const dispStockSrc = row.value != null && row.value !== '' ? row.value : v1;
       const dispIndSrc =
         row.industry_avg != null && row.industry_avg !== '' ? row.industry_avg : v2;
-      const rowsHtml = [];
-      if (v1 != null) {
-        const w = valuationHbarWidthPct(v1, maxAbs);
-        rowsHtml.push(
-          '<div class="valuation-hbar-row">' +
-            '<div class="valuation-hbar-name">' + escapeHtml(stockLabel) + '</div>' +
-            '<div class="valuation-hbar-value">' +
-            escapeHtml(formatValuationDisplayText(finChartMetric, dispStockSrc)) +
-            '</div>' +
-            '<div class="valuation-hbar-track">' +
-            '<div class="valuation-hbar-fill valuation-hbar-fill--stock" style="width:' + w + '%"></div>' +
-            '</div>' +
-          '</div>'
-        );
-      }
-      if (v2 != null) {
-        const w = valuationHbarWidthPct(v2, maxAbs);
-        rowsHtml.push(
-          '<div class="valuation-hbar-row">' +
-            '<div class="valuation-hbar-name">' + escapeHtml('업종 평균') + '</div>' +
-            '<div class="valuation-hbar-value">' +
-            escapeHtml(formatValuationDisplayText(finChartMetric, dispIndSrc)) +
-            '</div>' +
-            '<div class="valuation-hbar-track">' +
-            '<div class="valuation-hbar-fill valuation-hbar-fill--industry" style="width:' + w + '%"></div>' +
-            '</div>' +
-          '</div>'
-        );
-      }
-      if (rowsHtml.length === 0) {
-        el.innerHTML = '<div class="empty-state">표시할 수치가 없습니다.</div>';
-        if (cap) cap.textContent = '';
-        return;
-      }
+      const stockDisplay = v1 != null
+        ? formatValuationDisplayText(finChartMetric, dispStockSrc)
+        : '-';
+      const industryDisplay = v2 != null
+        ? formatValuationDisplayText(finChartMetric, dispIndSrc)
+        : '-';
+      const barWidth = v1 != null
+        ? valuationHbarWidthPct(v1, maxAbs)
+        : (v2 != null ? valuationHbarWidthPct(v2, maxAbs) : 0);
       el.classList.add('detail-fin-chart-plot--hbar');
       el.innerHTML =
-        '<div class="valuation-hbar-chart">' +
-        '<div class="valuation-hbar-chart-title">' +
-        escapeHtml('가치 비교 · ' + String(finChartMetric)) +
-        '</div>' +
-        '<div class="valuation-hbar-rows">' +
-        rowsHtml.join('') +
-        '</div></div>';
+        '<div class="fin-val-compact">' +
+          '<div class="fin-val-compact-stat">' +
+            '<div class="fin-val-compact-label">' + escapeHtml(String(finChartMetric) + ' 업종 평균') + '</div>' +
+            '<div class="fin-val-compact-value">' + escapeHtml(industryDisplay) + '</div>' +
+          '</div>' +
+          '<div class="fin-val-compact-visual">' +
+            '<div class="fin-val-compact-marker">' + escapeHtml(stockLabel + ' · ' + stockDisplay) + '</div>' +
+            '<div class="fin-val-compact-track">' +
+              '<div class="fin-val-compact-fill" style="width:' + barWidth + '%"></div>' +
+            '</div>' +
+          '</div>' +
+        '</div>';
       const comp = detail.valuation_comparison || {};
       if (cap) {
         cap.textContent = comp.basis
@@ -4296,8 +4801,13 @@
     };
     const layout = {
       ...layoutBase,
-      yaxis: { title: String(finChartMetric), gridcolor: 'rgba(47,143,95,0.12)', tickformat: ',~s' },
-      xaxis: { title: '기간', gridcolor: 'rgba(47,143,95,0.08)' },
+      yaxis: {
+        title: String(finChartMetric),
+        gridcolor: 'rgba(47,143,95,0.12)',
+        tickformat: ',~s',
+        zeroline: false,
+      },
+      xaxis: { title: '기간', gridcolor: 'rgba(47,143,95,0.08)', zeroline: false },
     };
     const pTs = Plotly.newPlot(el, [trace], layout, { responsive: true, displayModeBar: false });
     if (pTs && typeof pTs.catch === 'function') {
@@ -4470,6 +4980,10 @@
     const priceInput = document.getElementById('mockTradePrice');
     if (qtyInput) qtyInput.addEventListener('input', updateMockTradeEstimate);
     if (priceInput) priceInput.addEventListener('input', updateMockTradeEstimate);
+    const mockQtyMinus = document.getElementById('mockTradeQtyMinus');
+    const mockQtyPlus = document.getElementById('mockTradeQtyPlus');
+    if (mockQtyMinus) mockQtyMinus.addEventListener('click', () => bumpMockTradeQty(-1));
+    if (mockQtyPlus) mockQtyPlus.addEventListener('click', () => bumpMockTradeQty(1));
     const mockTradeMarketBtn = document.getElementById('mockTradePriceTypeMarket');
     const mockTradeLimitBtn = document.getElementById('mockTradePriceTypeLimit');
     if (mockTradeMarketBtn) {
@@ -4995,6 +5509,15 @@
     tbody.innerHTML = rowsHtml;
     applyStockLogoIntrinsicFit(tbody);
     syncStocksTableLayout();
+    if (typeof window.__marketStep1OnStocksRendered === 'function') {
+      window.__marketStep1OnStocksRendered();
+    }
+    if (typeof window.__marketStep2OnStocksRendered === 'function') {
+      window.__marketStep2OnStocksRendered();
+    }
+    if (typeof window.__marketStep3OnStocksRendered === 'function') {
+      window.__marketStep3OnStocksRendered();
+    }
     if (q) {
       pagination.innerHTML = '';
     } else {
@@ -5130,6 +5653,13 @@
         console.warn('[market-step1]', err);
       }
     }
+    if (typeof window.__marketStep2OnDetailClosed === 'function') {
+      try {
+        window.__marketStep2OnDetailClosed();
+      } catch (err) {
+        console.warn('[market-step2]', err);
+      }
+    }
   }
 
   window.closeStockDetail = closeStockDetail;
@@ -5255,11 +5785,11 @@
     { name: 'KOSPI', key: 'kospi', interactive: true },
     { name: 'KOSDAQ', key: 'kosdaq', interactive: true },
     { name: 'KOSPI 200', key: 'kospi200', interactive: true },
-    { name: 'USD/KRW', key: 'usdkrw', interactive: false, kind: 'fx' },
+    { name: 'USD/KRW', key: 'usdkrw', interactive: true, kind: 'fx' },
     { name: '시장폭', key: 'marketbreadth', interactive: false, kind: 'breadth' },
   ];
-  const INDEX_KEY_BY_NAME = { KOSPI: 'kospi', KOSDAQ: 'kosdaq', 'KOSPI 200': 'kospi200' };
-  const INDEX_OVERLAY_KEYS = new Set(['kospi', 'kosdaq', 'kospi200']);
+  const INDEX_KEY_BY_NAME = { KOSPI: 'kospi', KOSDAQ: 'kosdaq', 'KOSPI 200': 'kospi200', 'USD/KRW': 'usdkrw' };
+  const INDEX_OVERLAY_KEYS = new Set(['kospi', 'kosdaq', 'kospi200', 'usdkrw']);
 
   function openMarketIndexDetail(card) {
     if (!card || card.classList.contains('index-card--static')) return false;
@@ -5268,6 +5798,9 @@
     if (!window.IndexDetailOverlay || typeof window.IndexDetailOverlay.open !== 'function') return false;
     closeIndexHoverPopover();
     window.IndexDetailOverlay.open(key);
+    if (typeof window.__marketStep2OnIndexDetailOpened === 'function') {
+      window.__marketStep2OnIndexDetailOpened(key, card);
+    }
     return true;
   }
   const INDEX_VISUAL_THEMES = {
@@ -5456,6 +5989,8 @@
       popover.removeAttribute('style');
     }
   }
+
+  window.closeIndexHoverPopover = closeIndexHoverPopover;
 
   function buildMarketIndexCards(data) {
     const pool = [
@@ -5972,6 +6507,12 @@
 
   async function openIndexHoverPopover(card) {
     if (!card) return;
+    if (
+      typeof window.__marketStep2BlockIndexPopover === 'function' &&
+      window.__marketStep2BlockIndexPopover(card)
+    ) {
+      return;
+    }
     const key = String(card.dataset.indexKey || '').trim();
     const name = String(card.dataset.indexName || '').trim() || '지수';
     if (!key) return;
@@ -6208,6 +6749,112 @@
     return !!(btn && btn.classList.contains('active'));
   }
 
+  const MOCK_MARKET_PRICE_LABEL = '가장 빠른 금액';
+  let mockOrderbookCacheByCode = {};
+
+  function mockKrxTickSize(p) {
+    let x = Number(p);
+    if (!Number.isFinite(x) || x <= 0) x = 10000;
+    if (x < 2000) return 1;
+    if (x < 5000) return 5;
+    if (x < 20000) return 10;
+    if (x < 50000) return 50;
+    if (x < 200000) return 100;
+    if (x < 500000) return 500;
+    return 1000;
+  }
+
+  function mockPriceOneTickAbove(ref) {
+    const r = Math.floor(Number(ref) || 0);
+    if (r <= 0) return 0;
+    return r + mockKrxTickSize(r);
+  }
+
+  function mockPriceOneTickBelow(ref) {
+    const r = Math.floor(Number(ref) || 0);
+    if (r <= 0) return 0;
+    const tick = mockKrxTickSize(r);
+    return Math.max(tick, r - tick);
+  }
+
+  function mockDefaultLimitPriceFromBook(side, refPx, orderbookData) {
+    const ref = Math.floor(Number(refPx) || 0);
+    const book = orderbookData || null;
+    const asks = book && Array.isArray(book.asks) ? book.asks : [];
+    const bids = book && Array.isArray(book.bids) ? book.bids : [];
+    if (side === 'BUY') {
+      if (asks.length > 0) {
+        const askPx = Math.floor(Number(asks[0].price) || 0);
+        if (askPx > 0) return askPx;
+      }
+      return ref > 0 ? mockPriceOneTickAbove(ref) : 0;
+    }
+    if (bids.length > 0) {
+      const bidPx = Math.floor(Number(bids[0].price) || 0);
+      if (bidPx > 0) return bidPx;
+    }
+    return ref > 0 ? mockPriceOneTickBelow(ref) : 0;
+  }
+
+  function getMockCachedOrderbookForCode(code) {
+    return (mockOrderbookCacheByCode[String(code || '').trim()] || {}).data || null;
+  }
+
+  async function fetchMockOrderbookForCode(code) {
+    const codeStr = String(code || '').trim();
+    if (!/^\d{6}$/.test(codeStr)) return null;
+    try {
+      const res = await fetch(`${BACKEND}/api/mock/asking-price/${encodeURIComponent(codeStr)}`);
+      if (!res.ok) return getMockCachedOrderbookForCode(codeStr);
+      const payload = await res.json().catch(() => ({}));
+      if (payload && payload.success !== false) {
+        mockOrderbookCacheByCode[codeStr] = { data: payload, ts: Date.now() };
+        return payload;
+      }
+    } catch (_) { /* ignore */ }
+    return getMockCachedOrderbookForCode(codeStr);
+  }
+
+  function isMockMarketPriceLabelValue(v) {
+    return String(v || '').trim() === MOCK_MARKET_PRICE_LABEL;
+  }
+
+  function parseMockLimitPriceInput(inp) {
+    if (!inp) return 0;
+    const raw = String(inp.value || '').trim();
+    if (!raw || isMockMarketPriceLabelValue(raw)) return 0;
+    const n = parseInt(raw.replace(/[^\d]/g, ''), 10);
+    return Number.isFinite(n) && n > 0 ? n : 0;
+  }
+
+  function applyMockMarketPriceInputDisplay(inp, market) {
+    if (!inp) return;
+    if (market) {
+      inp.readOnly = true;
+      inp.disabled = false;
+      inp.value = MOCK_MARKET_PRICE_LABEL;
+      inp.placeholder = '';
+      inp.classList.add('price-input--market-label');
+      inp.setAttribute('inputmode', 'none');
+    } else {
+      inp.readOnly = false;
+      inp.disabled = false;
+      if (isMockMarketPriceLabelValue(inp.value)) inp.value = '';
+      inp.placeholder = '';
+      inp.classList.remove('price-input--market-label');
+      inp.setAttribute('inputmode', 'numeric');
+    }
+  }
+
+  function applyMockLimitPriceDefault(priceEl) {
+    if (!priceEl || isMockTradeMarketPrice()) return;
+    const side = mockTradeState.side === 'SELL' ? 'SELL' : 'BUY';
+    const ref = Number(mockTradeState.currentPrice) || 0;
+    const book = getMockCachedOrderbookForCode(mockTradeState.code);
+    const px = mockDefaultLimitPriceFromBook(side, ref, book);
+    if (px > 0) priceEl.value = String(px);
+  }
+
   function setMockTradePriceType(market) {
     const mBtn = document.getElementById('mockTradePriceTypeMarket');
     const lBtn = document.getElementById('mockTradePriceTypeLimit');
@@ -6222,30 +6869,41 @@
       lBtn.setAttribute('aria-pressed', market ? 'false' : 'true');
     }
     if (priceEl) {
-      priceEl.disabled = market;
       if (market) {
-        priceEl.value = '';
-        priceEl.placeholder = '시장가';
+        applyMockMarketPriceInputDisplay(priceEl, true);
       } else {
-        priceEl.placeholder = '지정가';
-        const u = Number(mockTradeState.currentPrice) || 0;
-        if (u > 0) priceEl.value = String(u);
+        applyMockMarketPriceInputDisplay(priceEl, false);
+        applyMockLimitPriceDefault(priceEl);
       }
     }
+    const limitWrap = document.getElementById('mockTradeLimitWrap');
+    if (limitWrap) limitWrap.hidden = !!market;
     if (field) field.classList.toggle('is-market-mode', market);
     updateMockTradeEstimate();
   }
 
+  function bumpMockTradeQty(direction) {
+    const inp = document.getElementById('mockTradeQty');
+    if (!inp) return;
+    let cur = parseInt(inp.value, 10);
+    if (Number.isNaN(cur) || cur < 1) cur = 1;
+    inp.value = String(Math.max(1, cur + direction));
+    updateMockTradeEstimate();
+  }
+
   function updateMockTradeEstimate() {
-    const qty = Math.max(1, parseInt(document.getElementById('mockTradeQty')?.value || '1', 10) || 1);
-    const ref = Number(mockTradeState.currentPrice) || 0;
-    let unit = ref;
-    if (!isMockTradeMarketPrice()) {
-      const limitRaw = parseInt(document.getElementById('mockTradePrice')?.value || '0', 10);
-      unit = Number.isFinite(limitRaw) && limitRaw > 0 ? limitRaw : 0;
-    }
     const est = document.getElementById('mockTradeEstimated');
-    if (est) est.value = formatCurrency(Math.max(0, qty * unit));
+    if (!est) return;
+    if (isMockTradeMarketPrice()) {
+      est.textContent = MOCK_MARKET_PRICE_LABEL;
+      est.classList.remove('is-calculated');
+      return;
+    }
+    const qty = Math.max(1, parseInt(document.getElementById('mockTradeQty')?.value || '1', 10) || 1);
+    const priceEl = document.getElementById('mockTradePrice');
+    const unit = priceEl ? parseMockLimitPriceInput(priceEl) : 0;
+    est.textContent = formatCurrency(Math.max(0, qty * unit));
+    est.classList.add('is-calculated');
   }
 
   function closeMockTradeModal() {
@@ -6258,25 +6916,19 @@
   async function openMockTradeModal(side) {
     const stock = selectedStockCode ? getStockByCode(selectedStockCode) : null;
     if (!stock || !selectedStockCode) {
-      alert('먼저 종목을 선택해 주세요.');
+      if (window.JurinMockTradeModals) {
+        JurinMockTradeModals.openMarketTradeErrorModal('종목을 선택해 주세요', '먼저 종목을 선택한 뒤 주문해 주세요.');
+      }
       return;
     }
     const loggedIn = await isAuthenticatedForMockTrade();
     if (!loggedIn) {
-      let handled = false;
       if (typeof window.__jurinHandleMockTradeLoginNeeded === 'function') {
         try {
-          handled = Boolean(window.__jurinHandleMockTradeLoginNeeded(side));
-        } catch (_) {
-          handled = false;
-        }
+          if (window.__jurinHandleMockTradeLoginNeeded(side)) return;
+        } catch (_) { /* ignore */ }
       }
-      if (!handled) {
-        alert('모의투자 주문은 로그인 후 가능합니다.');
-      }
-      if (typeof openLoginModal === 'function' && !handled) {
-        openLoginModal();
-      }
+      if (typeof openLoginModal === 'function') openLoginModal();
       return;
     }
 
@@ -6299,6 +6951,7 @@
       submit.className = `mock-trade-btn submit ${mockTradeState.side === 'BUY' ? 'buy' : 'sell'}`;
     }
     if (qty) qty.value = '1';
+    await fetchMockOrderbookForCode(mockTradeState.code);
     setMockTradePriceType(true);
 
     const modal = document.getElementById('mockTradeModal');
@@ -6321,43 +6974,83 @@
     } catch (_) { /* ignore */ }
   }
 
-  async function submitMockTradeFromMarket(event) {
-    event.preventDefault();
-    const side = mockTradeState.side === 'SELL' ? 'SELL' : 'BUY';
-    const stock = mockTradeState.code;
-    const qtyEl = document.getElementById('mockTradeQty');
-    const priceEl = document.getElementById('mockTradePrice');
-    const quantity = Math.max(1, parseInt(qtyEl && qtyEl.value ? qtyEl.value : '1', 10) || 1);
-    let price = parseInt(priceEl && priceEl.value ? priceEl.value : '0', 10);
-    if (isMockTradeMarketPrice()) {
-      price = 0;
-    } else if (!Number.isFinite(price) || price < 0) {
-      price = 0;
+  function setMockTradeSubmitBusy(busy) {
+    const btn = document.getElementById('mockTradeSubmitBtn');
+    if (!btn) return;
+    if (busy) {
+      if (!btn.dataset.busyLabel) btn.dataset.busyLabel = btn.textContent || '';
+      btn.disabled = true;
+      btn.setAttribute('aria-busy', 'true');
+      btn.textContent = '처리 중…';
+    } else {
+      btn.disabled = false;
+      btn.removeAttribute('aria-busy');
+      if (btn.dataset.busyLabel) {
+        btn.textContent = btn.dataset.busyLabel;
+        delete btn.dataset.busyLabel;
+      }
     }
+  }
 
-    try {
-      const res = await fetch(`${BACKEND}/api/mock/trade`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ side, stock, quantity, price: price > 0 ? price : 0 }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (res.status === 401) {
-        alert(data.message || '로그인이 필요합니다.');
+  function buildMarketTradeHooks() {
+    const modals = window.JurinMockTradeModals;
+    return {
+      onMarketClosed(side) {
+        if (!modals) return;
+        modals.openMarketClosedModal(side, () => setMockTradePriceType(false));
+      },
+      onInsufficientCash(validation, ctx) {
+        if (modals) modals.openMarketInsufficientCashModal(validation, ctx);
+      },
+      onError(title, message) {
+        if (modals) modals.openMarketTradeErrorModal(title, message);
+      },
+      onUnauthorized() {
         closeMockTradeModal();
         if (typeof openLoginModal === 'function') openLoginModal();
-        return;
+      },
+    };
+  }
+
+  async function submitMockTradeFromMarket(event) {
+    event.preventDefault();
+    if (mockTradeSubmitLock) return;
+    if (!window.JurinMockTradeEngine || !window.JurinMockOrderBoard) {
+      if (window.JurinMockTradeModals) {
+        JurinMockTradeModals.openMarketTradeErrorModal('주문 안내', '거래 모듈을 불러오지 못했습니다. 페이지를 새로고침해 주세요.');
       }
-      if (!res.ok || !data.success) {
-        throw new Error(data.message || '주문 처리에 실패했습니다.');
+      return;
+    }
+
+    mockTradeSubmitLock = true;
+    setMockTradeSubmitBusy(true);
+    try {
+      const side = mockTradeState.side === 'SELL' ? 'SELL' : 'BUY';
+      const stockRef = mockTradeState.code;
+      const stockLabel = mockTradeState.name || stockRef;
+      const qtyEl = document.getElementById('mockTradeQty');
+      const priceEl = document.getElementById('mockTradePrice');
+      const quantity = Math.max(1, parseInt(qtyEl && qtyEl.value ? qtyEl.value : '1', 10) || 1);
+      const limPx = isMockTradeMarketPrice() ? 0 : parseMockLimitPriceInput(priceEl);
+
+      const result = await JurinMockTradeEngine.submitMockTrade({
+        side,
+        stock: stockLabel,
+        stockRef,
+        quantity,
+        limPx,
+        mode: 'market',
+        hooks: buildMarketTradeHooks(),
+      });
+
+      if (result.ok && (result.executed || result.pending)) {
+        closeMockTradeModal();
+        fetchLivePrices();
+        refreshSearchUniverse();
       }
-      closeMockTradeModal();
-      alert(`${mockTradeState.name} ${quantity.toLocaleString()}주 ${side === 'BUY' ? '매수' : '매도'} 주문이 처리되었습니다.`);
-      fetchLivePrices();
-      refreshSearchUniverse();
-    } catch (err) {
-      alert(err.message || '주문 중 오류가 발생했습니다.');
+    } finally {
+      mockTradeSubmitLock = false;
+      setMockTradeSubmitBusy(false);
     }
   }
 
@@ -6439,6 +7132,34 @@ document.getElementById('investorFlowList').innerHTML = '<div class="empty-state
     renderDetailFinancialChart(detail);
   }
 
+  function investorFlowIconClass(label) {
+    const t = String(label || '').trim();
+    if (t.includes('개인')) return 'investor-flow-icon--individual';
+    if (t.includes('외국')) return 'investor-flow-icon--foreign';
+    if (t.includes('기관')) return 'investor-flow-icon--institution';
+    return 'investor-flow-icon--default';
+  }
+
+  function investorFlowBarClass(label) {
+    const t = String(label || '').trim();
+    if (t.includes('개인')) return 'investor-flow-bar--individual';
+    return 'investor-flow-bar--institutional';
+  }
+
+  function investorFlowIconSvg(label) {
+    const t = String(label || '').trim();
+    if (t.includes('개인')) {
+      return '<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="8" cy="5.5" r="2.5" stroke="currentColor" stroke-width="1.2"/><path d="M3.5 13.5c0-2.8 2-4.5 4.5-4.5s4.5 1.7 4.5 4.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>';
+    }
+    if (t.includes('외국')) {
+      return '<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.2"/><path d="M2 8h12M8 2c1.8 2 2.8 4.5 2.8 6s-1 4-2.8 6M8 2C6.2 4 5.2 6.5 5.2 8s1 4 2.8 6" stroke="currentColor" stroke-width="1.1"/></svg>';
+    }
+    if (t.includes('기관')) {
+      return '<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 13.5V6.5l5-3.5 5 3.5v7" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M6.5 13.5V10h3v3.5M3 13.5h10" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>';
+    }
+    return '<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.2"/></svg>';
+  }
+
   function renderInvestorFlows(flow) {
     document.getElementById('investorFlowMeta').textContent = flow.available
       ? `${flow.updated_at || ''} 기준 · ${flow.source || ''}`
@@ -6453,12 +7174,18 @@ document.getElementById('investorFlowList').innerHTML = '<div class="empty-state
     document.getElementById('investorFlowList').innerHTML = flow.items.map(item => {
       const value = Number(item.value || 0);
       const width = Math.max(4, Math.round(Math.abs(value) / maxAbs * 100));
-      const direction = value > 0 ? 'positive' : value < 0 ? 'negative' : 'neutral';
+      const barTone = value === 0 ? 'neutral' : '';
+      const valueTone = value > 0 ? 'quote-up' : value < 0 ? 'quote-down' : 'quote-flat';
+      const iconClass = investorFlowIconClass(item.label);
+      const barClass = investorFlowBarClass(item.label);
       return `
         <div class="investor-flow-row">
-          <div class="investor-flow-label">${escapeHtml(item.label)}</div>
-          <div class="investor-flow-bar-track"><div class="investor-flow-bar ${direction}" style="width:${width}%"></div></div>
-          <div class="investor-flow-value">${formatCurrencyCompact(value)}</div>
+          <span class="investor-flow-icon ${iconClass}" aria-hidden="true">${investorFlowIconSvg(item.label)}</span>
+          <div class="investor-flow-main">
+            <div class="investor-flow-label">${escapeHtml(item.label)}</div>
+            <div class="investor-flow-bar-track"><div class="investor-flow-bar ${barClass}${barTone ? ' ' + barTone : ''}" style="width:${width}%"></div></div>
+          </div>
+          <div class="investor-flow-value ${valueTone}">${formatCurrencyCompact(value)}</div>
         </div>`;
     }).join('');
   }
@@ -6486,6 +7213,20 @@ document.getElementById('investorFlowList').innerHTML = '<div class="empty-state
       </div>`).join('');
   }
 
+  function formatGapCell(gap) {
+    if (gap == null || gap === '') {
+      return '<td class="detail-table-gap">-</td>';
+    }
+    const n = Number(gap);
+    if (!Number.isFinite(n)) {
+      return `<td class="detail-table-gap">${escapeHtml(String(gap))}</td>`;
+    }
+    const tone = n > 0 ? 'quote-up' : n < 0 ? 'quote-down' : 'quote-flat';
+    const prefix = n > 0 ? '+' : '';
+    const text = prefix + String(n);
+    return `<td class="detail-table-gap ${tone}">${escapeHtml(text)}</td>`;
+  }
+
   function renderValuationComparison(comparison) {
     if (!Array.isArray(comparison.rows) || comparison.rows.length === 0) {
       document.getElementById('valuationTableWrap').innerHTML = '<div class="empty-state">가치평가 비교 데이터가 없습니다.</div>';
@@ -6503,7 +7244,7 @@ document.getElementById('investorFlowList').innerHTML = '<div class="empty-state
               <td>${escapeHtml(row.label)}</td>
               <td>${row.value ?? '-'}</td>
               <td>${row.industry_avg ?? '-'}</td>
-              <td>${row.gap ?? '-'}</td>
+              ${formatGapCell(row.gap)}
             </tr>`).join('')}
         </tbody>
       </table>`;
@@ -6730,16 +7471,16 @@ document.getElementById('investorFlowList').innerHTML = '<div class="empty-state
         textColor:  '#8899aa',
       },
       grid: {
-        vertLines: { color: 'rgba(255,255,255,0.05)' },
-        horzLines: { color: 'rgba(255,255,255,0.05)' },
+        vertLines: { color: 'rgba(47, 143, 95, 0.12)' },
+        horzLines: { color: 'rgba(47, 143, 95, 0.12)' },
       },
       crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
       rightPriceScale: {
-        borderColor:   'rgba(255,255,255,0.1)',
+        borderColor:   'rgba(47, 143, 95, 0.18)',
         scaleMargins:  { top: 0.1, bottom: 0.1 },
       },
       timeScale: {
-        borderColor:    'rgba(255,255,255,0.1)',
+        borderColor:    'rgba(47, 143, 95, 0.18)',
         timeVisible:    !!intraday,
         secondsVisible: false,
       },
@@ -6784,11 +7525,23 @@ document.getElementById('investorFlowList').innerHTML = '<div class="empty-state
     }).observe(container);
   }
 </script>
+<script src="js/mascot2-assets.js?v=20260608r"></script>
+<script>
+  (function () {
+    if (!window.JURIN_LUMI_MOODS || typeof window.jurinLumiconAsset !== 'function') return;
+    var imgs = {};
+    Object.keys(window.JURIN_LUMI_MOODS).forEach(function (k) {
+      imgs[k] = window.jurinLumiconAsset(window.JURIN_LUMI_MOODS[k]);
+    });
+    window.MASCOT_IMAGES = imgs;
+  })();
+</script>
 <script src="js/mascot-coach.js?v=20260613"></script>
 <script src="js/jurin-tutorial-guard.js"></script>
-<script src="js/market-step1-tutorial.js"></script>
-<script src="js/market-step2-tutorial.js"></script>
-<script src="js/market-step3-tutorial.js"></script>
+<script src="js/market-step1-tutorial.js?v=20260611"></script>
+<script src="js/market-step2-tutorial.js?v=20260611"></script>
+<script src="js/market-step3-tutorial.js?v=20260713"></script>
+<script src="js/market-step4-tutorial.js?v=20260611"></script>
 <script src="js/user-avatar.js"></script>
 <script src="js/common-auth.js"></script>
 <script>
@@ -6821,6 +7574,6 @@ document.getElementById('investorFlowList').innerHTML = '<div class="empty-state
 </script>
 <div id="jurinWatchToast" class="jurin-watch-toast" role="status" aria-live="polite" hidden></div>
 
-<script src="js/lumi-chat.js?v=20260614"></script>
+<script src="js/lumi-chat.js?v=20260615"></script>
 </body>
 </html>

@@ -9,6 +9,8 @@
 <title>ELW - 주린닷컴</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css?v=20260428">
+<link rel="stylesheet" href="css/market-step4-tutorial.css?v=20260609">
+<link rel="stylesheet" href="css/market-step4-clear.css?v=20260609">
 <script src="js/auth-nav-boot.js"></script>
 <style>
   .product-page {
@@ -173,8 +175,7 @@
     }
   }
 </style>
-<link rel="stylesheet" href="css/elw-guide.css?v=20260610">
-<link rel="stylesheet" href="css/bonds-guide.css?v=20260611">
+<link rel="stylesheet" href="css/products-tab-guide.css?v=20260804">
 <link rel="stylesheet" href="css/lumi-chat.css?v=20260609m">
 </head>
 <body>
@@ -193,6 +194,7 @@
     <li><a href="glossary.html">용어 검색</a></li>
     <li><a class="jurin-simulation-link" href="http://127.0.0.1:5000/simulation.html">모의 투자</a></li>
     <li><a href="market.html">시장 <span class="nav-badge">LIVE</span></a></li>
+    <li><a href="chart-lab.html">차트연구소</a></li>
     <li><a href="community.html">커뮤니티</a></li>
     <li><a href="inquiry.html">문의</a></li>
   </ul>
@@ -246,11 +248,13 @@
   </div>
 </div>
 
+<div class="market-step4-overlay" id="marketStep4Overlay" aria-hidden="true">
+  <div class="market-step4-clear" id="marketStep4Clear">CLEAR</div>
+</div>
 <script src="js/api-base.js"></script>
 <script src="js/user-avatar.js"></script>
 <script src="js/common-auth.js"></script>
-<script src="js/elw-guide.js?v=20260610"></script>
-<script src="js/bonds-guide.js?v=20260612"></script>
+<script src="js/products-tab-guide.js?v=20260804"></script>
 <script>
   const PRODUCT_TOPICS = {
     elw: {
@@ -414,6 +418,20 @@
   renderProductPage(currentTopic());
 </script>
 
-<script src="js/lumi-chat.js?v=20260614"></script>
+<script src="js/mascot2-assets.js?v=20260608r"></script>
+<script>
+  (function () {
+    if (!window.JURIN_LUMI_MOODS || typeof window.jurinLumiconAsset !== 'function') return;
+    var imgs = {};
+    Object.keys(window.JURIN_LUMI_MOODS).forEach(function (k) {
+      imgs[k] = window.jurinLumiconAsset(window.JURIN_LUMI_MOODS[k]);
+    });
+    window.MASCOT_IMAGES = imgs;
+  })();
+</script>
+<script src="js/mascot-coach.js?v=20260613"></script>
+<script src="js/jurin-tutorial-guard.js"></script>
+<script src="js/market-step4-tutorial.js?v=20260611"></script>
+<script src="js/lumi-chat.js?v=20260615"></script>
 </body>
 </html>

@@ -32,6 +32,7 @@
     <li><a href="glossary.html">용어 검색</a></li>
     <li><a class="jurin-simulation-link" href="http://127.0.0.1:5000/simulation.html">모의 투자</a></li>
     <li><a href="market.html">시장 <span class="nav-badge">LIVE</span></a></li>
+    <li><a href="chart-lab.html">차트연구소</a></li>
     <li><a href="community.html">커뮤니티</a></li>
     <li><a href="inquiry.html">문의</a></li>
   </ul>
@@ -117,7 +118,7 @@
         <div class="mock-feat"><div class="mock-feat-icon">✓</div>랭킹 시스템으로 다른 주린이와 경쟁</div>
         <div class="mock-feat"><div class="mock-feat-icon">✓</div>수익률 분석 리포트 자동 생성</div>
       </div>
-      <button class="btn-accent" type="button" onclick="window.location.href=(window.jurinSimulationUrl?window.jurinSimulationUrl():'http://127.0.0.1:5000/simulation.html')">모의 투자 시작하기</button>
+      <button class="btn-accent jurin-simulation-start" type="button">모의 투자 시작하기</button>
     </div>
     <div class="mock-portfolio">
       <div class="portfolio-header">
@@ -314,6 +315,7 @@
       <li><a href="glossary.html">용어 검색</a></li>
       <li><a class="jurin-simulation-link" href="http://127.0.0.1:5000/simulation.html">모의 투자</a></li>
       <li><a href="market.html">시장 <span class="nav-badge">LIVE</span></a></li>
+      <li><a href="chart-lab.html">차트연구소</a></li>
       <li><a href="community.html">커뮤니티</a></li>
       <li><a href="inquiry.html">문의</a></li>
     </ul>
@@ -377,8 +379,19 @@ function closeModal() {
 <script src="js/slider.js"></script>
 <script src="js/rss-loader.js"></script>
 <script src="js/common-auth.js"></script>
-<script src="js/lumi-chat.js?v=20260614"></script>
+<script src="js/lumi-chat.js?v=20260615"></script>
 <script src="js/app.js"></script>
+<script src="js/mascot2-assets.js?v=20260608r"></script>
+<script>
+  (function () {
+    if (!window.JURIN_LUMI_MOODS || typeof window.jurinLumiconAsset !== 'function') return;
+    var imgs = {};
+    Object.keys(window.JURIN_LUMI_MOODS).forEach(function (k) {
+      imgs[k] = window.jurinLumiconAsset(window.JURIN_LUMI_MOODS[k]);
+    });
+    window.MASCOT_IMAGES = imgs;
+  })();
+</script>
 <script src="js/mascot-coach.js?v=20260613"></script>
 <script src="js/jurin-tutorial-guard.js"></script>
 <script src="js/market-tutorial.js"></script>
