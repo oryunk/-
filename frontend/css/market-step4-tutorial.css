@@ -1,0 +1,71 @@
+/**
+ * 시장 4단계 튜토리얼
+ */
+body.market-step4-dim-active:not(.market-step4-clear-phase)::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 480;
+  background: rgba(4, 8, 6, 0.68);
+  pointer-events: none;
+}
+
+/* 딤 단계: nav 전체를 딤(480) 위로 */
+body.market-step4-dim-active.market-step4-nav-spotlight nav,
+body.market-step4-dim-active.market-step4-nav-spotlight nav.market-step4-nav-lift {
+  z-index: 510;
+}
+
+body.market-step4-dim-active .market-step4-lift {
+  position: relative;
+  z-index: 511;
+}
+
+/* 비딤 단계: z-index 상승 제거 — 스크롤 시 자연스러운 레이어 */
+body.market-step4-active:not(.market-step4-dim-active) .tutorial-callout-target {
+  z-index: auto;
+}
+
+body.market-step4-active #elwGuideRoot .elw-type-card.tutorial-callout-target {
+  border-radius: 12px;
+}
+
+body.market-step4-active .market-step4-overlay.is-dim {
+  background: transparent !important;
+  z-index: 490;
+  pointer-events: none;
+}
+
+body.market-step4-active #lumiChatRoot,
+body.market-step4-pending #lumiChatRoot {
+  display: none !important;
+}
+
+.market-step4-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 470;
+  display: none;
+  background: transparent;
+  pointer-events: none;
+}
+
+.market-step4-overlay.is-open {
+  display: block;
+}
+
+.market-step4-clear {
+  position: fixed;
+  left: 50%;
+  top: 46%;
+  transform: translate(-50%, -50%) scale(0.7);
+  font-size: min(13vw, 88px);
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  color: #d8ffeb;
+  text-shadow: 0 0 24px rgba(111, 234, 175, 0.8), 0 0 36px rgba(111, 234, 175, 0.36);
+  opacity: 0;
+  transition: all 0.24s ease;
+  pointer-events: none;
+}
+

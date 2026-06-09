@@ -1,7 +1,7 @@
 /* inquiry.html — 2열 레이아웃 + UI 안정화 */
 
 body.inquiry-page {
-  background: #f3f4f6;
+  background: #f4f9f6;
   min-width: 1280px;
   overflow-x: auto;
 }
@@ -590,7 +590,29 @@ body.inquiry-page {
 }
 
 .inquiry-lock {
-  margin-right: 4px;
+  display: inline-flex;
+  align-items: center;
+  margin-right: 6px;
+  color: #6b7c72;
+  vertical-align: -2px;
+}
+
+.inquiry-table-row--private-locked {
+  background: #fafcfb;
+}
+
+.inquiry-table-row--private-locked:hover {
+  background: #f4f9f6;
+}
+
+.inquiry-row-btn--locked {
+  color: #4d5e54;
+  cursor: not-allowed;
+}
+
+.inquiry-row-btn--locked:hover {
+  color: #4d5e54;
+  text-decoration: none;
 }
 
 .inquiry-reply-icon {
@@ -612,7 +634,7 @@ body.inquiry-page {
 }
 
 .inquiry-visibility--private {
-  color: #475569;
+  color: #2f8f5f;
 }
 
 .inquiry-detail-meta-line .inquiry-visibility--private,

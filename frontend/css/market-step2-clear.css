@@ -1,0 +1,68 @@
+/**
+ * 시장 2단계 CLEAR 연출 — 1단계와 동일: 주변 어둡게 + CLEAR 텍스트만 밝게
+ */
+
+/* 튜토리얼 body 딤은 clear 중 비활성 (오버레이 is-clear-dim만 사용) */
+body.market-step2-clear-phase::before,
+body.market-step2-clear-phase.market-step2-dim-active::before {
+  display: none !important;
+  content: none !important;
+}
+
+/* 코치 스포트라이트 딤 대신 오버레이 딤 사용 */
+body.market-step2-clear-phase.mascot-coach-spotlight-dim::before {
+  display: none !important;
+  content: none !important;
+}
+
+/* CLEAR 풀스크린 어둡게 — 1단계 is-clear-dim 톤 */
+body.market-step2-clear-phase #marketStep2Overlay,
+body.market-step2-clear-phase .market-step2-overlay.is-clear-dim {
+  display: block !important;
+  position: fixed;
+  inset: 0;
+  z-index: 470;
+  background: rgba(2, 6, 4, 0.9) !important;
+  pointer-events: none;
+}
+
+body.market-step2-clear-phase #marketStep2Overlay.is-dim,
+body.market-step2-clear-phase .market-step2-overlay.is-dim {
+  background: transparent !important;
+}
+
+/* CLEAR 텍스트 — 1단계와 동일 */
+body.market-step2-clear-phase .market-step2-clear,
+.market-step2-clear {
+  color: #d8ffeb;
+  text-shadow: 0 0 24px rgba(111, 234, 175, 0.8), 0 0 36px rgba(111, 234, 175, 0.36);
+}
+
+body.market-step2-clear-phase .market-step2-clear.is-show,
+.market-step2-clear.is-show {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+}
+
+body.market-step2-clear-phase #marketStep2Clear {
+  position: fixed;
+  z-index: 1210 !important;
+  pointer-events: none;
+}
+
+/* clear 중 남은 스포트라이트 강조 제거 */
+body.market-step2-clear-phase .tutorial-callout-target {
+  animation: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  z-index: auto !important;
+}
+
+body.market-step2-clear-phase #stockDetailView .stock-detail-head,
+body.market-step2-clear-phase #stockDetailView .stock-detail-top,
+body.market-step2-clear-phase #stockDetailView .stock-detail-price,
+body.market-step2-clear-phase #stockDetailView .detail-grid,
+body.market-step2-clear-phase #stockDetailView .detail-section {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}

@@ -136,8 +136,12 @@
 }
 
 .lumi-con-picker-item.is-locked {
-  opacity: 0.35;
+  opacity: 0.5;
   cursor: not-allowed;
+}
+
+.lumi-con-picker-item.is-locked img {
+  filter: grayscale(0.35) brightness(0.6);
 }
 
 /* ── 가이드 보상 미리보기 모달 ── */
@@ -235,22 +239,17 @@
   object-fit: contain;
 }
 
-.lumi-con-reward-cell.is-preview .lumi-con-reward-cell-img {
-  overflow: hidden;
-}
-
-.lumi-con-reward-cell.is-preview .lumi-con-reward-cell-img img {
-  filter: blur(2px) saturate(0.7);
-  opacity: 0.75;
-}
-
 .lumi-con-reward-cell.is-locked .lumi-con-reward-cell-img {
   background: #eef3f0;
 }
 
 .lumi-con-reward-cell.is-locked .lumi-con-reward-cell-img img {
-  filter: grayscale(1) blur(3px);
-  opacity: 0.35;
+  filter: grayscale(0.4) brightness(0.55);
+  opacity: 0.45;
+}
+
+.lumi-con-reward-cell.is-locked .lumi-con-reward-cell-label {
+  color: #8a9e94;
 }
 
 .lumi-con-reward-cell.is-unlocked .lumi-con-reward-cell-img {

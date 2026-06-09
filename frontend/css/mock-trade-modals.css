@@ -1,0 +1,202 @@
+/* 모의투자·시장정보 공통 매매 안내/오류 모달 */
+.mock-trade-dialog-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 340;
+  background: rgba(31, 47, 38, 0.45);
+  backdrop-filter: blur(3px);
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.mock-trade-dialog-overlay.is-open {
+  display: flex;
+}
+
+.mock-trade-dialog-panel {
+  width: 100%;
+  max-width: 420px;
+  background: #ffffff;
+  border: 1px solid rgba(47, 143, 95, 0.22);
+  border-radius: 20px;
+  padding: 28px 28px 24px;
+  position: relative;
+  box-shadow: 0 20px 40px rgba(31, 47, 38, 0.14);
+}
+
+.mock-trade-dialog-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #6b7280;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.mock-trade-dialog-close:hover {
+  background: rgba(47, 143, 95, 0.08);
+  color: #1d4d38;
+}
+
+.mock-trade-dialog-title {
+  margin: 0 0 8px;
+  font-size: 22px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.mock-trade-dialog-lead {
+  margin: 0 0 20px;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.55;
+  color: #6b7280;
+}
+
+.mock-trade-dialog-summary {
+  margin-bottom: 20px;
+  padding: 16px;
+  border-radius: 14px;
+  background: #f9fafb;
+}
+
+.mock-trade-dialog-tip,
+.mock-trade-dialog-extra {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #6b7280;
+}
+
+.mock-trade-dialog-extra {
+  margin-top: 8px;
+  font-weight: 700;
+  color: #1d4d38;
+}
+
+.mock-trade-dialog-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+  font-size: 14px;
+}
+
+.mock-trade-dialog-row:last-child {
+  margin-bottom: 0;
+}
+
+.mock-trade-dialog-row > span:first-child {
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.mock-trade-dialog-row > span:last-child {
+  color: #111827;
+  font-weight: 700;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.mock-trade-dialog-row--short > span:last-child {
+  color: #b91c1c;
+}
+
+.mock-trade-dialog-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.mock-trade-dialog-actions[hidden] {
+  display: none;
+}
+
+.mock-trade-dialog-primary {
+  width: 100%;
+  padding: 13px 16px;
+  border: none;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #2f8f5f, #4faa77);
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(47, 143, 95, 0.25);
+}
+
+.mock-trade-dialog-primary:hover {
+  filter: brightness(1.06);
+}
+
+.mock-trade-dialog-primary[hidden] {
+  display: none;
+}
+
+.mock-trade-dialog-ghost {
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: 10px;
+  border: 1px solid rgba(47, 143, 95, 0.35);
+  background: #ffffff;
+  color: #2f8f5f;
+  font-size: 14px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.mock-trade-dialog-ghost:hover {
+  background: rgba(47, 143, 95, 0.06);
+}
+
+.mock-trade-dialog-ghost[hidden] {
+  display: none;
+}
+
+.mock-trade-notice-panel--simple .mock-trade-dialog-title {
+  font-size: 20px;
+}
+
+.mock-trade-notice-panel--simple .mock-trade-dialog-lead {
+  margin-bottom: 24px;
+}
+
+.mock-trade-notice-confirm-btn {
+  width: 100%;
+  padding: 13px 16px;
+  border: none;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #2f8f5f, #4faa77);
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.mock-trade-notice-confirm-btn:hover {
+  filter: brightness(1.06);
+}
+
+.insufficient-cash-panel .mock-trade-dialog-title {
+  color: #ef4444;
+}
+
+.insufficient-cash-summary {
+  margin: 0 0 20px;
+  padding: 16px;
+  border-radius: 14px;
+  background: #f9fafb;
+}

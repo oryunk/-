@@ -1,0 +1,85 @@
+/**
+ * 시장 2단계 튜토리얼 전용 — body 딤·lift 스택·지수 UI·챗봇 숨김
+ */
+
+/* body 딤 레이어 (overlay와 분리) */
+body.market-step2-dim-active:not(.market-step2-clear-phase)::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 480;
+  background: rgba(4, 8, 6, 0.68);
+  pointer-events: none;
+}
+
+/* 강조 대상 lift — 딤(480) 위 */
+body.market-step2-dim-active .market-step2-lift {
+  position: relative;
+  z-index: 510;
+}
+
+body.market-step2-pick-lock #row-005930.market-step2-lift,
+body.market-step2-pick-lock #row-005930.market-step2-lift td {
+  z-index: 511;
+}
+
+body.market-step2-chart-lock #chartWrapper.market-step2-lift,
+body.market-step2-candle-lock #stockChartWrap.market-step2-lift,
+body.market-step2-index-overlay-tutorial #indexDetailOverlay .market-step2-lift {
+  z-index: 515;
+}
+
+/* 2단계 지수 상세 오버레이 튜토리얼: 딤 아래로 내리고 루미·퀘스트는 위에 */
+body.market-step2-active.index-detail-overlay-open .index-detail-overlay {
+  z-index: 460;
+}
+
+body.market-step2-active.index-detail-overlay-open .mascot-coach.is-open {
+  z-index: 650 !important;
+}
+
+body.market-step2-index-overlay-tutorial #indexDetailOverlay .index-detail-head,
+body.market-step2-index-overlay-tutorial #indexDetailOverlay .index-detail-overlay__rail,
+body.market-step2-index-overlay-tutorial #indexDetailOverlay .detail-toolbar {
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+body.market-step2-index-lock #indicesGrid .index-card[data-index-key="kospi"].market-step2-lift {
+  z-index: 511;
+}
+
+/* overlay는 투명 pointer-events 레이어만 */
+body.market-step2-active .market-step2-overlay.is-dim {
+  background: transparent !important;
+  z-index: 490;
+  pointer-events: none;
+}
+
+/* 2단계 중 루미챗봇·도크 숨김 */
+body.market-step2-pending #lumiChatRoot,
+body.market-step2-active #lumiChatRoot {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+/* 지수 카드 강조 — 흰 배경 (녹색 radial 제거) */
+body.market-step2-active #indicesGrid .index-card.tutorial-callout-target {
+  background: #ffffff !important;
+  color: #12442c;
+}
+
+body.market-step2-active #indicesGrid .index-card.tutorial-callout-target .index-sub {
+  color: #2d5a45;
+}
+
+/* 지수 팝오버 chip — 튜토리얼 중 톤 정리 (stat은 market.html 전역 스타일) */
+body.market-step2-active .index-hover-popover::before {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+body.market-step2-active .index-hover-popover__chip {
+  background: #f5f7f6;
+  color: #2d3b34;
+}

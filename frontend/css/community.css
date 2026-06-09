@@ -1531,7 +1531,8 @@ nav.community-pagination {
   gap: 10px;
 }
 
-.community-comment-edit-form textarea {
+.community-comment-edit-form textarea,
+.community-comment-edit-editor {
   width: 100%;
   min-height: 96px;
   border: 1px solid rgba(30, 105, 59, 0.22);
@@ -1544,10 +1545,30 @@ nav.community-pagination {
   box-sizing: border-box;
 }
 
+.community-comment-edit-editor {
+  resize: none;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.community-comment-edit-editor:empty::before {
+  content: attr(data-placeholder);
+  color: #9aa8a1;
+  pointer-events: none;
+}
+
 .community-comment-edit-actions {
   display: flex;
+  align-items: center;
   gap: 8px;
-  justify-content: flex-end;
+  justify-content: space-between;
+}
+
+.community-comment-edit-actions-right {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
 }
 
 .community-comment-edit-save,

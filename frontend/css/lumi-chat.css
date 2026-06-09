@@ -548,11 +548,19 @@
 }
 
 /* 사이트 챗봇이 있을 때만 도크 숨김(가이드·튜토리얼은 MascotCoach 도크 사용) */
-body:not(.guide-lumi-session):has(#lumiChatRoot) #mascotCoachDock {
+body:not(.guide-lumi-session):not(.tutorial-fx-active):has(#lumiChatRoot) #mascotCoachDock {
   display: none !important;
 }
 
+body.market-step2-pending #lumiChatRoot,
+body.market-step2-active #lumiChatRoot {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
 body.market-step1-active .lumi-chat-fab,
+body.market-step2-pending .lumi-chat-fab,
 body.market-step2-active .lumi-chat-fab,
 body.market-step3-active .lumi-chat-fab,
 body.market-step4-active .lumi-chat-fab,
@@ -563,6 +571,7 @@ body.mascot-coach-spotlight-dim .lumi-chat-fab {
 }
 
 body.market-step1-active .lumi-chat-panel,
+body.market-step2-pending .lumi-chat-panel,
 body.market-step2-active .lumi-chat-panel,
 body.market-step3-active .lumi-chat-panel,
 body.tutorial-step1-active .lumi-chat-panel {

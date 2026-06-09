@@ -1,0 +1,124 @@
+/**
+ * 차트연구소 고수 가이드 — 스포트라이트만 (전체 딤 없음)
+ */
+
+body.chart-lab-step-active {
+  overflow-x: hidden;
+}
+
+body.chart-lab-step-active .inquiry-side-link[data-tab='quiz'],
+body.chart-lab-step-active #chartLabQuizCtaBtn {
+  display: none !important;
+}
+
+/* 고수 가이드 중 루미챗봇 숨김 */
+body.chart-lab-step-active #lumiChatRoot {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+body.chart-lab-step-active .chart-lab-pattern-card {
+  pointer-events: none;
+}
+
+body.chart-lab-step-active .chart-lab-pattern-card.tutorial-callout-target {
+  pointer-events: auto;
+  position: relative;
+  z-index: 510;
+}
+
+body.chart-lab-step-active .inquiry-side-link.tutorial-callout-target {
+  position: relative;
+  z-index: 510;
+}
+
+body.chart-lab-step-active .chart-lab-main.tutorial-callout-target,
+body.chart-lab-step-active .chart-lab-sidebar.tutorial-callout-target,
+body.chart-lab-step-active .chart-lab-layout.tutorial-callout-target {
+  position: relative;
+  z-index: 505;
+}
+
+/* 전역 tutorial-fx 흰 배경 대신 링 강조만 (layout/main 흰 번짐 방지) */
+body.chart-lab-step-active.tutorial-fx-active .chart-lab-main.tutorial-callout-target,
+body.chart-lab-step-active.tutorial-fx-active .chart-lab-layout.tutorial-callout-target,
+body.chart-lab-step-active.tutorial-fx-active .chart-lab-sidebar.tutorial-callout-target {
+  background: transparent !important;
+  color: inherit;
+  box-shadow:
+    0 0 0 2px rgba(47, 143, 95, 0.9),
+    0 0 18px rgba(47, 143, 95, 0.45);
+  animation: tutorialTargetPulse 1.1s infinite;
+}
+
+#chartLabStepOverlay,
+.chart-lab-step-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 400;
+  pointer-events: none;
+  display: none;
+  background: transparent;
+}
+
+#chartLabStepOverlay.is-open,
+.chart-lab-step-overlay.is-open {
+  display: block;
+}
+
+/* CLEAR 텍스트 — 초보 가이드와 동일 */
+.chart-lab-step-clear {
+  position: fixed;
+  left: 50%;
+  top: 46%;
+  transform: translate(-50%, -50%) scale(0.7);
+  font-size: min(13vw, 88px);
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  color: #d8ffeb;
+  text-shadow: 0 0 24px rgba(111, 234, 175, 0.8), 0 0 36px rgba(111, 234, 175, 0.36);
+  opacity: 0;
+  transition: all 0.24s ease;
+  pointer-events: none;
+  z-index: 1210;
+}
+
+.chart-lab-step-clear.is-show {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+}
+
+/* CLEAR 풀스크린 어둡게 */
+body.chart-lab-step-clear-phase #chartLabStepOverlay,
+body.chart-lab-step-clear-phase .chart-lab-step-overlay.is-clear-dim {
+  display: block !important;
+  position: fixed;
+  inset: 0;
+  z-index: 470;
+  background: rgba(2, 6, 4, 0.9) !important;
+  pointer-events: none;
+}
+
+body.chart-lab-step-clear-phase #chartLabStepOverlay.is-dim,
+body.chart-lab-step-clear-phase .chart-lab-step-overlay.is-dim {
+  background: transparent !important;
+}
+
+/* clear 중 남은 스포트라이트 강조 제거 */
+body.chart-lab-step-clear-phase .tutorial-callout-target {
+  animation: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  z-index: auto !important;
+}
+
+body.chart-lab-step-clear-phase .mascot-coach.is-open {
+  z-index: 1220;
+}
+
+body.chart-lab-step-clear-phase .mascot-coach-dock {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
