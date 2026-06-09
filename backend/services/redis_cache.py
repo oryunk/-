@@ -1,6 +1,7 @@
 """Redis JSON cache with in-memory fallback for asking/live quotes."""
 import json
 import os
+import threading
 import time
 
 try:
@@ -33,6 +34,10 @@ _CHART_TTL_BY_RANGE = {
     '1m': float(os.getenv('CHART_REDIS_TTL_1M_SEC', '300')),
     '1y': float(os.getenv('CHART_REDIS_TTL_1Y_SEC', '900')),
 }
+_KIS_ASKING_GAP_SEC = float(os.getenv('KIS_ASKING_MIN_GAP_SEC', '1.0'))
+_ASKING_FETCH_LOCK_TTL_SEC = float(os.getenv('MOCK_ASKING_FETCH_LOCK_SEC', '5'))
+_MEM_KIS_ASKING_LAST_CALL = 0.0
+_MEM_KIS_ASKING_GAP_LOCK = threading.Lock()
 
 
 def init():
@@ -140,6 +145,81 @@ def set_asking(code, data):
     _set_json(f'asking:{code}', payload, _ASKING_STALE_FALLBACK_SEC)
     with _ASKING_PRICE_CACHE_LOCK:
         _ASKING_PRICE_CACHE[code] = (ts, data)
+
+
+def throttle_kis_api_call(gap_sec=None):
+    """Global minimum gap between all KIS quotation API calls (Redis-coordinated across workers)."""
+    global _MEM_KIS_ASKING_LAST_CALL
+    gap = float(gap_sec if gap_sec is not None else _KIS_ASKING_GAP_SEC)
+    if gap <= 0:
+        return
+    if _redis_ok and _client:
+        key = 'kis:api:last_call'
+        try:
+            while True:
+                raw = _client.get(key)
+                now = time.time()
+                if raw:
+                    wait = gap - (now - float(raw))
+                    if wait > 0:
+                        time.sleep(min(wait, gap))
+                        continue
+                _client.set(key, str(time.time()), ex=max(int(gap * 4), 4))
+                return
+        except Exception:
+            pass
+    with _MEM_KIS_ASKING_GAP_LOCK:
+        now = time.time()
+        elapsed = now - _MEM_KIS_ASKING_LAST_CALL
+        if elapsed < gap:
+            time.sleep(gap - elapsed)
+        _MEM_KIS_ASKING_LAST_CALL = time.time()
+
+
+def throttle_kis_asking_call(gap_sec=None):
+    """Alias for throttle_kis_api_call (asking + live price share one gap)."""
+    throttle_kis_api_call(gap_sec)
+
+
+def acquire_asking_fetch_lock(code, ttl_sec=None):
+    """Per-code single-flight lock; True if this caller should fetch from KIS."""
+    code = str(code or '').strip()
+    if not code:
+        return True
+    ttl = float(ttl_sec if ttl_sec is not None else _ASKING_FETCH_LOCK_TTL_SEC)
+    if _redis_ok and _client:
+        try:
+            return bool(_client.set(f'asking:lock:{code}', '1', nx=True, ex=max(1, int(ttl))))
+        except Exception:
+            pass
+    return True
+
+
+def release_asking_fetch_lock(code):
+    code = str(code or '').strip()
+    if not code or not (_redis_ok and _client):
+        return
+    try:
+        _client.delete(f'asking:lock:{code}')
+    except Exception:
+        pass
+
+
+def wait_for_asking_cache(code, timeout_sec=5.0):
+    """Wait for another worker to populate asking cache. Returns ('fresh'|'stale', (ts, data))."""
+    code = str(code or '').strip()
+    if not code:
+        return None, None
+    deadline = time.time() + max(0.2, float(timeout_sec))
+    while time.time() < deadline:
+        hit = get_asking(code)
+        if hit:
+            return 'fresh', hit
+        stale = get_asking_stale(code)
+        if stale:
+            return 'stale', stale
+        time.sleep(0.1)
+    return None, None
 
 
 def get_live(code):

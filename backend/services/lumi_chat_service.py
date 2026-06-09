@@ -53,7 +53,7 @@ FAQ_DATA: list[dict[str, Any]] = [
             "한 종목에 올인하지 않고 여러 곳에 나눠 담는 거예요, 그게 분산투자! "
             "보통 10~20개 정도로 나눠 본다고 생각하면 이해하기 쉬워요."
         ),
-        "mood": "studying",
+        "mood": "good_idea",
     },
     {
         "keywords": ["매수", "매도", "타이밍", "언제"],
@@ -77,7 +77,7 @@ FAQ_DATA: list[dict[str, Any]] = [
             "배당주는 현금 흐름 받고 싶을 때 보면 좋아요. 배당률·성장률 같이 보는데, "
             "무조건 배당만 높으면 좋은 건 아니에요."
         ),
-        "mood": "info",
+        "mood": "happy",
     },
     {
         "keywords": ["차트", "기술적분석", "기술적"],
@@ -93,7 +93,7 @@ FAQ_DATA: list[dict[str, Any]] = [
             "손익계산서·재무상태표·현금흐름표로 기업 건전성을 봅니다. "
             "PER, PBR, ROE, 부채비율 등이 대표 지표예요."
         ),
-        "mood": "info",
+        "mood": "studying",
     },
     {
         "keywords": ["etf", "인덱스"],
@@ -141,10 +141,12 @@ VALID_MOODS = frozenset({
     "wink",
     "curious",
     "idea",
+    "good_idea",
     "studying",
     "struggling",
     "sleepy",
     "chart",
+    "angry",
 })
 
 
@@ -177,7 +179,6 @@ def _guess_mood_from_text(text: str) -> str:
             "실패",
             "오류",
             "미안",
-            "모르",
             "곤란",
             "확실히 말",
             "다시 시도",
@@ -186,6 +187,47 @@ def _guess_mood_from_text(text: str) -> str:
         )
     ):
         return "struggling"
+    if any(
+        w in t
+        for w in (
+            "올인",
+            "레버리지",
+            "빚",
+            "대출",
+            "몰빵",
+            "무조건 사",
+            "하지 마",
+            "절대",
+        )
+    ):
+        return "angry"
+    if any(
+        w in t
+        for w in (
+            "짜증",
+            "열받",
+            "답답",
+            "망했",
+            "다 떨어",
+            "ㅠㅠ",
+            "우울",
+            "화나",
+        )
+    ):
+        return "angry"
+    if any(
+        w in t
+        for w in (
+            "좋은 생각",
+            "잘 짚",
+            "그 접근",
+            "똑똑",
+            "현명",
+        )
+    ):
+        return "good_idea"
+    if any(w in t for w in ("모르겠", "애매", "확실치", "대충", "짧게")):
+        return "sleepy"
     if any(
         w in t
         for w in (
@@ -217,6 +259,8 @@ def _guess_mood_from_text(text: str) -> str:
         )
     ):
         return "excited"
+    if any(w in t for w in ("이해했", "정리하면", "핵심은", "잘 알", "완벽")):
+        return "success"
     if any(w in t for w in ("좋아", "괜찮", "도움", "행복", "기쁘", "편해")):
         return "happy"
     if any(w in t for w in ("팁", "아이디어", "기억해", "한 가지", "포인트")):
@@ -351,22 +395,25 @@ def _build_system_prompt(page_hint: str | None) -> str:
         "(예: 그건 나도 답하기 좀 곤란해 / 그 부분은 확실히 말해주기 어려워 / 주식·투자 쪽으로 다시 물어봐줘)\n"
         "- 곤란하다고 말한 뒤에는 가능한 범위(개념·사이트 기능)만 짧게 안내.\n"
         "- 수치·날짜·법률·세금 정보는 '참고용'임을 명시하고 단정 짓지 마.\n"
-        "[표정 mood — reply 내용과 맞게 하나만]\n"
+        "[표정 mood — reply 내용과 맞게 하나만, info는 마지막 수단]\n"
         "- welcome: 인사·첫만남·사이트 소개\n"
-        "- info: 일반 설명·차분한 답변\n"
+        "- info: 일반 설명·차분한 답변 (구체 mood가 없을 때만)\n"
         "- studying: 개념·용어·차트·분석 등 공부 설명\n"
         "- curious: 질문 유도·궁금증·탐색\n"
-        "- idea: 팁·한 가지 기억할 포인트\n"
-        "- success: 목표 달성·잘 이해했을 때\n"
+        "- idea: 팁·한 가지 기억할 포인트 (루미가 제시)\n"
+        "- good_idea: 사용자 질문·접근을 칭찬 ('그거 좋은 생각', '딱 핵심 짚었어')\n"
+        "- success: 목표 달성·잘 이해했을 때·정리 완료\n"
         "- happy: 긍정·편안한 격려\n"
         "- excited: 응원·화이팅·신나는 마무리\n"
         "- caution: 손실·리스크·세금·조심 (진지한 투자 주의)\n"
+        "- angry: ① 손실·짜증 토로에 공감 ② 올인·레버리지 등 위험 행동에 진지한 경고\n"
         "- struggling: 모르겠음·찾지 못함·답하기 곤란\n"
         "- wink: 가벼운 농담·친근한 마무리·짧은 일상 대화\n"
         "- chart: 종목·시세·지수·현재가 관련\n"
         "- sleepy: 확실하지 않거나 짧게 넘길 때\n"
+        "- 가능하면 info 대신 위 mood 중 구체적인 것을 골라 다양하게 표현해.\n"
         "[출력 형식]\n"
-        "- JSON 한 개만: {\"reply\":\"본문\", \"mood\":\"welcome|info|studying|curious|idea|success|happy|excited|caution|struggling|wink|chart|sleepy\"}\n"
+        "- JSON 한 개만: {\"reply\":\"본문\", \"mood\":\"welcome|info|studying|curious|idea|good_idea|success|happy|excited|caution|angry|struggling|wink|chart|sleepy\"}\n"
         "- reply 안에서 단락을 나눌 때는 \\n\\n을 사용해. (예: '첫 설명이야.\\n\\n두 번째 포인트야.')\n"
     )
 

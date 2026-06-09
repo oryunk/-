@@ -125,9 +125,24 @@ def _fetch_attachments(cursor, inquiry_id: int) -> list[dict]:
     return [_serialize_attachment(inquiry_id, row) for row in rows]
 
 
-def _can_view_inquiry_row(row: dict | None, session_user_id: int | None) -> bool:
+def _session_is_inquiry_admin(conn, session_user_id: int | None) -> bool:
+    if session_user_id is None:
+        return False
+    with conn.cursor() as cursor:
+        login_id, email = _fetch_user_auth(cursor, int(session_user_id))
+    return _is_reply_admin(login_id, email)
+
+
+def _can_view_inquiry_row(
+    row: dict | None,
+    session_user_id: int | None,
+    *,
+    session_is_admin: bool = False,
+) -> bool:
     if not row:
         return False
+    if session_is_admin:
+        return True
     is_private = _as_bool(row.get("is_private"))
     owner_id = int(row["user_id"])
     if is_private and (session_user_id is None or int(session_user_id) != owner_id):
@@ -203,7 +218,10 @@ def get_attachment_file(
             (inquiry_id,),
         )
         inquiry_row = cursor.fetchone()
-        if not _can_view_inquiry_row(inquiry_row, session_user_id):
+        session_is_admin = _session_is_inquiry_admin(conn, session_user_id)
+        if not _can_view_inquiry_row(
+            inquiry_row, session_user_id, session_is_admin=session_is_admin
+        ):
             raise PermissionError("forbidden")
 
         cursor.execute(
@@ -292,12 +310,7 @@ def _list_where(
             raise PermissionError("login_required")
         clauses.append("i.user_id = %s")
         params.append(session_user_id)
-    else:
-        if session_user_id is not None:
-            clauses.append("(i.is_private = 0 OR i.user_id = %s)")
-            params.append(session_user_id)
-        else:
-            clauses.append("i.is_private = 0")
+    # 전체 문의(mine=False): 공개·비공개 모두 목록에 포함(비공개는 제목만, 상세는 canView로 제한)
 
     if category and category in CATEGORIES:
         clauses.append("i.category = %s")
@@ -370,13 +383,18 @@ def list_inquiries(
         )
         rows = cursor.fetchall() or []
 
+    session_is_admin = _session_is_inquiry_admin(conn, session_user_id)
     items = []
     for row in rows:
         item = _serialize_row(row)
+        owner_id = int(row["user_id"])
         if session_user_id is not None:
-            item["isOwner"] = int(row["user_id"]) == int(session_user_id)
+            item["isOwner"] = owner_id == int(session_user_id)
         else:
             item["isOwner"] = False
+        item["canView"] = _can_view_inquiry_row(
+            row, session_user_id, session_is_admin=session_is_admin
+        )
         items.append(item)
     total_pages = max(1, (total + page_size - 1) // page_size) if total else 1
     return {
@@ -410,9 +428,11 @@ def get_inquiry_detail(conn, inquiry_id: int, session_user_id: int | None) -> di
         if not row:
             return None
 
-        is_private = _as_bool(row.get("is_private"))
         owner_id = int(row["user_id"])
-        if is_private and (session_user_id is None or int(session_user_id) != owner_id):
+        session_is_admin = _session_is_inquiry_admin(conn, session_user_id)
+        if not _can_view_inquiry_row(
+            row, session_user_id, session_is_admin=session_is_admin
+        ):
             raise PermissionError("forbidden")
 
         cursor.execute(
@@ -460,13 +480,12 @@ def get_inquiry_detail(conn, inquiry_id: int, session_user_id: int | None) -> di
             else:
                 raise
 
-        can_edit_reply = False
-        if session_user_id is not None:
-            admin_login_id, admin_email = _fetch_user_auth(cursor, int(session_user_id))
-            can_edit_reply = _is_reply_admin(admin_login_id, admin_email)
+        can_edit_reply = session_is_admin
 
     detail = _serialize_row(row, include_body=True)
     detail["isOwner"] = session_user_id is not None and session_user_id == owner_id
+    detail["canView"] = True
+    detail["isAdminViewer"] = session_is_admin
     detail["canEditReply"] = can_edit_reply
     detail["replies"] = [
         {
