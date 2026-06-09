@@ -80,7 +80,19 @@ function markAuthNavReady() {
   document.documentElement.classList.add('auth-nav-ready');
 }
 
-function navSignupButton() {
+function authNavPrefix(navRight) {
+  const scope = navRight && navRight.getAttribute('data-auth-nav-scope');
+  return scope === 'index-overlay' ? 'indexNav' : 'nav';
+}
+
+function authElId(navRight, suffix) {
+  return authNavPrefix(navRight) + suffix;
+}
+
+function navSignupButton(navRight) {
+  if (navRight) {
+    return navRight.querySelector('[data-auth-signup]') || navRight.querySelector('.btn-primary');
+  }
   return document.getElementById('navSignupBtn')
     || document.querySelector('nav > .nav-right[data-auth-nav] .btn-primary');
 }
@@ -109,58 +121,82 @@ function persistUserAvatarUrl(avatarUrl) {
   else sessionStorage.removeItem('jurinUserAvatarUrl');
 }
 
-let userMenuInteractionsBound = false;
+let authNavMenusBound = false;
 
-function closeUserMenu() {
-  const trigger = document.getElementById('navUserTrigger');
-  const menu = document.getElementById('navUserMenu');
-  const profile = document.getElementById('navUserProfile');
-  if (!trigger || !menu) return;
-  menu.hidden = true;
-  trigger.setAttribute('aria-expanded', 'false');
-  if (profile) profile.classList.remove('is-open');
+function closeAuthUserMenu(navRight) {
+  const profiles = navRight
+    ? [document.getElementById(authElId(navRight, 'UserProfile'))].filter(Boolean)
+    : Array.from(document.querySelectorAll('.nav-user-profile.is-open'));
+  profiles.forEach((profile) => {
+    const trigger = profile.querySelector('.nav-user-trigger');
+    const menu = profile.querySelector('.nav-user-menu');
+    if (!trigger || !menu) return;
+    menu.hidden = true;
+    trigger.setAttribute('aria-expanded', 'false');
+    profile.classList.remove('is-open');
+  });
 }
 
-function openUserMenu() {
-  const trigger = document.getElementById('navUserTrigger');
-  const menu = document.getElementById('navUserMenu');
-  const profile = document.getElementById('navUserProfile');
-  if (!trigger || !menu || !profile || profile.hidden) return;
+function closeUserMenu() {
+  closeAuthUserMenu(null);
+}
+
+function openAuthUserMenu(profile) {
+  if (!profile || profile.hidden) return;
+  const trigger = profile.querySelector('.nav-user-trigger');
+  const menu = profile.querySelector('.nav-user-menu');
+  if (!trigger || !menu) return;
+  document.querySelectorAll('.nav-user-profile.is-open').forEach((openProfile) => {
+    if (openProfile !== profile) closeAuthUserMenu(openProfile.closest('[data-auth-nav]'));
+  });
   menu.hidden = false;
   trigger.setAttribute('aria-expanded', 'true');
   profile.classList.add('is-open');
 }
 
-function toggleUserMenu(event) {
+function toggleAuthUserMenu(event, profile) {
   if (event) event.stopPropagation();
-  const menu = document.getElementById('navUserMenu');
+  if (!profile) return;
+  const menu = profile.querySelector('.nav-user-menu');
   if (!menu) return;
-  if (menu.hidden) openUserMenu();
-  else closeUserMenu();
+  if (menu.hidden) openAuthUserMenu(profile);
+  else closeAuthUserMenu(profile.closest('[data-auth-nav]'));
 }
 
 function ensureUserProfileDropdown(navRight) {
-  let profile = document.getElementById('navUserProfile');
+  const profileId = authElId(navRight, 'UserProfile');
+  let profile = document.getElementById(profileId);
   if (profile) return profile;
 
-  navRight.querySelector('#navUserEmail')?.remove();
-  navRight.querySelector('#navLogoutBtn')?.remove();
-  navRight.querySelector('#navMyPageBtn')?.remove();
+  navRight.querySelector('[data-auth-email]')?.remove();
+  navRight.querySelector('[data-auth-logout]')?.remove();
+  if (authNavPrefix(navRight) === 'nav') {
+    navRight.querySelector('#navUserEmail')?.remove();
+    navRight.querySelector('#navLogoutBtn')?.remove();
+    navRight.querySelector('#navMyPageBtn')?.remove();
+  }
+
+  const triggerId = authElId(navRight, 'UserTrigger');
+  const menuId = authElId(navRight, 'UserMenu');
+  const emailId = authElId(navRight, 'UserEmail');
+  const avatarId = authElId(navRight, 'UserAvatar');
+  const myPageId = authElId(navRight, 'MyPageBtn');
+  const logoutId = authElId(navRight, 'LogoutBtn');
 
   profile = document.createElement('div');
-  profile.id = 'navUserProfile';
+  profile.id = profileId;
   profile.className = 'nav-user-profile';
   profile.hidden = true;
   profile.innerHTML = `
-    <button type="button" class="nav-user-trigger" id="navUserTrigger" aria-expanded="false" aria-haspopup="menu" aria-controls="navUserMenu">
-      <img class="nav-user-avatar jurin-user-avatar" id="navUserAvatar" src="assets/profile/default-avatar.svg" alt="" width="28" height="28" decoding="async">
-      <span class="nav-user-name" id="navUserEmail" aria-live="polite"></span>
+    <button type="button" class="nav-user-trigger" id="${triggerId}" aria-expanded="false" aria-haspopup="menu" aria-controls="${menuId}">
+      <img class="nav-user-avatar jurin-user-avatar" id="${avatarId}" src="assets/profile/default-avatar.svg" alt="" width="28" height="28" decoding="async">
+      <span class="nav-user-name" id="${emailId}" aria-live="polite"></span>
       <svg class="nav-user-chevron" viewBox="0 0 12 12" width="12" height="12" aria-hidden="true">
         <path d="M2.5 4.5 6 8 9.5 4.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path>
       </svg>
     </button>
-    <div class="nav-user-menu" id="navUserMenu" role="menu" hidden>
-      <button type="button" class="nav-user-menu-item" id="navMyPageBtn" role="menuitem">
+    <div class="nav-user-menu" id="${menuId}" role="menu" hidden>
+      <button type="button" class="nav-user-menu-item" id="${myPageId}" role="menuitem">
         <svg class="nav-user-menu-icon" viewBox="0 0 20 20" width="18" height="18" aria-hidden="true">
           <circle cx="10" cy="7" r="3.25" fill="none" stroke="currentColor" stroke-width="1.5"></circle>
           <path d="M5 16.5c0-2.8 2.2-5 5-5s5 2.2 5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
@@ -168,7 +204,7 @@ function ensureUserProfileDropdown(navRight) {
         <span>마이페이지</span>
       </button>
       <div class="nav-user-menu-divider" role="separator"></div>
-      <button type="button" class="nav-user-menu-item nav-user-menu-item--logout" id="navLogoutBtn" role="menuitem">
+      <button type="button" class="nav-user-menu-item nav-user-menu-item--logout" id="${logoutId}" role="menuitem">
         <svg class="nav-user-menu-icon nav-user-menu-icon--logout" viewBox="0 0 20 20" width="18" height="18" aria-hidden="true">
           <path d="M8 4H4v12h4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path>
           <path d="M12 10H7" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
@@ -179,34 +215,36 @@ function ensureUserProfileDropdown(navRight) {
     </div>
   `;
 
-  const signupBtn = navSignupButton();
+  const signupBtn = navSignupButton(navRight);
   navRight.insertBefore(profile, signupBtn || null);
   return profile;
 }
 
-function bindUserMenuInteractions() {
-  if (userMenuInteractionsBound) return;
-  const trigger = document.getElementById('navUserTrigger');
-  const profile = document.getElementById('navUserProfile');
-  if (!trigger || !profile) return;
-  userMenuInteractionsBound = true;
-
-  trigger.addEventListener('click', toggleUserMenu);
+function bindAuthNavMenusOnce() {
+  if (authNavMenusBound) return;
+  authNavMenusBound = true;
 
   document.addEventListener('click', (event) => {
-    if (!profile.hidden && !profile.contains(event.target)) {
-      closeUserMenu();
+    const trigger = event.target.closest('.nav-user-trigger');
+    if (trigger) {
+      const profile = trigger.closest('.nav-user-profile');
+      toggleAuthUserMenu(event, profile);
+      return;
     }
+    document.querySelectorAll('.nav-user-profile.is-open').forEach((profile) => {
+      if (!profile.contains(event.target)) {
+        closeAuthUserMenu(profile.closest('[data-auth-nav]'));
+      }
+    });
   });
 }
 
-// 로그인/로그아웃에 따라 상단 버튼·프로필 드롭다운 토글
-function setAuthNavVisible(displayName, avatarUrl) {
-  const loginBtn = document.getElementById('navLoginBtn');
-  const profile = document.getElementById('navUserProfile');
-  const emailEl = document.getElementById('navUserEmail');
-  const avatarEl = document.getElementById('navUserAvatar');
-  const signupBtn = navSignupButton();
+function setAuthNavVisibleInContainer(navRight, displayName, avatarUrl) {
+  const loginBtn = document.getElementById(authElId(navRight, 'LoginBtn'));
+  const profile = document.getElementById(authElId(navRight, 'UserProfile'));
+  const emailEl = document.getElementById(authElId(navRight, 'UserEmail'));
+  const avatarEl = document.getElementById(authElId(navRight, 'UserAvatar'));
+  const signupBtn = navSignupButton(navRight);
   if (!loginBtn || !emailEl) return;
   if (displayName) {
     loginBtn.hidden = true;
@@ -231,7 +269,7 @@ function setAuthNavVisible(displayName, avatarUrl) {
     if (signupBtn) signupBtn.hidden = false;
     if (profile) {
       profile.hidden = true;
-      closeUserMenu();
+      closeAuthUserMenu(navRight);
     }
     emailEl.textContent = '';
     if (avatarEl) {
@@ -241,9 +279,19 @@ function setAuthNavVisible(displayName, avatarUrl) {
   }
 }
 
+// 로그인/로그아웃에 따라 상단 버튼·프로필 드롭다운 토글
+function setAuthNavVisible(displayName, avatarUrl) {
+  const mainNav = document.querySelector('nav > .nav-right[data-auth-nav]');
+  if (mainNav) setAuthNavVisibleInContainer(mainNav, displayName, avatarUrl);
+}
+
 function bootstrapAuthNavSync() {
   setupAuthNav();
-  setAuthNavVisible(displayNameFromSessionStorage(), avatarUrlFromSessionStorage());
+  const cachedName = displayNameFromSessionStorage();
+  const cachedAvatar = avatarUrlFromSessionStorage();
+  document.querySelectorAll('[data-auth-nav]').forEach((navRight) => {
+    setAuthNavVisibleInContainer(navRight, cachedName, cachedAvatar);
+  });
   markAuthNavReady();
 }
 
@@ -434,16 +482,14 @@ function bindMypageEmbedBridge() {
   });
 }
 
-function bindNavMypageOpeners() {
-  const mypageBtn = document.getElementById('navMyPageBtn');
-
-  if (mypageBtn && mypageBtn.getAttribute('data-mypage-bound') !== '1') {
-    mypageBtn.setAttribute('data-mypage-bound', '1');
-    mypageBtn.addEventListener('click', () => {
-      closeUserMenu();
-      openMypageModal();
-    });
-  }
+function bindNavMypageOpeners(navRight) {
+  const mypageBtn = document.getElementById(authElId(navRight, 'MyPageBtn'));
+  if (!mypageBtn || mypageBtn.getAttribute('data-mypage-bound') === '1') return;
+  mypageBtn.setAttribute('data-mypage-bound', '1');
+  mypageBtn.addEventListener('click', () => {
+    closeAuthUserMenu(navRight);
+    openMypageModal();
+  });
 }
 
 // HTML에 모달이 없을 때만 주입 (홈은 이미 마크업 있음)
@@ -489,9 +535,8 @@ function ensureLoginModal() {
 
 // /api/auth/me 로 세션 반영, 실패 시 sessionStorage 폴백
 async function refreshAuthNav() {
-  const loginBtn = document.getElementById('navLoginBtn');
-  const emailEl = document.getElementById('navUserEmail');
-  if (!loginBtn || !emailEl) return;
+  const navContainers = document.querySelectorAll('[data-auth-nav]');
+  if (!navContainers.length) return;
 
   let displayName = null;
   let avatarUrl = null;
@@ -509,6 +554,11 @@ async function refreshAuthNav() {
       persistUserAvatarUrl(avatarUrlFromUser(u));
       displayName = displayNameFromUser(u);
       avatarUrl = avatarUrlFromUser(u);
+      if (window.JurinTutorialUtil && typeof window.JurinTutorialUtil.syncTutorialMaskUser === 'function') {
+        window.JurinTutorialUtil.syncTutorialMaskUser(u);
+      }
+    } else if (window.JurinTutorialUtil && typeof window.JurinTutorialUtil.syncTutorialMaskUser === 'function') {
+      window.JurinTutorialUtil.syncTutorialMaskUser(null);
     }
     /* 로그인 직후 /api/auth/me가 401이어도 sessionStorage를 지우지 않음.
        설명( 포트/쿠키 이슈로 세션 쿠키가 안 붙을 때 방금 로그인 정보가 날아가던 버그 방지 ) */
@@ -518,7 +568,9 @@ async function refreshAuthNav() {
 
   if (!displayName) displayName = displayNameFromSessionStorage();
   if (!avatarUrl) avatarUrl = avatarUrlFromSessionStorage();
-  setAuthNavVisible(displayName, avatarUrl);
+  navContainers.forEach((navRight) => {
+    setAuthNavVisibleInContainer(navRight, displayName, avatarUrl);
+  });
   markAuthNavReady();
 }
 
@@ -536,6 +588,9 @@ async function submitLogout() {
   sessionStorage.removeItem('jurinUserNickname');
   sessionStorage.removeItem('jurinUserLoginId');
   sessionStorage.removeItem('jurinUserAvatarUrl');
+  if (window.JurinTutorialUtil && typeof window.JurinTutorialUtil.syncTutorialMaskUser === 'function') {
+    window.JurinTutorialUtil.syncTutorialMaskUser(null);
+  }
   if (typeof window.afterJurinLogout === "function") {
     try {
       window.afterJurinLogout();
@@ -601,6 +656,10 @@ function closeLoginModal() {
   loginModal.classList.remove('is-open');
   loginModal.setAttribute('aria-hidden', 'true');
   updateBodyScrollLock();
+
+  if (window.__jurinPendingNavUrl) {
+    window.__jurinPendingNavUrl = '';
+  }
 }
 
 async function submitLogin(event) {
@@ -650,6 +709,9 @@ async function submitLogin(event) {
         } catch (e) {
           /* ignore */
         }
+      }
+      if (window.JurinTutorialUtil && typeof window.JurinTutorialUtil.syncTutorialMaskUser === 'function') {
+        window.JurinTutorialUtil.syncTutorialMaskUser(data.user || null);
       }
       if (typeof window.afterJurinLogin === 'function') {
         try {
@@ -712,17 +774,28 @@ async function jurinIsLoggedIn() {
   }
 }
 
+function jurinAbsoluteUrl(pathOrUrl) {
+  const raw = String(pathOrUrl || '').trim();
+  if (!raw || raw === '#') return '';
+  if (/^https?:\/\//i.test(raw)) return raw;
+  const base = String(jurinApiBase() || '').replace(/\/$/, '');
+  return `${base}/${raw.replace(/^\//, '')}`;
+}
+
 function jurinResolveSimulationUrl(link) {
   if (link && link.href) return link.href;
   if (typeof window.jurinSimulationUrl === 'function') return window.jurinSimulationUrl();
-  return `${jurinApiBase()}/simulation.html`;
+  return jurinAbsoluteUrl('simulation.html');
 }
 
 async function jurinNavigateSimulation(event, urlOptional) {
   if (event && typeof event.preventDefault === 'function') {
     event.preventDefault();
   }
-  const url = urlOptional || jurinResolveSimulationUrl(event && event.currentTarget);
+  let url = urlOptional || jurinResolveSimulationUrl(event && event.currentTarget);
+  if (url && !/^https?:\/\//i.test(url)) {
+    url = jurinAbsoluteUrl(url);
+  }
   if (await jurinIsLoggedIn()) {
     window.location.href = url;
     return;
@@ -734,10 +807,10 @@ async function jurinNavigateSimulation(event, urlOptional) {
 }
 
 function bindSimulationNavLinks() {
-  document.querySelectorAll('.jurin-simulation-link').forEach((link) => {
-    if (link.getAttribute('data-sim-nav-bound') === '1') return;
-    link.setAttribute('data-sim-nav-bound', '1');
-    link.addEventListener('click', (event) => {
+  document.querySelectorAll('.jurin-simulation-link, .jurin-simulation-start').forEach((el) => {
+    if (el.getAttribute('data-sim-nav-bound') === '1') return;
+    el.setAttribute('data-sim-nav-bound', '1');
+    el.addEventListener('click', (event) => {
       jurinNavigateSimulation(event);
     });
   });
@@ -746,42 +819,48 @@ function bindSimulationNavLinks() {
 window.jurinNavigateSimulation = jurinNavigateSimulation;
 window.jurinIsLoggedIn = jurinIsLoggedIn;
 
-// .nav-right 버튼에 id·리스너 부여 (인라인 onclick 제거)
-function setupAuthNav() {
-  const navRight = document.querySelector('nav > .nav-right[data-auth-nav]');
-  if (!navRight) return;
+function setupAuthNavContainer(navRight) {
+  if (!navRight || navRight.dataset.authBound === '1') return;
 
-  let loginBtn = document.getElementById('navLoginBtn') || navRight.querySelector('.btn-ghost');
+  let loginBtn = document.getElementById(authElId(navRight, 'LoginBtn'))
+    || navRight.querySelector('[data-auth-login]')
+    || navRight.querySelector('.btn-ghost');
   if (!loginBtn) return;
 
-  loginBtn.id = 'navLoginBtn';
+  navRight.dataset.authBound = '1';
+  loginBtn.id = authElId(navRight, 'LoginBtn');
   loginBtn.type = 'button';
   loginBtn.removeAttribute('onclick');
   loginBtn.addEventListener('click', openLoginModal);
 
-  const signupBtn = navSignupButton();
+  const signupBtn = navSignupButton(navRight);
   if (signupBtn) {
-    signupBtn.id = signupBtn.id || 'navSignupBtn';
+    signupBtn.id = authElId(navRight, 'SignupBtn');
     signupBtn.type = 'button';
-    signupBtn.textContent = '회원가입';
+    if (authNavPrefix(navRight) === 'nav') signupBtn.textContent = '회원가입';
     signupBtn.removeAttribute('onclick');
     signupBtn.removeEventListener('click', jurinNavigateSignup);
     signupBtn.addEventListener('click', jurinNavigateSignup);
   }
 
   ensureUserProfileDropdown(navRight);
-  bindUserMenuInteractions();
+  bindAuthNavMenusOnce();
 
-  const logoutBtn = document.getElementById('navLogoutBtn');
+  const logoutBtn = document.getElementById(authElId(navRight, 'LogoutBtn'));
   if (logoutBtn && logoutBtn.getAttribute('data-logout-bound') !== '1') {
     logoutBtn.setAttribute('data-logout-bound', '1');
     logoutBtn.addEventListener('click', () => {
-      closeUserMenu();
+      closeAuthUserMenu(navRight);
       submitLogout();
     });
   }
 
-  bindNavMypageOpeners();
+  bindNavMypageOpeners(navRight);
+}
+
+// .nav-right 버튼에 id·리스너 부여 (인라인 onclick 제거)
+function setupAuthNav() {
+  document.querySelectorAll('[data-auth-nav]').forEach(setupAuthNavContainer);
   bindSimulationNavLinks();
 }
 
@@ -798,8 +877,8 @@ function bindSignupLinkInLoginModal() {
 
 document.addEventListener('keydown', (event) => {
   if (event.key !== 'Escape') return;
-  const userMenu = document.getElementById('navUserMenu');
-  if (userMenu && !userMenu.hidden) {
+  const openMenu = document.querySelector('.nav-user-profile.is-open .nav-user-menu:not([hidden])');
+  if (openMenu) {
     closeUserMenu();
     return;
   }
@@ -845,4 +924,7 @@ window.openMypageModal = openMypageModal;
 window.closeMypageModal = closeMypageModal;
 window.finishMypageSuccess = finishMypageSuccess;
 window.refreshAuthNav = refreshAuthNav;
+window.setupAuthNavContainer = setupAuthNavContainer;
 window.updateBodyScrollLock = updateBodyScrollLock;
+window.openLoginModal = openLoginModal;
+window.closeLoginModal = closeLoginModal;

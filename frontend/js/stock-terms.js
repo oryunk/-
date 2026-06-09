@@ -352,24 +352,71 @@
     var pack = INDICATOR_HINTS[label] || STABILITY_HINTS[label];
     var hint = pack && pack.hint ? pack.hint : '';
     var term = pack && pack.term ? pack.term : label;
-    var hintBlock = hint
-      ? '<div class="metric-item-hint">' + escapeHtml(hint) + '</div>'
+    var helpBlock = hint
+      ? (
+        '<span class="metric-help-wrap">' +
+        '<button type="button" class="metric-help-btn" aria-label="' + escapeHtml(label) + ' 설명" aria-expanded="false">!</button>' +
+        '<div class="metric-help-bubble" role="tooltip">' + escapeHtml(hint) + '</div>' +
+        '</span>'
+      )
       : '';
-    var link = '<a class="metric-term-link" href="' + glossaryLink(term) + '" target="_blank" rel="noopener">용어사전</a>';
+    var link = '<a class="metric-term-link metric-term-link--footer" href="' + glossaryLink(term) + '" target="_blank" rel="noopener">용어사전</a>';
     return (
       '<div class="metric-item">' +
       '<div class="metric-item-label-row">' +
       '<span class="metric-item-label">' +
       escapeHtml(label) +
       '</span>' +
-      link +
+      helpBlock +
       '</div>' +
-      hintBlock +
       '<div class="metric-item-value">' +
       valueDisplay +
       '</div>' +
+      link +
       '</div>'
     );
+  }
+
+  function closeAllMetricHelpTooltips() {
+    document.querySelectorAll('.metric-help-wrap.is-open').forEach(function (wrap) {
+      wrap.classList.remove('is-open');
+      var btn = wrap.querySelector('.metric-help-btn');
+      if (btn) btn.setAttribute('aria-expanded', 'false');
+    });
+  }
+
+  function initMetricHelpTooltips() {
+    if (document.body.dataset.metricHelpBound === '1') return;
+    document.body.dataset.metricHelpBound = '1';
+
+    function onGridClick(e) {
+      var btn = e.target.closest('.metric-help-btn');
+      if (!btn) return;
+      e.preventDefault();
+      e.stopPropagation();
+      var wrap = btn.closest('.metric-help-wrap');
+      if (!wrap) return;
+      var willOpen = !wrap.classList.contains('is-open');
+      closeAllMetricHelpTooltips();
+      if (willOpen) {
+        wrap.classList.add('is-open');
+        btn.setAttribute('aria-expanded', 'true');
+      }
+    }
+
+    ['indicatorGrid', 'stabilityDividendGrid'].forEach(function (id) {
+      var grid = document.getElementById(id);
+      if (grid) grid.addEventListener('click', onGridClick);
+    });
+
+    document.addEventListener('click', function (e) {
+      if (e.target.closest('.metric-help-wrap')) return;
+      closeAllMetricHelpTooltips();
+    });
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') closeAllMetricHelpTooltips();
+    });
   }
 
   function initSectionLeads() {
@@ -570,6 +617,7 @@
     initMarketDetailHints: function () {
       initSectionLeads();
       initDetailCardHints();
+      initMetricHelpTooltips();
     },
     mountGlossaryBrowse: mountGlossaryBrowse,
     mountGlossaryTabs: mountGlossaryTabs,

@@ -37,7 +37,27 @@
     return LUMICON_FILES[name] ? lumiconAsset(name) : miscAsset(name);
   }
 
+  /** 루미챗봇 mood 키 → mascot2 PNG (misc 제외 15종) */
+  var LUMI_MOODS = {
+    welcome: 'hello.png',
+    info: 'thinking.png',
+    success: 'success.png',
+    happy: 'happy.png',
+    excited: 'excited.png',
+    caution: 'surprised.png',
+    wink: 'sparkle.png',
+    curious: 'curious.png',
+    idea: 'idea.png',
+    good_idea: 'good-idea.png',
+    studying: 'studying.png',
+    struggling: 'struggling.png',
+    sleepy: 'sleepy.png',
+    chart: 'chart-analysis.png',
+    angry: 'angry.png',
+  };
+
   global.JURIN_MASCOT2_VER = VER;
+  global.JURIN_LUMI_MOODS = LUMI_MOODS;
   global.jurinLumiconAsset = lumiconAsset;
   global.jurinMascot2MiscAsset = miscAsset;
   global.jurinMascot2Asset = resolveAsset;

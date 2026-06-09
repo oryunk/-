@@ -5,8 +5,7 @@
   var TUTORIAL_MASK_KEY = 'jurinGuideTutorialBits';
   var GUIDE_LUMI_SESSION_KEY = 'jurin:guide-lumi-session';
   var TOTAL_BEGINNER_STEPS = 5;
-  // 4단계 튜토리얼 미구현 — 임시로 5단계까지 완료·해금 처리
-  var GUIDE_ASSUME_ALL_CLEAR = true;
+  var GUIDE_ASSUME_ALL_CLEAR = false;
   var GUIDE_FULL_CLEAR_MASK = 31;
 
   function applyTemporaryGuideFullClear() {
@@ -61,12 +60,12 @@
       id: 1,
       shortTitle: '시세 읽기',
       title: '1단계: 시세 읽기',
-      subtitle: '지수·필터로 오늘 시장을 보고 거래량·거래대금까지 익혀요.',
+      subtitle: '코스피·코스닥부터 상승·하락·거래량까지, 같이 오늘 시장 읽어봐요.',
       summary: '지수·필터로 오늘 시장 흐름 읽기',
       duration: '약 5분',
-      learn: '지수·필터, 상세 카드의 거래량·거래대금, 뉴스·수급 연결',
-      goal: '오늘 시장이 어떤 분위기인지 스스로 파악하기',
-      tip: '처음엔 지수만 봐도 괜찮아요. 익숙해지면 거래대금 순위로 핫한 종목을 찾아보세요.',
+      learn: '코스피·코스닥, 상승·하락·거래량 필터, 상세 카드, 뉴스·수급 연결',
+      goal: '오늘 시장 분위기를 스스로 파악하기',
+      tip: '처음엔 코스피·코스닥만 봐도 괜찮아요. 익숙해지면 거래량 순으로 관심 종목을 찾아보세요.',
       startHref: '주린닷컴홈피.html?tutorial=step1',
       startLabel: '학습 시작하기',
       btnClass: 'btn-primary',
@@ -78,12 +77,12 @@
       id: 2,
       shortTitle: '차트 기초',
       title: '2단계: 차트 기초',
-      subtitle: '삼성전자 차트로 봉·거래량 읽는 법을 배워요.',
-      summary: '일·주·월·년 봉과 거래량 읽기',
+      subtitle: '삼성전자 차트로 흐름·추세·거래량·캔들을 배워요.',
+      summary: '차트 기초와 지수 복습',
       duration: '약 7분',
-      learn: '일·주·월·년 봉 전환, 봉 색·몸통·거래량 막대 의미',
-      goal: '차트 화면에서 가격 흐름과 거래량을 함께 읽기',
-      tip: '봉 하나만 봐도 “오늘 올랐는지 내렸는지” 알 수 있어요. 거래량은 함께 보면 더 확실해져요.',
+      learn: '기간 버튼, 상승·하락 추세, 거래량·캔들, 코스피·코스닥·코스피200',
+      goal: '차트에서 가격 흐름을 읽고 시장 지수를 다시 살펴보기',
+      tip: '같은 종목도 기간만 바꿔도 모습이 달라져요. 차트와 거래량을 같이 보면 흐름이 더 선명해져요.',
       startHref: 'market.html?tutorial=step2',
       startLabel: '학습 시작하기',
       btnClass: 'btn-primary',
@@ -118,9 +117,9 @@
       learn: 'ETF·섹터·테마 차이, ELW·채권 기초 개념',
       goal: '상품 성격에 맞는 선택 기준 만들기',
       tip: 'ETF는 “한 바구니”, ELW는 “레버리지”라고만 기억해도 시작하기 충분해요.',
-      startHref: 'market-products.html?topic=elw',
-      startLabel: 'ELW 알아보기',
-      btnClass: 'btn-ghost',
+      startHref: 'market.html?tutorial=step4',
+      startLabel: '학습 시작하기',
+      btnClass: 'btn-primary',
       timelineLabel: '상품',
       lumiMood: 'info',
       lumiImage: 'good-idea.png',
@@ -129,11 +128,11 @@
       id: 5,
       shortTitle: '첫 투자',
       title: '5단계: 나의 첫 투자',
-      subtitle: '모의투자로 차트·시세·호가와 지정가 매수를 연습해요.',
-      summary: '모의투자 지정가 매수 흐름',
-      duration: '약 10분',
-      learn: '차트·시세·호가 확인, 지정가 매수 주문 흐름',
-      goal: '실전 전 모의투자로 매수까지 직접 해보기',
+      subtitle: '모의투자에서 종목·포트폴리오·주문·상세·수익분석 흐름을 익혀요.',
+      summary: '모의투자 전체 화면 안내',
+      duration: '약 12분',
+      learn: '포트폴리오·시장가·지정가·차트·시세·수익분석·랭킹',
+      goal: '실전 전 모의투자 화면 전체를 스스로 다루기',
       tip: '로그인 후 시작해요. 실수해도 괜찮아요 — 모의투자는 연습용이니까요!',
       startHref: 'simulation.html?tutorial=step5',
       startLabel: '학습 시작하기',
@@ -147,40 +146,58 @@
   var EXPERT_STEPS = [
     {
       id: 1,
-      shortTitle: '심화 전략',
-      title: '1단계: 심화 전략',
-      subtitle: '차트·그래프 심화 학습',
-      summary: '차트·그래프 심화 학습',
-      duration: '약 10분',
-      learn: '심화 차트 해석, 추세·지지·저항 개념',
-      goal: '고급 차트 분석 기초 익히기',
-      tip: '차트 화면에서 심화 내용을 단계별로 익혀 보세요.',
-      startHref: 'market.html',
+      shortTitle: '대표 차트 패턴',
+      title: '1단계: 대표 차트 패턴',
+      subtitle: '자주 나오는 패턴 익히기',
+      summary: '자주 나오는 패턴 익히기',
+      duration: '약 6분',
+      learn: '상승삼각형 · 쌍바닥 · 상승플래그 · 컵앤핸들',
+      goal: '차트 모양을 보고 대표 패턴을 구분하기',
+      tip: '차트가 복잡해 보여도 자주 나오는 모양부터 보면 훨씬 쉬워져요.',
+      startHref: 'chart-lab.html?tutorial=expert1',
       startLabel: '학습 시작하기',
       btnClass: 'btn-primary',
-      timelineLabel: '심화',
-      lumiMood: 'success',
-      lumiImage: 'good-idea.png',
+      timelineLabel: '패턴',
+      lumiMood: 'happy',
+      lumiImage: 'hello.png',
     },
     {
       id: 2,
-      shortTitle: '추세·지지·저항',
-      title: '2단계: 추세·지지·저항',
-      subtitle: '차트 핵심 심화 개념 (준비 중)',
-      summary: '추세선·지지·저항 해석',
-      duration: '준비 중',
-      learn: '추세선 그리기, 지지·저항 구간 읽기, 돌파·이탈 판단',
-      goal: '차트에서 매수·매도 참고 구간 스스로 찾기',
-      tip: '1단계를 마친 뒤 이어서 학습할 수 있어요.',
-      startHref: '#',
-      startLabel: '준비 중',
+      shortTitle: '실전 차트 읽기',
+      title: '2단계: 실전 차트 읽기',
+      subtitle: '지지·저항·이동평균선 적용',
+      summary: '지지·저항·이동평균선 적용',
+      duration: '약 7분',
+      learn: '지지선 · 저항선 · 20일선 · 골든크로스',
+      goal: '차트에서 반등 구간과 추세 흐름을 함께 판단하기',
+      tip: '패턴만 보는 것보다 지지선과 평균선을 같이 보면 차트가 더 선명하게 보여요.',
+      startHref: 'chart-lab.html?tutorial=expert2',
+      startLabel: '학습 시작하기',
       btnClass: 'btn-primary',
-      timelineLabel: '차트',
-      lockedPlaceholder: true,
-      lumiMood: 'info',
-      lumiImage: 'thinking.png',
+      timelineLabel: '실전',
+      lumiMood: 'cool',
+      lumiImage: 'good-idea.png',
     },
   ];
+
+  function isExpertStepCleared(stepId) {
+    if (window.JurinTutorialUtil && typeof window.JurinTutorialUtil.isExpertStepCleared === 'function') {
+      return window.JurinTutorialUtil.isExpertStepCleared(stepId);
+    }
+    return false;
+  }
+
+  function countExpertClearedSteps() {
+    if (window.JurinTutorialUtil && typeof window.JurinTutorialUtil.countExpertClearedSteps === 'function') {
+      return window.JurinTutorialUtil.countExpertClearedSteps();
+    }
+    return 0;
+  }
+
+  function isExpertStepUnlocked(stepId) {
+    if (stepId <= 1) return true;
+    return isExpertStepCleared(stepId - 1);
+  }
 
   var state = {
     track: null,
@@ -316,17 +333,10 @@
   }
 
   function readTutorialBitsMask() {
-    try {
-      var raw = localStorage.getItem(TUTORIAL_MASK_KEY);
-      if (raw !== null && raw !== '') {
-        var m = parseInt(raw, 10);
-        return isNaN(m) ? 0 : Math.min(31, Math.max(0, m));
-      }
-      localStorage.setItem(TUTORIAL_MASK_KEY, '0');
-      return 0;
-    } catch (e) {
-      return 0;
+    if (window.JurinTutorialUtil && typeof window.JurinTutorialUtil.readTutorialBitsMask === 'function') {
+      return window.JurinTutorialUtil.readTutorialBitsMask();
     }
+    return 0;
   }
 
   function isStepCleared(stepId) {
@@ -406,10 +416,8 @@
       var locked =
         state.track === 'beginner'
           ? !isStepUnlocked(slot, totalSlots)
-          : slot > 1 || !!(stepMeta && stepMeta.lockedPlaceholder);
-      var clickable =
-        (state.track === 'beginner' && !locked) ||
-        (state.track === 'expert' && slot === 1 && !locked);
+          : !isExpertStepUnlocked(slot);
+      var clickable = (state.track === 'beginner' && !locked) || (state.track === 'expert' && !locked);
       var cls = 'guide-timeline-step';
       if (state.track === 'beginner' || state.track === 'expert') {
         cls += ' guide-timeline-step--growth guide-timeline-step--stage-' + slot;
@@ -463,14 +471,23 @@
   function renderStepNav(container, steps) {
     if (!container) return;
     var navSteps = state.track === 'expert' ? getNavStepsForTrack() : steps;
-    var firstOpen = state.track === 'beginner' ? getFirstOpenStepId(TOTAL_BEGINNER_STEPS) : 1;
+    var firstOpen =
+      state.track === 'beginner'
+        ? getFirstOpenStepId(TOTAL_BEGINNER_STEPS)
+        : isExpertStepCleared(1)
+          ? 2
+          : 1;
     var html = navSteps
       .map(function (step) {
         var isPlaceholder = !!step.lockedPlaceholder;
-        var done = !isPlaceholder && state.track === 'beginner' && isStepCleared(step.id);
+        var done =
+          state.track === 'beginner'
+            ? !isPlaceholder && isStepCleared(step.id)
+            : isExpertStepCleared(step.id);
         var locked =
           isPlaceholder ||
-          (state.track === 'beginner' && !isStepUnlocked(step.id, TOTAL_BEGINNER_STEPS));
+          (state.track === 'beginner' && !isStepUnlocked(step.id, TOTAL_BEGINNER_STEPS)) ||
+          (state.track === 'expert' && !isExpertStepUnlocked(step.id));
         var active = step.id === state.selectedStepId;
         var current = !done && !locked && step.id === firstOpen;
         var cls = 'guide-lesson';
@@ -536,7 +553,10 @@
       return;
     }
 
-    var locked = state.track === 'beginner' ? !isStepUnlocked(step.id, TOTAL_BEGINNER_STEPS) : step.id > 1;
+    var locked =
+      state.track === 'beginner'
+        ? !isStepUnlocked(step.id, TOTAL_BEGINNER_STEPS)
+        : !isExpertStepUnlocked(step.id);
     var studyMood = step.lumiMood || 'info';
     var studyImgHtml = step.lumiImage
       ? '<img class="guide-lumi-study" src="' +
@@ -608,7 +628,20 @@
     if (startBtn) {
       startBtn.addEventListener('click', function () {
         setGuideSessionFlag();
-        window.location.href = startBtn.getAttribute('data-href') || '#';
+        var href = startBtn.getAttribute('data-href') || '#';
+        if (window.JurinTutorialUtil && typeof window.JurinTutorialUtil.markTutorialFreshStart === 'function') {
+          var stepNum =
+            typeof window.JurinTutorialUtil.parseTutorialStepFromHref === 'function'
+              ? window.JurinTutorialUtil.parseTutorialStepFromHref(href)
+              : 0;
+          if (!stepNum && step.id) stepNum = step.id;
+          if (stepNum) window.JurinTutorialUtil.markTutorialFreshStart(stepNum);
+        }
+        if (/simulation\.html/i.test(href) && typeof jurinNavigateSimulation === 'function') {
+          jurinNavigateSimulation(null, href);
+          return;
+        }
+        window.location.href = href;
       });
     }
   }
@@ -617,7 +650,7 @@
     var isBeginner = state.track === 'beginner';
     var total = getTotalStepsForTrack();
     var total = isBeginner ? TOTAL_BEGINNER_STEPS : TOTAL_EXPERT_STEPS;
-    var cleared = isBeginner ? countClearedSteps(TOTAL_BEGINNER_STEPS) : 0;
+    var cleared = isBeginner ? countClearedSteps(TOTAL_BEGINNER_STEPS) : countExpertClearedSteps();
     var percent = total > 0 ? Math.round((cleared / total) * 100) : 0;
 
     var pctEl = document.getElementById(panelPrefix + 'ProgressPercent');
@@ -631,17 +664,9 @@
   function updateRewardPreviewButton() {
     var btn = document.getElementById('guideRewardPreviewBtn');
     if (!btn || !window.LumiCon) return;
-    var claimed = window.LumiCon.hasAnyUnlocked();
-    var eligible = window.LumiCon.isGuideRewardEligible();
     btn.disabled = false;
     btn.removeAttribute('title');
-    if (claimed) {
-      btn.textContent = '루미콘 보기 →';
-    } else if (eligible) {
-      btn.textContent = '보상 받기 →';
-    } else {
-      btn.textContent = '보상 미리보기 →';
-    }
+    btn.textContent = '루미콘 보기 →';
   }
 
   function renderDashboard() {
@@ -733,7 +758,7 @@
       mood: 'info',
       title: '튜토리얼은 어떻게 진행되나요?',
       text:
-        '1단계는 시황판·거래량·거래대금, 2단계는 삼성전자 차트, 3단계는 종목 가치, 4단계는 시장 종류(ETF·ELW·채권), 5단계는 모의투자로 차트·시세·호가와 지정가 매수를 연습해요. 고수 코스는 심화 전략과 추세·지지·저항 2단계예요.',
+        '1단계는 시황판·거래량·거래대금, 2단계는 삼성전자 차트, 3단계는 종목 가치, 4단계는 시장 종류(ETF·ELW·채권), 5단계는 모의투자에서 포트폴리오·주문·상세·수익분석 흐름을 익혀요. 고수 코스는 심화 전략과 추세·지지·저항 2단계예요.',
     },
     {
       mood: 'success',
@@ -795,11 +820,7 @@
   var rewardPreviewBtn = document.getElementById('guideRewardPreviewBtn');
   if (rewardPreviewBtn && window.LumiCon) {
     rewardPreviewBtn.addEventListener('click', function () {
-      window.LumiCon.openRewardPreviewModal({
-        onClaimed: function () {
-          updateRewardPreviewButton();
-        },
-      });
+      window.LumiCon.openRewardPreviewModal({ previewOnly: true });
     });
     updateRewardPreviewButton();
   }
@@ -810,7 +831,12 @@
   initLumiImages();
 
   window.addEventListener('storage', function (e) {
-    if (e.key === TUTORIAL_MASK_KEY && state.track) renderDashboard();
+    if (!state.track || !e.key) return;
+    var maskKey =
+      window.JurinTutorialUtil && typeof window.JurinTutorialUtil.getTutorialMaskStorageKey === 'function'
+        ? window.JurinTutorialUtil.getTutorialMaskStorageKey()
+        : TUTORIAL_MASK_KEY;
+    if (e.key === maskKey || e.key === TUTORIAL_MASK_KEY) renderDashboard();
   });
   window.addEventListener('pageshow', function () {
     if (state.track) {

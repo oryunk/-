@@ -33,14 +33,41 @@
   function apiFetch(path, options) {
     options = options || {};
     options.credentials = 'include';
+    if (!options.method || options.method === 'GET') {
+      options.cache = 'no-store';
+    }
     if (options.body && typeof options.body === 'object' && !(options.body instanceof FormData)) {
       options.headers = Object.assign({ 'Content-Type': 'application/json' }, options.headers || {});
       options.body = JSON.stringify(options.body);
     }
-    return fetch(jurinApiBase() + path, options).then(function (res) {
+    var timeoutMs = options.timeoutMs != null ? options.timeoutMs : 20000;
+    delete options.timeoutMs;
+    var fetchPromise;
+    if (typeof AbortController !== 'undefined' && timeoutMs > 0) {
+      var controller = new AbortController();
+      options.signal = controller.signal;
+      var timer = setTimeout(function () { controller.abort(); }, timeoutMs);
+      fetchPromise = fetch(jurinApiBase() + path, options).finally(function () {
+        clearTimeout(timer);
+      });
+    } else {
+      fetchPromise = fetch(jurinApiBase() + path, options);
+    }
+    return fetchPromise.then(function (res) {
       return res.json().catch(function () { return {}; }).then(function (data) {
         return { res: res, data: data };
       });
+    }).catch(function (err) {
+      if (err && err.name === 'AbortError') {
+        return {
+          res: { ok: false, status: 0 },
+          data: { success: false, message: '서버 응답이 지연되고 있습니다. 잠시 후 다시 시도해 주세요.' },
+        };
+      }
+      return {
+        res: { ok: false, status: 0 },
+        data: { success: false, message: '서버에 연결할 수 없습니다. 백엔드와 DB 연결을 확인해 주세요.' },
+      };
     });
   }
 
@@ -388,6 +415,35 @@
     return '<span class="inquiry-visibility inquiry-visibility--public">공개</span>';
   }
 
+  function privateLockIconHtml() {
+    return (
+      '<span class="inquiry-lock" aria-hidden="true">' +
+      '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+      'stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+      '<rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>' +
+      '<path d="M7 11V7a5 5 0 0 1 10 0v4"/>' +
+      '</svg></span>'
+    );
+  }
+
+  function showPrivateInquiryBlockedModal() {
+    openInquiryModal({
+      type: 'alert',
+      title: '비공개 문의',
+      message: '비공개로 등록된 문의입니다.\n작성자 본인만 내용을 확인할 수 있어요.',
+      confirmText: '확인',
+    });
+  }
+
+  function inquiryCanViewDetail(item) {
+    if (!item) return false;
+    if (item.canView === false) return false;
+    if (item.isPrivate && !item.isOwner && item.canView !== true) {
+      return false;
+    }
+    return true;
+  }
+
   function displayStatusLabel(status, label) {
     if (status === 'waiting') return '대기';
     if (status === 'answered' || status === 'resolved') return '완료';
@@ -479,12 +535,15 @@
     if (total > 0) {
       displayNo = total - ((page - 1) * pageSize + index);
     }
-    var lock = '';
+    var locked = item.isPrivate && !inquiryCanViewDetail(item);
+    var lock = locked ? privateLockIconHtml() : '';
+    var rowClass = locked ? ' inquiry-table-row--private-locked' : '';
+    var btnClass = 'inquiry-row-btn' + (locked ? ' inquiry-row-btn--locked' : '');
     return (
-      '<tr>' +
+      '<tr class="' + rowClass.trim() + '">' +
         '<td class="inquiry-col-no">' + displayNo + '</td>' +
         '<td class="inquiry-col-cat">' + badgeHtml(item.category, item.categoryLabel) + '</td>' +
-        '<td class="inquiry-col-title"><button type="button" class="inquiry-row-btn" data-inquiry-id="' + item.inquiryId + '">' + lock + escapeHtml(item.title) + '</button></td>' +
+        '<td class="inquiry-col-title"><button type="button" class="' + btnClass + '" data-inquiry-id="' + item.inquiryId + '" data-can-view="' + (locked ? '0' : '1') + '">' + lock + escapeHtml(item.title) + '</button></td>' +
         '<td class="inquiry-col-author"><span class="inquiry-author-chip inquiry-author-chip--table">' +
         (typeof jurinAvatarHtml === 'function'
           ? jurinAvatarHtml({ avatarUrl: item.authorAvatarUrl, displayName: item.authorNickname || '회원', sizeClass: 'inquiry-author-avatar inquiry-author-avatar--table' })
@@ -622,6 +681,10 @@
     if (!tbody) return;
     tbody.querySelectorAll('[data-inquiry-id]').forEach(function (btn) {
       btn.addEventListener('click', function () {
+        if (btn.getAttribute('data-can-view') === '0') {
+          showPrivateInquiryBlockedModal();
+          return;
+        }
         var id = parseInt(btn.getAttribute('data-inquiry-id'), 10);
         if (id) openDetail(id, from);
       });
@@ -629,40 +692,43 @@
   }
 
   function loadBoard(page) {
-    return refreshLoginState().then(function () {
-      state.boardPage = page || 1;
-      var params = new URLSearchParams({
-        page: String(state.boardPage),
-        page_size: '10',
-      });
-      var cat = $('boardFilterCategory') && $('boardFilterCategory').value;
-      var st = $('boardFilterStatus') && $('boardFilterStatus').value;
-      var q = $('boardSearchInput') && $('boardSearchInput').value.trim();
-      if (cat) params.set('category', cat);
-      if (st) params.set('status', st);
-      if (q) params.set('q', q);
+    state.boardPage = page || 1;
+    var params = new URLSearchParams({
+      page: String(state.boardPage),
+      page_size: '10',
+    });
+    var cat = $('boardFilterCategory') && $('boardFilterCategory').value;
+    var st = $('boardFilterStatus') && $('boardFilterStatus').value;
+    var q = $('boardSearchInput') && $('boardSearchInput').value.trim();
+    if (cat) params.set('category', cat);
+    if (st) params.set('status', st);
+    if (q) params.set('q', q);
 
-      return apiFetch('/api/support/inquiries?' + params.toString()).then(function (result) {
-        var tbody = $('boardTableBody');
-        var empty = $('boardEmpty');
-        if (!result.res.ok || !result.data.success) {
-          if (tbody) tbody.innerHTML = '';
-          if (empty) { empty.hidden = false; empty.textContent = result.data.message || '목록을 불러오지 못했습니다.'; }
-          return;
-        }
-        var items = result.data.items || [];
-        var total = result.data.total || 0;
-        var currentPage = result.data.page || 1;
-        var pageSize = result.data.pageSize || 10;
-        if (tbody) {
-          tbody.innerHTML = items.map(function (item, idx) {
-            return renderTableRow(item, idx, total, currentPage, pageSize);
-          }).join('');
-        }
-        if (empty) empty.hidden = items.length > 0;
-        bindRowClicks(tbody, 'board');
-        renderPagination($('boardPagination'), result.data.page, result.data.totalPages, loadBoard);
-      });
+    var tbody = $('boardTableBody');
+    var empty = $('boardEmpty');
+    if (tbody) {
+      tbody.innerHTML = '<tr><td colspan="5"><p class="inquiry-empty">불러오는 중…</p></td></tr>';
+    }
+    if (empty) empty.hidden = true;
+
+    return apiFetch('/api/support/inquiries?' + params.toString()).then(function (result) {
+      if (!result.res.ok || !result.data.success) {
+        if (tbody) tbody.innerHTML = '';
+        if (empty) { empty.hidden = false; empty.textContent = result.data.message || '목록을 불러오지 못했습니다.'; }
+        return;
+      }
+      var items = result.data.items || [];
+      var total = result.data.total || 0;
+      var currentPage = result.data.page || 1;
+      var pageSize = result.data.pageSize || 10;
+      if (tbody) {
+        tbody.innerHTML = items.map(function (item, idx) {
+          return renderTableRow(item, idx, total, currentPage, pageSize);
+        }).join('');
+      }
+      if (empty) empty.hidden = items.length > 0;
+      bindRowClicks(tbody, 'board');
+      renderPagination($('boardPagination'), result.data.page, result.data.totalPages, loadBoard);
     });
   }
 
@@ -817,11 +883,7 @@
     state.detailFrom = from || 'board';
     apiFetch('/api/support/inquiries/' + id).then(function (result) {
       if (result.res.status === 403) {
-        openInquiryModal({
-          type: 'alert',
-          title: '열람 권한 없음',
-          message: result.data.message || '열람 권한이 없습니다.',
-        });
+        showPrivateInquiryBlockedModal();
         return;
       }
       if (!result.res.ok || !result.data.success) {
@@ -984,7 +1046,11 @@
   function navigateTo(view) {
     if (view === 'mine') {
       requireLogin('mine').then(function (ok) {
-        if (!ok) return;
+        if (!ok) {
+          showView('board');
+          loadBoard(state.boardPage || 1);
+          return;
+        }
         showView('mine');
         loadMine(1);
       });
@@ -992,7 +1058,11 @@
     }
     if (view === 'write') {
       requireLogin('write').then(function (ok) {
-        if (!ok) return;
+        if (!ok) {
+          showView('board');
+          loadBoard(state.boardPage || 1);
+          return;
+        }
         var form = $('inquiryWriteForm');
         if (form) form.reset();
         resetInquiryEditState();
@@ -1243,9 +1313,10 @@
 
   document.addEventListener('DOMContentLoaded', function () {
     bindEvents();
-    refreshLoginState()
-      .then(loadMeta)
-      .then(parseInitialRoute)
+    refreshLoginState().catch(function () { /* public board works without login */ });
+    loadMeta()
+      .catch(function () { /* faq meta optional */ })
+      .then(function () { return parseInitialRoute(); })
       .catch(function () {
         showView('board');
         loadBoard(1);

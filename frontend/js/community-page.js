@@ -128,10 +128,34 @@
       options.headers = Object.assign({ 'Content-Type': 'application/json' }, options.headers || {});
       options.body = JSON.stringify(options.body);
     }
-    return fetch(jurinApiBase() + path, options).then(function (res) {
+    var timeoutMs = options.timeoutMs != null ? options.timeoutMs : 20000;
+    delete options.timeoutMs;
+    var fetchPromise;
+    if (typeof AbortController !== 'undefined' && timeoutMs > 0) {
+      var controller = new AbortController();
+      options.signal = controller.signal;
+      var timer = setTimeout(function () { controller.abort(); }, timeoutMs);
+      fetchPromise = fetch(jurinApiBase() + path, options).finally(function () {
+        clearTimeout(timer);
+      });
+    } else {
+      fetchPromise = fetch(jurinApiBase() + path, options);
+    }
+    return fetchPromise.then(function (res) {
       return res.json().catch(function () { return {}; }).then(function (data) {
         return { res: res, data: data };
       });
+    }).catch(function (err) {
+      if (err && err.name === 'AbortError') {
+        return {
+          res: { ok: false, status: 0 },
+          data: { success: false, message: '서버 응답이 지연되고 있습니다. 잠시 후 다시 시도해 주세요.' },
+        };
+      }
+      return {
+        res: { ok: false, status: 0 },
+        data: { success: false, message: '서버에 연결할 수 없습니다. 백엔드와 DB 연결을 확인해 주세요.' },
+      };
     });
   }
 
@@ -392,6 +416,33 @@
       btn.classList.toggle('is-active', on);
       btn.setAttribute('aria-pressed', on ? 'true' : 'false');
     });
+    if (scopeEl.id === 'communityWriteForm') {
+      syncWriteBoardFeatureFields(board);
+    }
+  }
+
+  function syncWriteBoardFeatureFields(board) {
+    var writeForm = $('communityWriteForm');
+    board = normalizeWriteBoard(board || getWriteBoardFromScope(writeForm));
+    var isQna = board === 'qna';
+    var stockField = $('communityWriteStockField');
+    var pollBlock = $('communityWritePoll');
+    var bodyInput = $('writeBody');
+
+    if (writeForm) {
+      writeForm.classList.toggle('community-write-form--qna', isQna);
+    }
+    if (stockField) stockField.hidden = isQna;
+    if (pollBlock && !state.editingPostId) pollBlock.hidden = isQna;
+    if (bodyInput) {
+      bodyInput.placeholder = isQna
+        ? '궁금한 점을 구체적으로 적어 주세요 (2자 이상)'
+        : '내용을 입력하세요 (2자 이상)';
+    }
+    if (isQna) {
+      clearWriteStockFields();
+      resetWritePoll();
+    }
   }
 
   function resolveWriteTypeFromFilter() {
@@ -455,6 +506,9 @@
   }
 
   function validateWriteForm() {
+    var writeForm = $('communityWriteForm');
+    var board = getWriteBoardFromScope(writeForm);
+    var isQna = board === 'qna';
     var title = $('writeTitle') && $('writeTitle').value.trim();
     var body = $('writeBody') && $('writeBody').value.trim();
     var stockName = $('writeStockName') && $('writeStockName').value.trim();
@@ -463,10 +517,10 @@
     if (!title) return '제목을 입력해 주세요.';
     if (title.length > 200) return '제목을 1~200자로 입력해 주세요.';
     if (!body || body.length < 2) return '내용을 2자 이상 입력해 주세요.';
-    if (stockName && !stockCode) {
+    if (!isQna && stockName && !stockCode) {
       return '등록할 수 없는 종목명입니다. 자동검색 목록에서 종목을 선택해 주세요.';
     }
-    if (!state.editingPostId && isWritePollEnabled()) {
+    if (!isQna && !state.editingPostId && isWritePollEnabled()) {
       var pollOptionError = validateWritePollOptions();
       if (pollOptionError) return pollOptionError;
       var pollTitle = $('writePollTitle') && $('writePollTitle').value.trim();
@@ -678,7 +732,8 @@
   }
 
   function appendPollFieldsToPayload(payload, isFormData) {
-    if (!isWritePollEnabled()) {
+    var board = getWriteBoardFromScope($('communityWriteForm'));
+    if (board === 'qna' || !isWritePollEnabled()) {
       if (isFormData) payload.append('pollEnabled', '0');
       else payload.pollEnabled = false;
       return payload;
@@ -758,8 +813,6 @@
     var submitBtn = document.querySelector('#communityWriteForm .community-submit-btn');
     if (titleEl) titleEl.textContent = '글쓰기';
     if (submitBtn) submitBtn.textContent = '등록하기';
-    var pollBlock = $('communityWritePoll');
-    if (pollBlock) pollBlock.hidden = false;
     var attachBlock = document.querySelector('#communityWriteForm .community-write-attach');
     if (attachBlock) attachBlock.hidden = false;
     var extras = $('communityWriteEditExtras');
@@ -771,16 +824,18 @@
     if ($('writePollRemove')) $('writePollRemove').checked = false;
     if ($('writeAttachRemove')) $('writeAttachRemove').checked = false;
     if ($('communityEditAttachPreview')) $('communityEditAttachPreview').innerHTML = '';
+    syncWriteBoardFeatureFields(getWriteBoardFromScope($('communityWriteForm')));
   }
 
   function buildWritePostEditPayload(writeForm) {
     var board = getWriteBoardFromScope(writeForm);
+    var isQna = board === 'qna';
     var title = $('writeTitle') && $('writeTitle').value.trim();
     var body = $('writeBody') && $('writeBody').value.trim();
-    var stockCode = $('writeStockCode') && $('writeStockCode').value.trim();
-    var stockName = $('writeStockName') && $('writeStockName').value.trim();
+    var stockCode = isQna ? '' : ($('writeStockCode') && $('writeStockCode').value.trim());
+    var stockName = isQna ? '' : ($('writeStockName') && $('writeStockName').value.trim());
     var removeAttachment = !!($('writeAttachRemove') && $('writeAttachRemove').checked);
-    var removePoll = !!($('writePollRemove') && $('writePollRemove').checked);
+    var removePoll = !isQna && !!($('writePollRemove') && $('writePollRemove').checked);
     var fileInput = $('writeAttachment');
     var hasNewFile = fileInput && fileInput.files && fileInput.files[0];
 
@@ -789,7 +844,7 @@
       formData.append('board', board || 'free');
       formData.append('title', title || '');
       formData.append('body', body || '');
-      if (stockCode) {
+      if (!isQna && stockCode) {
         formData.append('stockCode', stockCode);
         if (stockName) formData.append('stockName', stockName);
       }
@@ -802,8 +857,8 @@
       board: board,
       title: title,
       body: body,
-      stockCode: stockCode || '',
-      stockName: stockCode ? stockName : '',
+      stockCode: isQna ? '' : (stockCode || ''),
+      stockName: isQna ? '' : (stockCode ? stockName : ''),
       removeAttachment: removeAttachment,
       removePoll: removePoll,
     };
@@ -813,11 +868,17 @@
     var writeForm = $('communityWriteForm');
     if (!writeForm) return;
     var board = item.board === 'qna' ? 'qna' : 'free';
+    var isQna = board === 'qna';
     setWriteBoardInScope(writeForm, board);
     if ($('writeTitle')) $('writeTitle').value = item.title || '';
     if ($('writeBody')) $('writeBody').value = item.body || '';
-    if ($('writeStockCode')) $('writeStockCode').value = item.stockCode || '';
-    if ($('writeStockName')) $('writeStockName').value = item.stockName || '';
+    if (!isQna) {
+      if ($('writeStockCode')) $('writeStockCode').value = item.stockCode || '';
+      if ($('writeStockName')) $('writeStockName').value = item.stockName || '';
+    } else {
+      clearWriteStockFields();
+    }
+    syncWriteBoardFeatureFields(board);
     state.editingPostId = item.postId;
     state.editingPostSnapshot = item;
     var titleEl = document.querySelector('#communityViewWrite .community-panel-title');
@@ -878,17 +939,18 @@
 
   function buildWritePostPayload(writeForm) {
     var board = getWriteBoardFromScope(writeForm);
+    var isQna = board === 'qna';
     var title = $('writeTitle') && $('writeTitle').value.trim();
     var body = $('writeBody') && $('writeBody').value.trim();
-    var stockCode = $('writeStockCode') && $('writeStockCode').value.trim();
-    var stockName = $('writeStockName') && $('writeStockName').value.trim();
+    var stockCode = isQna ? '' : ($('writeStockCode') && $('writeStockCode').value.trim());
+    var stockName = isQna ? '' : ($('writeStockName') && $('writeStockName').value.trim());
     var fileInput = $('writeAttachment');
     if (fileInput && fileInput.files && fileInput.files[0]) {
       var payload = new FormData();
       payload.append('board', board || 'free');
       payload.append('title', title || '');
       payload.append('body', body || '');
-      if (stockCode) {
+      if (!isQna && stockCode) {
         payload.append('stockCode', stockCode);
         if (stockName) payload.append('stockName', stockName);
       }
@@ -900,8 +962,8 @@
       board: board,
       title: title,
       body: body,
-      stockCode: stockCode || '',
-      stockName: stockCode ? stockName : '',
+      stockCode: isQna ? '' : (stockCode || ''),
+      stockName: isQna ? '' : (stockCode ? stockName : ''),
     };
     return appendPollFieldsToPayload(jsonPayload, false);
   }
@@ -1331,6 +1393,65 @@
     return escapeHtml(text || '');
   }
 
+  function getCommentEditInput(item, commentId) {
+    if (!item) return null;
+    var editor = item.querySelector('[data-comment-input="' + commentId + '"]');
+    if (editor) return editor;
+    return item.querySelector('[data-comment-form="' + commentId + '"] textarea');
+  }
+
+  function readCommentEditValue(input) {
+    if (window.LumiCon && typeof window.LumiCon.readCommentValue === 'function') {
+      return window.LumiCon.readCommentValue(input);
+    }
+    return input && String(input.value || '').trim();
+  }
+
+  function setCommentEditValue(input, rawBody) {
+    if (!input) return;
+    if (window.LumiCon && typeof window.LumiCon.setEditorFromTokens === 'function' &&
+        input.classList && input.classList.contains('lumi-con-editor')) {
+      window.LumiCon.setEditorFromTokens(input, rawBody || '');
+      return;
+    }
+    input.value = rawBody || '';
+  }
+
+  function bindCommentEditPicker(item, commentId) {
+    if (!item || !window.LumiCon || typeof window.LumiCon.bindPicker !== 'function') return;
+    var form = item.querySelector('[data-comment-form="' + commentId + '"]');
+    var input = getCommentEditInput(item, commentId);
+    if (form && input) window.LumiCon.bindPicker(form, input);
+  }
+
+  function buildCommentEditFormHtml(comment) {
+    var commentId = comment.commentId;
+    var editorHtml =
+      window.LumiCon && typeof window.LumiCon.buildEditorHtml === 'function'
+        ? window.LumiCon.buildEditorHtml()
+        : '<textarea data-comment-input="' + commentId + '" rows="3" maxlength="2000" aria-label="댓글 수정"></textarea>';
+    if (editorHtml.indexOf('data-comment-input') < 0) {
+      editorHtml = editorHtml.replace(
+        'class="lumi-con-editor community-comment-editor"',
+        'class="lumi-con-editor community-comment-editor community-comment-edit-editor" data-comment-input="' + commentId + '"'
+      );
+    }
+    var pickerHtml =
+      window.LumiCon && typeof window.LumiCon.buildPickerWrapHtml === 'function'
+        ? window.LumiCon.buildPickerWrapHtml()
+        : '';
+    return (
+      '<div class="community-comment-edit-form" data-comment-form="' + commentId + '" hidden>' +
+      '<div class="community-comment-edit-field">' + editorHtml + '</div>' +
+      '<div class="community-comment-edit-actions">' +
+      pickerHtml +
+      '<div class="community-comment-edit-actions-right">' +
+      '<button type="button" class="community-comment-edit-cancel" data-comment-cancel="' + commentId + '">취소</button>' +
+      '<button type="button" class="community-comment-edit-save" data-comment-save="' + commentId + '">저장</button>' +
+      '</div></div></div>'
+    );
+  }
+
   function renderCommentsSectionMarkup(commentCount) {
     var formTail =
       '<div class="community-comment-form-actions">' +
@@ -1685,7 +1806,7 @@
   function renderCommentItem(comment) {
     var commentMenu = comment.isOwner ? buildCommentMenu(comment.commentId) : '';
     return (
-      '<li class="community-comment-item" data-comment-id="' + comment.commentId + '">' +
+      '<li class="community-comment-item" data-comment-id="' + comment.commentId + '" data-comment-raw-body="' + escapeHtml(comment.body || '') + '">' +
       '<div class="community-comment-head">' +
       '<span class="community-author-chip">' +
       (typeof jurinAvatarHtml === 'function'
@@ -1698,13 +1819,7 @@
       (commentMenu ? '<div class="community-comment-head-right">' + commentMenu + '</div>' : '') +
       '</div>' +
       '<p class="community-comment-body" data-comment-body="' + comment.commentId + '">' + renderCommentBody(comment.body) + '</p>' +
-      '<div class="community-comment-edit-form" data-comment-form="' + comment.commentId + '" hidden>' +
-      '<textarea data-comment-input="' + comment.commentId + '">' + escapeHtml(comment.body || '') + '</textarea>' +
-      '<div class="community-comment-edit-actions">' +
-      '<button type="button" class="community-comment-edit-cancel" data-comment-cancel="' + comment.commentId + '">취소</button>' +
-      '<button type="button" class="community-comment-edit-save" data-comment-save="' + comment.commentId + '">저장</button>' +
-      '</div>' +
-      '</div>' +
+      buildCommentEditFormHtml(comment) +
       '</li>'
     );
   }
@@ -1841,11 +1956,14 @@
         var form = item.querySelector('[data-comment-form="' + commentId + '"]');
         var bodyEl = item.querySelector('[data-comment-body="' + commentId + '"]');
         var menuWrap = item.querySelector('.community-comment-menu-wrap');
-        var input = item.querySelector('[data-comment-input="' + commentId + '"]');
-        if (input) input.dataset.originalBody = input.value;
+        var input = getCommentEditInput(item, commentId);
+        var rawBody = item.getAttribute('data-comment-raw-body') || '';
+        setCommentEditValue(input, rawBody);
+        bindCommentEditPicker(item, commentId);
         if (form) form.hidden = false;
         if (bodyEl) bodyEl.hidden = true;
         if (menuWrap) menuWrap.hidden = true;
+        if (input && typeof input.focus === 'function') input.focus();
       });
     });
 
@@ -1859,8 +1977,9 @@
         var form = item.querySelector('[data-comment-form="' + commentId + '"]');
         var bodyEl = item.querySelector('[data-comment-body="' + commentId + '"]');
         var menuWrap = item.querySelector('.community-comment-menu-wrap');
-        var input = item.querySelector('[data-comment-input="' + commentId + '"]');
-        if (input && input.dataset.originalBody != null) input.value = input.dataset.originalBody;
+        var input = getCommentEditInput(item, commentId);
+        var rawBody = item.getAttribute('data-comment-raw-body') || '';
+        setCommentEditValue(input, rawBody);
         if (form) form.hidden = true;
         if (bodyEl) bodyEl.hidden = false;
         if (menuWrap) menuWrap.hidden = false;
@@ -1874,8 +1993,8 @@
         var commentId = parseInt(btn.getAttribute('data-comment-save'), 10);
         var item = root.querySelector('.community-comment-item[data-comment-id="' + commentId + '"]');
         if (!item) return;
-        var input = item.querySelector('[data-comment-input="' + commentId + '"]');
-        var body = input && input.value.trim();
+        var input = getCommentEditInput(item, commentId);
+        var body = readCommentEditValue(input);
         if (!body) {
           openCommunityConfirmModal({
             type: 'alert',
@@ -2176,9 +2295,10 @@
           showView('write');
           syncWriteTypesFromFilter();
           initCommunityStockAutocomplete();
-        } else {
-          showView('feed');
+          return false;
         }
+        showView('feed');
+        return loadFeed(1);
       });
     }
     if (view === 'detail' && !Number.isNaN(id)) {
@@ -2415,21 +2535,36 @@
       state.loggedIn = false;
       state.userId = null;
       if (state.view === 'write') showView('feed');
+      if (state.view === 'feed') loadFeed(state.page || 1);
+      loadPopular();
       if (prevLogout) {
         try { prevLogout(); } catch (e) { /* ignore */ }
       }
     };
   })();
 
+  function ensureFeedLoaded() {
+    if (state.view !== 'feed') return;
+    var list = $('communityFeedList');
+    if (!list) return;
+    if (list.querySelector('.community-post-card')) return;
+    var empty = list.querySelector('.community-feed-empty');
+    if (empty && empty.textContent && empty.textContent.indexOf('불러오는 중') < 0) return;
+    loadFeed(state.page || 1);
+  }
+
   document.addEventListener('DOMContentLoaded', function () {
     bindEvents();
     initWritePollOptions();
     initCommunityStockAutocomplete();
+    syncWriteBoardFeatureFields(getWriteBoardFromScope($('communityWriteForm')) || 'free');
     updateQuickCount();
-    refreshLoginState()
-      .then(loadMeta)
+    refreshLoginState().catch(function () { /* public feed must work without login */ });
+    loadMeta()
+      .catch(function () { /* meta optional */ })
       .then(function () { return loadPopular(); })
-      .then(parseInitialRoute)
+      .then(function () { return parseInitialRoute(); })
+      .then(function () { ensureFeedLoaded(); })
       .catch(function () {
         showView('feed');
         loadFeed(1);

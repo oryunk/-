@@ -5,8 +5,7 @@
   var STORAGE_KEY = 'jurinLumiconsUnlocked';
   var TUTORIAL_MASK_KEY = 'jurinGuideTutorialBits';
   var TOTAL_BEGINNER_STEPS = 5;
-  // 4단계 튜토리얼 미구현 — 임시로 5단계까지 완료·해금 처리
-  var GUIDE_ASSUME_ALL_CLEAR = true;
+  var GUIDE_ASSUME_ALL_CLEAR = false;
   var GUIDE_FULL_CLEAR_MASK = 31;
 
   function applyTemporaryGuideFullClear() {
@@ -16,7 +15,7 @@
     } catch (e) { /* ignore */ }
   }
   var MASCOT2_VER = '20260608r';
-  var PREVIEW_VISIBLE_COUNT = 4;
+  var LUMICONS_PER_STEP = 2;
 
   var CATALOG = [
     { id: 'happy', label: '기쁨', file: 'happy.png' },
@@ -70,8 +69,11 @@
   }
 
   function readTutorialBitsMask() {
+    if (window.JurinTutorialUtil && typeof window.JurinTutorialUtil.readTutorialBitsMask === 'function') {
+      return window.JurinTutorialUtil.readTutorialBitsMask();
+    }
     try {
-      var raw = localStorage.getItem(TUTORIAL_MASK_KEY);
+      var raw = localStorage.getItem(TUTORIAL_MASK_KEY + ':anon');
       if (raw !== null && raw !== '') {
         var m = parseInt(raw, 10);
         return isNaN(m) ? 0 : Math.min(31, Math.max(0, m));
@@ -126,38 +128,52 @@
     });
   }
 
-  function getUsableIds() {
-    if (isGuideRewardEligible()) {
-      return CATALOG.map(function (item) {
-        return item.id;
-      });
-    }
-    return getUnlockedIds();
+  function getProgressUnlockedCount() {
+    return Math.min(CATALOG.length, countClearedBeginnerSteps() * LUMICONS_PER_STEP);
   }
 
-  function getDisplayUnlockedSet() {
-    var set = readUnlockedSet();
-    if (isGuideRewardEligible()) {
-      CATALOG.forEach(function (item) {
-        set[item.id] = true;
-      });
+  function getProgressUnlockedSet() {
+    var n = getProgressUnlockedCount();
+    var set = {};
+    for (var i = 0; i < n; i++) {
+      set[CATALOG[i].id] = true;
     }
     return set;
   }
 
+  function getAllCatalogUnlockedSet() {
+    var set = {};
+    CATALOG.forEach(function (item) {
+      set[item.id] = true;
+    });
+    return set;
+  }
+
+  function hasFullyClaimed() {
+    return isGuideRewardEligible() && getUnlockedIds().length >= CATALOG.length;
+  }
+
+  function getEffectiveUnlockedSet() {
+    if (hasFullyClaimed()) return getAllCatalogUnlockedSet();
+    return getProgressUnlockedSet();
+  }
+
+  function getUsableIds() {
+    return Object.keys(getEffectiveUnlockedSet()).filter(function (id) {
+      return !!catalogById[id];
+    });
+  }
+
+  function getDisplayUnlockedSet() {
+    return getEffectiveUnlockedSet();
+  }
+
   function isUnlocked(id) {
-    if (isGuideRewardEligible()) return !!catalogById[id];
-    return !!readUnlockedSet()[id];
+    return !!getEffectiveUnlockedSet()[id];
   }
 
   function hasAnyUnlocked() {
     return getUsableIds().length > 0;
-  }
-
-  function ensureLocalGuideUnlock() {
-    if (!isGuideRewardEligible()) return false;
-    unlockAll();
-    return true;
   }
 
   function unlockAll() {
@@ -235,11 +251,8 @@
     });
   }
 
-  function buildPickerPopoverHtml(unlockedIds) {
-    var unlockedSet = getDisplayUnlockedSet();
-    (unlockedIds || getUsableIds()).forEach(function (id) {
-      unlockedSet[id] = true;
-    });
+  function buildPickerPopoverHtml() {
+    var unlockedSet = getEffectiveUnlockedSet();
     var cells = CATALOG.map(function (item) {
       var locked = !unlockedSet[item.id];
       return (
@@ -248,7 +261,7 @@
         '" data-lumicon-id="' +
         escapeHtml(item.id) +
         '"' +
-        (locked ? ' disabled title="학습 가이드 완료 후 사용 가능"' : ' title="' + escapeHtml(item.label) + '"') +
+        (locked ? ' disabled title="가이드 단계를 진행하면 해금됩니다"' : ' title="' + escapeHtml(item.label) + '"') +
         '>' +
         '<img src="' +
         escapeHtml(mascot2Asset(item.file)) +
@@ -339,9 +352,29 @@
     input.value = '';
   }
 
+  function renderEditorHtmlFromTokens(text) {
+    if (!text) return '';
+    var re = /:lumi:([a-z0-9_-]+):/g;
+    var parts = [];
+    var last = 0;
+    var match;
+    while ((match = re.exec(text)) !== null) {
+      parts.push(escapeHtml(text.slice(last, match.index)));
+      var id = match[1];
+      if (catalogById[id]) {
+        parts.push(createLumiconImgHtml(id));
+      } else {
+        parts.push(escapeHtml(match[0]));
+      }
+      last = match.index + match[0].length;
+    }
+    parts.push(escapeHtml(text.slice(last)));
+    return parts.join('').replace(/\n/g, '<br>');
+  }
+
   function setEditorFromTokens(editor, text) {
     if (!editor || !isEditorElement(editor)) return;
-    editor.innerHTML = text ? renderBodyHtml(text) : '';
+    editor.innerHTML = text ? renderEditorHtmlFromTokens(text) : '';
   }
 
   function insertIntoEditor(editor, id) {
@@ -400,9 +433,8 @@
     if (!btn || !popover) return;
 
     function refreshState() {
-      ensureLocalGuideUnlock();
       var unlocked = getUsableIds();
-      var unlockedSet = getDisplayUnlockedSet();
+      var unlockedSet = getEffectiveUnlockedSet();
       var enabled = unlocked.length > 0;
       btn.disabled = !enabled;
       btn.title = enabled ? '루미콘' : '학습 가이드를 완료하면 루미콘을 사용할 수 있어요';
@@ -414,7 +446,7 @@
           '" data-lumicon-id="' +
           escapeHtml(item.id) +
           '"' +
-          (locked ? ' disabled title="학습 가이드 완료 후 사용 가능"' : ' title="' + escapeHtml(item.label) + '"') +
+          (locked ? ' disabled title="가이드 단계를 진행하면 해금됩니다"' : ' title="' + escapeHtml(item.label) + '"') +
           '>' +
           '<img src="' +
           escapeHtml(mascot2Asset(item.file)) +
@@ -477,12 +509,10 @@
     return modal;
   }
 
-  function rewardCellHtml(item, index, opts) {
+  function rewardCellHtml(item, opts) {
     var unlocked = !!opts.unlockedSet[item.id];
-    var previewTeaser = index < PREVIEW_VISIBLE_COUNT;
     var cls = 'lumi-con-reward-cell';
     if (unlocked) cls += ' is-unlocked';
-    else if (previewTeaser) cls += ' is-preview';
     else cls += ' is-locked';
     return (
       '<div class="' +
@@ -493,7 +523,7 @@
       escapeHtml(mascot2Asset(item.file)) +
       '" alt="" width="56" height="56" decoding="async">' +
       (unlocked ? '<span class="lumi-con-reward-check" aria-hidden="true">✓</span>' : '') +
-      (!unlocked && !previewTeaser ? '<span class="lumi-con-reward-lock" aria-hidden="true">🔒</span>' : '') +
+      (!unlocked ? '<span class="lumi-con-reward-lock" aria-hidden="true">🔒</span>' : '') +
       '</div>' +
       '<span class="lumi-con-reward-cell-label">' +
       escapeHtml(item.label) +
@@ -509,27 +539,38 @@
     var actionsEl = modal.querySelector('#lumiConRewardModalActions');
     if (!descEl || !gridEl || !actionsEl) return;
 
-    ensureLocalGuideUnlock();
+    var previewOnly = !!opts.previewOnly;
     var eligible = isGuideRewardEligible();
-    var unlockedSet = getDisplayUnlockedSet();
-    var claimed = getUnlockedIds().length >= CATALOG.length;
+    var progressCount = getProgressUnlockedCount();
+    var claimed = hasFullyClaimed();
+    var unlockedSet = claimed ? getAllCatalogUnlockedSet() : getProgressUnlockedSet();
 
     if (claimed) {
       descEl.textContent = '모든 루미콘을 받았어요! 커뮤니티 댓글에서 사용해 보세요.';
+    } else if (previewOnly) {
+      descEl.textContent = '해금 상태: ' + progressCount + '개의 이미지 해금 완료';
     } else if (eligible) {
       descEl.textContent =
-        '5단계 학습을 모두 마쳤어요. 루미콘은 이미 사용할 수 있고, 보상 받기를 누르면 계정에도 저장돼요.';
+        '5단계 학습을 모두 마쳤어요. 보상 받기를 누른 뒤 받기를 눌러 주세요.';
     } else {
-      descEl.textContent =
-        '학습 가이드 5단계를 모두 완료하면 루미콘 ' + CATALOG.length + '종을 받을 수 있어요.';
+      descEl.textContent = '해금 상태: ' + progressCount + '개의 이미지 해금 완료';
     }
 
-    gridEl.innerHTML = CATALOG.map(function (item, index) {
-      return rewardCellHtml(item, index, { unlockedSet: unlockedSet });
+    gridEl.innerHTML = CATALOG.map(function (item) {
+      return rewardCellHtml(item, { unlockedSet: unlockedSet });
     }).join('');
 
     actionsEl.innerHTML = '';
-    if (eligible && !claimed) {
+    if (previewOnly) {
+      var previewBtn = document.createElement('button');
+      previewBtn.type = 'button';
+      previewBtn.className = 'btn-primary lumi-con-reward-close-btn';
+      previewBtn.textContent = claimed ? '확인' : '닫기';
+      previewBtn.addEventListener('click', function () {
+        closeRewardPreviewModal();
+      });
+      actionsEl.appendChild(previewBtn);
+    } else if (eligible && !claimed) {
       var claimBtn = document.createElement('button');
       claimBtn.type = 'button';
       claimBtn.className = 'btn-primary lumi-con-reward-claim-btn';
@@ -541,20 +582,25 @@
             descEl.textContent =
               '루미콘을 받았어요! 커뮤니티에서 사용하려면 로그인 후 다시 보상 받기를 눌러 주세요.';
           }
-          if (typeof opts.onClaimed === 'function') opts.onClaimed();
         });
       });
       actionsEl.appendChild(claimBtn);
+    } else if (claimed && typeof opts.onClaimed === 'function') {
+      var receiveBtn = document.createElement('button');
+      receiveBtn.type = 'button';
+      receiveBtn.className = 'btn-primary lumi-con-reward-close-btn';
+      receiveBtn.textContent = '받기';
+      receiveBtn.addEventListener('click', function () {
+        closeRewardPreviewModal();
+        opts.onClaimed();
+      });
+      actionsEl.appendChild(receiveBtn);
     } else {
       var closeBtn = document.createElement('button');
       closeBtn.type = 'button';
       closeBtn.className = 'btn-primary lumi-con-reward-close-btn';
-      closeBtn.textContent = claimed ? '커뮤니티에서 사용하기' : '닫기';
+      closeBtn.textContent = claimed ? '확인' : '닫기';
       closeBtn.addEventListener('click', function () {
-        if (claimed) {
-          window.location.href = 'community.html';
-          return;
-        }
         closeRewardPreviewModal();
       });
       actionsEl.appendChild(closeBtn);
@@ -591,7 +637,9 @@
   }
 
   function ensureServerSynced() {
-    ensureLocalGuideUnlock();
+    if (!hasFullyClaimed()) {
+      return Promise.resolve({ ok: false, reason: 'not_claimed' });
+    }
     return syncToServer();
   }
 
@@ -628,14 +676,20 @@
     return false;
   }
 
+  function buildPickerWrapHtml() {
+    return (
+      '<div class="lumi-con-picker-wrap">' +
+      buildPickerButtonHtml() +
+      buildPickerPopoverHtml() +
+      '</div>'
+    );
+  }
+
   function enhanceCommentFormMarkup(markup) {
     return markup.replace(
       '<button type="submit" class="btn-primary community-comment-submit">등록</button>',
       '<div class="community-comment-form-buttons">' +
-        '<div class="lumi-con-picker-wrap">' +
-        buildPickerButtonHtml() +
-        buildPickerPopoverHtml(getUsableIds()) +
-        '</div>' +
+        buildPickerWrapHtml() +
         '<button type="submit" class="btn-primary community-comment-submit">등록</button>' +
         '</div>'
     );
@@ -644,12 +698,13 @@
   window.LumiCon = {
     catalog: CATALOG.slice(),
     countClearedBeginnerSteps: countClearedBeginnerSteps,
+    getProgressUnlockedCount: getProgressUnlockedCount,
+    hasFullyClaimed: hasFullyClaimed,
     isGuideRewardEligible: isGuideRewardEligible,
     getUnlockedIds: getUnlockedIds,
     getUsableIds: getUsableIds,
     isUnlocked: isUnlocked,
     hasAnyUnlocked: hasAnyUnlocked,
-    ensureLocalGuideUnlock: ensureLocalGuideUnlock,
     ensureServerSynced: ensureServerSynced,
     buildEditorHtml: buildEditorHtml,
     getCommentInput: getCommentInput,
@@ -663,19 +718,16 @@
     assetUrlForId: assetUrlForId,
     renderBodyHtml: renderBodyHtml,
     bindPicker: bindPicker,
+    buildPickerWrapHtml: buildPickerWrapHtml,
     enhanceCommentFormMarkup: enhanceCommentFormMarkup,
     openRewardPreviewModal: openRewardPreviewModal,
     closeRewardPreviewModal: closeRewardPreviewModal,
   };
 
   applyTemporaryGuideFullClear();
-  ensureLocalGuideUnlock();
 
   syncFromServer().then(function () {
-    if (isGuideRewardEligible()) {
-      return ensureServerSynced();
-    }
-    if (hasAnyUnlocked()) {
+    if (hasFullyClaimed()) {
       return ensureServerSynced();
     }
     return null;

@@ -9,7 +9,7 @@
   var backHandler = null;
   var dismissHandler = null;
   var lastPayload = null;
-  /** ×로 최소화 후 「루미 대화」 복원용 — ephemeral(잘못 클릭 caution 등)은 덮어쓰지 않음 */
+  /** ×로 최소화 후 「루미 가이드」 복원용 — ephemeral(잘못 클릭 caution 등)은 덮어쓰지 않음 */
   var lastDockPayload = null;
 
   /** 도크 재오픈 시 여러 모듈이 덮어쓰지 않도록 우선순위 체인 (숫자 클수록 먼저 시도) */
@@ -42,7 +42,7 @@
   function syncGuideDockLabel() {
     var dockBtn = document.getElementById('mascotCoachDockBtn');
     if (!dockBtn) return;
-    dockBtn.textContent = '루미 대화';
+    dockBtn.textContent = '루미 가이드';
   }
 
   if (isGuideLumiSession()) {
@@ -114,6 +114,8 @@
       document.body.classList.contains('market-step1-active') ||
       document.body.classList.contains('market-step2-active') ||
       document.body.classList.contains('market-step3-active') ||
+      document.body.classList.contains('market-step4-active') ||
+      document.body.classList.contains('market-step4-pending') ||
       document.body.classList.contains('simulation-step5-active') ||
       document.body.classList.contains('tutorial-step1-active')
     ) {
@@ -129,6 +131,8 @@
         t === '2' ||
         t === 'step3' ||
         t === '3' ||
+        t === 'step4' ||
+        t === '4' ||
         t === 'step5' ||
         t === '5'
       ) {
@@ -138,11 +142,13 @@
     var o1 = document.getElementById('marketStep1Overlay');
     var o2 = document.getElementById('marketStep2Overlay');
     var o3 = document.getElementById('marketStep3Overlay');
+    var o4 = document.getElementById('marketStep4Overlay');
     var o5 = document.getElementById('simStep5Overlay');
     var homeOv = document.getElementById('tutorialOverlay');
     if (o1 && o1.classList.contains('is-open')) return true;
     if (o2 && o2.classList.contains('is-open')) return true;
     if (o3 && o3.classList.contains('is-open')) return true;
+    if (o4 && o4.classList.contains('is-open')) return true;
     if (o5 && o5.classList.contains('is-open')) return true;
     if (homeOv && homeOv.classList.contains('is-open')) return true;
     return false;
@@ -155,11 +161,15 @@
         if (!fromDock) return null;
         if (isTutorialSessionActive()) return null;
         var m = 0;
-        try {
-          m = parseInt(localStorage.getItem(DOCK_TUTORIAL_MASK_KEY), 10);
-          if (isNaN(m) || m < 0) m = 0;
-        } catch (e) {
-          m = 0;
+        if (window.JurinTutorialUtil && typeof window.JurinTutorialUtil.readTutorialBitsMask === 'function') {
+          m = window.JurinTutorialUtil.readTutorialBitsMask();
+        } else {
+          try {
+            m = parseInt(localStorage.getItem(DOCK_TUTORIAL_MASK_KEY + ':anon'), 10);
+            if (isNaN(m) || m < 0) m = 0;
+          } catch (e) {
+            m = 0;
+          }
         }
         if ((m & (1 << 2)) !== 0) {
           return {
@@ -220,6 +230,16 @@
     welcome: '👋',
     info: '💡',
     wink: '😉',
+    happy: '😊',
+    excited: '😃',
+    curious: '🧐',
+    chart: '📈',
+    studying: '📚',
+    idea: '💡',
+    good_idea: '✨',
+    struggling: '😅',
+    sleepy: '😴',
+    angry: '😤',
   };
 
   function handleDismissClick() {
@@ -231,10 +251,25 @@
       try {
         window.__jurinGuideQuit();
       } catch (e) { /* ignore */ }
+      document.body.classList.remove('mascot-coach-minimized');
       endGuideLumiSession();
       return;
     }
     innerCloseCoach();
+  }
+
+  function handleCloseClick() {
+    var keepDock = isTutorialSessionActive();
+    innerCloseCoach();
+    if (keepDock) {
+      startGuideLumiSession();
+      document.body.classList.add('mascot-coach-minimized');
+      var dock = document.getElementById('mascotCoachDock');
+      if (dock && !document.body.classList.contains('guide-page')) {
+        dock.style.display = 'flex';
+      }
+      syncGuideDockLabel();
+    }
   }
 
   function innerCloseCoach() {
@@ -250,7 +285,7 @@
     }
     document.body.classList.remove('mascot-coach-spotlight-dim');
     if (dock) {
-      /* 가이드 페이지: 튜토리얼 설명 후 좌하단 「루미 대화」 도크 미표시 */
+      /* 가이드 페이지: 튜토리얼 설명 후 좌하단 「루미 가이드」 도크 미표시 */
       dock.style.display = document.body.classList.contains('guide-page') ? 'none' : '';
     }
     syncGuideDockLabel();
@@ -281,6 +316,12 @@
         existingDismiss.addEventListener('click', handleDismissClick);
         existingDismiss.setAttribute('data-jurin-dismiss-bound', '1');
       }
+      var existingClose = document.getElementById('mascotCoachClose');
+      if (existingClose && existingClose.getAttribute('data-jurin-close-bound') !== '1') {
+        existingClose.addEventListener('click', handleCloseClick);
+        existingClose.setAttribute('data-jurin-close-bound', '1');
+      }
+      syncGuideDockLabel();
       return root;
     }
     var html =
@@ -308,7 +349,7 @@
       '</aside>' +
       '<div class="mascot-coach-dock" id="mascotCoachDock" style="display:none;">' +
       '  <img src="' + dockImage + '" alt="루미" class="mascot-coach-dock-image" />' +
-      '  <button type="button" class="mascot-coach-dock-btn" id="mascotCoachDockBtn">루미 대화</button>' +
+      '  <button type="button" class="mascot-coach-dock-btn" id="mascotCoachDockBtn">루미 가이드</button>' +
       '</div>';
     document.body.insertAdjacentHTML('beforeend', html);
     root = document.getElementById('mascotCoach');
@@ -318,7 +359,7 @@
     var backBtn = document.getElementById('mascotCoachBack');
     var dock = document.getElementById('mascotCoachDock');
     var dockBtn = document.getElementById('mascotCoachDockBtn');
-    if (closeBtn) closeBtn.addEventListener('click', innerCloseCoach);
+    if (closeBtn) closeBtn.addEventListener('click', handleCloseClick);
     if (confirmBtn) {
       confirmBtn.addEventListener('click', function () {
         if (typeof confirmHandler === 'function') {
@@ -342,12 +383,11 @@
     if (dockBtn) {
       syncGuideDockLabel();
       dockBtn.addEventListener('click', function () {
-        if (
-          window.LumiChat &&
-          typeof window.LumiChat.open === 'function' &&
-          !isGuideLumiSession() &&
-          !isTutorialSessionActive()
-        ) {
+        if (isTutorialSessionActive() || isGuideLumiSession()) {
+          reopenFromDock();
+          return;
+        }
+        if (window.LumiChat && typeof window.LumiChat.open === 'function') {
           window.LumiChat.open();
           return;
         }
@@ -376,9 +416,27 @@
     return true;
   }
 
+  var KNOWN_MOODS = {
+    success: true,
+    caution: true,
+    welcome: true,
+    info: true,
+    wink: true,
+    happy: true,
+    excited: true,
+    curious: true,
+    chart: true,
+    studying: true,
+    idea: true,
+    good_idea: true,
+    struggling: true,
+    sleepy: true,
+    angry: true,
+  };
+
   function resolveMood(mood) {
     var m = String(mood || '').toLowerCase();
-    if (m === 'success' || m === 'caution' || m === 'welcome' || m === 'info' || m === 'wink') return m;
+    if (KNOWN_MOODS[m]) return m;
     return 'info';
   }
 
@@ -390,7 +448,7 @@
     }
   }
 
-  function typewrite(textEl, fullText, htmlFull) {
+  function typewrite(textEl, fullText) {
     typingToken += 1;
     var token = typingToken;
     if (!textEl) return;
@@ -402,9 +460,6 @@
     window.__mascotFullText = plain;
     textEl.textContent = '';
     var index = 0;
-    function finishType() {
-      if (htmlFull) textEl.innerHTML = htmlFull;
-    }
     function tick() {
       if (token !== typingToken) return;
       index += 1;
@@ -413,7 +468,6 @@
         typingTimer = setTimeout(tick, 32);
       } else {
         typingTimer = null;
-        finishType();
       }
     }
     tick();
@@ -427,9 +481,16 @@
       : DEFAULT_IMAGES;
     var title = (payload && payload.title) ? String(payload.title) : '안녕? 반가워! 나는 주린이 가이드 담당 루미야.';
     var text = (payload && payload.text) ? String(payload.text) : '지금부터 기초적인 시세 보는 법을 같이 알아보자.';
-    var imageSrc = images[mood] || DEFAULT_IMAGES[mood];
+    var hideVisuals = Boolean(payload && payload.hideVisuals === true);
+    var imageSrc =
+      hideVisuals
+        ? ''
+        : payload && payload.image
+          ? String(payload.image)
+          : images[mood] || DEFAULT_IMAGES[mood] || DEFAULT_IMAGES.info;
 
     var badge = document.getElementById('mascotCoachBadge');
+    var imageWrap = document.getElementById('mascotCoachImageWrap');
     var titleEl = document.getElementById('mascotCoachTitle');
     var textEl = document.getElementById('mascotCoachText');
     var img = document.getElementById('mascotCoachImage');
@@ -446,8 +507,14 @@
       root.classList.remove('mascot-coach--spotlight');
       document.body.classList.remove('mascot-coach-spotlight-dim');
     }
+    root.classList.toggle('mascot-coach--text-only', hideVisuals);
 
     if (badge) {
+      if (hideVisuals) {
+        badge.style.display = 'none';
+      } else {
+        badge.style.display = '';
+      }
       badge.className = 'mascot-coach-badge ' + mood;
       badge.textContent = {
         success: '성취/이득',
@@ -455,20 +522,25 @@
         welcome: '기본/환영',
         info: '정보/똑똑이',
         wink: '응원/눈웃음',
-      }[mood];
+        happy: '기분 좋음',
+        excited: '신남',
+        curious: '궁금',
+        chart: '차트 분석',
+        studying: '공부 중',
+        angry: '집중!',
+      }[mood] || '루미';
     }
     if (titleEl) titleEl.textContent = title;
     if (textEl) {
-      var textHtml = formatCoachHtml(text);
       if (payload && payload.instantText) {
         typingToken += 1;
         if (typingTimer) {
           clearTimeout(typingTimer);
           typingTimer = null;
         }
-        textEl.innerHTML = textHtml;
+        textEl.textContent = coachPlainText(text);
       } else {
-        typewrite(textEl, text, textHtml);
+        typewrite(textEl, text);
       }
     }
     lastPayload = payload ? Object.assign({}, payload) : null;
@@ -503,17 +575,26 @@
       dismissBtn.className = dismissText === 'X' ? 'tutorial-btn-ghost mascot-coach-btn-quiz' : 'mascot-coach-btn-end';
     }
 
+    if (imageWrap) {
+      imageWrap.style.display = hideVisuals ? 'none' : '';
+    }
     if (img && fallback) {
-      fallback.style.display = 'none';
-      img.style.display = '';
-      img.onerror = function () {
+      if (hideVisuals) {
         img.style.display = 'none';
-        fallback.style.display = '';
-        fallback.textContent = FALLBACK_EMOJI[mood] || '💡';
-      };
-      img.src = imageSrc;
+        fallback.style.display = 'none';
+      } else {
+        fallback.style.display = 'none';
+        img.style.display = '';
+        img.onerror = function () {
+          img.style.display = 'none';
+          fallback.style.display = '';
+          fallback.textContent = FALLBACK_EMOJI[mood] || '💡';
+        };
+        img.src = imageSrc;
+      }
     }
 
+    document.body.classList.remove('mascot-coach-minimized');
     if (dock) dock.style.display = 'none';
     root.classList.add('is-open');
     if (!fromDock) {
@@ -524,6 +605,7 @@
   function hideDock() {
     var dock = document.getElementById('mascotCoachDock');
     if (dock) dock.style.display = 'none';
+    document.body.classList.remove('mascot-coach-minimized');
     lastDockPayload = null;
   }
 

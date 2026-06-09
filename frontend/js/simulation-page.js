@@ -82,12 +82,20 @@
     el.innerHTML = formatTradeConfirmStockHtml(name, code);
   }
 
+  function formatMarketPriceConfirmLine() {
+    return '시장가(' + MARKET_PRICE_LABEL + ')';
+  }
+
   function setTradeConfirmPriceLine(el, amountText, tagLabel) {
     if (!el) return;
     var amt = String(amountText || '').trim();
     var tag = String(tagLabel || '').trim();
     if (!amt || amt === '—') {
       el.textContent = '—';
+      return;
+    }
+    if (tag === '시장가' && amt === MARKET_PRICE_LABEL) {
+      el.textContent = formatMarketPriceConfirmLine();
       return;
     }
     if (!tag) {
@@ -217,23 +225,23 @@
     setText('#holdingModalTabSell', '매도');
     setText('#holdingModalTabBuy', '매수');
     setText('label[for="sellModalQty"]', '수량');
-    setText('label[for="sellModalLimitPrice"]', '판매 가격');
+    setText('label[for="sellModalLimitPrice"]', '주문 가격');
     setAttr('#sellModalLimitPrice', 'placeholder', '');
     setAttr('#sellModalLimitPricePlus', 'aria-label', '판매가 1틱 올리기');
     setAttr('#sellModalLimitPriceMinus', 'aria-label', '판매가 1틱 내리기');
     setText('#sellModalRefPriceLabel', '참고 시세');
-    setText('#sellModalEstLabel', '예상 체결금');
+    setText('#sellModalEstLabel', '예상 입금액');
     setText('label[for="holdingBuyQty"]', '수량');
-    setText('label[for="holdingBuyLimitPrice"]', '구매 가격');
+    setText('label[for="holdingBuyLimitPrice"]', '주문 가격');
     setAttr('#holdingBuyLimitPrice', 'placeholder', '');
     setAttr('#holdingBuyLimitPricePlus', 'aria-label', '구매가 1틱 올리기');
     setAttr('#holdingBuyLimitPriceMinus', 'aria-label', '구매가 1틱 내리기');
     setText('#holdingBuyRefPriceLabel', '참고 시세');
-    setText('#holdingBuyEstLabel', '예상 구매금액');
+    setText('#holdingBuyEstLabel', '예상 결제액');
     var sellExec = document.querySelector('.holding-modal-cta-sell');
-    if (sellExec) sellExec.textContent = '판매하기';
+    if (sellExec) sellExec.textContent = '매도하기';
     var holdingBuyExec = document.querySelector('.holding-modal-cta-buy');
-    if (holdingBuyExec) holdingBuyExec.textContent = '구매하기';
+    if (holdingBuyExec) holdingBuyExec.textContent = '매수하기';
 
     setText('#buyModalHeading', '매수 주문');
     setText('#buyModal .trade-confirm-row:nth-of-type(1) span:first-child', '종목');
@@ -295,10 +303,76 @@
     return 1000;
   }
 
+  var MARKET_PRICE_LABEL = '가장 빠른 금액';
+
+  function isMarketPriceLabelValue(v) {
+    return String(v || '').trim() === MARKET_PRICE_LABEL;
+  }
+
+  function parseLimitPriceInput(inp) {
+    if (!inp) return 0;
+    var raw = String(inp.value || '').trim();
+    if (!raw || isMarketPriceLabelValue(raw)) return 0;
+    var n = parseInt(raw.replace(/[^\d]/g, ''), 10);
+    return Number.isFinite(n) && n > 0 ? n : 0;
+  }
+
+  function applyMarketPriceInputDisplay(inp, market) {
+    if (!inp) return;
+    if (market) {
+      inp.readOnly = true;
+      inp.disabled = false;
+      inp.value = MARKET_PRICE_LABEL;
+      inp.placeholder = '';
+      inp.classList.add('price-input--market-label');
+      inp.setAttribute('inputmode', 'none');
+    } else {
+      inp.readOnly = false;
+      inp.disabled = false;
+      if (isMarketPriceLabelValue(inp.value)) inp.value = '';
+      inp.placeholder = '';
+      inp.classList.remove('price-input--market-label');
+      inp.setAttribute('inputmode', 'numeric');
+    }
+  }
+
+  function priceOneTickAbove(ref) {
+    var r = Math.floor(Number(ref) || 0);
+    if (r <= 0) return 0;
+    var tick = krxTickSize(r);
+    return r + tick;
+  }
+
+  function priceOneTickBelow(ref) {
+    var r = Math.floor(Number(ref) || 0);
+    if (r <= 0) return 0;
+    var tick = krxTickSize(r);
+    return Math.max(tick, r - tick);
+  }
+
+  function defaultLimitPriceFromBook(side, refPx, orderbookData) {
+    var ref = Math.floor(Number(refPx) || 0);
+    var book = orderbookData || null;
+    var asks = book && Array.isArray(book.asks) ? book.asks : [];
+    var bids = book && Array.isArray(book.bids) ? book.bids : [];
+    if (side === 'BUY') {
+      if (asks.length > 0) {
+        var askPx = Math.floor(Number(asks[0].price) || 0);
+        if (askPx > 0) return askPx;
+      }
+      return ref > 0 ? priceOneTickAbove(ref) : 0;
+    }
+    if (bids.length > 0) {
+      var bidPx = Math.floor(Number(bids[0].price) || 0);
+      if (bidPx > 0) return bidPx;
+    }
+    return ref > 0 ? priceOneTickBelow(ref) : 0;
+  }
+
   function referencePriceForTick() {
     var inp = document.getElementById('tradeLimitPrice');
-    var v = inp && inp.value !== '' ? parseInt(inp.value, 10) : NaN;
-    if (!Number.isNaN(v) && v > 0) return v;
+    var v = inp ? parseLimitPriceInput(inp) : 0;
+    if (v > 0) return v;
     if (typeof window.lastDiscoveryQuotePrice === 'number' && window.lastDiscoveryQuotePrice > 0) {
       return window.lastDiscoveryQuotePrice;
     }
@@ -326,7 +400,6 @@
   }
 
   async function tryRefreshBuyDisplayPriceAsync() {
-    if (!isBuyMarketMode()) return;
     var h = document.getElementById('tradeStockCode');
     var code = h && h.value ? String(h.value).trim() : '';
     if (!isSixDigitCode(code)) return;
@@ -334,10 +407,10 @@
       var d = await fetchAskingPriceWithGuard(code, { force: false });
       if (d && d.success) {
         var ep = Number(d.expected_exec_price || 0);
-        if (ep > 0) {
-          rememberMarketQuote(code, '', ep);
-          var inp = document.getElementById('tradeLimitPrice');
-          if (inp && isBuyMarketMode()) inp.value = String(Math.round(ep));
+        if (ep > 0) rememberMarketQuote(code, '', ep);
+        var inp = document.getElementById('tradeLimitPrice');
+        if (inp && !isBuyMarketMode()) {
+          applyLimitPriceIfEmpty(inp, 'BUY', buyReferencePrice(), code);
         }
       }
     } catch (e) { /* ignore */ }
@@ -357,24 +430,15 @@
       lBtn.setAttribute('aria-pressed', market ? 'false' : 'true');
     }
     if (inp) {
-      inp.disabled = !!market;
       if (plus) plus.disabled = !!market;
       if (minus) minus.disabled = !!market;
       if (cell) cell.classList.toggle('is-market-mode', !!market);
       if (market) {
-        var rpM = buyReferencePrice();
-        if (rpM > 0) {
-          inp.value = String(Math.round(rpM));
-        } else {
-          inp.value = '';
-          void tryRefreshBuyDisplayPriceAsync();
-        }
+        applyMarketPriceInputDisplay(inp, true);
       } else {
-        var cur = inp.value !== '' ? parseInt(inp.value, 10) : NaN;
-        if (Number.isNaN(cur) || cur <= 0) {
-          var rp = buyReferencePrice();
-          if (rp > 0) inp.value = String(Math.round(rp));
-        }
+        applyMarketPriceInputDisplay(inp, false);
+        var code = (document.getElementById('tradeStockCode') || {}).value || '';
+        applyLimitPriceIfEmpty(inp, 'BUY', buyReferencePrice(), String(code).trim());
       }
     }
     updateTradeTickHint();
@@ -397,21 +461,26 @@
     return 0;
   }
 
-  async function tryRefreshSellDisplayPriceAsync() {
-    if (!isSellMarketMode()) return;
+  function getSellStockCode() {
     var sel = document.getElementById('tradeSellStock');
     var key = sel && sel.value ? String(sel.value) : '';
-    if (!key || !portfolio.holdings[key]) return;
-    var code = portfolio.holdings[key].code && String(portfolio.holdings[key].code).trim();
+    if (!key || !portfolio.holdings[key]) return '';
+    var h = portfolio.holdings[key];
+    var code = h.code && String(h.code).trim();
+    return isSixDigitCode(code) ? code : '';
+  }
+
+  async function tryRefreshSellDisplayPriceAsync() {
+    var code = getSellStockCode();
     if (!isSixDigitCode(code)) return;
     try {
       var d = await fetchAskingPriceWithGuard(code, { force: false });
       if (d && d.success) {
         var ep = Number(d.expected_exec_price || 0);
-        if (ep > 0) {
-          rememberMarketQuote(code, '', ep);
-          var inp = document.getElementById('tradeSellLimitPrice');
-          if (inp && isSellMarketMode()) inp.value = String(Math.round(ep));
+        if (ep > 0) rememberMarketQuote(code, '', ep);
+        var inp = document.getElementById('tradeSellLimitPrice');
+        if (inp && !isSellMarketMode()) {
+          applyLimitPriceIfEmpty(inp, 'SELL', sellReferencePrice(), code);
         }
       }
     } catch (e) { /* ignore */ }
@@ -431,24 +500,14 @@
       lBtn.setAttribute('aria-pressed', market ? 'false' : 'true');
     }
     if (inp) {
-      inp.disabled = !!market;
       if (plus) plus.disabled = !!market;
       if (minus) minus.disabled = !!market;
       if (cell) cell.classList.toggle('is-market-mode', !!market);
       if (market) {
-        var rpM = sellReferencePrice();
-        if (rpM > 0) {
-          inp.value = String(Math.round(rpM));
-        } else {
-          inp.value = '';
-          void tryRefreshSellDisplayPriceAsync();
-        }
+        applyMarketPriceInputDisplay(inp, true);
       } else {
-        var cur = inp.value !== '' ? parseInt(inp.value, 10) : NaN;
-        if (Number.isNaN(cur) || cur <= 0) {
-          var rp = sellReferencePrice();
-          if (rp > 0) inp.value = String(Math.round(rp));
-        }
+        applyMarketPriceInputDisplay(inp, false);
+        applyLimitPriceIfEmpty(inp, 'SELL', sellReferencePrice(), getSellStockCode());
       }
     }
   }
@@ -457,7 +516,7 @@
     if (isBuyMarketMode()) return;
     var inp = document.getElementById('tradeLimitPrice');
     if (!inp) return;
-    var cur = inp.value !== '' ? parseInt(inp.value, 10) : NaN;
+    var cur = parseLimitPriceInput(inp);
     var ref = referencePriceForTick();
     var tick = krxTickSize(!Number.isNaN(cur) && cur > 0 ? cur : ref);
     var next;
@@ -527,6 +586,7 @@
       el.setAttribute('aria-hidden', 'true');
       resetOrderbookOverlaySizing();
     }
+    clearOrderbookPoll();
   }
 
   let selectedOrderbookCode = '';
@@ -558,20 +618,7 @@
         var arr = JSON.parse(rawP);
         if (Array.isArray(arr)) pendingOrders = arr;
       }
-      var rawE = localStorage.getItem(LS_MOCK_EVENTS);
-      if (rawE) {
-        var evs = JSON.parse(rawE);
-        if (Array.isArray(evs)) {
-          var baseMs = Date.now();
-          orderStatusEvents = evs.map(function (e, i) {
-            if (!e || typeof e !== 'object') return e;
-            if (typeof e.atMs !== 'number' || !Number.isFinite(e.atMs)) {
-              e.atMs = baseMs - i * 60000;
-            }
-            return e;
-          });
-        }
-      }
+      reloadOrderStatusEventsFromStorage();
       var rawS = localStorage.getItem(LS_MOCK_PENDING_SEQ);
       if (rawS) {
         var n = parseInt(rawS, 10);
@@ -583,6 +630,43 @@
       });
     } catch (e) { /* ignore */ }
     purgeStaleOrderBoardItems();
+  }
+
+  function reloadOrderStatusEventsFromStorage() {
+    try {
+      var evs = null;
+      if (window.JurinMockOrderBoard && typeof window.JurinMockOrderBoard.readEvents === 'function') {
+        evs = window.JurinMockOrderBoard.readEvents();
+      } else {
+        var rawE = localStorage.getItem(LS_MOCK_EVENTS);
+        if (rawE) evs = JSON.parse(rawE);
+      }
+      if (!Array.isArray(evs)) return;
+      var baseMs = Date.now();
+      orderStatusEvents = evs.map(function (e, i) {
+        if (!e || typeof e !== 'object') return e;
+        if (typeof e.atMs !== 'number' || !Number.isFinite(e.atMs)) {
+          e.atMs = baseMs - i * 60000;
+        }
+        return e;
+      });
+      renderOrderStatusBoard();
+    } catch (e) { /* ignore */ }
+  }
+
+  function reloadPendingOrdersFromStorage() {
+    try {
+      if (window.JurinMockOrderBoard && typeof window.JurinMockOrderBoard.readPendingOrders === 'function') {
+        pendingOrders = window.JurinMockOrderBoard.readPendingOrders();
+        var seq = window.JurinMockOrderBoard.getPendingSeq();
+        if (seq > pendingOrderSeq) pendingOrderSeq = seq;
+        pendingOrders.forEach(function (o) {
+          if (o && typeof o.id === 'number' && o.id >= pendingOrderSeq) pendingOrderSeq = o.id + 1;
+          ensurePendingOrderSessionFields(o);
+        });
+        renderOrderStatusBoard();
+      }
+    } catch (e) { /* ignore */ }
   }
 
   /** 미로그인·로그아웃 시: 로컬 주문/체결 UI는 다른 사용자·이전 세션과 섞이지 않도록 제거 */
@@ -604,8 +688,41 @@
   let askingPriceCacheByCode = Object.create(null);
   let askingPriceInflightByCode = Object.create(null);
   let askingPriceCooldownUntilMs = 0;
-  const ASKING_PRICE_CACHE_MS = 3000;
+  const ASKING_PRICE_CACHE_MS = 15000;
   const ASKING_PRICE_COOLDOWN_MS = 18000;
+
+  function isOrderbookOverlayOpen() {
+    var el = document.getElementById('orderbookOverlay');
+    return !!(el && el.classList.contains('is-open'));
+  }
+
+  function isAskingRateLimited(status, message) {
+    if (Number(status) === 429) return true;
+    var m = String(message || '');
+    return /초당|한도|Too Many|429/i.test(m);
+  }
+
+  function applyAskingPriceCooldown(retryAfterSec) {
+    var sec = Number(retryAfterSec);
+    if (!Number.isFinite(sec) || sec <= 0) {
+      sec = ASKING_PRICE_COOLDOWN_MS / 1000;
+    }
+    askingPriceCooldownUntilMs = Date.now() + Math.round(sec * 1000);
+  }
+
+  function getCachedOrderbookForCode(code) {
+    var c = String(code || '').trim();
+    if (!isSixDigitCode(c)) return null;
+    var cached = askingPriceCacheByCode[c];
+    return cached && cached.data ? cached.data : null;
+  }
+
+  function applyLimitPriceIfEmpty(inp, side, refPx, code) {
+    if (!inp) return;
+    if (parseLimitPriceInput(inp) > 0) return;
+    var px = defaultLimitPriceFromBook(side, refPx, getCachedOrderbookForCode(code));
+    if (px > 0) inp.value = String(px);
+  }
 
   function isSixDigitCode(v) {
     return /^\d{6}$/.test(String(v || '').trim());
@@ -903,6 +1020,24 @@
     return refPx < limPx;
   }
 
+  /** 백엔드 _resolve_mock_execution_price 와 동일 — marketable 시 현재가, 아니면 0 */
+  function resolveMockExecutionPrice(side, refPx, limPx) {
+    var ref = Math.floor(Number(refPx) || 0);
+    var lim = Math.floor(Number(limPx) || 0);
+    if (ref <= 0) return lim > 0 ? lim : 0;
+    if (lim <= 0) return ref;
+    if (side === 'BUY') return lim >= ref ? ref : 0;
+    return lim <= ref ? ref : 0;
+  }
+
+  function resolveSellUnitPrice(refPx, limPx) {
+    var ref = Math.floor(Number(refPx) || 0);
+    var lim = Math.floor(Number(limPx) || 0);
+    if (lim <= 0) return ref;
+    var exec = resolveMockExecutionPrice('SELL', ref, lim);
+    return exec > 0 ? exec : lim;
+  }
+
   function getOrderableCash() {
     var s = portfolio.summary;
     if (s && typeof s.cash_balance === 'number' && !Number.isNaN(s.cash_balance)) {
@@ -927,9 +1062,12 @@
 
   async function resolveBuyUnitPrice(limPx, stockRef) {
     var lim = Number(limPx) || 0;
-    if (lim > 0) return Math.floor(lim);
-    var px = await getLatestMarketPrice(stockRef);
-    return Number(px) > 0 ? Math.floor(px) : 0;
+    var ref = await getLatestMarketPrice(stockRef);
+    ref = Number(ref) > 0 ? Math.floor(ref) : 0;
+    if (lim <= 0) return ref;
+    var exec = resolveMockExecutionPrice('BUY', ref, lim);
+    if (exec > 0) return exec;
+    return Math.floor(lim);
   }
 
   function validateBuyAffordability(quantity, unitPx, excludePendingId) {
@@ -988,7 +1126,7 @@
     if (qtyLine) qtyLine.textContent = qty > 0 ? qty.toLocaleString() + '주' : '—';
     if (unitLine) {
       if (unitPx > 0) {
-        var unitSuffix = ctx.market ? ' (시장가)' : ctx.limitLabel || '';
+        var unitSuffix = ctx.market ? ' (' + MARKET_PRICE_LABEL + ')' : ctx.limitLabel || '';
         unitLine.textContent = formatCurrency(unitPx) + unitSuffix;
       } else {
         unitLine.textContent = '—';
@@ -1335,6 +1473,7 @@
       at: evt.at || nowStamp(),
       atMs: tsMs,
       stock: stockLabel,
+      stockRef: String(evt.stockRef || '').trim(),
       side: evt.side === 'SELL' ? 'SELL' : 'BUY',
       mode: evt.mode || 'manual',
       status: evt.status || 'executed',
@@ -1358,6 +1497,126 @@
       day: 'numeric',
       weekday: 'long',
     });
+  }
+
+  function formatTradeTimeOnly(ms) {
+    var n = Number(ms);
+    if (!Number.isFinite(n) || n <= 0) return '—';
+    var d = new Date(n);
+    if (Number.isNaN(d.getTime())) return '—';
+    return d.toLocaleTimeString('ko-KR', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+    });
+  }
+
+  function formatOrderStatusDateTimeCompact(ms) {
+    var n = Number(ms);
+    if (!Number.isFinite(n) || n <= 0) return '—';
+    var d = new Date(n);
+    if (Number.isNaN(d.getTime())) return '—';
+    var y = d.getFullYear();
+    var mo = String(d.getMonth() + 1).padStart(2, '0');
+    var day = String(d.getDate()).padStart(2, '0');
+    var wd = d.toLocaleDateString('ko-KR', { weekday: 'short' });
+    var time = d.toLocaleTimeString('ko-KR', { hour12: false });
+    return y + '.' + mo + '.' + day + ' (' + wd + ') ' + time;
+  }
+
+  function orderStatusCalendarIconHtml() {
+    return (
+      '<svg viewBox="0 0 24 24" focusable="false">' +
+      '<rect x="3" y="4" width="18" height="18" rx="2" fill="none" stroke="currentColor" stroke-width="1.7"/>' +
+      '<path d="M3 10h18M8 2v4M16 2v4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>' +
+      '</svg>'
+    );
+  }
+
+  function orderStatusClockIconHtml() {
+    return (
+      '<svg viewBox="0 0 24 24" focusable="false">' +
+      '<circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.7"/>' +
+      '<path d="M12 7v5l3 2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>' +
+      '</svg>'
+    );
+  }
+
+  function buildOrderStatusEventMetaHtml(evt) {
+    var side = evt.side === 'SELL' ? '판매' : '구매';
+    var actCls = evt.side === 'SELL' ? 'sell' : 'buy';
+    var qty = Number(evt.quantity || 0).toLocaleString();
+    var desired = Number(evt.desiredPrice || 0);
+    var executed = Number(evt.executedPrice || 0);
+    var isUnfilled = evt.status === 'failed';
+    var pricePart = '';
+
+    if (isUnfilled) {
+      pricePart = desired > 0 ? '목표가 ' + formatCurrency(desired) : '시장가';
+    } else if (executed > 0) {
+      pricePart = '체결가 ' + formatCurrency(executed);
+      if (desired <= 0) pricePart += ' (시장가)';
+    } else if (desired > 0) {
+      pricePart = '체결가 ' + formatCurrency(desired);
+    }
+
+    return (
+      '<span class="order-status-action order-status-action--' + actCls + '">' + side + '</span>' +
+      ' ' + qty + '주' +
+      (pricePart ? ' <span class="order-status-card-meta-sep">|</span> ' + pricePart : '')
+    );
+  }
+
+  function buildOrderStatusCardHtml(opts) {
+    opts = opts || {};
+    var cardCls = 'order-status-card order-status-card--pending';
+    if (opts.variant === 'done') cardCls += ' order-status-card--done';
+    else if (opts.variant === 'unfilled') cardCls += ' order-status-card--unfilled';
+
+    var scheduleCol =
+      '<div class="order-status-card-col order-status-card-col--schedule">' +
+        '<span class="order-status-card-col-icon" aria-hidden="true">' +
+          orderStatusClockIconHtml() +
+        '</span>' +
+        '<div class="order-status-card-col-body">' +
+          '<span class="order-status-card-col-label">' + escapeHtml(opts.scheduleLabel || '') + '</span>' +
+          (opts.scheduleValue
+            ? '<span class="order-status-card-col-value">' + escapeHtml(opts.scheduleValue) + '</span>'
+            : '') +
+        '</div>' +
+      '</div>';
+
+    var actionsHtml = opts.actionsHtml
+      ? '<div class="order-status-card-actions">' + opts.actionsHtml + '</div>'
+      : '';
+
+    return (
+      '<div class="' + cardCls + '">' +
+        '<div class="order-status-card-main">' +
+          '<div class="order-status-card-identity">' +
+            (opts.logoHtml || '') +
+            '<div class="order-status-card-info">' +
+              '<div class="order-status-card-title-row">' +
+                '<span class="order-status-card-name">' + (opts.nameHtml || '') + '</span>' +
+                '<span class="' + (opts.badgeCls || 'order-status-badge') + '">' + escapeHtml(opts.badgeTxt || '') + '</span>' +
+              '</div>' +
+              '<div class="order-status-card-meta">' + (opts.metaHtml || '') + '</div>' +
+            '</div>' +
+          '</div>' +
+          '<div class="order-status-card-col order-status-card-col--validity">' +
+            '<span class="order-status-card-col-icon" aria-hidden="true">' +
+              orderStatusCalendarIconHtml() +
+            '</span>' +
+            '<div class="order-status-card-col-body">' +
+              '<span class="order-status-card-col-label">' + escapeHtml(opts.validityLabel || '') + '</span>' +
+              '<span class="order-status-card-col-value">' + escapeHtml(opts.validityValue || '') + '</span>' +
+            '</div>' +
+          '</div>' +
+          scheduleCol +
+        '</div>' +
+        actionsHtml +
+      '</div>'
+    );
   }
 
   function formatOrderStatusReason(note) {
@@ -1736,9 +1995,7 @@
       var actCls = o.side === 'SELL' ? 'sell' : 'buy';
       var qty = Number(o.quantity || 0).toLocaleString();
       var stockLabel = resolveStockDisplayLabel(o.stockRef || o.stock, o.stock);
-      var name = escapeHtml(stockLabel);
       var stockCode = resolveOrderStockCode(o);
-      var logo = orderStatusLogoHtml(stockCode, stockLabel);
       var lp = formatCurrency(Number(o.limitPrice || 0));
       var isReserve = o.reason === 'off_hours';
       var badgeTxt = isReserve ? '예약중' : '대기중';
@@ -1750,99 +2007,59 @@
         ? formatPendingValidityRangeText(o)
         : '오늘 장중 · 당일 장 마감까지';
       var scheduleLabel = isReserve ? '자동 체결 예정' : '조건 충족 시 체결';
-      return (
-        '<div class="order-status-card order-status-card--pending">' +
-          '<div class="order-status-card-main">' +
-            '<div class="order-status-card-identity">' +
-              logo +
-              '<div class="order-status-card-info">' +
-                '<div class="order-status-card-title-row">' +
-                  '<span class="order-status-card-name">' + name + '</span>' +
-                  '<span class="' + badgeCls + '">' + badgeTxt + '</span>' +
-                '</div>' +
-                '<div class="order-status-card-meta">' +
-                  '<span class="order-status-action order-status-action--' + actCls + '">' + side + '</span>' +
-                  ' ' + qty + '주 <span class="order-status-card-meta-sep">|</span> 목표가 ' + lp +
-                '</div>' +
-              '</div>' +
-            '</div>' +
-            '<div class="order-status-card-col order-status-card-col--validity">' +
-              '<span class="order-status-card-col-icon" aria-hidden="true">' +
-                '<svg viewBox="0 0 24 24" focusable="false">' +
-                '<rect x="3" y="4" width="18" height="18" rx="2" fill="none" stroke="currentColor" stroke-width="1.7"/>' +
-                '<path d="M3 10h18M8 2v4M16 2v4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>' +
-                '</svg>' +
-              '</span>' +
-              '<div class="order-status-card-col-body">' +
-                '<span class="order-status-card-col-label">' + validityLabel + '</span>' +
-                '<span class="order-status-card-col-value">' + escapeHtml(validityValue) + '</span>' +
-              '</div>' +
-            '</div>' +
-            '<div class="order-status-card-col order-status-card-col--schedule">' +
-              '<span class="order-status-card-col-icon" aria-hidden="true">' +
-                '<svg viewBox="0 0 24 24" focusable="false">' +
-                '<circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.7"/>' +
-                '<path d="M12 7v5l3 2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>' +
-                '</svg>' +
-              '</span>' +
-              '<div class="order-status-card-col-body">' +
-                '<span class="order-status-card-col-label">' + scheduleLabel + '</span>' +
-              '</div>' +
-            '</div>' +
-          '</div>' +
-          '<div class="order-status-card-actions">' +
-            '<button type="button" class="order-status-edit-btn" data-pending-edit="' +
-            escapeHtmlAttr(String(o.id)) +
-            '" aria-label="' +
-            escapeHtmlAttr((o.stock || o.stockRef || '종목') + ' 목표가 수정') +
-            '">가격 수정</button>' +
-            '<button type="button" class="order-status-cancel-btn" data-pending-cancel="' +
-            escapeHtmlAttr(String(o.id)) +
-            '" aria-label="' +
-            escapeHtmlAttr((o.stock || o.stockRef || '종목') + ' 대기 주문 취소') +
-            '">취소</button>' +
-          '</div>' +
-        '</div>'
-      );
+      var metaHtml =
+        '<span class="order-status-action order-status-action--' + actCls + '">' + side + '</span>' +
+        ' ' + qty + '주 <span class="order-status-card-meta-sep">|</span> 목표가 ' + lp;
+      var actionsHtml =
+        '<button type="button" class="order-status-edit-btn" data-pending-edit="' +
+        escapeHtmlAttr(String(o.id)) +
+        '" aria-label="' +
+        escapeHtmlAttr((o.stock || o.stockRef || '종목') + ' 목표가 수정') +
+        '">가격 수정</button>' +
+        '<button type="button" class="order-status-cancel-btn" data-pending-cancel="' +
+        escapeHtmlAttr(String(o.id)) +
+        '" aria-label="' +
+        escapeHtmlAttr((o.stock || o.stockRef || '종목') + ' 대기 주문 취소') +
+        '">취소</button>';
+
+      return buildOrderStatusCardHtml({
+        variant: 'pending',
+        logoHtml: orderStatusLogoHtml(stockCode, stockLabel),
+        nameHtml: escapeHtml(stockLabel),
+        badgeTxt: badgeTxt,
+        badgeCls: badgeCls,
+        metaHtml: metaHtml,
+        validityLabel: validityLabel,
+        validityValue: validityValue,
+        scheduleLabel: scheduleLabel,
+        actionsHtml: actionsHtml,
+      });
     }).join('');
 
     var eventRows = visibleEvents.slice(0, 16).map(function (e) {
-      var side = e.side === 'SELL' ? '판매' : '구매';
-      var actCls = e.side === 'SELL' ? 'sell' : 'buy';
       var isUnfilled = e.status === 'failed';
-      var badgeCls = isUnfilled ? 'fail' : 'done';
+      var stockLabel = resolveStockDisplayLabel(e.stockRef || e.stock, e.stock);
+      var stockCode = resolveOrderStockCode({ stockRef: e.stockRef, stock: e.stock });
+      var dateLine = formatOrderStatusDateTimeCompact(e.atMs);
+      var badgeCls = isUnfilled
+        ? 'order-status-badge order-status-badge--fail'
+        : 'order-status-badge order-status-badge--done';
       var badgeTxt = isUnfilled ? '미체결' : '체결완료';
-      var qty = Number(e.quantity || 0).toLocaleString();
-      var stockLabel = resolveStockDisplayLabel(e.stock, e.stock);
-      var name = escapeHtml(stockLabel);
-      var stockCode = isSixDigitCode(String(e.stock || '').trim()) ? String(e.stock).trim() : '';
-      var logo = orderStatusLogoHtml(stockCode, stockLabel);
-      var dateLine = formatOrderStatusDateLine(e.atMs);
-      var cardCls = isUnfilled ? ' order-status-card--unfilled' : ' order-status-card--done';
-      var reasonRow = isUnfilled ? buildOrderStatusReasonRow(e.note) : '';
-      return (
-        '<div class="order-status-card order-status-card--event' + cardCls + '">' +
-          '<div class="order-status-card-main order-status-card-main--event">' +
-            '<div class="order-status-card-identity">' +
-              logo +
-              '<div class="order-status-card-info">' +
-                '<div class="order-status-card-title-row">' +
-                  '<span class="order-status-card-name">' + name + '</span>' +
-                  '<span class="order-status-badge ' + badgeCls + '">' + badgeTxt + '</span>' +
-                '</div>' +
-                '<div class="order-status-card-meta">' +
-                  '<span class="order-status-action order-status-action--' + actCls + '">' + side + '</span>' +
-                  ' ' + qty + '주' +
-                '</div>' +
-              '</div>' +
-            '</div>' +
-            '<div class="order-status-card-col order-status-card-col--event-time">' +
-              '<span class="order-status-card-col-value">' + escapeHtml(dateLine) + '</span>' +
-            '</div>' +
-          '</div>' +
-          reasonRow +
-        '</div>'
-      );
+      var scheduleLabel = isUnfilled ? '미체결 사유' : '체결 완료';
+      var scheduleValue = isUnfilled ? formatOrderStatusReason(e.note) : '';
+
+      return buildOrderStatusCardHtml({
+        variant: isUnfilled ? 'unfilled' : 'done',
+        logoHtml: orderStatusLogoHtml(stockCode, stockLabel),
+        nameHtml: escapeHtml(stockLabel),
+        badgeTxt: badgeTxt,
+        badgeCls: badgeCls,
+        metaHtml: buildOrderStatusEventMetaHtml(e),
+        validityLabel: isUnfilled ? '처리일시' : '체결일시',
+        validityValue: dateLine,
+        scheduleLabel: scheduleLabel,
+        scheduleValue: scheduleValue,
+      });
     }).join('');
 
     listEl.innerHTML = pendingRows + eventRows;
@@ -1867,9 +2084,14 @@
 
     var now = Date.now();
     if (!force && now < askingPriceCooldownUntilMs) {
-      var cool = askingPriceCacheByCode[codeStr];
-      if (cool && cool.data) return cool.data;
-      return null;
+      var coolCached = askingPriceCacheByCode[codeStr];
+      if (coolCached && coolCached.data) return coolCached.data;
+      return {
+        success: false,
+        message: '요청이 많아 잠시 후 다시 시도해 주세요. (초당 한도)',
+        status: 429,
+        retryAfterSec: Math.max(1, Math.ceil((askingPriceCooldownUntilMs - now) / 1000)),
+      };
     }
 
     var cached = askingPriceCacheByCode[codeStr];
@@ -1881,18 +2103,28 @@
       try {
         return await askingPriceInflightByCode[codeStr];
       } catch (e) {
-        return null;
+        return {
+          success: false,
+          message: (e && e.message) || '호가를 불러오지 못했습니다.',
+        };
       }
     }
 
     askingPriceInflightByCode[codeStr] = (async function () {
-      var res = await fetch(simApiBase() + '/api/mock/asking-price/' + encodeURIComponent(codeStr));
+      var url = simApiBase() + '/api/mock/asking-price/' + encodeURIComponent(codeStr);
+      if (force) url += (url.indexOf('?') >= 0 ? '&' : '?') + 'refresh=1';
+      var res = await fetch(url);
       var data = await res.json().catch(function () { return {}; });
-      if (res.status === 429) {
-        askingPriceCooldownUntilMs = Date.now() + ASKING_PRICE_COOLDOWN_MS;
+      if (isAskingRateLimited(res.status, data.message)) {
+        applyAskingPriceCooldown(data.retry_after_sec);
       }
       if (!res.ok || !data.success) {
-        throw new Error(data.message || ('HTTP ' + res.status));
+        return {
+          success: false,
+          message: data.message || ('HTTP ' + res.status),
+          status: res.status,
+          retryAfterSec: data.retry_after_sec,
+        };
       }
       askingPriceCacheByCode[codeStr] = {
         atMs: Date.now(),
@@ -1903,8 +2135,6 @@
 
     try {
       return await askingPriceInflightByCode[codeStr];
-    } catch (e) {
-      return null;
     } finally {
       delete askingPriceInflightByCode[codeStr];
     }
@@ -2067,7 +2297,7 @@
             mode: 'auto',
             status: 'executed',
             desiredPrice: order.limitPrice,
-            executedPrice: Number(t.price || order.limitPrice || 0),
+            executedPrice: Number(t.price || nowPx || order.limitPrice || 0),
             quantity: Number(t.quantity || order.quantity || 0),
             note: '목표가 조건 도달',
           });
@@ -2102,8 +2332,14 @@
   }
 
   function refreshOrderbookPanel(options) {
+    if (!isOrderbookOverlayOpen()) {
+      clearOrderbookPoll();
+      return;
+    }
     if (selectedOrderbookCode && /^\d{6}$/.test(selectedOrderbookCode)) {
-      loadOrderbookPanel(selectedOrderbookCode, options || {});
+      var opts = options || {};
+      if (opts.force === undefined) opts.force = true;
+      loadOrderbookPanel(selectedOrderbookCode, opts);
     }
   }
 
@@ -2145,11 +2381,24 @@
     try {
       var data = await fetchAskingPriceWithGuard(code, { force: !!opts.force });
       if (!data || !data.success) {
-        if ((cached && cached.data) || hasVisibleTable) {
-          if (!silent && meta) meta.textContent = '호가 서버 제한으로 최근 값 유지 중입니다.';
+        if (data && data.market_closed) {
+          showOrderbookMarketClosedMessage();
           return;
         }
-        throw new Error('호가 서버 제한으로 잠시 후 다시 시도됩니다.');
+        if ((cached && cached.data) || hasVisibleTable) {
+          if (!silent && meta) {
+            meta.textContent =
+              (data && data.message) || '호가 서버 제한으로 최근 값 유지 중입니다.';
+          }
+          return;
+        }
+        throw new Error(
+          (data && data.message) || '호가 서버 제한으로 잠시 후 다시 시도됩니다.',
+        );
+      }
+      if (data.market_closed || (!isKrRegularMarketOpenNow() && isSyntheticOrderbookData(data))) {
+        showOrderbookMarketClosedMessage();
+        return;
       }
       renderOrderbookTable(data);
       if (meta) meta.textContent = '';
@@ -2161,9 +2410,35 @@
     }
   }
 
+  function isSyntheticOrderbookData(data) {
+    if (!data) return false;
+    var asks = Array.isArray(data.asks) ? data.asks : [];
+    var bids = Array.isArray(data.bids) ? data.bids : [];
+    if (asks.length !== 1 || bids.length !== 1) return false;
+    var ap = Number(asks[0].price);
+    var bp = Number(bids[0].price);
+    var aq = Number(asks[0].quantity || 0);
+    var bq = Number(bids[0].quantity || 0);
+    return ap > 0 && ap === bp && aq === 0 && bq === 0;
+  }
+
+  function showOrderbookMarketClosedMessage() {
+    var wrap = document.getElementById('orderbookTableWrap');
+    var meta = document.getElementById('orderbookMeta');
+    var msg =
+      '지금은 장시간이 아니어서 호가를 불러올 수 없습니다. 정규장(09:00~15:30)에 다시 확인해 주세요.';
+    if (wrap) wrap.innerHTML = '';
+    if (meta) meta.textContent = msg;
+    resetOrderbookOverlaySizing();
+  }
+
   function renderOrderbookTable(data) {
     var wrap = document.getElementById('orderbookTableWrap');
     if (!wrap) return;
+    if (!isKrRegularMarketOpenNow() && isSyntheticOrderbookData(data)) {
+      showOrderbookMarketClosedMessage();
+      return;
+    }
     var asks = Array.isArray(data.asks) ? data.asks : [];
     var bids = Array.isArray(data.bids) ? data.bids : [];
     var rows = [];
@@ -3324,25 +3599,28 @@
     listEl.innerHTML = trades
       .map(function (t) {
         var r = Number(t.realized || 0);
-        var dt = t.executed_at ? new Date(t.executed_at) : null;
-        var dtStr = dt && !Number.isNaN(dt.getTime())
-          ? dt.toLocaleString('ko-KR', {
-              month: 'numeric',
-              day: 'numeric',
-              hour: '2-digit',
-              minute: '2-digit',
-            })
-          : '';
+        var code = t.code || '';
+        var name = t.name || code || '';
+        var atMs = t.executed_at ? new Date(t.executed_at).getTime() : 0;
+        var timeStr = formatTradeTimeOnly(atMs);
+        var metaParts = [
+          String(t.quantity || 0) + '주',
+          '매도 ' + formatCurrency(Number(t.sell_price || 0)),
+        ];
+        if (timeStr && timeStr !== '—') metaParts.push(timeStr);
         return (
           '<div class="sim-pnl-trade">' +
-          '<div><div class="sim-pnl-trade-name">' +
-          escapeHtml(t.name || t.code || '') +
-          '</div><div class="sim-pnl-trade-meta">' +
-          escapeHtml(String(t.quantity || 0)) +
-          '주 · 매도 ' +
-          formatCurrency(Number(t.sell_price || 0)) +
-          (dtStr ? ' · ' + escapeHtml(dtStr) : '') +
-          '</div></div>' +
+          '<div class="sim-pnl-trade-main">' +
+          '<div class="sim-pnl-trade-identity">' +
+          orderStatusLogoHtml(code, name) +
+          '<div class="sim-pnl-trade-text">' +
+          '<div class="sim-pnl-trade-name">' +
+          escapeHtml(name) +
+          '</div>' +
+          '<div class="sim-pnl-trade-meta">' +
+          escapeHtml(metaParts.join(' · ')) +
+          '</div>' +
+          '</div></div></div>' +
           '<div class="sim-pnl-trade-amt ' +
           changeDirClass(r) +
           '">' +
@@ -3351,6 +3629,7 @@
         );
       })
       .join('');
+    bindStockLogosIn(listEl);
   }
 
   async function loadRealizedPnl() {
@@ -3582,9 +3861,26 @@
     }
   }
 
+  function wrapSimLoginModalClose() {
+    if (window.__jurinSimCloseWrapped) return;
+    var nativeClose = window.closeLoginModal;
+    if (typeof nativeClose !== 'function') return;
+    window.__jurinSimCloseWrapped = true;
+    window.closeLoginModal = function () {
+      nativeClose();
+      simIsLoggedIn().then(function (logged) {
+        if (!logged) {
+          var base = simApiBase().replace(/\/$/, '');
+          window.location.replace(base + '/주린닷컴홈피.html');
+        }
+      });
+    };
+  }
+
   // 페이지 로드 시 초기화 (미로그인 시 진입 즉시 로그인 모달)
   document.addEventListener('DOMContentLoaded', async function() {
     localizeSimulationUi();
+    wrapSimLoginModalClose();
     if (typeof refreshAuthNav === 'function') refreshAuthNav();
     if (!(await simIsLoggedIn()) && typeof openLoginModal === 'function') {
       openLoginModal();
@@ -3604,6 +3900,14 @@
     }
     var holdingBuyQty = document.getElementById('holdingBuyQty');
     if (holdingBuyQty) holdingBuyQty.addEventListener('input', updateHoldingBuyEst);
+    var sellQtyMinus = document.getElementById('sellModalQtyMinus');
+    var sellQtyPlus = document.getElementById('sellModalQtyPlus');
+    if (sellQtyMinus) sellQtyMinus.addEventListener('click', function () { bumpHoldingModalQty('sellModalQty', -1); });
+    if (sellQtyPlus) sellQtyPlus.addEventListener('click', function () { bumpHoldingModalQty('sellModalQty', 1); });
+    var buyQtyMinus = document.getElementById('holdingBuyQtyMinus');
+    var buyQtyPlus = document.getElementById('holdingBuyQtyPlus');
+    if (buyQtyMinus) buyQtyMinus.addEventListener('click', function () { bumpHoldingModalQty('holdingBuyQty', -1); });
+    if (buyQtyPlus) buyQtyPlus.addEventListener('click', function () { bumpHoldingModalQty('holdingBuyQty', 1); });
     var holdingBuyLp = document.getElementById('holdingBuyLimitPrice');
     if (holdingBuyLp) {
       holdingBuyLp.addEventListener('input', function () {
@@ -3928,6 +4232,17 @@
     bindSimPnlUi();
     bindSimWorkspacePaneSync();
 
+    window.addEventListener('storage', function (e) {
+      if (!e || !e.key) return;
+      if (e.key === LS_MOCK_EVENTS) reloadOrderStatusEventsFromStorage();
+      if (e.key === LS_MOCK_PENDING || e.key === LS_MOCK_PENDING_SEQ) reloadPendingOrdersFromStorage();
+    });
+    window.addEventListener('jurin-mock-order-board-updated', function (ev) {
+      var t = ev && ev.detail ? ev.detail.type : '';
+      if (t === 'pending') reloadPendingOrdersFromStorage();
+      else reloadOrderStatusEventsFromStorage();
+    });
+
     await simRefreshWatchlist();
     await loadPortfolioFromServer();
     updatePortfolio();
@@ -4080,6 +4395,10 @@
       loadOrderbookPanel(codeStr);
       clearOrderbookPoll();
       orderbookPollTimer = setInterval(function () {
+        if (!isOrderbookOverlayOpen()) {
+          clearOrderbookPoll();
+          return;
+        }
         refreshOrderbookPanel({ silent: true });
       }, 30000);
     }
@@ -4230,16 +4549,15 @@
     var codeHPre = document.getElementById('tradeStockCode');
     var cPre = codeHPre && codeHPre.value ? String(codeHPre.value).trim() : '';
     var limElPre = document.getElementById('tradeLimitPrice');
-    var limPPre = limElPre && limElPre.value ? parseInt(limElPre.value, 10) : 0;
-    var limOkPre = limPPre > 0 && !Number.isNaN(limPPre);
-    var limPxCheck = isBuyMarketMode() ? 0 : limOkPre ? limPPre : 0;
+    var limPPre = limElPre ? parseLimitPriceInput(limElPre) : 0;
+    var limPxCheck = isBuyMarketMode() ? 0 : limPPre;
     var stockLinePre = cPre ? stock + ' (' + cPre + ')' : stock;
     if (
       await showBuyInsufficientCashModal(quantity, limPxCheck, apiStock, {
         stock: stockLinePre,
         stockLabel: stock,
         market: isBuyMarketMode(),
-        limitLabel: !isBuyMarketMode() && limOkPre ? ' (지정가)' : '',
+        limitLabel: !isBuyMarketMode() && limPPre > 0 ? ' (지정가)' : '',
       })
     ) {
       return;
@@ -4251,32 +4569,36 @@
     var codeH = document.getElementById('tradeStockCode');
     var c = codeH && codeH.value ? String(codeH.value).trim() : '';
     var limEl = document.getElementById('tradeLimitPrice');
-    var limP = limEl && limEl.value ? parseInt(limEl.value, 10) : 0;
+    var limP = limEl ? parseLimitPriceInput(limEl) : 0;
     if (line) line.innerHTML = formatTradeConfirmStockHtml(stock, c);
     if (qtyLine) qtyLine.textContent = quantity.toLocaleString() + '주';
+    var buyCostBox = document.getElementById('buyModalCostBreakdown');
     if (priceLine) {
-      var limOk = limP > 0 && !Number.isNaN(limP);
+      var refPx = buyReferencePrice() || referencePriceForTick();
       if (isBuyMarketMode()) {
-        var refM = limOk ? limP : buyReferencePrice();
-        if (refM > 0) {
-          setTradeConfirmPriceLine(priceLine, formatCurrency(refM), '시장가');
-        } else {
-          priceLine.textContent = '현재 시세 부근 체결 예상 (시장가)';
+        setTradeConfirmPriceLine(priceLine, MARKET_PRICE_LABEL, '시장가');
+        if (buyCostBox) {
+          buyCostBox.innerHTML = '';
+          buyCostBox.style.display = 'none';
         }
+      } else if (limP > 0) {
+        var execPx = resolveMockExecutionPrice('BUY', refPx, limP);
+        if (execPx > 0 && execPx < limP) {
+          setTradeConfirmPriceLine(priceLine, formatCurrency(execPx), '현재가 체결 예상');
+        } else if (execPx > 0) {
+          setTradeConfirmPriceLine(priceLine, formatCurrency(execPx), '지정가');
+        } else {
+          setTradeConfirmPriceLine(priceLine, formatCurrency(limP), '지정가 (예약)');
+        }
+        var unitPxForCost = execPx > 0 ? execPx : limP;
+        var grossBuyEst = unitPxForCost > 0 ? unitPxForCost * quantity : 0;
+        renderMockCostBreakdown(buyCostBox, 'BUY', grossBuyEst);
       } else {
-        var effPx = limOk ? limP : referencePriceForTick();
-        setTradeConfirmPriceLine(priceLine, formatCurrency(effPx), limOk ? '지정가' : '시세 기준');
+        setTradeConfirmPriceLine(priceLine, formatCurrency(refPx), '시세 기준');
+        var grossRef = refPx > 0 ? refPx * quantity : 0;
+        renderMockCostBreakdown(buyCostBox, 'BUY', grossRef);
       }
     }
-    var limOk2 = limP > 0 && !Number.isNaN(limP);
-    var unitPxForCost = 0;
-    if (isBuyMarketMode()) {
-      unitPxForCost = limOk2 ? limP : buyReferencePrice();
-    } else {
-      unitPxForCost = limOk2 ? limP : referencePriceForTick();
-    }
-    var grossBuyEst = unitPxForCost > 0 ? unitPxForCost * quantity : 0;
-    renderMockCostBreakdown(document.getElementById('buyModalCostBreakdown'), 'BUY', grossBuyEst);
 
     const modal = document.getElementById('buyModal');
     if (!modal) return;
@@ -4315,8 +4637,7 @@
     }
     buyModalState = { stock: stockRef, quantity };
     var limEl2 = document.getElementById('tradeLimitPrice');
-    var limPx = limEl2 && limEl2.value ? parseInt(limEl2.value, 10) : 0;
-    if (Number.isNaN(limPx) || limPx < 0) limPx = 0;
+    var limPx = limEl2 ? parseLimitPriceInput(limEl2) : 0;
     if (isBuyMarketMode()) limPx = 0;
     try {
       var routedBuy = await handleLimitOrderSubmission({
@@ -4427,19 +4748,16 @@
       lBtn.setAttribute('aria-pressed', market ? 'false' : 'true');
     }
     var refPx = Number(sellModalState.unitPrice) || 0;
+    var code = String(sellModalState.code || '').trim();
     if (inp) {
-      inp.disabled = !!market;
       if (plus) plus.disabled = !!market;
       if (minus) minus.disabled = !!market;
       if (cell) cell.classList.toggle('is-market-mode', !!market);
       if (market) {
-        if (refPx > 0) inp.value = String(Math.round(refPx));
-        else inp.value = '';
+        applyMarketPriceInputDisplay(inp, true);
       } else {
-        var cur = inp.value !== '' ? parseInt(inp.value, 10) : NaN;
-        if (Number.isNaN(cur) || cur <= 0) {
-          if (refPx > 0) inp.value = String(Math.round(refPx));
-        }
+        applyMarketPriceInputDisplay(inp, false);
+        applyLimitPriceIfEmpty(inp, 'SELL', refPx, isSixDigitCode(code) ? code : '');
       }
     }
     updateSellModalEst();
@@ -4470,19 +4788,16 @@
       lBtn.setAttribute('aria-pressed', market ? 'false' : 'true');
     }
     var refPx = Number(sellModalState.unitPrice) || 0;
+    var code = String(sellModalState.code || '').trim();
     if (inp) {
-      inp.disabled = !!market;
       if (plus) plus.disabled = !!market;
       if (minus) minus.disabled = !!market;
       if (cell) cell.classList.toggle('is-market-mode', !!market);
       if (market) {
-        if (refPx > 0) inp.value = String(Math.round(refPx));
-        else inp.value = '';
+        applyMarketPriceInputDisplay(inp, true);
       } else {
-        var cur = inp.value !== '' ? parseInt(inp.value, 10) : NaN;
-        if (Number.isNaN(cur) || cur <= 0) {
-          if (refPx > 0) inp.value = String(Math.round(refPx));
-        }
+        applyMarketPriceInputDisplay(inp, false);
+        applyLimitPriceIfEmpty(inp, 'BUY', refPx, isSixDigitCode(code) ? code : '');
       }
     }
     updateHoldingBuyEst();
@@ -4492,14 +4807,28 @@
     var qtyEl = document.getElementById('holdingBuyQty');
     var totalEl = document.getElementById('holdingBuyEstTotal');
     if (!qtyEl || !totalEl) return;
+    if (isHoldingBuyMarketMode()) {
+      totalEl.textContent = formatMarketPriceConfirmLine();
+      var hcb = document.getElementById('holdingBuyCostBreakdown');
+      if (hcb) {
+        hcb.innerHTML = '';
+        hcb.style.display = 'none';
+      }
+      return;
+    }
     var qty = parseInt(qtyEl.value, 10);
     if (Number.isNaN(qty) || qty < 1) qty = 1;
     var ref = Number(sellModalState.unitPrice) || 0;
     var unit = ref;
     if (!isHoldingBuyMarketMode()) {
       var limIn = document.getElementById('holdingBuyLimitPrice');
-      var lv = limIn && limIn.value ? parseInt(limIn.value, 10) : NaN;
-      unit = !Number.isNaN(lv) && lv > 0 ? lv : 0;
+      var lv = limIn ? parseLimitPriceInput(limIn) : 0;
+      if (lv > 0) {
+        var exec = resolveMockExecutionPrice('BUY', ref, lv);
+        unit = exec > 0 ? exec : lv;
+      } else {
+        unit = 0;
+      }
     }
     var grossHb = Math.max(0, qty * unit);
     totalEl.textContent = formatCurrency(grossHb);
@@ -4510,12 +4839,12 @@
     if (isHoldingBuyMarketMode()) return;
     var inp = document.getElementById('holdingBuyLimitPrice');
     if (!inp) return;
-    var cur = inp.value !== '' ? parseInt(inp.value, 10) : NaN;
+    var cur = parseLimitPriceInput(inp);
     var ref = Number(sellModalState.unitPrice) || 0;
     if (!Number.isFinite(ref) || ref <= 0) ref = 50000;
-    var tick = krxTickSize(!Number.isNaN(cur) && cur > 0 ? cur : ref);
+    var tick = krxTickSize(cur > 0 ? cur : ref);
     var next;
-    if (!Number.isNaN(cur) && cur > 0) {
+    if (cur > 0) {
       next = cur + direction * tick;
       if (next < tick) next = tick;
     } else {
@@ -4528,6 +4857,20 @@
     }
     inp.value = String(next);
     updateHoldingBuyEst();
+  }
+
+  function bumpHoldingModalQty(inputId, direction) {
+    var inp = document.getElementById(inputId);
+    if (!inp) return;
+    var max = inp.max ? parseInt(inp.max, 10) : NaN;
+    var cur = parseInt(inp.value, 10);
+    if (Number.isNaN(cur) || cur < 1) cur = 1;
+    var next = cur + direction;
+    if (next < 1) next = 1;
+    if (!Number.isNaN(max) && max > 0 && next > max) next = max;
+    inp.value = String(next);
+    if (inputId === 'sellModalQty') updateSellModalEst();
+    else if (inputId === 'holdingBuyQty') updateHoldingBuyEst();
   }
 
   function initHoldingBuyPanelInModal() {
@@ -4605,6 +4948,11 @@
     if (line) {
       line.innerHTML = formatTradeConfirmStockHtml(foundName, sellModalState.code);
     }
+    var logoWrap = document.getElementById('holdingStockLogo');
+    if (logoWrap) {
+      logoWrap.innerHTML = orderStatusLogoHtml(sellModalState.code, foundName);
+      bindStockLogosIn(logoWrap);
+    }
     const qtyInput = document.getElementById('sellModalQty');
     qtyInput.max = sellModalState.maxQty;
     qtyInput.min = 1;
@@ -4657,10 +5005,20 @@
     const qtyInput = document.getElementById('sellModalQty');
     const limIn = document.getElementById('sellModalLimitPrice');
     if (!totalEl || !qtyInput) return;
-    let unit = Number(st.unitPrice) || 0;
-    if (!isHoldingSellMarketMode() && limIn && limIn.value) {
-      var lv = parseInt(limIn.value, 10);
-      if (!Number.isNaN(lv) && lv > 0) unit = lv;
+    if (isHoldingSellMarketMode()) {
+      totalEl.textContent = formatMarketPriceConfirmLine();
+      var scb = document.getElementById('sellModalCostBreakdown');
+      if (scb) {
+        scb.innerHTML = '';
+        scb.style.display = 'none';
+      }
+      return;
+    }
+    let refPx = Number(st.unitPrice) || 0;
+    let unit = refPx;
+    if (limIn) {
+      var lv = parseLimitPriceInput(limIn);
+      if (lv > 0) unit = resolveSellUnitPrice(refPx, lv);
     }
     let q = parseInt(qtyInput.value, 10) || 0;
     if (st.maxQty > 0) q = Math.min(Math.max(q, 0), st.maxQty);
@@ -4673,12 +5031,12 @@
     if (isHoldingSellMarketMode()) return;
     var inp = document.getElementById('sellModalLimitPrice');
     if (!inp) return;
-    var cur = inp.value !== '' ? parseInt(inp.value, 10) : NaN;
+    var cur = parseLimitPriceInput(inp);
     var ref = Number(sellModalState.unitPrice) || 0;
     if (!Number.isFinite(ref) || ref <= 0) ref = 50000;
-    var tick = krxTickSize(!Number.isNaN(cur) && cur > 0 ? cur : ref);
+    var tick = krxTickSize(cur > 0 ? cur : ref);
     var next;
-    if (!Number.isNaN(cur) && cur > 0) {
+    if (cur > 0) {
       next = cur + direction * tick;
       if (next < tick) next = tick;
     } else {
@@ -4703,11 +5061,11 @@
     if (isSellMarketMode()) return;
     var inp = document.getElementById('tradeSellLimitPrice');
     if (!inp) return;
-    var cur = inp.value !== '' ? parseInt(inp.value, 10) : NaN;
+    var cur = parseLimitPriceInput(inp);
     var ref = quickSellReferenceForTick();
-    var tick = krxTickSize(!Number.isNaN(cur) && cur > 0 ? cur : ref);
+    var tick = krxTickSize(cur > 0 ? cur : ref);
     var next;
-    if (!Number.isNaN(cur) && cur > 0) {
+    if (cur > 0) {
       next = cur + direction * tick;
       if (next < tick) next = tick;
     } else {
@@ -4745,6 +5103,7 @@
     }
     if (!res.ok || !data.success) {
       pushOrderStatusEvent({
+        stockRef: stockRef,
         stock: key,
         side: 'SELL',
         mode: 'manual',
@@ -4761,6 +5120,7 @@
     renderHistory();
     var ts = data && data.trade ? data.trade : {};
     pushOrderStatusEvent({
+      stockRef: ts.code || stockRef,
       stock: ts.name || key,
       side: 'SELL',
       mode: 'manual',
@@ -4796,19 +5156,11 @@
       alert('보유 수량(' + Number(found.quantity) + '주)을 넘을 수 없습니다.');
       return;
     }
-    var sellPx = limEl && limEl.value ? parseInt(limEl.value, 10) : 0;
-    if (Number.isNaN(sellPx) || sellPx < 0) sellPx = 0;
+    var sellPx = limEl ? parseLimitPriceInput(limEl) : 0;
     if (isSellMarketMode()) sellPx = 0;
 
-    var unit = 0;
-    if (isSellMarketMode()) {
-      unit = Number(found.currentPrice || 0) || sellReferencePrice() || 0;
-    } else {
-      var lv = limEl && limEl.value ? parseInt(limEl.value, 10) : NaN;
-      unit = !Number.isNaN(lv) && lv > 0 ? lv : (Number(found.currentPrice || 0) || 0);
-    }
-    var gross = Math.max(0, qty * unit);
-
+    var refPx = Number(found.currentPrice || 0) || sellReferencePrice() || 0;
+    var quickSellCostBox = document.getElementById('quickSellModalCostBreakdown');
     var stockRef = found.code && String(found.code).trim() ? String(found.code).trim() : key;
     var codeDisp = found.code ? String(found.code).trim() : '';
     var stockLine = document.getElementById('quickSellModalStockLine');
@@ -4818,20 +5170,30 @@
     if (qtyLine) qtyLine.textContent = qty.toLocaleString() + '주';
     if (priceLine) {
       if (isSellMarketMode()) {
-        if (unit > 0) {
-          setTradeConfirmPriceLine(priceLine, formatCurrency(unit), '시장가');
-        } else {
-          priceLine.textContent = '현재 시세 부근 체결 예상 (시장가)';
+        setTradeConfirmPriceLine(priceLine, MARKET_PRICE_LABEL, '시장가');
+        if (quickSellCostBox) {
+          quickSellCostBox.innerHTML = '';
+          quickSellCostBox.style.display = 'none';
         }
-      } else {
-        if (unit > 0) {
-          setTradeConfirmPriceLine(priceLine, formatCurrency(unit), '지정가');
+      } else if (sellPx > 0) {
+        var sellExec = resolveMockExecutionPrice('SELL', refPx, sellPx);
+        if (sellExec > 0 && sellExec > sellPx) {
+          setTradeConfirmPriceLine(priceLine, formatCurrency(sellExec), '현재가 체결 예상');
+        } else if (sellExec > 0) {
+          setTradeConfirmPriceLine(priceLine, formatCurrency(sellExec), '지정가');
         } else {
-          priceLine.textContent = '—';
+          setTradeConfirmPriceLine(priceLine, formatCurrency(sellPx), '지정가 (예약)');
+        }
+        var gross = Math.max(0, qty * (sellExec > 0 ? sellExec : sellPx));
+        renderMockCostBreakdown(quickSellCostBox, 'SELL', gross);
+      } else {
+        priceLine.textContent = '—';
+        if (quickSellCostBox) {
+          quickSellCostBox.innerHTML = '';
+          quickSellCostBox.style.display = 'none';
         }
       }
     }
-    renderMockCostBreakdown(document.getElementById('quickSellModalCostBreakdown'), 'SELL', gross);
 
     quickSellConfirmState = { key: key, qty: qty, sellPx: sellPx };
 
@@ -4889,8 +5251,7 @@
       alert('보유 수량(' + Number(found.quantity) + '주)을 넘을 수 없습니다.');
       return;
     }
-    var sellPx = limEl && limEl.value ? parseInt(limEl.value, 10) : 0;
-    if (Number.isNaN(sellPx) || sellPx < 0) sellPx = 0;
+    var sellPx = limEl ? parseLimitPriceInput(limEl) : 0;
     if (isSellMarketMode()) sellPx = 0;
     try {
       await performQuickSellTrade(key, qty, sellPx);
@@ -4913,8 +5274,7 @@
       return;
     }
     var sellLim = document.getElementById('sellModalLimitPrice');
-    var sellPx = sellLim && sellLim.value ? parseInt(sellLim.value, 10) : 0;
-    if (Number.isNaN(sellPx) || sellPx < 0) sellPx = 0;
+    var sellPx = sellLim ? parseLimitPriceInput(sellLim) : 0;
     if (isHoldingSellMarketMode()) sellPx = 0;
     try {
       const stockRef = st.code && String(st.code).trim() ? st.code : st.name;
@@ -4941,6 +5301,7 @@
       }
       if (!res.ok || !data.success) {
         pushOrderStatusEvent({
+          stockRef: stockRef,
           stock: st.name || stockRef,
           side: 'SELL',
           mode: 'manual',
@@ -4958,6 +5319,7 @@
       renderHistory();
       var ts = data && data.trade ? data.trade : {};
       pushOrderStatusEvent({
+        stockRef: ts.code || stockRef,
         stock: ts.name || st.name || stockRef,
         side: 'SELL',
         mode: 'manual',
@@ -4992,11 +5354,10 @@
       if (qtyEl) qtyEl.value = '1';
     }
     var limEl2 = document.getElementById('holdingBuyLimitPrice');
-    var limPx = limEl2 && limEl2.value ? parseInt(limEl2.value, 10) : 0;
-    if (Number.isNaN(limPx) || limPx < 0) limPx = 0;
+    var limPx = limEl2 ? parseLimitPriceInput(limEl2) : 0;
     if (isHoldingBuyMarketMode()) limPx = 0;
     var limPxHbCheck = isHoldingBuyMarketMode() ? 0 : limPx;
-    var limHbOk = limPx > 0 && !Number.isNaN(limPx);
+    var limHbOk = limPx > 0;
     if (
       await showBuyInsufficientCashModal(quantity, limPxHbCheck, stockRef, {
         stock: stockLabel,
@@ -7062,7 +7423,12 @@
 
   // 통화 포맷팅
   function formatCurrency(amount) {
-    return '₩' + amount.toLocaleString();
+    var n = Number(amount);
+    if (!Number.isFinite(n)) n = 0;
+    if (n < 0) {
+      return '-₩' + Math.abs(n).toLocaleString();
+    }
+    return '₩' + n.toLocaleString();
   }
 
   function formatLargeCurrency(amount) {

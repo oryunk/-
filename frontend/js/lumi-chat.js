@@ -15,6 +15,24 @@
     stock: 'assets/lumi-icons/stocks.png?v=' + LUMI_ICON_VER,
   };
 
+  var FALLBACK_LUMI_MOODS = {
+    welcome: 'hello.png',
+    info: 'thinking.png',
+    success: 'success.png',
+    happy: 'happy.png',
+    excited: 'excited.png',
+    caution: 'surprised.png',
+    wink: 'sparkle.png',
+    curious: 'curious.png',
+    idea: 'idea.png',
+    good_idea: 'good-idea.png',
+    studying: 'studying.png',
+    struggling: 'struggling.png',
+    sleepy: 'sleepy.png',
+    chart: 'chart-analysis.png',
+    angry: 'angry.png',
+  };
+
   var LUMICON_FILES = {
     'happy.png': true,
     'excited.png': true,
@@ -39,22 +57,18 @@
     return folder + name + '?v=' + MASCOT2_VER;
   }
 
+  function buildMoodImages() {
+    var moodMap =
+      typeof JURIN_LUMI_MOODS !== 'undefined' && JURIN_LUMI_MOODS ? JURIN_LUMI_MOODS : FALLBACK_LUMI_MOODS;
+    var images = {};
+    Object.keys(moodMap).forEach(function (key) {
+      images[key] = mascot2Asset(moodMap[key]);
+    });
+    return images;
+  }
+
   var DOCK_IMAGE = 'assets/mascot/mascot-dock.png?v=' + DOCK_ASSET_VER;
-  var MOOD_IMAGES = {
-    welcome: mascot2Asset('hello.png'),
-    info: mascot2Asset('thinking.png'),
-    success: mascot2Asset('success.png'),
-    happy: mascot2Asset('happy.png'),
-    excited: mascot2Asset('excited.png'),
-    caution: mascot2Asset('surprised.png'),
-    wink: mascot2Asset('sparkle.png'),
-    curious: mascot2Asset('curious.png'),
-    idea: mascot2Asset('idea.png'),
-    studying: mascot2Asset('studying.png'),
-    struggling: mascot2Asset('struggling.png'),
-    sleepy: mascot2Asset('sleepy.png'),
-    chart: mascot2Asset('chart-analysis.png'),
-  };
+  var MOOD_IMAGES = buildMoodImages();
 
   function moodImage(mood) {
     var key = String(mood || 'info').toLowerCase();
@@ -115,11 +129,9 @@
 
   /** 가이드·튜토리얼 중에는 사이트 챗봇 미표시(가이드 루미·MascotCoach만 사용) */
   function shouldSuppressSiteLumi() {
-    if (window.JurinGuideLumi && typeof window.JurinGuideLumi.isActive === 'function') {
-      if (window.JurinGuideLumi.isActive()) return true;
-    }
-    if (/guide\.html/i.test(window.location.pathname || '')) return true;
-    if (/signup\.html/i.test(window.location.pathname || '')) return true;
+    var path = window.location.pathname || '';
+    if (/guide\.html/i.test(path)) return true;
+    if (/signup\.html/i.test(path)) return true;
     try {
       var params = new URLSearchParams(window.location.search);
       var t = (params.get('tutorial') || '').trim().toLowerCase();
@@ -141,9 +153,11 @@
     if (
       document.body.classList.contains('simulation-step5-active') ||
       document.body.classList.contains('market-step1-active') ||
+      document.body.classList.contains('market-step2-pending') ||
       document.body.classList.contains('market-step2-active') ||
       document.body.classList.contains('market-step3-active') ||
       document.body.classList.contains('market-step4-active') ||
+      document.body.classList.contains('market-step5-active') ||
       document.body.classList.contains('tutorial-step1-active') ||
       document.body.classList.contains('mascot-coach-spotlight-dim')
     ) {
@@ -192,9 +206,14 @@
 
   function guessMoodFromText(text) {
     var t = String(text || '').toLowerCase();
-    if (/못 찾|실패|오류|미안|모르|곤란|확실히 말|다시 시도|없어요|불러오지/.test(t)) return 'struggling';
-    if (/손절|손실|하락|위험|세금|무서|걱정|조심|주의|망|조심해/.test(t)) return 'caution';
+    if (/못 찾|실패|오류|미안|곤란|확실히 말|다시 시도|없어요|불러오지/.test(t)) return 'struggling';
+    if (/올인|레버리지|빚|대출|몰빵|무조건 사|하지 마|절대/.test(t)) return 'angry';
+    if (/짜증|열받|답답|망했|다 떨어|ㅠㅠ|우울|화나/.test(t)) return 'angry';
+    if (/좋은 생각|잘 짚|그 접근|똑똑|현명/.test(t)) return 'good_idea';
+    if (/모르겠|애매|확실치|대충|짧게/.test(t)) return 'sleepy';
+    if (/주의|위험|손실|조심|세금|하락|무서|걱정|조심해|손절|망/.test(t)) return 'caution';
     if (/축하|잘했|화이팅|응원|성공|쉬워|멋져|대단/.test(t)) return 'excited';
+    if (/이해했|정리하면|핵심은|잘 알|완벽/.test(t)) return 'success';
     if (/좋아|괜찮|도움|행복|기쁘|편해/.test(t)) return 'happy';
     if (/팁|아이디어|기억해|한 가지|포인트/.test(t)) return 'idea';
     if (/안녕|반가|루미|소개|처음|만나/.test(t)) return 'welcome';
@@ -650,7 +669,7 @@
         id: 'news-' + Date.now(),
         role: 'assistant',
         content: reply,
-        mood: matched.length ? 'curious' : 'struggling',
+        mood: matched.length ? 'curious' : 'sleepy',
         created_at: new Date().toISOString(),
       });
       thread.updatedAt = new Date().toISOString();
@@ -1527,7 +1546,6 @@
 
   async function init() {
     if (shouldSuppressSiteLumi()) {
-      document.body.classList.add('guide-lumi-session');
       return;
     }
     buildDom();
@@ -1559,4 +1577,10 @@
   } else {
     init();
   }
+
+  /** 튜토리얼 스크립트가 body 클래스를 붙인 뒤에도 챗봇이 누락되지 않도록 1회 재시도 */
+  window.setTimeout(function () {
+    if (document.getElementById('lumiChatRoot') || shouldSuppressSiteLumi()) return;
+    init();
+  }, 0);
 })();

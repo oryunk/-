@@ -1,50 +1,120 @@
 /**
- * simulation.html 5단계: 실전 모의투자 (클리어 문구·퀴즈 없음, 매수 실행 없이 방법 안내)
+ * simulation.html 5단계: 모의투자 전체 흐름 안내 (퀴즈 없음, 실제 주문 없음)
  */
 (function () {
   var TUTORIAL_MASK_KEY = 'jurinGuideTutorialBits';
   var STEP_BIT = 1 << 4;
 
   var STEP_INTRO = 0;
-  var STEP_PICK = 1;
-  var STEP_CHART = 2;
-  var STEP_QUOTE_INTRO = 3;
-  var STEP_QUOTE_VOL = 4;
-  var STEP_QUOTE_TV = 5;
-  var STEP_QUOTE_EXEC = 6;
+  var STEP_WHY = 1;
+  var STEP_PICK = 2;
+  var STEP_CHART = 3;
+  var STEP_INFO = 4;
+  var STEP_STOCK_HISTORY = 5;
+  var STEP_QUOTE_INTRO = 6;
   var STEP_QUOTE_OPEN = 7;
   var STEP_QUOTE_HL = 8;
-  var STEP_ORDERBOOK = 9;
-  var STEP_DEPOSIT = 10;
-  var STEP_TRADE_LIMIT = 11;
-  var STEP_BUY_BTN = 12;
-  var STEP_TRADE_SELL = 13;
-  var STEP_FINAL = 14;
+  var STEP_QUOTE_VOL = 9;
+  var STEP_QUOTE_TV = 10;
+  var STEP_QUOTE_EXEC = 11;
+  var STEP_AI = 12;
+  var STEP_CLOSE_SHEET = 13;
+  var STEP_PORTFOLIO = 14;
+  var STEP_TRADE_INTRO = 15;
+  var STEP_MARKET_ORDER = 16;
+  var STEP_LIMIT_ORDER = 17;
+  var STEP_BUY_HOW = 18;
+  var STEP_SELL_HOW = 19;
+  var STEP_ORDER_STATUS = 20;
+  var STEP_TRADE_HISTORY = 21;
+  var STEP_PNL = 22;
+  var STEP_RANKING = 23;
+  var STEP_RESET = 24;
+  var STEP_FINAL = 25;
 
   var interaction = {
     stockCode: '',
     stockName: '',
     openPrice: 0,
     pickDone: false,
-    buyPreviewDone: false,
+    closeSheetDone: false,
   };
 
-  function enterOrderTab() {
-    if (typeof setSimHoldingSheetTab === 'function') {
-      setSimHoldingSheetTab('order');
-    } else {
-      var tab = document.getElementById('simHoldingTabOrder');
-      if (tab) tab.click();
+  function getCoachBeats(step) {
+    if (!step) return [''];
+    if (step.coachBeats && step.coachBeats.length) return step.coachBeats;
+    if (step.coach) return [step.coach];
+    return [''];
+  }
+
+  function getCoachMoods(step) {
+    if (!step) return ['info'];
+    if (step.coachMoods && step.coachMoods.length) return step.coachMoods;
+    if (step.mood) return [step.mood];
+    return ['info'];
+  }
+
+  function enterMainView(view) {
+    if (typeof navigateSimMainView === 'function') {
+      navigateSimMainView(view);
+      return;
+    }
+    if (typeof setSimMainView === 'function') {
+      setSimMainView(view);
+      return;
+    }
+    var tabId =
+      view === 'portfolio'
+        ? 'simViewTabPortfolio'
+        : view === 'pnl'
+          ? 'simViewTabPnl'
+          : view === 'ranking'
+            ? 'simViewTabRanking'
+            : view === 'reset'
+              ? 'simViewTabReset'
+              : '';
+    var tab = tabId ? document.getElementById(tabId) : null;
+    if (tab) tab.click();
+  }
+
+  function holdingSheetOpen() {
+    var sheet = document.getElementById('simHoldingDetailSheet');
+    return sheet && !sheet.hasAttribute('hidden');
+  }
+
+  function closeHoldingSheet() {
+    var closeBtn = document.getElementById('simHoldingDetailClose');
+    if (closeBtn && holdingSheetOpen()) closeBtn.click();
+  }
+
+  function reopenPickedHolding() {
+    if (holdingSheetOpen()) return;
+    if (!interaction.stockCode) return;
+    var code = String(interaction.stockCode).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+    var row = document.querySelector('tr.discovery-row[data-code="' + code + '"]');
+    if (row) {
+      row.click();
+      return;
+    }
+    if (typeof openSimHoldingDetailSheet === 'function') {
+      openSimHoldingDetailSheet(interaction.stockCode);
     }
   }
 
-  function enterChartTab() {
+  function enterHoldingTab(tab) {
     if (typeof setSimHoldingSheetTab === 'function') {
-      setSimHoldingSheetTab('chart');
-    } else {
-      var tab = document.getElementById('simHoldingTabChart');
-      if (tab) tab.click();
+      setSimHoldingSheetTab(tab);
+      return;
     }
+    var idMap = {
+      chart: 'simHoldingTabChart',
+      info: 'simHoldingTabInfo',
+      history: 'simHoldingTabHistory',
+      order: 'simHoldingTabOrder',
+      options: 'simHoldingTabOptions',
+    };
+    var tabEl = document.getElementById(idMap[tab] || '');
+    if (tabEl) tabEl.click();
   }
 
   function detailSheetTargets() {
@@ -69,17 +139,6 @@
     return orderPanelTargets();
   }
 
-  function attachBuyModalPreviewWatcher() {
-    var modal = document.getElementById('buyModal');
-    if (!modal || modal.__simStep5BuyWatch) return;
-    modal.__simStep5BuyWatch = true;
-    var obs = new MutationObserver(function () {
-      if (typeof window.__simStep5BuyPreviewCheck !== 'function') return;
-      window.__simStep5BuyPreviewCheck(modal);
-    });
-    obs.observe(modal, { attributes: true, attributeFilter: ['class', 'aria-hidden'] });
-  }
-
   function chartTargets() {
     var panel = document.getElementById('simHoldingPanelChart');
     if (panel && !panel.hasAttribute('hidden')) return [panel];
@@ -90,29 +149,102 @@
     return detailSheetTargets();
   }
 
-  function quoteIntroTargets() {
-    var panel = document.getElementById('simHoldingPanelOrder');
+  function infoTargets() {
+    var panel = document.getElementById('simHoldingPanelInfo');
     if (panel && !panel.hasAttribute('hidden')) return [panel];
-    return orderPanelTargets();
+    return detailSheetTargets();
   }
 
-  function pickRankTableTargets() {
-    var table = document.querySelector('.market-sidebar .discovery-table');
-    if (table) return [table];
+  function stockHistoryTargets() {
+    var panel = document.getElementById('simHoldingPanelHistory');
+    if (panel && !panel.hasAttribute('hidden')) return [panel];
+    return detailSheetTargets();
+  }
+
+  function aiTargets() {
+    var panel = document.getElementById('simHoldingPanelOptions');
+    if (panel && !panel.hasAttribute('hidden')) return [panel];
+    return detailSheetTargets();
+  }
+
+  function pickSidebarTargets() {
     var wrap = document.querySelector('.market-sidebar .sim-rank-wrap');
-    return wrap ? [wrap] : [];
+    if (wrap) return [wrap];
+    var table = document.querySelector('.market-sidebar .discovery-table');
+    return table ? [table] : [];
   }
 
-  function depositTargets() {
-    var cash = document.getElementById('cashBalanceDisplay');
-    if (cash) {
-      var cell = cash.closest('.portfolio-split > div');
-      if (cell) return [cell];
-      var split = cash.closest('.portfolio-split');
-      if (split) return [split];
+  function closeSheetTargets() {
+    var btn = document.getElementById('simHoldingDetailClose');
+    if (btn && holdingSheetOpen()) return [btn];
+    var sheet = document.getElementById('simHoldingDetailSheet');
+    return sheet && !sheet.hasAttribute('hidden') ? [sheet] : [];
+  }
+
+  function scrollToElement(el) {
+    if (el && typeof el.scrollIntoView === 'function') {
+      el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
-    var bal = document.querySelector('.portfolio-balance');
-    return bal ? [bal] : [];
+  }
+
+  function scrollToTradingSection() {
+    var wrap = document.getElementById('tradingFormsWrap');
+    var sec = document.getElementById('trading-section');
+    scrollToElement(wrap || sec);
+  }
+
+  function scrollToOrderStatusSection() {
+    var el = document.querySelector('.order-status-board');
+    scrollToElement(el);
+  }
+
+  function scrollToTradeHistorySection() {
+    var el = document.querySelector('.trading-history');
+    scrollToElement(el);
+  }
+
+  function portfolioTargets() {
+    var sec = document.querySelector('.portfolio-section');
+    if (sec) return [sec];
+    var bal = document.getElementById('totalBalance');
+    if (bal) {
+      var wrap = bal.closest('.portfolio-balance');
+      if (wrap) return [wrap];
+      return [bal];
+    }
+    return [];
+  }
+
+  function tradingFormsTargets() {
+    var wrap = document.getElementById('tradingFormsWrap');
+    if (wrap) return [wrap];
+    var sec = document.getElementById('trading-section');
+    return sec ? [sec] : [];
+  }
+
+  function orderStatusTargets() {
+    var el = document.querySelector('.order-status-board');
+    return el ? [el] : [];
+  }
+
+  function tradeHistoryTargets() {
+    var el = document.querySelector('.trading-history');
+    return el ? [el] : [];
+  }
+
+  function pnlTargets() {
+    var el = document.getElementById('simViewRealizedPnl');
+    return el && !el.hasAttribute('hidden') ? [el] : [];
+  }
+
+  function rankingTargets() {
+    var el = document.getElementById('simViewRanking');
+    return el && !el.hasAttribute('hidden') ? [el] : [];
+  }
+
+  function resetTargets() {
+    var el = document.getElementById('simViewReset');
+    return el && !el.hasAttribute('hidden') ? [el] : [];
   }
 
   function getApiBase() {
@@ -120,36 +252,41 @@
   }
 
   function persistStep5Complete() {
+    if (window.JurinTutorialUtil && typeof window.JurinTutorialUtil.markTutorialStepComplete === 'function') {
+      window.JurinTutorialUtil.markTutorialStepComplete(5);
+      return;
+    }
     try {
-      var m = parseInt(localStorage.getItem(TUTORIAL_MASK_KEY), 10);
+      var m = parseInt(localStorage.getItem(TUTORIAL_MASK_KEY + ':anon'), 10);
       if (isNaN(m) || m < 0) m = 0;
       m |= STEP_BIT;
-      localStorage.setItem(TUTORIAL_MASK_KEY, String(m));
+      localStorage.setItem(TUTORIAL_MASK_KEY + ':anon', String(m));
     } catch (e) { /* ignore */ }
-  }
-
-  function stripTutorialParamFromUrl() {
-    try {
-      var u = new URL(window.location.href);
-      if (u.searchParams.has('tutorial')) {
-        u.searchParams.delete('tutorial');
-        window.history.replaceState({}, '', u.pathname + u.search + u.hash);
-      }
-    } catch (e) { /* ignore */ }
-  }
-
-  function holdingSheetOpen() {
-    var sheet = document.getElementById('simHoldingDetailSheet');
-    return sheet && !sheet.hasAttribute('hidden');
   }
 
   function buildSteps() {
     return [
       {
-        objective: '시작',
-        mood: 'welcome',
-        coach:
-          '드디어 실전이야! 차트를 보고 오를지 내릴지 생각한 뒤, 매수할지 매도할지 정해서 이익을 노려보자. 루미가 옆에서 같이 해볼게!',
+        objective: '모의투자 시작',
+        mood: 'excited',
+        coachMoods: ['welcome', 'excited'],
+        coachBeats: [
+          '드디어 마지막이야!',
+          '지금까지 배운 걸 모의투자 화면에서 한번에 연결해 볼 거야.',
+        ],
+        targets: function () {
+          return [];
+        },
+        autoAdvance: true,
+      },
+      {
+        objective: '모의투자란?',
+        mood: 'happy',
+        coachMoods: ['happy', 'wink'],
+        coachBeats: [
+          '모의투자는 실제 돈 대신 가상 돈으로 연습하는 거야.',
+          '실수해도 괜찮으니까 편하게 눌러 보면서 익혀 보자!',
+        ],
         targets: function () {
           return [];
         },
@@ -157,180 +294,301 @@
       },
       {
         objective: '종목 선택',
-        mood: 'wink',
-        coach:
-          '왼쪽 거래대금 순위에서 보고 싶은 종목을 골라 봐. 누르면 차트랑 시세가 같이 열려.',
-        targets: pickRankTableTargets,
+        mood: 'curious',
+        coachMoods: ['curious', 'chart'],
+        coachBeats: [
+          '왼쪽 거래대금 순위에서 보고 싶은 종목을 골라 봐.',
+          '각 종목 오른쪽에 현재가랑 등락률이 보여. 마음에 드는 종목을 골라 봐!',
+        ],
+        targets: pickSidebarTargets,
         actionRequired: true,
       },
       {
-        objective: '차트로 판단',
-        mood: 'info',
-        coach:
-          '이 차트가 핵심이야. 봉이랑 거래량 보면서 「지금 살까, 팔까?」를 한번 스스로 생각해 봐. 감 맞히기보다 숫자로 근거 세우는 연습이야.',
+        objective: '차트',
+        mood: 'chart',
+        coachMoods: ['chart', 'curious'],
+        coachBeats: [
+          '종목을 누르면 상세가 열려. 차트 탭에서 가격 흐름을 볼 수 있어.',
+          '오를지 내릴지 감 잡을 때 여기를 자주 볼 거야!',
+        ],
         targets: chartTargets,
-        onEnter: enterChartTab,
-        autoAdvance: false,
+        onEnter: function () {
+          reopenPickedHolding();
+          enterHoldingTab('chart');
+        },
+      },
+      {
+        objective: '종목정보',
+        mood: 'good_idea',
+        coachMoods: ['good_idea', 'studying'],
+        coachBeats: [
+          '종목정보 탭은 3단계에서 본 기업 정보랑 연결돼.',
+          '회사가 뭘 하는지 다시 확인할 수 있어.',
+        ],
+        targets: infoTargets,
+        onEnter: function () {
+          reopenPickedHolding();
+          enterHoldingTab('info');
+        },
+      },
+      {
+        objective: '종목 거래내역',
+        mood: 'chart',
+        coachMoods: ['chart'],
+        coachBeats: ['이 종목으로 내가 한 거래만 모아 보는 탭이야.'],
+        targets: stockHistoryTargets,
+        onEnter: function () {
+          reopenPickedHolding();
+          enterHoldingTab('history');
+        },
       },
       {
         objective: '시세 탭',
         mood: 'info',
-        coach:
-          '이제 시세 탭이야. 오늘 장이 어떻게 움직였는지 숫자로 하나씩 볼 거야. 확인 누르면 다음으로 넘어가!',
-        targets: quoteIntroTargets,
-        onEnter: enterOrderTab,
-      },
-      {
-        objective: '거래량',
-        mood: 'info',
-        coach:
-          '거래량은 오늘 몇 주나 거래됐는지야. 많을수록 그날 관심이 몰린 종목—1단계에서 본 그거랑 같은 맥락이야.',
-        targets: function () {
-          return quoteStatTargets('simHoldingQuoteVolume');
-        },
-      },
-      {
-        objective: '거래대금',
-        mood: 'info',
-        coach:
-          '거래대금은 가격×거래량. 거래량이 「몇 주」였다면, 거래대금은 「얼마어치 돈이 움직였는지」야.',
-        targets: function () {
-          return quoteStatTargets('simHoldingQuoteTradedValue');
-        },
-      },
-      {
-        objective: '체결강도',
-        mood: 'success',
-        coach:
-          '체결강도는 (매수÷매도)×100%야. 100% 넘으면 매수 쪽이 더 세고, 밑이면 매도 쪽이 더 셀 때.',
-        targets: function () {
-          var exec = document.getElementById('simHoldingQuoteExec');
-          if (exec && !exec.hasAttribute('hidden')) return [exec];
-          return orderPanelTargets();
+        coachMoods: ['info'],
+        coachBeats: [
+          '시세 탭이야. 오늘 장이 어떻게 움직였는지 숫자로 하나씩 볼 거야.',
+        ],
+        targets: orderPanelTargets,
+        onEnter: function () {
+          reopenPickedHolding();
+          enterHoldingTab('order');
         },
       },
       {
         objective: '시가',
-        mood: 'info',
-        coach: '시가는 오늘 장이 시작할 때 가격이야. 하루의 출발점이라고 보면 돼.',
-        targets: function () {
-          var openV = document.getElementById('simHoldingQuoteOpen');
-          if (openV) {
-            var item = openV.closest('.sim-holding-quote-hl-item');
-            if (item) return [item];
-          }
-          var hl = document.getElementById('simHoldingQuoteHL');
-          return hl ? [hl] : orderPanelTargets();
-        },
+        mood: 'studying',
+        coachMoods: ['studying'],
+        coachBeats: ['시가는 오늘 장이 시작할 때 가격이야. 하루의 출발점이라고 보면 돼.'],
+        targets: orderPanelTargets,
       },
       {
         objective: '고가·저가',
         mood: 'success',
-        coach:
-          '고가는 오늘 가장 비쌌던 가격, 저가는 가장 싸게 거래된 가격이야. 시가랑 같이 보면 하루 흐름이 잡혀.',
-        targets: function () {
-          var hl = document.getElementById('simHoldingQuoteHL');
-          return hl ? [hl] : orderPanelTargets();
-        },
+        coachMoods: ['success', 'chart'],
+        coachBeats: [
+          '고가는 오늘 가장 비쌌던 가격, 저가는 가장 싸게 거래된 가격이야.',
+          '시가랑 같이 보면 하루 흐름이 잡혀.',
+        ],
+        targets: orderPanelTargets,
       },
       {
-        objective: '호가',
-        mood: 'caution',
-        coach:
-          '여기 호가! 사고·팔고 싶은 가격을 적어 두는 곳이고 그걸 호가라고 해. 장이 닫힌 뒤 지정가 넣으면 바로 안 사지고 예약으로 대기했다가, 다음 장에 조건 맞으면 체결돼.',
-        targets: function () {
-          var ob = document.getElementById('orderbookOverlay');
-          return ob && ob.classList.contains('is-open') ? [ob] : [];
-        },
+        objective: '거래량',
+        mood: 'curious',
+        coachMoods: ['curious'],
+        coachBeats: [
+          '거래량은 오늘 몇 주나 거래됐는지야. 많을수록 그날 관심이 몰린 종목이야.',
+        ],
+        targets: orderPanelTargets,
+      },
+      {
+        objective: '거래대금',
+        mood: 'idea',
+        coachMoods: ['idea'],
+        coachBeats: [
+          '거래대금은 가격×거래량. 거래량이 「몇 주」였다면, 거래대금은 「얼마어치 돈이 움직였는지」야.',
+        ],
+        targets: orderPanelTargets,
+      },
+      {
+        objective: '체결강도',
+        mood: 'good_idea',
+        coachMoods: ['good_idea'],
+        coachBeats: [
+          '체결강도는 (매수÷매도)×100%야. 100% 넘으면 매수 쪽이 더 세고, 밑이면 매도 쪽이 더 셀 때.',
+        ],
+        targets: orderPanelTargets,
+      },
+      {
+        objective: 'AI 의견',
+        mood: 'idea',
+        coachMoods: ['idea', 'curious'],
+        coachBeats: [
+          'AI 의견 탭에서는 이 종목에 대한 참고 의견을 볼 수 있어.',
+          '혼자 판단하기 전에 한번 훑어 보는 용도야!',
+        ],
+        targets: aiTargets,
         onEnter: function () {
-          if (interaction.stockCode && typeof window.openSimOrderbookForTutorial === 'function') {
-            window.openSimOrderbookForTutorial(interaction.stockCode);
-          }
-        },
-        autoAdvance: false,
-      },
-      {
-        objective: '예수금',
-        mood: 'welcome',
-        coach:
-          '호가는 여기까지! 모의투자 계좌 얘기할게. 주문에 쓸 수 있는 현금이 예수금이고, 처음엔 500만 원 들어 있으니 마음 편하게 연습해 봐.',
-        targets: depositTargets,
-        onEnter: function () {
-          if (typeof closeOrderbookOverlay === 'function') closeOrderbookOverlay();
-          var closeBtn = document.getElementById('simHoldingDetailClose');
-          if (closeBtn && holdingSheetOpen()) closeBtn.click();
+          reopenPickedHolding();
+          enterHoldingTab('options');
         },
       },
       {
-        objective: '지정가·입력',
+        objective: '상세 닫기',
         mood: 'info',
-        coach:
-          '아래 구매 칸을 보면 돼. 지정가를 고르고, 사고 싶은 가격과 수량을 적어 두면 돼. 장이 닫혀 있으면 예약 주문으로 대기해.',
-        targets: function () {
-          var sec = document.getElementById('trading-section');
-          return sec ? [sec] : [];
-        },
-        autoAdvance: false,
-      },
-      {
-        objective: '매수 버튼',
-        mood: 'info',
-        coach:
-          '빨간 매수 버튼을 한 번 눌러 봐! 확인 창이 뜨면 내용만 살펴보고 닫아도 돼. 지금은 실제 주문까지 하지 않아도 괜찮아.',
-        targets: function () {
-          var sec = document.getElementById('trading-section');
-          if (!sec) return [];
-          var buyBtn = sec.querySelector('button.btn-trade[onclick*="openBuyConfirmModal"]');
-          return buyBtn ? [buyBtn] : [sec];
-        },
-        onEnter: function () {
-          interaction.buyPreviewDone = false;
-        },
+        coachMoods: ['info'],
+        coachBeats: ['종목 상세는 여기서 닫으면 돼. 오른쪽 위 × 버튼을 눌러 줘.'],
+        targets: closeSheetTargets,
         actionRequired: true,
-        autoAdvance: false,
+        onEnter: function () {
+          interaction.closeSheetDone = false;
+          reopenPickedHolding();
+        },
       },
       {
-        objective: '매도',
-        mood: 'info',
-        coach:
-          '파란 매도 버튼은 매수와 비슷한 흐름이야. 보유한 뒤 팔고 싶을 때 가격·수량을 정하고 매도를 누르면 돼.',
-        targets: function () {
-          var sec = document.getElementById('trading-section');
-          return sec ? [sec] : [];
+        objective: '내 자산',
+        mood: 'studying',
+        coachMoods: ['studying', 'happy'],
+        coachBeats: [
+          '이제 포트폴리오 탭을 설명할게. 총 자산이랑 예수금, 보유 종목을 한눈에 볼 수 있어.',
+          '처음엔 가상 돈이 들어 있으니까 마음 편하게 연습해!',
+        ],
+        targets: portfolioTargets,
+        onEnter: function () {
+          closeHoldingSheet();
+          enterMainView('portfolio');
         },
-        autoAdvance: false,
+      },
+      {
+        objective: '구매·판매 영역',
+        mood: 'idea',
+        coachMoods: ['idea'],
+        coachBeats: ['아래 구매·판매 영역이야. 여기서 매수랑 매도 주문을 넣어.'],
+        targets: tradingFormsTargets,
+        onEnter: function () {
+          enterMainView('portfolio');
+          scrollToTradingSection();
+        },
+      },
+      {
+        objective: '시장가',
+        mood: 'excited',
+        coachMoods: ['excited', 'idea'],
+        coachBeats: [
+          '시장가는 지금 시장에서 바로 체결되는 가격이야.',
+          '급하게 사고팔 때 쓰는 방식이야. 주문하면 바로 체결될 수 있어.',
+        ],
+        targets: tradingFormsTargets,
+      },
+      {
+        objective: '지정가',
+        mood: 'studying',
+        coachMoods: ['studying', 'idea'],
+        coachBeats: [
+          '지정가는 내가 원하는 가격을 직접 적어 두는 거야.',
+          '그 가격에 맞는 상대가 나타나야 체결돼.',
+        ],
+        targets: tradingFormsTargets,
+      },
+      {
+        objective: '매수 방법',
+        mood: 'excited',
+        coachMoods: ['excited', 'caution'],
+        coachBeats: [
+          '매수는 종목·수량·가격을 정한 뒤 빨간 매수 버튼을 누르면 돼.',
+          '구매 칸 아래쪽 빨간 매수 버튼을 찾아 봐!',
+        ],
+        targets: tradingFormsTargets,
+      },
+      {
+        objective: '매도 방법',
+        mood: 'chart',
+        coachMoods: ['chart', 'info'],
+        coachBeats: [
+          '매도는 보유 종목을 골라 수량·가격을 정하고 파란 매도 버튼을 눌러.',
+          '매수랑 비슷한 흐름이야!',
+        ],
+        targets: tradingFormsTargets,
+      },
+      {
+        objective: '주문·체결',
+        mood: 'studying',
+        coachMoods: ['studying', 'success'],
+        coachBeats: [
+          '주문·체결 현황판이야. 대기 중·체결·취소 상태가 카드로 보여.',
+          '주문을 넣은 뒤 여기서 체결됐는지 확인하면 돼.',
+        ],
+        targets: orderStatusTargets,
+        onEnter: function () {
+          enterMainView('portfolio');
+          scrollToOrderStatusSection();
+        },
+      },
+      {
+        objective: '거래 내역',
+        mood: 'chart',
+        coachMoods: ['chart', 'studying'],
+        coachBeats: [
+          '거래 내역에는 날짜·종목·매수/매도·체결 가격이 쌓여.',
+          '나중에 내 매매를 돌아볼 때 자주 쓰는 곳이야.',
+        ],
+        targets: tradeHistoryTargets,
+        onEnter: function () {
+          enterMainView('portfolio');
+          scrollToTradeHistorySection();
+        },
+      },
+      {
+        objective: '수익분석',
+        mood: 'studying',
+        coachMoods: ['studying', 'success'],
+        coachBeats: [
+          '수익분석 탭에서 실현 손익을 모아 볼 수 있어.',
+          '어떤 매매가 이익이었는지 정리해 보는 데 쓰여.',
+        ],
+        targets: pnlTargets,
+        onEnter: function () {
+          closeHoldingSheet();
+          enterMainView('pnl');
+        },
+      },
+      {
+        objective: '이달의 랭킹',
+        mood: 'excited',
+        coachMoods: ['excited'],
+        coachBeats: [
+          '이달의 랭킹에서 다른 사용자들이랑 수익을 비교해 볼 수 있어.',
+        ],
+        targets: rankingTargets,
+        onEnter: function () {
+          enterMainView('ranking');
+        },
+      },
+      {
+        objective: '초기화',
+        mood: 'caution',
+        coachMoods: ['caution', 'welcome'],
+        coachBeats: [
+          '초기화 탭은 계좌를 처음 상태로 되돌릴 때 써.',
+          '연습 끝나고 새로 시작하고 싶을 때 찾아오면 돼!',
+        ],
+        targets: resetTargets,
+        onEnter: function () {
+          enterMainView('reset');
+        },
       },
       {
         objective: '5단계 완료',
         mood: 'success',
-        coach:
-          '잘했어! 이제 스스로 모의투자에서 차트·시세를 보며 실전 연습을 해봐. 루미가 옆에 있을게!',
+        coachMoods: ['success', 'happy', 'wink'],
+        coachBeats: [
+          '5단계 완료!',
+          '이제 1~4단계에서 배운 걸 모의투자에서 스스로 연결할 수 있어.',
+          '필요할 때 다시 찾아와 — 루미가 옆에 있을게!',
+        ],
         targets: function () {
           return [];
         },
-        autoAdvance: true,
       },
     ];
   }
 
   function injectTutorialDom() {
-    if (document.getElementById('simStep5Overlay')) return;
-    var html =
-      '<motion.div class="market-step5-overlay sim-step5-overlay" id="simStep5Overlay" aria-hidden="true"></motion.div>' +
-      '<motion.div class="sim-step5-quest-hud" id="simStep5QuestHud" aria-hidden="true">' +
-      '  <motion.div class="sim-step5-panel">' +
-      '    <motion.div class="sim-step5-head">' +
-      '      <span class="sim-step5-tag">5단계</span>' +
-      '      <strong class="sim-step5-title">나의 첫 투자</strong>' +
-      '    </motion.div>' +
-      '    <p class="sim-step5-now" id="simStep5Now">시작</p>' +
-      '  </motion.div>' +
-      '</motion.div>' +
-      '<motion.div class="sim-step5-confetti" id="simStep5Confetti" aria-hidden="true"></motion.div>';
-    html = html.replace(/<\/?motion\.div/gi, function (tag) {
-      return tag.replace(/motion\./gi, '');
-    });
-    document.body.insertAdjacentHTML('beforeend', html);
+    if (!document.getElementById('simStep5Overlay')) {
+      var html =
+        '<motion.div class="market-step5-overlay sim-step5-overlay" id="simStep5Overlay" aria-hidden="true"></motion.div>' +
+        '<motion.div class="sim-step5-confetti" id="simStep5Confetti" aria-hidden="true"></motion.div>';
+      html = html.replace(/<\/?motion\.div/gi, function (tag) {
+        return tag.replace(/motion\./gi, '');
+      });
+      document.body.insertAdjacentHTML('beforeend', html);
+    }
+    if (!document.getElementById('simStep5Clear')) {
+      document.body.insertAdjacentHTML(
+        'beforeend',
+        '<div class="sim-step5-clear" id="simStep5Clear" aria-hidden="true">CLEAR</div>'
+      );
+    }
   }
 
   function init() {
@@ -340,17 +598,18 @@
 
     injectTutorialDom();
     var overlay = document.getElementById('simStep5Overlay');
-    var questHud = document.getElementById('simStep5QuestHud');
-    var nowEl = document.getElementById('simStep5Now');
     var confetti = document.getElementById('simStep5Confetti');
-    if (!overlay || !questHud || !nowEl) return;
+    var clearEl = document.getElementById('simStep5Clear');
+    if (!overlay) return;
 
     var STEPS = buildSteps();
     var current = 0;
     var started = false;
     var activeTargets = [];
     var completed = false;
+    var giftPhaseActive = false;
     var waitingForLogin = false;
+    var dialogueBeatIndex = 0;
 
     function clearTargets() {
       activeTargets.forEach(function (el) {
@@ -372,36 +631,64 @@
       });
     }
 
-    function isTradeGuideStep(idx) {
-      return idx >= STEP_TRADE_LIMIT && idx <= STEP_TRADE_SELL;
-    }
+    var STEP5_BODY_CLASSES = [
+      'sim-step5-spotlight',
+      'tutorial-fx-spotlight',
+      'sim-step5-detail-spotlight',
+      'sim-step5-sidebar-spotlight',
+      'sim-step5-sheet-spotlight',
+      'sim-step5-portfolio-spotlight',
+      'sim-step5-trade-only',
+      'sim-step5-overview',
+      'sim-step5-pick-lock',
+    ];
 
-    function isBuyPreviewStep(idx) {
-      return idx === STEP_BUY_BTN;
-    }
-
-    function isTermModeStep(idx) {
-      return idx >= STEP_QUOTE_VOL && idx <= STEP_QUOTE_HL;
-    }
-
-    function isOverviewStep(idx) {
-      return idx === STEP_CHART || idx === STEP_QUOTE_INTRO;
-    }
-
-    function isDetailSpotlightStep(idx) {
-      return idx >= STEP_CHART && idx <= STEP_ORDERBOOK;
+    function removeStep5BodyClasses() {
+      STEP5_BODY_CLASSES.forEach(function (cls) {
+        document.body.classList.remove(cls);
+      });
     }
 
     function isHoldingSheetStep(idx) {
-      return idx >= STEP_CHART && idx <= STEP_QUOTE_HL;
+      return idx >= STEP_CHART && idx <= STEP_AI;
+    }
+
+    function isTradeBlockStep(idx) {
+      return idx >= STEP_TRADE_INTRO && idx <= STEP_SELL_HOW;
+    }
+
+    function isPortfolioTradeStep(idx) {
+      return idx >= STEP_PORTFOLIO && idx <= STEP_TRADE_HISTORY;
+    }
+
+    function isMainViewStep(idx) {
+      return idx >= STEP_PNL && idx <= STEP_RESET;
+    }
+
+    function isCloseSheetStep(idx) {
+      return idx === STEP_CLOSE_SHEET;
+    }
+
+    function isSheetSpotlightStep(idx) {
+      return isHoldingSheetStep(idx) || (isCloseSheetStep(idx) && holdingSheetOpen());
+    }
+
+    function isDetailSpotlightStep(idx) {
+      return isSheetSpotlightStep(idx);
+    }
+
+    function isClearPhase() {
+      return document.body.classList.contains('sim-step5-clear-phase');
     }
 
     function usesSpotlightDim(idx) {
-      return idx >= STEP_PICK && idx <= STEP_TRADE_SELL;
+      if (idx < STEP_PICK || idx > STEP_CLOSE_SHEET) return false;
+      if (idx === STEP_CLOSE_SHEET) return holdingSheetOpen();
+      return true;
     }
 
     function syncSpotlightDim() {
-      var on = started && !completed && usesSpotlightDim(current);
+      var on = started && !completed && !isClearPhase() && usesSpotlightDim(current);
       overlay.classList.toggle('is-dim', on);
       document.body.classList.toggle('sim-step5-spotlight', on);
       document.body.classList.toggle('tutorial-fx-spotlight', on);
@@ -409,21 +696,22 @@
 
     function isBlockedTradeClick(target) {
       if (!started || completed || !target || !target.closest) return false;
-      if (isBuyPreviewStep(current)) {
-        if (target.closest('#trading-section button.btn-trade[onclick*="openBuyConfirmModal"]')) {
-          return false;
-        }
-        if (target.closest('#buyModal')) {
-          if (target.closest('button[onclick*="confirmBuyFromModal"]')) return true;
-          return false;
-        }
-      }
       if (target.closest('#trading-section .btn-trade')) return true;
       if (target.closest('#buyModal .btn-trade')) return true;
       if (target.closest('#sellModal .btn-trade')) return true;
       if (target.closest('button[onclick*="confirmBuyFromModal"]')) return true;
       if (target.closest('button[onclick*="confirmSellFromModal"]')) return true;
+      if (target.closest('button[onclick*="confirmBuyFromHoldingModal"]')) return true;
+      if (target.closest('button[onclick*="confirmQuickSellFromModal"]')) return true;
       return false;
+    }
+
+    function updatePickLockClass() {
+      var active = started && !completed;
+      document.body.classList.toggle(
+        'sim-step5-pick-lock',
+        active && current === STEP_PICK && !interaction.pickDone
+      );
     }
 
     function updateBodyClasses() {
@@ -431,20 +719,43 @@
       document.body.classList.toggle('simulation-step5-active', active);
       document.body.classList.toggle('tutorial-fx-active', active);
       document.body.classList.toggle('sim-step5-detail-spotlight', active && isDetailSpotlightStep(current));
-      document.body.classList.toggle('sim-step5-term-mode', active && isTermModeStep(current));
-      document.body.classList.toggle('sim-step5-overview', active && isOverviewStep(current));
+      document.body.classList.toggle('sim-step5-sidebar-spotlight', active && current === STEP_PICK);
+      document.body.classList.toggle('sim-step5-sheet-spotlight', active && isSheetSpotlightStep(current));
+      document.body.classList.toggle(
+        'sim-step5-portfolio-spotlight',
+        active && isPortfolioTradeStep(current)
+      );
+      document.body.classList.toggle('sim-step5-trade-only', active && isTradeBlockStep(current));
+      document.body.classList.toggle(
+        'sim-step5-overview',
+        active && (isPortfolioTradeStep(current) || isMainViewStep(current))
+      );
+      updatePickLockClass();
       syncSpotlightDim();
     }
 
     function needsCalloutRefresh(idx) {
+      if (isHoldingSheetStep(idx)) return true;
       if (isDetailSpotlightStep(idx)) return true;
-      if (idx === STEP_DEPOSIT || isTradeGuideStep(idx) || idx === STEP_ORDERBOOK) return true;
+      if (isTradeBlockStep(idx)) return true;
+      if (idx === STEP_ORDER_STATUS || idx === STEP_TRADE_HISTORY) return true;
+      if (isPortfolioTradeStep(idx) || isMainViewStep(idx) || isCloseSheetStep(idx)) return true;
+      if (idx === STEP_PICK) return true;
       return false;
     }
 
     function scheduleCalloutRefresh() {
       if (!needsCalloutRefresh(current)) return;
-      var delays = isTermModeStep(current) || current === STEP_QUOTE_INTRO ? [420, 600] : [420];
+      var delays = [420, 700];
+      if (
+        isCloseSheetStep(current) ||
+        isHoldingSheetStep(current) ||
+        isTradeBlockStep(current) ||
+        current === STEP_ORDER_STATUS ||
+        current === STEP_TRADE_HISTORY
+      ) {
+        delays = [420, 700, 900];
+      }
       delays.forEach(function (ms) {
         window.setTimeout(function () {
           if (!started || completed) return;
@@ -456,73 +767,148 @@
       });
     }
 
-    function updateHud() {
-      var step = STEPS[current];
-      if (step && nowEl) nowEl.textContent = step.objective || '';
-    }
-
     function isActionStep(idx) {
-      return idx === STEP_PICK;
+      return idx === STEP_PICK || idx === STEP_CLOSE_SHEET;
     }
 
-    function showCoach(step, onDone, opts) {
-      opts = opts || {};
+    function isCoachOnlyStep(idx) {
+      if (idx === STEP_INTRO || idx === STEP_WHY) return true;
+      if (isHoldingSheetStep(idx)) return true;
+      if (isPortfolioTradeStep(idx)) return true;
+      if (isMainViewStep(idx)) return true;
+      return false;
+    }
+
+    function holdingTabLabel(idx) {
+      if (idx === STEP_CHART) return '차트';
+      if (idx === STEP_INFO) return '종목정보';
+      if (idx === STEP_STOCK_HISTORY) return '거래내역';
+      if (idx >= STEP_QUOTE_INTRO && idx <= STEP_QUOTE_EXEC) return '시세';
+      if (idx === STEP_AI) return 'AI 의견';
+      return '종목 상세';
+    }
+
+    function getWrongMessageForStep(target) {
+      if (window.JurinTutorialGuard.isBlockedChromeClick(target)) return null;
+      if (isBlockedTradeClick(target)) {
+        return '지금은 설명만 볼 거야! 확인을 눌러 다음으로 가자.';
+      }
+      if (isHoldingSheetStep(current)) {
+        if (target.closest && target.closest('#simHoldingDetailClose')) {
+          return '아직 닫으라고 안 했어! 안내를 따라온 뒤에 × 버튼을 눌러 줘.';
+        }
+        if (target.closest && target.closest('.sim-holding-sheet-tabs')) {
+          return '지금은 「' + holdingTabLabel(current) + '」 탭 설명 중이야! 다른 탭은 누르지 마.';
+        }
+        return '지금은 「' + holdingTabLabel(current) + '」 탭 설명을 들어봐! 확인을 눌러 줘.';
+      }
+      if (isPortfolioTradeStep(current)) {
+        if (target.closest && target.closest('.sim-view-tabs')) {
+          return '지금은 포트폴리오 설명을 들어봐! 확인을 눌러 줘.';
+        }
+        return '지금은 구매·판매 영역 설명 중이야! 다른 버튼은 누르지 마.';
+      }
+      if (isMainViewStep(current)) {
+        return '지금은 안내를 들어봐! 확인을 눌러 줘.';
+      }
+      if (current === STEP_INTRO || current === STEP_WHY) {
+        return '지금은 루미의 안내를 들어봐! 확인 버튼을 눌러 줘.';
+      }
+      if (current === STEP_PICK) {
+        return '지금은 왼쪽 목록에서 종목 행을 눌러 줘.';
+      }
+      if (current === STEP_CLOSE_SHEET) {
+        if (target.closest && target.closest('#simHoldingDetailClose')) return null;
+        return '오른쪽 위 × 버튼을 눌러 종목 상세를 닫아 줘!';
+      }
+      return '지금은 안내한 곳만 눌러 줘!';
+    }
+
+    function showCoach(step, extra) {
+      if (!step) return;
       if (!window.MascotCoach || typeof window.MascotCoach.show !== 'function') {
-        if (onDone) onDone();
+        if (extra && typeof extra.onAfterBeats === 'function') extra.onAfterBeats();
+        else if (!step.actionRequired && step.autoAdvance) proceed();
         return;
       }
-      var label = opts.confirmLabel;
-      if (!label) label = step.actionRequired ? '알겠어' : '확인';
-      window.MascotCoach.show({
-        mood: opts.mood || step.mood || 'info',
+      var beats = getCoachBeats(step);
+      var moods = getCoachMoods(step);
+      var text = beats[dialogueBeatIndex] || beats[0] || '';
+      var mood = moods[dialogueBeatIndex] || moods[moods.length - 1] || step.mood || 'info';
+      var label = '확인';
+      if (step.actionRequired) label = '알겠어';
+      var payload = {
+        mood: mood,
         title: '루미',
-        text: opts.text != null ? opts.text : step.coach || '',
+        text: text,
         confirmLabel: label,
         onConfirm: function () {
-          if (onDone) onDone();
+          if (dialogueBeatIndex < beats.length - 1) {
+            dialogueBeatIndex += 1;
+            showCoach(step, extra);
+            return;
+          }
+          dialogueBeatIndex = 0;
+          if (extra && typeof extra.onAfterBeats === 'function') {
+            extra.onAfterBeats();
+            return;
+          }
+          handleCoachConfirm(step);
         },
-      });
+      };
+      if (extra && typeof extra === 'object') {
+        if (extra.confirmLabel) payload.confirmLabel = extra.confirmLabel;
+        if (extra.mood) payload.mood = extra.mood;
+        if (extra.text != null) payload.text = extra.text;
+        if (extra.onConfirm) {
+          var afterBeats = extra.onConfirm;
+          payload.onConfirm = function () {
+            if (dialogueBeatIndex < beats.length - 1) {
+              dialogueBeatIndex += 1;
+              showCoach(step, extra);
+              return;
+            }
+            dialogueBeatIndex = 0;
+            afterBeats();
+          };
+        }
+      }
+      window.MascotCoach.show(payload);
     }
 
     function handleCoachConfirm(step) {
       if (current === STEP_PICK) {
         if (!interaction.pickDone) {
-          showCoach(step, function () {
-            handleCoachConfirm(step);
-          }, {
+          showCoach(step, {
             mood: 'wink',
-            text:
-              '아직 종목을 고르지 않았어! 왼쪽 거래대금 순위에서 관심 있는 종목 행을 다시 한 번 눌러 줘.',
+            text: '아직 종목을 고르지 않았어! 왼쪽 거래대금 순위에서 관심 있는 종목 행을 다시 한 번 눌러 줘.',
+            onConfirm: function () {
+              handleCoachConfirm(step);
+            },
           });
         }
         return;
       }
-      if (current === STEP_BUY_BTN) {
-        if (!interaction.buyPreviewDone) {
-          showCoach(step, function () {
-            handleCoachConfirm(step);
-          }, {
-            mood: 'info',
-            text: '빨간 매수 버튼을 눌러 확인 창을 한번 열어 봐! 내용만 보고 닫아도 돼.',
+      if (current === STEP_CLOSE_SHEET) {
+        if (!interaction.closeSheetDone && holdingSheetOpen()) {
+          showCoach(step, {
+            mood: 'wink',
+            text: '종목 상세를 닫으려면 오른쪽 위 × 버튼을 눌러 줘!',
+            onConfirm: function () {
+              handleCoachConfirm(step);
+            },
           });
-        } else {
-          if (typeof closeBuyModal === 'function') closeBuyModal();
-          proceed();
         }
         return;
       }
-      if (current === STEP_ORDERBOOK) {
-        proceed();
-        return;
-      }
-      if (!step.actionRequired && !step.waitAfterCoach) {
+      if (!step.actionRequired) {
         proceed();
       }
     }
 
     function render(idx) {
       current = idx;
-      updateHud();
+      dialogueBeatIndex = 0;
       var step = STEPS[current];
       if (!step) return;
 
@@ -535,25 +921,88 @@
       applyTargetsFromStep(step);
       updateBodyClasses();
       scheduleCalloutRefresh();
-
-      if (step.autoAdvance) {
-        showCoach(step, function () {
-          proceed();
-        });
-        return;
-      }
-
-      showCoach(step, function () {
-        handleCoachConfirm(step);
-      });
+      showCoach(step);
     }
 
     function proceed() {
+      if (current === STEP_RESET) {
+        beginClearPhase();
+        return;
+      }
       if (current >= STEP_FINAL) {
         finishTutorial();
         return;
       }
       render(current + 1);
+    }
+
+    function beginClearPhase() {
+      current = STEP_FINAL;
+      dialogueBeatIndex = 0;
+      var finalStep = STEPS[STEP_FINAL];
+      clearTargets();
+      document.body.classList.add('sim-step5-clear-phase');
+      document.body.classList.add('tutorial-fx-clear');
+      removeStep5BodyClasses();
+      overlay.classList.remove('is-dim');
+      overlay.classList.add('is-clear-dim');
+      if (clearEl) {
+        clearEl.classList.add('is-show');
+        clearEl.setAttribute('aria-hidden', 'false');
+      }
+      showCoach(finalStep, {
+        onConfirm: function () {
+          beginGiftPhase();
+        },
+      });
+    }
+
+    function beginGiftPhase() {
+      giftPhaseActive = true;
+      document.body.classList.remove('sim-step5-clear-phase', 'tutorial-fx-clear');
+      overlay.classList.remove('is-clear-dim');
+      if (clearEl) {
+        clearEl.classList.remove('is-show');
+        clearEl.setAttribute('aria-hidden', 'true');
+      }
+      persistStep5Complete();
+
+      var giftFinished = false;
+      function completeGiftFlow(withConfetti) {
+        if (giftFinished) return;
+        giftFinished = true;
+        if (withConfetti) showConfettiBrief();
+        window.setTimeout(finishTutorial, withConfetti ? 2800 : 0);
+      }
+
+      if (!window.LumiCon || typeof window.LumiCon.openRewardPreviewModal !== 'function') {
+        completeGiftFlow(true);
+        return;
+      }
+
+      window.LumiCon.openRewardPreviewModal({
+        onClaimed: function () {
+          if (window.LumiCon.closeRewardPreviewModal) {
+            window.LumiCon.closeRewardPreviewModal();
+          }
+          completeGiftFlow(true);
+        },
+      });
+      syncGuard();
+
+      var rewardModal = document.getElementById('lumiConRewardModal');
+      if (rewardModal) {
+        var modalObs = new MutationObserver(function () {
+          if (!rewardModal.hidden && !giftFinished) return;
+          if (giftFinished) {
+            modalObs.disconnect();
+            return;
+          }
+          modalObs.disconnect();
+          completeGiftFlow(false);
+        });
+        modalObs.observe(rewardModal, { attributes: true, attributeFilter: ['hidden'] });
+      }
     }
 
     function showConfettiBrief() {
@@ -566,107 +1015,147 @@
       }, 2800);
     }
 
-    function finishTutorial() {
-      completed = true;
+    function quitTutorial(fromUserQuit) {
+      giftPhaseActive = false;
       started = false;
       clearTargets();
       overlay.classList.remove('is-open', 'is-dim');
-      questHud.classList.remove('is-open');
+      overlay.setAttribute('aria-hidden', 'true');
       document.body.classList.remove(
         'simulation-step5-active',
         'tutorial-fx-active',
-        'tutorial-fx-spotlight',
-        'sim-step5-detail-spotlight',
-        'sim-step5-term-mode',
-        'sim-step5-overview',
-        'sim-step5-spotlight'
+        'tutorial-fx-clear',
+        'sim-step5-clear-phase'
       );
-      showConfettiBrief();
-      persistStep5Complete();
-      stripTutorialParamFromUrl();
+      removeStep5BodyClasses();
+      overlay.classList.remove('is-clear-dim');
+      if (clearEl) {
+        clearEl.classList.remove('is-show');
+        clearEl.setAttribute('aria-hidden', 'true');
+      }
       window.__jurinGuideQuit = null;
       if (window.JurinTutorialGuard) window.JurinTutorialGuard.clear();
-      if (window.JurinGuideLumi && typeof window.JurinGuideLumi.end === 'function') {
-        window.JurinGuideLumi.end();
+      if (window.JurinTutorialUtil && typeof window.JurinTutorialUtil.clearTutorialProgress === 'function') {
+        window.JurinTutorialUtil.clearTutorialProgress(5);
       }
-      if (window.LumiChat && typeof window.LumiChat.init === 'function') {
-        if (!document.getElementById('lumiChatRoot')) {
-          window.LumiChat.init();
-        }
+      if (window.JurinTutorialUtil && typeof window.JurinTutorialUtil.restoreNormalSiteUi === 'function') {
+        window.JurinTutorialUtil.restoreNormalSiteUi({
+          stripTutorial: fromUserQuit === true,
+        });
+      }
+    }
+
+    function finishTutorial() {
+      giftPhaseActive = false;
+      completed = true;
+      started = false;
+      clearTargets();
+      overlay.classList.remove('is-open', 'is-dim', 'is-clear-dim');
+      document.body.classList.remove(
+        'simulation-step5-active',
+        'tutorial-fx-active',
+        'tutorial-fx-clear',
+        'sim-step5-clear-phase'
+      );
+      removeStep5BodyClasses();
+      if (clearEl) {
+        clearEl.classList.remove('is-show');
+        clearEl.setAttribute('aria-hidden', 'true');
+      }
+      persistStep5Complete();
+      window.__jurinGuideQuit = null;
+      if (window.JurinTutorialGuard) window.JurinTutorialGuard.clear();
+      if (window.JurinTutorialUtil && typeof window.JurinTutorialUtil.restoreNormalSiteUi === 'function') {
+        window.JurinTutorialUtil.restoreNormalSiteUi({ stripTutorial: true });
       }
     }
 
     function closeTutorial() {
-      finishTutorial();
+      quitTutorial(true);
     }
-
-    window.__simStep5BuyPreviewCheck = function (modal) {
-      if (!started || completed || current !== STEP_BUY_BTN) return;
-      var m = modal || document.getElementById('buyModal');
-      if (!m) return;
-      if (m.classList.contains('is-open') || m.getAttribute('aria-hidden') === 'false') {
-        interaction.buyPreviewDone = true;
-      }
-    };
-    attachBuyModalPreviewWatcher();
 
     function openTutorial() {
       waitingForLogin = false;
       started = true;
       overlay.classList.add('is-open');
       overlay.setAttribute('aria-hidden', 'false');
-      questHud.classList.add('is-open');
-      questHud.setAttribute('aria-hidden', 'false');
       updateBodyClasses();
       window.__jurinGuideQuit = function () {
-        closeTutorial();
+        quitTutorial(true);
       };
       syncGuard();
       render(STEP_INTRO);
+    }
+
+    function allowsMainViewTab(target, view) {
+      if (!target.closest) return false;
+      var tabId =
+        view === 'portfolio'
+          ? 'simViewTabPortfolio'
+          : view === 'pnl'
+            ? 'simViewTabPnl'
+            : view === 'ranking'
+              ? 'simViewTabRanking'
+              : view === 'reset'
+                ? 'simViewTabReset'
+                : '';
+      if (tabId && target.closest('#' + tabId)) return true;
+      var panelId =
+        view === 'portfolio'
+          ? 'simViewPortfolio'
+          : view === 'pnl'
+            ? 'simViewRealizedPnl'
+            : view === 'ranking'
+              ? 'simViewRanking'
+              : view === 'reset'
+                ? 'simViewReset'
+                : '';
+      return panelId ? !!target.closest('#' + panelId) : false;
     }
 
     function syncGuard() {
       if (!window.JurinTutorialGuard) return;
       window.JurinTutorialGuard.set({
         isActive: function () {
-          return started && !completed && overlay.classList.contains('is-open');
+          return (
+            (started && !completed && overlay.classList.contains('is-open')) || giftPhaseActive
+          );
         },
         allowsClick: function (target) {
           var G = window.JurinTutorialGuard;
-          if (G.allowsMascotAndQuest(target, 'simStep5QuestHud', '.sim-step5-panel')) return true;
-          if (isBlockedTradeClick(target)) return false;
-          if (G.allowsSpotlightTargets(target)) return true;
-          if (current === STEP_PICK && target.closest && target.closest('tr.discovery-row')) return true;
-          if (isHoldingSheetStep(current) && target.closest && target.closest('#simHoldingDetailSheet')) return true;
-          if (current === STEP_ORDERBOOK && target.closest && target.closest('#orderbookOverlay')) return true;
-          if (current === STEP_DEPOSIT && target.closest && target.closest('.portfolio-section')) return true;
-          if (isBuyPreviewStep(current)) {
-            if (target.closest && target.closest('#trading-section')) return true;
-            if (target.closest && target.closest('#buyModal')) return true;
-          }
-          if (isTradeGuideStep(current) && target.closest && target.closest('#trading-section')) {
-            if (isBuyPreviewStep(current)) return true;
-            if (target.closest('.btn-trade')) return false;
+          if (giftPhaseActive && target.closest && target.closest('#lumiConRewardModal')) {
             return true;
           }
-          return !isActionStep(current);
-        },
-        getWrongMessage: function (target) {
-          if (isBlockedTradeClick(target)) {
-            if (isBuyPreviewStep(current) && target.closest('button[onclick*="confirmBuyFromModal"]')) {
-              return '지금은 주문까지 하지 않아도 돼! 확인 창만 보고 닫은 뒤, 코치 확인을 눌러 줘.';
-            }
-            return '지금은 설명만 볼 거야! 확인을 눌러 다음으로 가자.';
+          if (G.allowsMascotAndQuest(target)) return true;
+          if (G.isBlockedChromeClick(target)) return false;
+          if (isBlockedTradeClick(target)) return false;
+          if (isCoachOnlyStep(current)) return false;
+          if (current === STEP_PICK && target.closest && target.closest('tr.discovery-row')) {
+            return true;
           }
-          if (!isActionStep(current)) return null;
-          if (current === STEP_PICK) {
-            return '앗, 그건 아니야! 왼쪽 목록에서 종목 행을 눌러 줘.';
+          if (
+            isCloseSheetStep(current) &&
+            target.closest &&
+            target.closest('#simHoldingDetailClose')
+          ) {
+            return true;
           }
-          return '지금은 안내한 곳만 눌러 줘!';
+          if (
+            isHoldingSheetStep(current) &&
+            target.closest &&
+            target.closest('#simHoldingDetailClose')
+          ) {
+            return false;
+          }
+          return false;
         },
+        getWrongMessage: getWrongMessageForStep,
         onAfterWrong: function () {
           var step = STEPS[current];
-          if (step) showCoach(step);
+          if (step) {
+            dialogueBeatIndex = 0;
+            showCoach(step);
+          }
         },
       });
     }
@@ -699,7 +1188,7 @@
         mood: 'welcome',
         title: '루미',
         text:
-          '5단계: 나의 첫 투자야! 모의투자 화면에서 차트·시세·호가를 보고, 매수하는 방법을 알아볼 거야. 확인 누르면 시작!',
+          '5단계: 모의투자 전체 흐름이야! 종목 고르기 → 상세 탭 → 포트폴리오·주문 → 수익분석·랭킹까지 차근차근 볼 거야. 확인 누르면 시작!',
         confirmLabel: '시작',
         onConfirm: function () {
           openTutorial();
@@ -708,6 +1197,23 @@
     }
 
     function checkAuthThenStart() {
+      var tutorialUtil5 = window.JurinTutorialUtil;
+      if (
+        tutorialUtil5 &&
+        typeof tutorialUtil5.consumeTutorialFreshStart === 'function' &&
+        tutorialUtil5.consumeTutorialFreshStart(5)
+      ) {
+        if (typeof tutorialUtil5.clearTutorialProgress === 'function') {
+          tutorialUtil5.clearTutorialProgress(5);
+        }
+        if (typeof tutorialUtil5.clearTutorialCompleteBit === 'function') {
+          tutorialUtil5.clearTutorialCompleteBit(5);
+        }
+        if (started) quitTutorial(true);
+        completed = false;
+        current = 0;
+        waitingForLogin = false;
+      }
       fetch(getApiBase() + '/api/auth/me', { credentials: 'include' })
         .then(function (r) {
           return r.json().catch(function () {
@@ -773,6 +1279,8 @@
           var op = parseFloat(tr.getAttribute('data-open-price') || '', 10);
           interaction.openPrice = Number.isFinite(op) && op > 0 ? op : 0;
           interaction.pickDone = true;
+          clearTargets();
+          updateBodyClasses();
           window.setTimeout(function () {
             if (current !== STEP_PICK) return;
             var openEl = document.getElementById('simHoldingQuoteOpen');
@@ -784,6 +1292,24 @@
         },
         true
       );
+    }
+
+    var holdingSheet = document.getElementById('simHoldingDetailSheet');
+    if (holdingSheet) {
+      var sheetObs = new MutationObserver(function () {
+        if (!started || completed || current !== STEP_CLOSE_SHEET) return;
+        if (!holdingSheetOpen()) {
+          interaction.closeSheetDone = true;
+          clearTargets();
+          updateBodyClasses();
+          window.setTimeout(function () {
+            if (current === STEP_CLOSE_SHEET && interaction.closeSheetDone) {
+              proceed();
+            }
+          }, 80);
+        }
+      });
+      sheetObs.observe(holdingSheet, { attributes: true, attributeFilter: ['hidden', 'aria-hidden'] });
     }
 
     document.addEventListener('keydown', function (ev) {

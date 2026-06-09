@@ -264,23 +264,41 @@
     ch.textContent = `${arrow} ${sign}${changePct}% (${sign}${changeAbs})`;
   }
 
+  const STAT_ICON_SVG = {
+    open:
+      '<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="9" width="3" height="5" rx="0.5" fill="currentColor"/><rect x="6.5" y="6" width="3" height="8" rx="0.5" fill="currentColor"/><rect x="11" y="3" width="3" height="11" rx="0.5" fill="currentColor"/></svg>',
+    high:
+      '<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.2"/><path d="M8 10V5.5M8 5.5L5.8 7.7M8 5.5L10.2 7.7" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    low:
+      '<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.2"/><path d="M8 6v4.5M8 10.5l-2.2-2.2M8 10.5l2.2-2.2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    volume:
+      '<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="8" width="2.5" height="6" rx="0.5" fill="currentColor"/><rect x="6.75" y="5" width="2.5" height="9" rx="0.5" fill="currentColor"/><rect x="11.5" y="2" width="2.5" height="12" rx="0.5" fill="currentColor"/></svg>',
+  };
+
+  function statIconHtml(kind) {
+    const svg = STAT_ICON_SVG[kind] || '';
+    return `<span class="detail-card-icon detail-card-icon--${kind}" aria-hidden="true">${svg}</span>`;
+  }
+
   function renderStats(payload) {
     const stats = payload.stats || {};
     const volLabel = payload.volume_label || '거래량';
     const map = [
-      ['시가', stats.open, false],
-      ['고가', stats.high, false],
-      ['저가', stats.low, false],
-      [volLabel, stats.volume, true],
+      ['시가', stats.open, false, 'open'],
+      ['고가', stats.high, false, 'high'],
+      ['저가', stats.low, false, 'low'],
+      [volLabel, stats.volume, true, 'volume'],
     ];
     const grid = el('indexDetailStats');
     if (!grid) return;
+    grid.className = 'detail-grid index-detail-stats-grid';
     grid.innerHTML = map
-      .map(([label, val, isVol]) => {
+      .map(([label, val, isVol, iconKind]) => {
         const text = isVol ? formatVolume(val) : formatIndexPrice(val);
         return (
-          '<div class="detail-card">' +
+          '<div class="detail-card index-detail-stat-card">' +
           `<div class="detail-label">${esc(label)}</div>` +
+          statIconHtml(iconKind) +
           `<div class="detail-value">${esc(text)}</div>` +
           '</div>'
         );
@@ -493,7 +511,6 @@
     if (!overlay || overlay.dataset.bound === '1') return;
     overlay.dataset.bound = '1';
 
-    el('indexDetailClose')?.addEventListener('click', close);
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && overlay && !overlay.hidden) close();
     });
@@ -509,6 +526,13 @@
     renderRail();
     overlay.hidden = false;
     document.body.classList.add('index-detail-overlay-open');
+    const overlayNavRight = overlay.querySelector('.nav-right[data-auth-nav]');
+    if (overlayNavRight && typeof window.setupAuthNavContainer === 'function') {
+      window.setupAuthNavContainer(overlayNavRight);
+    }
+    if (typeof window.refreshAuthNav === 'function') {
+      window.refreshAuthNav();
+    }
     loadSeq++;
 
     Promise.all([fetchIndices(), loadDetail()])
