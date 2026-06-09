@@ -1,3 +1,4 @@
+-- LEGACY: DDL은 schema.sql에 병합. 시드는 SQL/seeds/support_inquiries.sql. 신규: migrate.py bootstrap --seeds
 USE stock_db;
 
 -- 문의 게시판

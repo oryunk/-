@@ -1,3 +1,4 @@
+-- LEGACY: schema.sql(2026-06-09)에 병합됨. 신규 설치: python backend/scripts/migrate.py bootstrap
 -- 종목 상세 API(/api/stock-detail) 응답 스냅샷 캐시. stock_db에 적용.
 CREATE TABLE IF NOT EXISTS stock_detail_snapshots (
   cache_key VARCHAR(384) NOT NULL COMMENT 'code:name 요청 키',

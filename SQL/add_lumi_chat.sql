@@ -1,3 +1,4 @@
+-- LEGACY: schema.sql(2026-06-09)에 병합됨. 신규 설치: python backend/scripts/migrate.py bootstrap
 USE stock_db;
 
 -- 루미 AI 챗봇 대화 스레드 (로그인 사용자)

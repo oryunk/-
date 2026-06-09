@@ -1,3 +1,4 @@
+-- LEGACY: DDL은 schema.sql에 병합. 시드는 SQL/seeds/community_comments.sql. 신규: migrate.py bootstrap --seeds
 USE stock_db;
 
 CREATE TABLE IF NOT EXISTS community_comments (
@@ -31,7 +32,12 @@ SELECT @post_free, @seed_uid, '저도 비슷해요. 지수만 보고 있어요 �
 WHERE @seed_uid IS NOT NULL AND @post_free IS NOT NULL
   AND NOT EXISTS (SELECT 1 FROM community_comments WHERE post_id = @post_free AND body LIKE '저도 비슷해요%' LIMIT 1);
 
+-- Safe Updates(1175) 회피: PK(post_id) 조건 + JOIN
 UPDATE community_posts p
-SET comment_count = (
-  SELECT COUNT(*) FROM community_comments c WHERE c.post_id = p.post_id
-);
+LEFT JOIN (
+  SELECT post_id, COUNT(*) AS cnt
+  FROM community_comments
+  GROUP BY post_id
+) AS agg ON agg.post_id = p.post_id
+SET p.comment_count = COALESCE(agg.cnt, 0)
+WHERE p.post_id > 0;

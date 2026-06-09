@@ -1,3 +1,4 @@
+-- LEGACY: schema.sql(2026-06-09)에 병합됨. 신규 설치: python backend/scripts/migrate.py bootstrap
 -- 이메일 회원가입 인증코드 (signup 시 검증)
 USE stock_db;
 

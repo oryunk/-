@@ -1,3 +1,4 @@
+-- LEGACY: schema.sql(2026-06-09)에 병합됨. 신규 설치: python backend/scripts/migrate.py bootstrap
 USE stock_db;
 
 -- 로그인 사용자별 관심 종목 (시장·모의투자 공통)

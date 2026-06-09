@@ -1,3 +1,4 @@
+-- LEGACY: schema.sql(2026-06-09)에 병합됨. 신규 설치: python backend/scripts/migrate.py bootstrap
 -- Google OAuth 로그인용 users 컬럼 (stock_db)
 USE stock_db;
 

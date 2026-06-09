@@ -1,3 +1,4 @@
+-- LEGACY: schema.sql(2026-06-09)에 병합됨. 신규 설치: python backend/scripts/migrate.py bootstrap
 USE stock_db;
 
 CREATE TABLE IF NOT EXISTS community_post_likes (

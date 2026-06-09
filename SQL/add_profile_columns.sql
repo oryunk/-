@@ -1,3 +1,4 @@
+-- LEGACY: schema.sql(2026-06-09)에 병합됨. 신규 설치: python backend/scripts/migrate.py bootstrap
 USE stock_db;
 
 -- 프로필 사진 기능 컬럼 (커스텀 업로드 + Google OAuth 기본 사진)

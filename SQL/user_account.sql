@@ -33,6 +33,8 @@ END //
 DELIMITER ;
 
 -- [2] 주식 매수 체결 프로시저 (잔액 차감 + 포지션 추가/갱신)
+DROP PROCEDURE IF EXISTS proc_execute_buy_order;
+
 DELIMITER //
 
 CREATE PROCEDURE proc_execute_buy_order(

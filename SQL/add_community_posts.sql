@@ -1,3 +1,4 @@
+-- LEGACY: DDL은 schema.sql에 병합. 시드는 SQL/seeds/community_posts.sql. 신규: migrate.py bootstrap --seeds
 USE stock_db;
 
 CREATE TABLE IF NOT EXISTS community_posts (
