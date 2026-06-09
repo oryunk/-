@@ -1,0 +1,93 @@
+-- [Workbench] SQL/install/02 — 필수 (01 다음 실행)
+-- 원본: SQL/user_account.sql
+USE stock_db;
+
+-- 모의투자: 가입 시 500만원 계좌 자동 생성 (트리거·프로시저 정의는 이 파일만 사용)
+-- ⚠️ 이 파일만 실행하면 users 행은 삭제되지 않음.
+-- 전체 회원 삭제: SQL/wipe_all_users.sql (또는 backend/scripts/wipe_all_users.py)
+-- Google 가입·모의계좌 점검: SQL/google_oauth_post_wipe_check.sql (add_google_oauth.sql 선행)
+
+-- [1] 회원 가입 시 자동 계좌 생성 트리거
+DROP TRIGGER IF EXISTS trg_after_user_insert;
+
+DELIMITER //
+
+CREATE TRIGGER trg_after_user_insert
+AFTER INSERT ON users
+FOR EACH ROW
+BEGIN
+    -- 가상 계좌 생성
+    INSERT INTO virtual_accounts (
+        user_id, 
+        initial_cash, 
+        cash_balance, 
+        created_at, 
+        updated_at
+    ) VALUES (
+        NEW.user_id, 
+        5000000.00,  -- 초기 자금 500만원
+        5000000.00,  
+        NOW(), 
+        NOW()
+    );
+END //
+
+DELIMITER ;
+
+-- [2] 주식 매수 체결 프로시저 (잔액 차감 + 포지션 추가/갱신)
+DROP PROCEDURE IF EXISTS proc_execute_buy_order;
+
+DELIMITER //
+
+CREATE PROCEDURE proc_execute_buy_order(
+    IN p_user_id BIGINT,      -- 사용자 ID
+    IN p_stock_id BIGINT,     -- 종목 ID
+    IN p_quantity INT,        -- 구매 수량
+    IN p_price DECIMAL(18,2)  -- 현재가 (체결가)
+)
+BEGIN
+    DECLARE v_total_cost DECIMAL(18,2);
+    DECLARE v_account_id BIGINT;
+    
+    -- 1. 먼저 해당 유저의 account_id 가져옴
+    SELECT account_id INTO v_account_id 
+    FROM virtual_accounts 
+    WHERE user_id = p_user_id;
+
+    -- 2. 총 결제 금액 계산
+    SET v_total_cost = p_price * p_quantity;
+
+    -- 3. 잔액 확인 및 차감
+    -- 스키마상 PK인 account_id를 조건으로 사용하여 인덱스 효율을 높입니다.
+    UPDATE virtual_accounts 
+    SET cash_balance = cash_balance - v_total_cost,
+        updated_at = NOW()
+    WHERE account_id = v_account_id AND cash_balance >= v_total_cost;
+
+    -- 4. 실제 잔액 차감이 일어났을 때만(ROW_COUNT > 0) 후속 작업 진행
+    IF ROW_COUNT() > 0 THEN
+        
+        -- 5. 보유 종목(virtual_positions) 추가 또는 평단가 갱신
+        -- UNIQUE (account_id, stock_id) 제약조건을 활용한 원자적 처리
+        INSERT INTO virtual_positions (account_id, stock_id, quantity, avg_price, updated_at)
+        VALUES (v_account_id, p_stock_id, p_quantity, p_price, NOW())
+        ON DUPLICATE KEY UPDATE 
+            avg_price = (avg_price * quantity + p_price * p_quantity) / (quantity + p_quantity),
+            quantity = quantity + p_quantity,
+            updated_at = NOW();
+            
+        -- 6. 주문 이력(virtual_orders) 남기기
+        -- 스키마에 정의된 status('EXECUTED')와 fee_amount를 명확히 기록
+        INSERT INTO virtual_orders (
+            account_id, stock_id, side, price, quantity,
+            status, fee_amount, tax_amount, executed_at, created_at
+        )
+        VALUES (
+            v_account_id, p_stock_id, 'BUY', p_price, p_quantity,
+            'EXECUTED', 0.00, 0.00, NOW(), NOW()
+        );
+        
+    END IF;
+END //
+
+DELIMITER ;
