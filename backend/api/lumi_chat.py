@@ -50,7 +50,7 @@ def lumi_chat_list_threads():
             return jsonify(
                 {
                     "success": False,
-                    "message": "lumi_chat 테이블이 없습니다. SQL/add_lumi_chat.sql 을 적용하세요.",
+                    "message": "lumi_chat_threads / lumi_chat_messages 테이블이 없습니다. SQL/README.md → migrate.py bootstrap 을 실행하세요.",
                 }
             ), 503
         return jsonify({"success": False, "message": str(e)}), 500
@@ -80,7 +80,7 @@ def lumi_chat_create_thread():
             return jsonify(
                 {
                     "success": False,
-                    "message": "lumi_chat 테이블이 없습니다. SQL/add_lumi_chat.sql 을 적용하세요.",
+                    "message": "lumi_chat_threads / lumi_chat_messages 테이블이 없습니다. SQL/README.md → migrate.py bootstrap 을 실행하세요.",
                 }
             ), 503
         return jsonify({"success": False, "message": str(e)}), 500
@@ -121,7 +121,7 @@ def lumi_chat_import_messages(thread_id: int):
             return jsonify(
                 {
                     "success": False,
-                    "message": "lumi_chat 테이블이 없습니다. SQL/add_lumi_chat.sql 을 적용하세요.",
+                    "message": "lumi_chat_threads / lumi_chat_messages 테이블이 없습니다. SQL/README.md → migrate.py bootstrap 을 실행하세요.",
                 }
             ), 503
         return jsonify({"success": False, "message": str(e)}), 500
@@ -199,7 +199,7 @@ def lumi_chat_post_message(thread_id: int):
             return jsonify(
                 {
                     "success": False,
-                    "message": "lumi_chat 테이블이 없습니다. SQL/add_lumi_chat.sql 을 적용하세요.",
+                    "message": "lumi_chat_threads / lumi_chat_messages 테이블이 없습니다. SQL/README.md → migrate.py bootstrap 을 실행하세요.",
                 }
             ), 503
         return jsonify({"success": False, "message": str(e)}), 500
