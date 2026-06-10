@@ -542,4 +542,11 @@ def support_inquiry_feedback(inquiry_id: int):
             return missing
         return jsonify({"success": False, "message": str(e)}), 500
 
-    return jsonify({"success": True, "helpful": helpful})
+    return jsonify({
+        "success": True,
+        "helpful": helpful,
+        "feedbackStats": result.get("feedbackStats") or {
+            "helpfulCount": 0,
+            "notHelpfulCount": 0,
+        },
+    })
