@@ -406,6 +406,24 @@ def list_inquiries(
     }
 
 
+def _fetch_feedback_stats(cursor, inquiry_id: int) -> dict[str, int]:
+    cursor.execute(
+        """
+        SELECT
+          COALESCE(SUM(helpful = 1), 0) AS helpful_count,
+          COALESCE(SUM(helpful = 0), 0) AS not_helpful_count
+        FROM support_inquiry_feedback
+        WHERE inquiry_id = %s
+        """,
+        (inquiry_id,),
+    )
+    row = cursor.fetchone() or {}
+    return {
+        "helpfulCount": int(row.get("helpful_count") or 0),
+        "notHelpfulCount": int(row.get("not_helpful_count") or 0),
+    }
+
+
 def get_inquiry_detail(conn, inquiry_id: int, session_user_id: int | None) -> dict | None:
     with conn.cursor() as cursor:
         cursor.execute(
@@ -457,6 +475,8 @@ def get_inquiry_detail(conn, inquiry_id: int, session_user_id: int | None) -> di
         replies = cursor.fetchall() or []
         row["reply_count"] = len(replies)
 
+        feedback_stats = _fetch_feedback_stats(cursor, inquiry_id)
+
         feedback = None
         if session_user_id is not None:
             cursor.execute(
@@ -499,6 +519,7 @@ def get_inquiry_detail(conn, inquiry_id: int, session_user_id: int | None) -> di
         for r in replies
     ]
     detail["feedback"] = feedback
+    detail["feedbackStats"] = feedback_stats
     detail["attachments"] = attachments
     return detail
 
@@ -587,8 +608,9 @@ def submit_feedback(conn, inquiry_id: int, user_id: int, helpful: bool) -> dict:
             """,
             (inquiry_id, user_id, 1 if helpful else 0),
         )
+        feedback_stats = _fetch_feedback_stats(cursor, inquiry_id)
 
-    return {"ok": True, "helpful": helpful}
+    return {"ok": True, "helpful": helpful, "feedbackStats": feedback_stats}
 
 
 def _remove_inquiry_upload_dir(inquiry_id: int) -> None:
