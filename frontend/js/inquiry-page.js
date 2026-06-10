@@ -183,6 +183,45 @@
     if (input && canAdminReply) input.value = '';
   }
 
+  function renderDetailFeedback(item) {
+    var feedbackBox = $('detailFeedback');
+    var helpfulBtn = $('feedbackHelpfulBtn');
+    var notHelpfulBtn = $('feedbackNotHelpfulBtn');
+    var helpfulCountEl = $('feedbackHelpfulCount');
+    var notHelpfulCountEl = $('feedbackNotHelpfulCount');
+    if (!feedbackBox) return;
+
+    var replies = (item && item.replies) || [];
+    if (!replies.length) {
+      feedbackBox.hidden = true;
+      return;
+    }
+
+    feedbackBox.hidden = false;
+
+    var stats = (item && item.feedbackStats) || {};
+    var helpfulCount = stats.helpfulCount != null ? stats.helpfulCount : 0;
+    var notHelpfulCount = stats.notHelpfulCount != null ? stats.notHelpfulCount : 0;
+
+    if (helpfulCountEl) helpfulCountEl.textContent = String(helpfulCount);
+    if (notHelpfulCountEl) notHelpfulCountEl.textContent = String(notHelpfulCount);
+
+    var myVote = item && item.feedback;
+    var selectedHelpful = !!(myVote && myVote.helpful === true);
+    var selectedNotHelpful = !!(myVote && myVote.helpful === false);
+
+    if (helpfulBtn) {
+      helpfulBtn.classList.toggle('is-selected', selectedHelpful);
+      helpfulBtn.setAttribute('aria-pressed', selectedHelpful ? 'true' : 'false');
+      helpfulBtn.disabled = false;
+    }
+    if (notHelpfulBtn) {
+      notHelpfulBtn.classList.toggle('is-selected', selectedNotHelpful);
+      notHelpfulBtn.setAttribute('aria-pressed', selectedNotHelpful ? 'true' : 'false');
+      notHelpfulBtn.disabled = false;
+    }
+  }
+
   function renderDetailReplies(item) {
     var replies = item.replies || [];
     var section = $('detailAnswerSection');
@@ -910,15 +949,7 @@
       if (ownerActions) ownerActions.hidden = !item.isOwner;
       if (editBtn) editBtn.hidden = !(item.isOwner && replies.length === 0);
 
-      var feedbackBox = $('detailFeedback');
-      var helpfulBtn = $('feedbackHelpfulBtn');
-      var notHelpfulBtn = $('feedbackNotHelpfulBtn');
-      if (feedbackBox) {
-        var showFeedback = replies.length > 0 && isLoggedIn() && !item.feedback;
-        feedbackBox.hidden = !showFeedback;
-        if (helpfulBtn) helpfulBtn.disabled = false;
-        if (notHelpfulBtn) notHelpfulBtn.disabled = false;
-      }
+      renderDetailFeedback(item);
 
       showView('detail');
     });
@@ -926,10 +957,28 @@
 
   function submitFeedback(helpful) {
     if (!state.detailId) return;
+    if (!isLoggedIn()) {
+      openInquiryModal({
+        type: 'alert',
+        title: '로그인 필요',
+        message: '로그인 후 피드백을 남길 수 있어요.',
+      });
+      requireLogin('detail');
+      return;
+    }
+
+    var helpfulBtn = $('feedbackHelpfulBtn');
+    var notHelpfulBtn = $('feedbackNotHelpfulBtn');
+    if (helpfulBtn) helpfulBtn.disabled = true;
+    if (notHelpfulBtn) notHelpfulBtn.disabled = true;
+
     apiFetch('/api/support/inquiries/' + state.detailId + '/feedback', {
       method: 'POST',
       body: { helpful: helpful },
     }).then(function (result) {
+      if (helpfulBtn) helpfulBtn.disabled = false;
+      if (notHelpfulBtn) notHelpfulBtn.disabled = false;
+
       if (!result.res.ok || !result.data.success) {
         openInquiryModal({
           type: 'alert',
@@ -938,8 +987,14 @@
         });
         return;
       }
-      var feedbackBox = $('detailFeedback');
-      if (feedbackBox) feedbackBox.hidden = true;
+
+      if (state.currentInquiryItem) {
+        state.currentInquiryItem.feedback = { helpful: helpful };
+        if (result.data.feedbackStats) {
+          state.currentInquiryItem.feedbackStats = result.data.feedbackStats;
+        }
+        renderDetailFeedback(state.currentInquiryItem);
+      }
     });
   }
 
@@ -1298,6 +1353,9 @@
       } else {
         loadBoard(state.boardPage);
       }
+      if (state.view === 'detail' && state.detailId) {
+        openDetail(state.detailId, state.detailFrom);
+      }
     });
   };
 
@@ -1308,6 +1366,8 @@
       navigateTo('board');
     } else if (state.view === 'board') {
       loadBoard(state.boardPage);
+    } else if (state.view === 'detail' && state.detailId) {
+      openDetail(state.detailId, state.detailFrom);
     }
   };
 
