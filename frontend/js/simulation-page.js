@@ -979,6 +979,7 @@
     var priceValue = escapeHtml(opts.priceValue || '—');
     var refLabel = escapeHtml(opts.refLabel || '현재 기준가');
     var refValue = escapeHtml(opts.refValue || '—');
+    var condLabel = escapeHtml(opts.condLabel || '자동 체결 조건');
     var condText = escapeHtml(opts.condText || '');
     return (
       '<div class="trade-receipt">' +
@@ -995,7 +996,7 @@
       buildTradeReceiptRow('구분', sideMeta) +
       buildTradeReceiptRow(priceLabel, priceValue) +
       buildTradeReceiptRow(refLabel, refValue) +
-      buildTradeReceiptRow('자동 체결 조건', condText) +
+      buildTradeReceiptRow(condLabel, condText) +
       '</div>' +
       '</div>'
     );
@@ -1101,9 +1102,37 @@
     };
   }
 
+  function isHoldingsQtyExceededMessage(msg) {
+    return /보유\s*수량/.test(String(msg || ''));
+  }
+
   function isBalanceInsufficientMessage(msg) {
     var s = String(msg || '');
-    return s.indexOf('부족') >= 0 || s.indexOf('잔액') >= 0;
+    if (isHoldingsQtyExceededMessage(s)) return false;
+    return s.indexOf('예수금') >= 0 || s.indexOf('잔액') >= 0 || s.indexOf('부족') >= 0;
+  }
+
+  function openSellQtyExceededModal(maxQty, message) {
+    var lead =
+      message ||
+      '보유 수량(' + Number(maxQty || 0).toLocaleString() + '주)을 넘을 수 없습니다.';
+    openSimTradeNoticeModal({
+      variant: 'simple',
+      title: '판매 수량을 확인해 주세요',
+      lead: lead,
+      showPrimary: false,
+      showConfirm: true,
+      confirmLabel: '확인',
+    });
+  }
+
+  function showSellTradeError(err, fallbackMsg) {
+    var msg = (err && err.message) || fallbackMsg || '판매 중 오류가 발생했습니다.';
+    if (isHoldingsQtyExceededMessage(msg)) {
+      openSellQtyExceededModal(null, msg);
+      return;
+    }
+    alert(msg);
   }
 
   function openInsufficientCashModal(validation, ctx) {
@@ -1622,7 +1651,13 @@
   function formatOrderStatusReason(note) {
     var s = String(note || '').trim();
     if (!s) return '주문이 체결되지 않았습니다.';
+    if (isHoldingsQtyExceededMessage(s)) return '보유 수량 초과';
     if (isBalanceInsufficientMessage(s)) return '예수금 부족';
+    if (s.indexOf('즉시 체결할 수 없') >= 0) {
+      if (s.indexOf('지정가보다 높아') >= 0) return '현재가가 지정가보다 높아 즉시 체결 불가';
+      if (s.indexOf('지정가보다 낮아') >= 0) return '현재가가 지정가보다 낮아 즉시 체결 불가';
+      return '지정가 조건 미달로 즉시 체결 불가';
+    }
     return s;
   }
 
@@ -1663,20 +1698,21 @@
     var fb = document.getElementById('tradeFeedback');
     if (fb) {
       var sideKo = removed.side === 'SELL' ? '판매' : '구매';
-      fb.className = 'trade-feedback';
+      var isReserve = removed.reason === 'off_hours';
+      fb.className = 'trade-feedback trade-receipt-wrap';
       fb.style.display = 'block';
-      fb.innerHTML =
-        '<strong>주문 취소</strong>' +
-        '<div class="trade-row"><span>종목</span><span>' +
-        escapeHtml(resolveStockDisplayLabel(removed.stockRef || removed.stock, removed.stock)) +
-        '</span></div>' +
-        '<div class="trade-row"><span>내용</span><span>' +
-        sideKo +
-        ' · ' +
-        Number(removed.quantity || 0).toLocaleString() +
-        '주 · 목표 ' +
-        formatCurrency(Number(removed.limitPrice || 0)) +
-        '</span></div>';
+      fb.innerHTML = buildTradeReceiptHtml({
+        title: isReserve ? '예약 주문 취소' : '주문 취소',
+        stockName: resolveStockDisplayLabel(removed.stockRef || removed.stock, removed.stock),
+        sideKo: sideKo,
+        quantity: Number(removed.quantity || 0),
+        priceLabel: '목표가',
+        priceValue: formatCurrency(Number(removed.limitPrice || 0)),
+        refLabel: '주문 유형',
+        refValue: isReserve ? '장 마감 예약' : '장중 대기',
+        condLabel: '처리 상태',
+        condText: '주문이 취소되었습니다',
+      });
     }
   }
 
@@ -2380,11 +2416,11 @@
     }
     try {
       var data = await fetchAskingPriceWithGuard(code, { force: !!opts.force });
+      if (shouldShowOrderbookMarketClosed(data)) {
+        showOrderbookMarketClosedMessage();
+        return;
+      }
       if (!data || !data.success) {
-        if (data && data.market_closed) {
-          showOrderbookMarketClosedMessage();
-          return;
-        }
         if ((cached && cached.data) || hasVisibleTable) {
           if (!silent && meta) {
             meta.textContent =
@@ -2396,12 +2432,8 @@
           (data && data.message) || '호가 서버 제한으로 잠시 후 다시 시도됩니다.',
         );
       }
-      if (data.market_closed || (!isKrRegularMarketOpenNow() && isSyntheticOrderbookData(data))) {
-        showOrderbookMarketClosedMessage();
-        return;
-      }
       renderOrderbookTable(data);
-      if (meta) meta.textContent = '';
+      if (meta) meta.textContent = orderbookMetaFromResponse(data);
     } catch (err) {
       if (!silent && meta) {
         meta.textContent = (err && err.message) ? String(err.message) : '호가를 불러오지 못했습니다.';
@@ -2422,6 +2454,32 @@
     return ap > 0 && ap === bp && aq === 0 && bq === 0;
   }
 
+  function hasRealOrderbookData(data) {
+    if (!data) return false;
+    var asks = Array.isArray(data.asks) ? data.asks : [];
+    var bids = Array.isArray(data.bids) ? data.bids : [];
+    if (asks.length > 1 || bids.length > 1) return true;
+    var totalQty = 0;
+    asks.concat(bids).forEach(function (lv) {
+      totalQty += Number(lv && lv.quantity || 0);
+    });
+    return totalQty > 0;
+  }
+
+  function shouldShowOrderbookMarketClosed(data) {
+    if (data && data.market_closed === true) return true;
+    if (!data || !data.success) return false;
+    if (hasRealOrderbookData(data)) return false;
+    if (data.market_open === false) return true;
+    return !isKrRegularMarketOpenNow() && isSyntheticOrderbookData(data);
+  }
+
+  function orderbookMetaFromResponse(data) {
+    if (!data || !data.success) return '';
+    if (data.quote_stale) return '최근 호가를 표시 중입니다.';
+    return '';
+  }
+
   function showOrderbookMarketClosedMessage() {
     var wrap = document.getElementById('orderbookTableWrap');
     var meta = document.getElementById('orderbookMeta');
@@ -2435,7 +2493,7 @@
   function renderOrderbookTable(data) {
     var wrap = document.getElementById('orderbookTableWrap');
     if (!wrap) return;
-    if (!isKrRegularMarketOpenNow() && isSyntheticOrderbookData(data)) {
+    if (shouldShowOrderbookMarketClosed(data)) {
       showOrderbookMarketClosedMessage();
       return;
     }
@@ -4760,7 +4818,38 @@
         applyLimitPriceIfEmpty(inp, 'SELL', refPx, isSixDigitCode(code) ? code : '');
       }
     }
+    syncHoldingSellMarketUi();
     updateSellModalEst();
+  }
+
+  function syncHoldingSellQtyMeta() {
+    var el = document.getElementById('sellModalHoldingQtyMeta');
+    var max = Number(sellModalState.maxQty) || 0;
+    if (el) {
+      el.innerHTML = '보유 수량 <strong>' + max.toLocaleString() + '</strong> 주';
+    }
+  }
+
+  function syncHoldingSellMarketUi() {
+    var market = isHoldingSellMarketMode();
+    var hint = document.getElementById('sellModalMarketHint');
+    var notice = document.getElementById('sellModalMarketNotice');
+    if (hint) hint.hidden = !market;
+    if (notice) notice.hidden = !market;
+    updateSellModalCtaSub();
+  }
+
+  function updateSellModalCtaSub() {
+    var sub = document.getElementById('sellModalCtaSub');
+    var qtyEl = document.getElementById('sellModalQty');
+    if (!sub) return;
+    if (!isHoldingSellMarketMode()) {
+      sub.textContent = '';
+      return;
+    }
+    var qty = qtyEl ? parseInt(qtyEl.value, 10) : NaN;
+    if (!Number.isFinite(qty) || qty < 1) qty = 1;
+    sub.textContent = '시장가로 ' + qty.toLocaleString() + '주 매도';
   }
 
   function getHoldingModalBuyStockForApi() {
@@ -4806,16 +4895,9 @@
   function updateHoldingBuyEst() {
     var qtyEl = document.getElementById('holdingBuyQty');
     var totalEl = document.getElementById('holdingBuyEstTotal');
+    var hcb = document.getElementById('holdingBuyCostBreakdown');
     if (!qtyEl || !totalEl) return;
-    if (isHoldingBuyMarketMode()) {
-      totalEl.textContent = formatMarketPriceConfirmLine();
-      var hcb = document.getElementById('holdingBuyCostBreakdown');
-      if (hcb) {
-        hcb.innerHTML = '';
-        hcb.style.display = 'none';
-      }
-      return;
-    }
+
     var qty = parseInt(qtyEl.value, 10);
     if (Number.isNaN(qty) || qty < 1) qty = 1;
     var ref = Number(sellModalState.unitPrice) || 0;
@@ -4831,8 +4913,17 @@
       }
     }
     var grossHb = Math.max(0, qty * unit);
-    totalEl.textContent = formatCurrency(grossHb);
-    renderMockCostBreakdown(document.getElementById('holdingBuyCostBreakdown'), 'BUY', grossHb);
+    if (grossHb > 0 && unit > 0) {
+      var costs = estimateMockTradeCosts('BUY', grossHb);
+      totalEl.textContent = formatCurrency(costs.netBuy);
+      renderMockCostBreakdown(hcb, 'BUY', grossHb);
+    } else {
+      totalEl.textContent = '—';
+      if (hcb) {
+        hcb.innerHTML = '';
+        hcb.style.display = 'none';
+      }
+    }
   }
 
   function bumpHoldingBuyLimitPrice(direction) {
@@ -4957,6 +5048,7 @@
     qtyInput.max = sellModalState.maxQty;
     qtyInput.min = 1;
     qtyInput.value = sellModalState.maxQty;
+    syncHoldingSellQtyMeta();
     document.getElementById('sellModalUnitPrice').textContent = formatCurrency(sellModalState.unitPrice);
     var slInpReset = document.getElementById('sellModalLimitPrice');
     if (slInpReset) slInpReset.value = '';
@@ -5004,27 +5096,32 @@
     const totalEl = document.getElementById('sellModalEstTotal');
     const qtyInput = document.getElementById('sellModalQty');
     const limIn = document.getElementById('sellModalLimitPrice');
+    const scb = document.getElementById('sellModalCostBreakdown');
     if (!totalEl || !qtyInput) return;
-    if (isHoldingSellMarketMode()) {
-      totalEl.textContent = formatMarketPriceConfirmLine();
-      var scb = document.getElementById('sellModalCostBreakdown');
-      if (scb) {
-        scb.innerHTML = '';
-        scb.style.display = 'none';
-      }
-      return;
-    }
+
     let refPx = Number(st.unitPrice) || 0;
     let unit = refPx;
-    if (limIn) {
+    if (!isHoldingSellMarketMode() && limIn) {
       var lv = parseLimitPriceInput(limIn);
       if (lv > 0) unit = resolveSellUnitPrice(refPx, lv);
     }
     let q = parseInt(qtyInput.value, 10) || 0;
     if (st.maxQty > 0) q = Math.min(Math.max(q, 0), st.maxQty);
     var grossSell = Math.max(0, q * unit);
-    totalEl.textContent = formatCurrency(grossSell);
-    renderMockCostBreakdown(document.getElementById('sellModalCostBreakdown'), 'SELL', grossSell);
+
+    if (grossSell > 0 && unit > 0) {
+      var costs = estimateMockTradeCosts('SELL', grossSell);
+      totalEl.textContent = formatCurrency(costs.netSell);
+      renderMockCostBreakdown(scb, 'SELL', grossSell);
+    } else {
+      totalEl.textContent = '—';
+      if (scb) {
+        scb.innerHTML = '';
+        scb.style.display = 'none';
+      }
+    }
+
+    syncHoldingSellMarketUi();
   }
 
   function bumpSellModalLimitPrice(direction) {
@@ -5153,7 +5250,7 @@
     var qty = parseInt(qtyEl && qtyEl.value, 10);
     if (Number.isNaN(qty) || qty < 1) qty = 1;
     if (qty > Number(found.quantity)) {
-      alert('보유 수량(' + Number(found.quantity) + '주)을 넘을 수 없습니다.');
+      openSellQtyExceededModal(Number(found.quantity));
       return;
     }
     var sellPx = limEl ? parseLimitPriceInput(limEl) : 0;
@@ -5226,7 +5323,7 @@
     try {
       await performQuickSellTrade(key, qty, sellPx);
     } catch (err) {
-      alert(err.message || '판매 중 오류가 발생했습니다.');
+      showSellTradeError(err);
     }
   };
 
@@ -5248,7 +5345,7 @@
     var qty = parseInt(qtyEl && qtyEl.value, 10);
     if (Number.isNaN(qty) || qty < 1) qty = 1;
     if (qty > Number(found.quantity)) {
-      alert('보유 수량(' + Number(found.quantity) + '주)을 넘을 수 없습니다.');
+      openSellQtyExceededModal(Number(found.quantity));
       return;
     }
     var sellPx = limEl ? parseLimitPriceInput(limEl) : 0;
@@ -5256,7 +5353,7 @@
     try {
       await performQuickSellTrade(key, qty, sellPx);
     } catch (err) {
-      alert(err.message || '판매 중 오류가 발생했습니다.');
+      showSellTradeError(err);
     }
   };
 
@@ -5270,7 +5367,7 @@
       return;
     }
     if (qty > st.maxQty) {
-      alert('보유 수량(' + st.maxQty + '주)을 넘을 수 없습니다.');
+      openSellQtyExceededModal(st.maxQty);
       return;
     }
     var sellLim = document.getElementById('sellModalLimitPrice');
@@ -5330,7 +5427,7 @@
       });
       showTradeFeedback(data, 'sell');
     } catch (err) {
-      alert(err.message || '판매 중 오류가 발생했습니다.');
+      showSellTradeError(err);
     }
     } finally {
       releaseTradeSubmit();
@@ -5472,13 +5569,22 @@
     if (!el) return;
     const sideKo = String(t.side || '').toUpperCase() === 'BUY' ? '구매' : '판매';
     const nameLine = (t.name || '—') + (t.code ? ' (' + t.code + ')' : '');
-    const summary =
-      `<div class="trade-row"><span>종목</span><span>${nameLine}</span></div>` +
-      `<div class="trade-row"><span>체결</span><span>${sideKo} · ${Number(t.quantity || 0).toLocaleString()}주 · ${formatCurrency(Number(t.price || 0))}</span></div>`;
+    const isAuto = target === 'auto' || String(source || '').toLowerCase() === 'auto';
 
-    el.className = 'trade-feedback';
+    el.className = 'trade-feedback trade-receipt-wrap';
     el.style.display = 'block';
-    el.innerHTML = '<strong>체결 완료</strong>' + summary;
+    el.innerHTML = buildTradeReceiptHtml({
+      title: '체결 완료',
+      stockName: nameLine,
+      sideKo: sideKo,
+      quantity: Number(t.quantity || 0),
+      priceLabel: '체결가',
+      priceValue: formatCurrency(Number(t.price || 0)),
+      refLabel: '체결 방식',
+      refValue: isAuto ? '조건 충족 체결' : '즉시 체결',
+      condLabel: '처리 상태',
+      condText: '주문이 체결되었습니다',
+    });
     if (other) other.style.display = 'none';
   }
 

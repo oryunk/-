@@ -115,8 +115,8 @@
         allowsClick: function (target) {
           var G = window.JurinTutorialGuard;
           if (G.allowsMascotAndQuest(target, null, null)) return true;
-          if (G.isBlockedChromeClick(target)) return false;
           if (isHomeSpotlightPhase() && G.allowsSpotlightTargets(target)) return true;
+          if (G.isBlockedChromeClick(target)) return false;
           return false;
         },
         getWrongMessage: function (target) {
