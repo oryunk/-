@@ -528,6 +528,7 @@
       </div>
 
       <div id="holdingModalSellBody" class="holding-modal-pane" role="tabpanel" aria-labelledby="holdingModalTabSell">
+        <p class="holding-qty-hold" id="sellModalHoldingQtyMeta">보유 수량 <strong>0</strong> 주</p>
         <div class="holding-order-grid">
           <div class="holding-order-col">
             <label class="holding-order-label" for="sellModalQty">수량</label>
@@ -554,6 +555,10 @@
             </div>
           </div>
         </div>
+        <p class="holding-market-hint" id="sellModalMarketHint" hidden>
+          <span class="holding-market-hint-icon" aria-hidden="true">&#9201;</span>
+          현재 시장가로 즉시 체결됩니다.
+        </p>
         <div class="holding-summary-card">
           <div class="holding-summary-top">
             <div class="holding-summary-main">
@@ -567,8 +572,12 @@
           </div>
           <div id="sellModalCostBreakdown" class="holding-summary-fees mock-trade-cost-box" style="display:none" aria-label="예상 수수료·세금·입금"></div>
         </div>
+        <p class="holding-market-notice" id="sellModalMarketNotice" hidden>시장가 주문은 현재 시장가로 즉시 체결됩니다.</p>
         <div class="sell-modal-actions holding-modal-actions">
-          <button type="button" class="btn-trade holding-modal-cta holding-modal-cta-sell" onclick="confirmSellFromModal()">매도하기</button>
+          <button type="button" class="btn-trade holding-modal-cta holding-modal-cta-sell holding-modal-cta-stack" onclick="confirmSellFromModal()">
+            <span class="holding-modal-cta-main">매도하기</span>
+            <span class="holding-modal-cta-sub" id="sellModalCtaSub"></span>
+          </button>
         </div>
       </div>
 
@@ -625,7 +634,7 @@
       <h3 class="sell-modal-title" id="buyModalHeading">매수</h3>
       <div class="sell-modal-row trade-confirm-row-spacious"><span>종목</span><span id="buyModalStockLine">&#8212;</span></div>
       <div class="sell-modal-row trade-confirm-row-spacious"><span>수량</span><span id="buyModalQtyLine">&#8212;</span></div>
-      <div class="sell-modal-row trade-confirm-row-spacious"><span>예상가</span><span id="buyModalPriceLine" class="buy-modal-price-line">자동 계산</span></div>
+      <div class="sell-modal-row trade-confirm-row-spacious"><span>예상가</span><span id="buyModalPriceLine" class="trade-confirm-price-line">자동 계산</span></div>
       <div id="buyModalCostBreakdown" class="mock-trade-cost-box" style="display:none" aria-label="예상 수수료 및 결제액"></div>
       <p class="form-note trade-confirm-note">주문 전에 수량과 가격을 다시 확인하세요.</p>
       <div class="sell-modal-actions">
@@ -723,12 +732,12 @@
   </div>
 
   <div id="quickSellConfirmModal" class="sell-modal-overlay" aria-hidden="true" role="presentation" onclick="if (event.target === this) closeQuickSellConfirmModal()">
-    <div class="sell-modal-panel trade-confirm-panel trade-confirm-panel--sell" role="dialog" aria-modal="true" aria-labelledby="quickSellConfirmHeading" onclick="event.stopPropagation()">
+    <div class="sell-modal-panel trade-confirm-panel trade-confirm-panel--sell trade-confirm-panel--order-wide" role="dialog" aria-modal="true" aria-labelledby="quickSellConfirmHeading" onclick="event.stopPropagation()">
       <button type="button" class="sell-modal-close" onclick="closeQuickSellConfirmModal()" aria-label="닫기">&#215;</button>
       <h3 class="sell-modal-title" id="quickSellConfirmHeading">매도</h3>
-      <div class="sell-modal-row"><span>종목</span><span id="quickSellModalStockLine">&#8212;</span></div>
-      <div class="sell-modal-row"><span>수량</span><span id="quickSellModalQtyLine">&#8212;</span></div>
-      <div class="sell-modal-row"><span>예상가</span><span id="quickSellModalPriceLine">&#8212;</span></div>
+      <div class="sell-modal-row trade-confirm-row-spacious"><span>종목</span><span id="quickSellModalStockLine">&#8212;</span></div>
+      <div class="sell-modal-row trade-confirm-row-spacious"><span>수량</span><span id="quickSellModalQtyLine">&#8212;</span></div>
+      <div class="sell-modal-row trade-confirm-row-spacious"><span>예상가</span><span id="quickSellModalPriceLine" class="trade-confirm-price-line">&#8212;</span></div>
       <div id="quickSellModalCostBreakdown" class="mock-trade-cost-box" style="display:none" aria-label="예상 수수료·세금·입금"></div>
       <p class="form-note trade-confirm-note">주문 전에 수량과 가격을 다시 확인하세요.</p>
       <div class="sell-modal-actions">
