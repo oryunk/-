@@ -93,6 +93,14 @@ def _redis_has(key):
     return False
 
 
+def asking_cached_in_redis(code):
+    """True when asking:{code} exists in Redis (fresh or stale window)."""
+    code = str(code or '').strip()
+    if not code:
+        return False
+    return _redis_has(f'asking:{code}')
+
+
 def get_asking(code, max_age_sec=None):
     """Return (ts, data) if cached within max_age_sec, else None."""
     code = str(code or '').strip()
