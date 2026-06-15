@@ -4,6 +4,8 @@
 """
 import os
 import threading
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
 FRONTEND_DIR = os.path.abspath(os.path.join(BACKEND_DIR, "..", "frontend"))
@@ -271,8 +273,14 @@ _CHART_TARGET_BARS = {'D': 500, 'W': 260, 'M': 120, 'Y': 30}
 _CHART_MIN_BARS = {'D': 60, 'W': 30, 'M': 12, 'Y': 5}
 _CHART_WINDOW_CAL_DAYS = {'D': 100, 'W': 700, 'M': 3000, 'Y': 36500}
 _KIS_TOKEN_USE_DB = os.getenv('KIS_TOKEN_USE_DB', 'true').strip().lower() in {'1', 'true', 'y', 'yes', 'on'}
+_KR_MARKET_TZ = ZoneInfo(os.getenv('KR_MARKET_TZ', 'Asia/Seoul'))
 _KR_MARKET_OPEN_HHMM = int(os.getenv('KR_MARKET_OPEN_HHMM', '900'))
 _KR_MARKET_CLOSE_HHMM = int(os.getenv('KR_MARKET_CLOSE_HHMM', '1530'))
+
+
+def kr_now():
+    """KRX 정규장 판정용 현재 시각 (기본 Asia/Seoul)."""
+    return datetime.now(_KR_MARKET_TZ)
 _MOCK_INITIAL_CASH = int(float(os.getenv('MOCK_INITIAL_CASH', '5000000')))
 
 if PRICE_STOCKS:

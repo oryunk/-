@@ -91,6 +91,7 @@ from app_state import (
     _KIS_TR_FB,
     _KR_MARKET_CLOSE_HHMM,
     _KR_MARKET_OPEN_HHMM,
+    kr_now,
     _LIVE_BG_ENABLED,
     _LIVE_BG_INTERVAL_SEC,
     _LIVE_BG_WORKER_STARTED,
@@ -1726,13 +1727,24 @@ def serve_mock_sim_options_ai_brief():
 
 
 # 국내주식 호가·예상체결 (한국투자 domestic-stock v1 quotations inquire-asking-price-exp-ccn).
-def _asking_price_json_ok(code, data, *, quote_stale=False, cached_at=None):
+def _asking_price_json_ok(
+    code,
+    data,
+    *,
+    quote_stale=False,
+    cached_at=None,
+    cache_source=None,
+    market_open=None,
+):
     body = {'success': True, 'code': code, **data}
+    body['market_open'] = _is_kr_regular_market_open_now() if market_open is None else bool(market_open)
     if quote_stale:
         body['quote_stale'] = True
     if cached_at:
         body['quote_cached_at'] = cached_at
         body['quote_age_sec'] = max(0, int(time.time() - float(cached_at)))
+    if cache_source:
+        body['cache_source'] = cache_source
     return jsonify(body)
 
 
@@ -1784,7 +1796,12 @@ def _asking_price_from_fallback(code, *, cache_result=True):
     store = {k: v for k, v in fb.items() if k != 'quote_source'}
     if cache_result:
         redis_cache.set_asking(code, store)
-    return _asking_price_json_ok(code, fb, quote_stale=True)
+    return _asking_price_json_ok(
+        code,
+        fb,
+        quote_stale=True,
+        cache_source='fallback',
+    )
 
 
 def serve_mock_asking_price(code):
@@ -1796,25 +1813,39 @@ def serve_mock_asking_price(code):
         return jsonify({
             'success': False,
             'message': 'KIS_APP_KEY / KIS_APP_SECRET 이 없어 호가를 조회할 수 없습니다.',
+            'market_open': _is_kr_regular_market_open_now(),
         }), 503
 
     force_refresh = request.args.get('refresh', '').strip().lower() in {'1', 'true', 'yes', 'y', 'on'}
+    market_open = _is_kr_regular_market_open_now()
+
+    def _cached_response(ts, data, *, quote_stale=False):
+        src = 'redis' if redis_cache.asking_cached_in_redis(code) else 'memory'
+        return _asking_price_json_ok(
+            code,
+            data,
+            quote_stale=quote_stale,
+            cached_at=ts,
+            cache_source=src,
+            market_open=market_open,
+        )
 
     if not force_refresh:
         hit = redis_cache.get_asking(code)
         if hit:
             ts, data = hit
-            return _asking_price_json_ok(code, data, cached_at=ts)
+            return _cached_response(ts, data)
 
     if not _kis_fetch_allowed_now():
         stale = redis_cache.get_asking_stale(code)
         if stale:
             ts, data = stale
-            return _asking_price_json_ok(code, data, quote_stale=True, cached_at=ts)
+            return _cached_response(ts, data, quote_stale=True)
         return jsonify({
             'success': False,
             'message': '지금은 장시간이 아니어서 호가를 불러올 수 없습니다. 정규장(09:00~15:30)에 다시 확인해 주세요.',
             'market_closed': True,
+            'market_open': False,
         }), 503
 
     token = _kis_get_token()
@@ -1822,17 +1853,22 @@ def serve_mock_asking_price(code):
         stale = redis_cache.get_asking_stale(code)
         if stale:
             ts, data = stale
-            return _asking_price_json_ok(code, data, quote_stale=True, cached_at=ts)
-        return jsonify({'success': False, 'message': '한국투자 인증 토큰을 받지 못했습니다.'}), 503
+            return _cached_response(ts, data, quote_stale=True)
+        fb_resp = _asking_price_from_fallback(code)
+        if fb_resp:
+            return fb_resp
+        return jsonify({
+            'success': False,
+            'message': '한국투자 인증 토큰을 받지 못했습니다.',
+            'market_open': market_open,
+        }), 503
 
     lock_acquired = redis_cache.acquire_asking_fetch_lock(code)
     if not lock_acquired:
         kind, waited = redis_cache.wait_for_asking_cache(code)
         if waited:
             ts, data = waited
-            return _asking_price_json_ok(
-                code, data, quote_stale=(kind == 'stale'), cached_at=ts,
-            )
+            return _cached_response(ts, data, quote_stale=(kind == 'stale'))
 
     try:
         with _ASKING_FETCH_SERIAL_LOCK:
@@ -1840,26 +1876,35 @@ def serve_mock_asking_price(code):
                 hit = redis_cache.get_asking(code)
                 if hit:
                     ts, data = hit
-                    return _asking_price_json_ok(code, data, cached_at=ts)
+                    return _cached_response(ts, data)
 
             ob, err, rate_hit = _kis_fetch_asking_price_exp_ccn(token, code)
             if ob:
                 redis_cache.set_asking(code, {**ob})
-                return _asking_price_json_ok(code, ob)
+                return _asking_price_json_ok(code, ob, cache_source='kis', market_open=market_open)
 
             stale = redis_cache.get_asking_stale(code)
             if stale:
                 ts, data = stale
-                return _asking_price_json_ok(code, data, quote_stale=True, cached_at=ts)
+                return _cached_response(ts, data, quote_stale=True)
 
             if rate_hit or _kis_asking_rate_limited(err or ''):
                 return jsonify({
                     'success': False,
                     'message': err or '요청이 많아 잠시 후 다시 시도해 주세요. (초당 한도)',
                     'retry_after_sec': 18,
+                    'market_open': market_open,
                 }), 429
 
-            return jsonify({'success': False, 'message': err or '호가 조회에 실패했습니다.'}), 502
+            fb_resp = _asking_price_from_fallback(code)
+            if fb_resp:
+                return fb_resp
+
+            return jsonify({
+                'success': False,
+                'message': err or '호가 조회에 실패했습니다.',
+                'market_open': market_open,
+            }), 502
     finally:
         if lock_acquired:
             redis_cache.release_asking_fetch_lock(code)
@@ -4548,10 +4593,10 @@ def _effective_quote_for_mock(code, snap_fallback=None):
     return price, rate, direction
 
 
-# 한국 정규장(평일 09:00~15:30) 기준.
+# 한국 정규장(평일 09:00~15:30 KST) 기준.
 def _is_kr_regular_market_open_now():
-    """한국 정규장(평일 09:00~15:30) 기준."""
-    now = datetime.now()
+    """한국 정규장(평일 09:00~15:30 KST) 기준."""
+    now = kr_now()
     if now.weekday() >= 5:
         return False
     hhmm = now.hour * 100 + now.minute
