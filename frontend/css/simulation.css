@@ -2184,10 +2184,10 @@
 
   .holding-order-grid {
     display: grid;
-    grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.25fr);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     gap: 16px 20px;
-    margin-bottom: 20px;
-    align-items: start;
+    margin-bottom: 12px;
+    align-items: end;
   }
 
   .holding-order-label {
@@ -2232,11 +2232,111 @@
     padding: 10px 8px;
   }
 
-  .holding-price-head {
+  .holding-qty-hold {
+    margin: 0 0 12px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #6b7280;
+    line-height: 1.4;
+  }
+
+  .holding-qty-hold strong {
+    color: #3182f6;
+    font-weight: 800;
+  }
+
+  .holding-order-col {
     display: flex;
     flex-direction: column;
+    min-width: 0;
+  }
+
+  .holding-order-col > .holding-order-label {
+    margin-bottom: 10px;
+    min-height: 32px;
+    display: flex;
+    align-items: center;
+  }
+
+  .holding-market-hint {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 16px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: rgba(47, 143, 95, 0.08);
+    border: 1px solid rgba(47, 143, 95, 0.16);
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.45;
+    color: #1d4d38;
+  }
+
+  .holding-market-hint[hidden] {
+    display: none !important;
+  }
+
+  .holding-market-hint-icon {
+    flex: 0 0 auto;
+    font-size: 15px;
+    line-height: 1;
+    opacity: 0.85;
+  }
+
+  .holding-market-notice {
+    margin: 0 0 14px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: rgba(59, 130, 246, 0.08);
+    border: 1px solid rgba(59, 130, 246, 0.18);
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.45;
+    color: #1d4ed8;
+  }
+
+  .holding-market-notice[hidden] {
+    display: none !important;
+  }
+
+  .holding-modal-cta-stack {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    line-height: 1.25;
+  }
+
+  .holding-modal-cta-main {
+    font-size: 16px;
+    font-weight: 800;
+  }
+
+  .holding-modal-cta-sub {
+    font-size: 12px;
+    font-weight: 600;
+    opacity: 0.92;
+  }
+
+  .holding-modal-cta-sub:empty {
+    display: none;
+  }
+
+  .holding-price-head {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
     gap: 8px;
     margin-bottom: 10px;
+    min-height: 32px;
+  }
+
+  .holding-price-head .holding-order-label {
+    margin-bottom: 0;
+    min-height: 0;
   }
 
   .holding-inline-price-type {
@@ -2249,10 +2349,11 @@
 
   .holding-trade-panel .price-stepper-input.price-input--market-label {
     min-height: 48px;
-    padding: 12px 10px;
-    font-size: 13px;
-    line-height: 1.35;
-    letter-spacing: -0.01em;
+    padding: 12px 16px;
+    font-size: 14px;
+    line-height: 1.45;
+    letter-spacing: 0.02em;
+    word-spacing: 0.06em;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -2356,7 +2457,8 @@
     background: linear-gradient(135deg, #2f8f5f, #4faa77);
   }
 
-  .trade-confirm-panel--buy-wide.sell-modal-panel {
+  .trade-confirm-panel--buy-wide.sell-modal-panel,
+  .trade-confirm-panel--order-wide.sell-modal-panel {
     max-width: 440px;
     padding: 32px 36px 28px;
   }
@@ -2370,9 +2472,12 @@
     border-top: 1px solid #f3f4f6;
   }
 
+  .trade-confirm-price-line,
   .buy-modal-price-line {
     font-size: 14px;
     line-height: 1.45;
+    letter-spacing: 0.02em;
+    word-spacing: 0.06em;
     max-width: 58%;
     word-break: keep-all;
     text-align: right;
@@ -2807,10 +2912,34 @@
     font-weight: 500;
     cursor: default;
     min-height: 44px;
-    padding: 11px 10px;
-    font-size: 13px;
-    line-height: 1.35;
-    letter-spacing: -0.01em;
+    padding: 11px 16px;
+    font-size: 14px;
+    line-height: 1.45;
+    letter-spacing: 0.02em;
+    word-spacing: 0.06em;
+  }
+
+  #tradeLimitPriceCell.is-market-mode .price-stepper,
+  #tradeSellLimitPriceCell.is-market-mode .price-stepper,
+  #sellModalLimitPriceCell.is-market-mode .price-stepper,
+  #holdingBuyLimitPriceCell.is-market-mode .price-stepper,
+  #holdingSellLimitPriceCell.is-market-mode .price-stepper {
+    grid-template-columns: minmax(0, 1fr);
+    column-gap: 0;
+  }
+
+  .sell-inline-form .trade-price-label-row {
+    gap: 10px 14px;
+  }
+
+  .sell-inline-form .trade-inline-price-type {
+    gap: 8px;
+  }
+
+  .sell-inline-form .trade-price-type-btn {
+    padding: 8px 14px;
+    min-width: 68px;
+    letter-spacing: 0.02em;
   }
 
   .qty-price-row {
