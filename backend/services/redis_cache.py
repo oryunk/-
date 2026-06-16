@@ -25,6 +25,7 @@ _redis_ok = False
 
 _LIVE_TTL = float(os.getenv('LIVE_PRICE_REDIS_TTL_SEC', '300'))
 _INDICES_TTL = float(os.getenv('MARKET_INDICES_REDIS_TTL_SEC', '60'))
+_INDEX_HISTORY_TTL = float(os.getenv('MARKET_INDEX_HISTORY_REDIS_TTL_SEC', '120'))
 _RANK_TTL = float(os.getenv('TRADED_VALUE_RANK_REDIS_TTL_SEC', '12'))
 _LIVE_LIST_TTL = float(os.getenv('LIVE_PRICES_LIST_REDIS_TTL_SEC', '8'))
 _STOCK_DETAIL_TTL = float(os.getenv('STOCK_DETAIL_REDIS_TTL_SEC', '900'))
@@ -254,17 +255,40 @@ def set_live(code, payload):
         _LIVE_PRICE_CACHE[code] = payload
 
 
-def get_market_indices(lite=False):
+def get_market_indices(lite=False, overlay=False):
     """Cached /api/market-indices JSON body (without request-specific flags)."""
-    key = 'market-indices:lite' if lite else 'market-indices:full'
+    if overlay:
+        key = 'market-indices:overlay'
+    elif lite:
+        key = 'market-indices:lite'
+    else:
+        key = 'market-indices:full'
     entry = _get_json(key)
     return entry if isinstance(entry, dict) else None
 
 
-def set_market_indices(payload, lite=False):
-    key = 'market-indices:lite' if lite else 'market-indices:full'
+def set_market_indices(payload, lite=False, overlay=False):
+    if overlay:
+        key = 'market-indices:overlay'
+    elif lite:
+        key = 'market-indices:lite'
+    else:
+        key = 'market-indices:full'
     if isinstance(payload, dict):
         _set_json(key, payload, _INDICES_TTL)
+
+
+def get_market_index_history(cache_key):
+    """Cached /api/market-indices/history body. cache_key e.g. 'kospi:1d' or 'nasdaq:legacy'."""
+    key = f'market-index-history:{str(cache_key or "").strip()}'
+    entry = _get_json(key)
+    return entry if isinstance(entry, dict) else None
+
+
+def set_market_index_history(cache_key, payload):
+    key = f'market-index-history:{str(cache_key or "").strip()}'
+    if isinstance(payload, dict):
+        _set_json(key, payload, _INDEX_HISTORY_TTL)
 
 
 def get_traded_value_rank(limit, search_q=''):
