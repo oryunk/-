@@ -3901,6 +3901,27 @@ def _market_indices_lite_from_full(payload):
     )
 
 
+def _market_indices_overlay_from_full(payload):
+    """지수 상세 오버레이용: 스파크라인은 유지, 시장폭(extras)만 제외."""
+    if not payload or not payload.get('success'):
+        return None
+
+    def _copy_rows(rows):
+        out = []
+        for row in rows or []:
+            if isinstance(row, dict):
+                out.append(dict(row))
+        return out
+
+    return _market_indices_payload_dict(
+        _copy_rows(payload.get('indices')),
+        _copy_rows(payload.get('global')),
+        [],
+        payload.get('ts') or datetime.now().strftime('%H:%M:%S'),
+        cached=True,
+    )
+
+
 def _fetch_one_kis_index_row(name, fid, token, lite=False):
     out, err = _kis_fetch_index_price(token, fid)
     if out:
@@ -3926,7 +3947,7 @@ def _fetch_one_kis_index_row(name, fid, token, lite=False):
     return _index_row_with_key(name, {'name': name, 'error': err or '조회 실패'})
 
 
-def _build_market_indices_payload(lite=False):
+def _build_market_indices_payload(lite=False, skip_breadth=False):
     """주요 지수 응답 본문 생성. lite=True 면 시장폭·미니차트 생략."""
     result = []
     token = _kis_get_token() if (_KIS_KEY and _KIS_SECRET) else None
@@ -3978,7 +3999,7 @@ def _build_market_indices_payload(lite=False):
             global_rows.append(row)
 
     extras = []
-    if not lite:
+    if not lite and not skip_breadth:
         try:
             extras.append(_market_breadth_payload(token=token))
         except Exception as breadth_exc:
@@ -4005,6 +4026,25 @@ def _build_market_indices_payload(lite=False):
 def serve_market_indices():
     """주요 시장 지수 (캐시). 한국 indices + global 매크로 + extras(시장폭). ?lite=1 이면 홈 티커용 경량."""
     lite = (request.args.get('lite') or '').strip().lower() in ('1', 'true', 'yes', 'on')
+    for_overlay = (
+        (request.args.get('for') or '').strip().lower() == 'overlay'
+        or (request.args.get('skip_breadth') or '').strip().lower() in ('1', 'true', 'yes', 'on')
+    )
+
+    if for_overlay and not lite:
+        redis_hit = redis_cache.get_market_indices(overlay=True)
+        if redis_hit:
+            body = dict(redis_hit)
+            body['cached'] = True
+            body['redis_cached'] = True
+            return jsonify(body)
+        full_redis = redis_cache.get_market_indices(lite=False)
+        if full_redis:
+            overlay_body = _market_indices_overlay_from_full(full_redis)
+            if overlay_body:
+                redis_cache.set_market_indices(overlay_body, overlay=True)
+                overlay_body['redis_cached'] = True
+                return jsonify(overlay_body)
 
     redis_hit = redis_cache.get_market_indices(lite=lite)
     if redis_hit:
@@ -4022,6 +4062,11 @@ def serve_market_indices():
             datetime.fromtimestamp(_INDEX_CACHE['ts']).strftime('%H:%M:%S'),
             cached=True,
         )
+        if for_overlay and not lite:
+            overlay_body = _market_indices_overlay_from_full(full_body)
+            if overlay_body:
+                redis_cache.set_market_indices(overlay_body, overlay=True)
+                return jsonify(overlay_body)
         if lite:
             lite_body = _market_indices_lite_from_full(full_body)
             if lite_body:
@@ -4037,6 +4082,11 @@ def serve_market_indices():
             if lite_body:
                 redis_cache.set_market_indices(lite_body, lite=True)
                 return jsonify(lite_body)
+
+    if for_overlay and not lite:
+        body = _build_market_indices_payload(lite=False, skip_breadth=True)
+        redis_cache.set_market_indices(body, overlay=True)
+        return jsonify(body)
 
     body = _build_market_indices_payload(lite=lite)
     redis_cache.set_market_indices(body, lite=lite)
@@ -4059,7 +4109,20 @@ def serve_market_index_history(index_key):
         return jsonify({'success': False, 'message': '지원하지 않는 기간입니다. (1d, 1w, 1m, 1y)'}), 400
 
     cache_key = (key, range_param or 'legacy')
+    cache_id = f'{key}:{range_param or "legacy"}'
     now = time.time()
+
+    redis_hit = redis_cache.get_market_index_history(cache_id)
+    if redis_hit:
+        payload = dict(redis_hit)
+        payload.update({
+            'success': True,
+            'cached': True,
+            'redis_cached': True,
+            'ts': payload.get('ts') or datetime.now().strftime('%H:%M:%S'),
+        })
+        return jsonify(payload)
+
     cached = _INDEX_HISTORY_CACHE.get(cache_key)
     if cached and (now - float(cached.get('ts') or 0.0)) < _INDEX_HISTORY_TTL:
         payload = dict(cached.get('payload') or {})
@@ -4107,6 +4170,7 @@ def serve_market_index_history(index_key):
     _INDEX_HISTORY_CACHE[cache_key] = {'payload': payload, 'ts': now}
     body = dict(payload)
     body.update({'success': True, 'cached': False, 'ts': datetime.now().strftime('%H:%M:%S')})
+    redis_cache.set_market_index_history(cache_id, body)
     return jsonify(body)
 
 
