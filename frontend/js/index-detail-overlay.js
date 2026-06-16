@@ -232,7 +232,7 @@
   }
 
   async function fetchIndices() {
-    const res = await fetch(`${BACKEND}/api/market-indices`);
+    const res = await fetch(`${BACKEND}/api/market-indices?for=overlay`);
     const data = await res.json().catch(() => ({}));
     if (!res.ok || !data.success) throw new Error(data.message || '지수 조회 실패');
     const cards = Array.isArray(data.cards)
