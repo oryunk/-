@@ -11,7 +11,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css?v=20260613">
 <script src="js/auth-nav-boot.js"></script>
-<link rel="stylesheet" href="css/index-detail-overlay.css?v=20260702">
+<link rel="stylesheet" href="css/index-detail-overlay.css?v=20260704">
 <script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
 <link rel="stylesheet" href="css/lumi-chat.css?v=20260609m">
 <link rel="stylesheet" href="css/news-overlay.css">
@@ -319,8 +319,11 @@
       <li><a href="community.html">커뮤니티</a></li>
       <li><a href="inquiry.html">문의</a></li>
     </ul>
-    <div class="nav-right">
-      <button type="button" class="btn-ghost index-detail-overlay__close-nav" id="indexDetailClose">닫기</button>
+    <div class="nav-right" data-auth-nav data-auth-nav-scope="index-overlay">
+      <button type="button" class="btn-ghost" data-auth-login>로그인</button>
+      <span class="nav-user-email" data-auth-email aria-live="polite" hidden></span>
+      <button type="button" class="btn-ghost" data-auth-logout hidden>로그아웃</button>
+      <button type="button" class="btn-primary" data-auth-signup>회원가입</button>
     </div>
   </nav>
   <div class="index-detail-overlay__body">
