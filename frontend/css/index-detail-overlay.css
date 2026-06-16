@@ -440,6 +440,16 @@ body.index-detail-overlay-open {
   overflow: hidden;
 }
 
+/* 지수 상세 오버레이(z-index 12000) 위에 인증 모달이 보이도록 */
+body.index-detail-overlay-open .login-modal.is-open {
+  z-index: 13000;
+}
+
+body.index-detail-overlay-open .signup-modal.is-open,
+body.index-detail-overlay-open .mypage-modal.is-open {
+  z-index: 13010;
+}
+
 @media (max-width: 900px) {
   .index-detail-overlay__nav .nav-menu {
     display: none;
